@@ -1,0 +1,131 @@
+name: GitHub Pages に公開
+
+# main ではなく、作業ブランチへのプッシュで動く
+on:
+  push:
+    branches:
+      - claude/happy-planck-pg17gs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7.2"
+  GODOT_RELEASE_URL: https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable
+  # プロジェクトの外に置く（Godotが書き出し結果や本体を、素材として読み込まないようにするため）
+  GODOT_DIR: /home/runner/godot-cache
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # Godot本体と、Web用の書き出しテンプレート（スレッドなし）だけをキャッシュする。
+      # テンプレート全体（約1.3GB）は、キャッシュがないときだけダウンロードして、必要な分を取り出す
+      - name: Godot のキャッシュを確認
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.GODOT_DIR }}
+          key: godot-${{ env.GODOT_VERSION }}-web-nothreads-v1
+
+      - name: Godot をダウンロード（キャッシュがないとき）
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$GODOT_DIR" "$RUNNER_TEMP/dl"
+          cd "$RUNNER_TEMP/dl"
+          editor="Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          templates="Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          curl -fsSL --retry 3 -O "$GODOT_RELEASE_URL/SHA512-SUMS.txt"
+          curl -fsSL --retry 3 -O "$GODOT_RELEASE_URL/$editor"
+          curl -fsSL --retry 3 -O "$GODOT_RELEASE_URL/$templates"
+          grep -E " ($editor|$templates)\$" SHA512-SUMS.txt | sha512sum -c -
+          unzip -q "$editor" -d "$GODOT_DIR"
+          mv "$GODOT_DIR/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$GODOT_DIR/godot"
+          mkdir -p "$GODOT_DIR/templates"
+          unzip -q -j "$templates" 'templates/web_nothreads_*.zip' 'templates/version.txt' -d "$GODOT_DIR/templates"
+          ls -l "$GODOT_DIR" "$GODOT_DIR/templates"
+
+      - name: 書き出しテンプレートを配置
+        run: |
+          set -euo pipefail
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          cp "$GODOT_DIR"/templates/* "$dest"/
+          chmod +x "$GODOT_DIR/godot"
+          "$GODOT_DIR/godot" --version
+
+      - name: アセットを読み込む
+        run: |
+          # 初回の読み込みで、終了時に異常終了することがあるため、失敗を無視する（書き出しとテストで確認する）
+          "$GODOT_DIR/godot" --headless --path . --import || true
+
+      - name: テストを実行（1つでも失敗したら、ここで止める）
+        run: |
+          set -uo pipefail
+          failed=0
+          for t in tests/test_*.gd; do
+            echo "== $t"
+            out="$("$GODOT_DIR/godot" --headless --path . --script "res://$t" 2>&1)"
+            code=$?
+            echo "$out" | tail -n 5
+            if [ "$code" -ne 0 ] || ! echo "$out" | grep -q '^失敗: 0$' || echo "$out" | grep -q '^FAIL'; then
+              echo "::error file=$t::テスト失敗（終了コード $code）"
+              failed=1
+            fi
+          done
+          exit $failed
+
+      - name: Web版を書き出す（プリセット「Web」→ /）
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/site"
+          "$GODOT_DIR/godot" --headless --path . --export-release "Web" "$RUNNER_TEMP/site/index.html"
+
+      - name: 確認用を書き出す（プリセット「Web (Firebase check)」→ /firebase_check/）
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/site/firebase_check"
+          "$GODOT_DIR/godot" --headless --path . --export-release "Web (Firebase check)" "$RUNNER_TEMP/site/firebase_check/index.html"
+
+      - name: 書き出し結果を確認
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/site"
+          test -s index.html
+          test -s index.wasm
+          test -s index.pck
+          test -s firebase_check/index.html
+          test -s firebase_check/index.pck
+          # 確認用にだけ、Firebase SDKの読み込みが入っている
+          grep -q "gstatic.com/firebasejs/" firebase_check/index.html
+          ! grep -q "gstatic.com/firebasejs/" index.html
+          touch .nojekyll
+          du -sh . firebase_check
+          find . -type f -printf '%s %p\n' | sort -n
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
