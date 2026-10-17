@@ -1,6 +1,6 @@
 # 引き継ぎメモ
 
-更新：2026-10-20
+更新：2026-10-18
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
@@ -10,14 +10,18 @@
 - iPhoneのブラウザでの実験：実機で計測済み（`scenes/render_test.tscn`）
   - 地面・ライト1つ・回転する箱。A：個別300個／B：MultiMesh 300個。キー1／2か画面ボタンで切り替え。左上にFPSと描画回数
   - 数値は `data/render_test.json`。Web書き出し設定は `export_presets.cfg`（スレッドなし）
-  - 計測結果（iPhone 16 Plus、iOS 26.6、Safari）：FPS 60（A・Bとも）。描画回数：A（個別300個）は約226〜（動くと変わる）、B（まとめて描画）は17
+  - 最新の計測（iPhone 16 Plus、iOS 26.6、Safari。デバッグなしで書き出した版、**1回ずつ**）：
+    - B（まとめて描画）：FPS 59、描画回数 12
+    - A（個別300個）：FPS 39、描画回数 221
+  - **結論：同じ種類の物は、まとめて描画する**（MultiMeshなど）。Aは描画回数が約18倍で、FPSも約2/3に下がった
+  - ただし、計測は1回ずつ。**3回ずつの再計測が必要**（結果を確定するのは、その後）
+  - 前回の計測（書き出しの条件は未記録）：FPS 60（A・Bとも）。描画回数は A 約226〜（動くと変わる）、B 17。今回のAの FPS 39 と食い違う。書き出し方（デバッグの有無）や測り方の違いの可能性があるが、原因は未確認
   - PC（参考）：描画回数 A 320、B 21
-  - 分かったこと：Bは描画回数がAの約1/13。ただし、この数ではiPhoneでもA・Bとも60FPSで、差は出なかった（箱がもっと多い、重い場面での差は未確認）
-  - 課題：日本語が□になっていた → 日本語フォントを同梱して対応した（下記）。直ったかどうかは、実機で再確認が必要
+  - 日本語の表示：フォント同梱で正しく出るようになった（iPhoneで確認済み）
   - 日本語フォント：Noto Sans JP（SIL OFL 1.1）を軽くした版 `assets/fonts/NotoSansJP-Regular-subset.ttf`（約2.1MB）。ライセンスは `assets/LICENSES.md`。ラベルとボタンの文字サイズは32（`ui_font_size`）
-  - テスト：`godot --headless --path . --script res://tests/test_render_test.gd`（28項目すべて合格。フォントに画面の文字があることも確認）
+  - テスト：`godot --headless --path . --script res://tests/test_render_test.gd`（28項目すべて合格）
   - 起動シーン（run/main_scene）は `scenes/render_test.tscn`
-  - 未確認：フォント同梱後のWeb書き出しのサイズ、実機での表示
+  - 未確認：Android Chromeでの計測、書き出し後の合計サイズ
 
 ## 決まっていること
 - 2アプリ構成（アプリ1：友達用、通信あり／アプリ2：収益化用、1人＋AI3人、通信なし）
@@ -45,12 +49,13 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること
-1. フォント同梱後の版をWeb書き出しして、iPhoneで日本語が□にならないか確認する。あわせて、Android Chromeでも計測する
-2. 差が出る条件を探す（箱を増やす、動く敵を増やすなど）。今の300個では、AもBも60FPSだった
-3. Firebaseを設定する（`docs` のまとめの2-1の手順）
-4. 通信の試作：2台のスマホで、同じ合言葉の部屋に入る
+1. 通信の試作（ロードマップ 10/19〜20）：2台のスマホで、同じ合言葉の部屋に入る
+2. 1の前提として、Firebaseを設定する（`docs` のまとめの2-1の手順）
+3. 描画実験の再計測：iPhoneで A・B を3回ずつ測って平均を出す。Android Chromeでも測る。前回との食い違い（FPS 60 と 39）の原因も見る
+4. 差が出る条件を探す（箱を増やす、動く敵を増やすなど）
 
 ## 作業ログ
 - 2026-10-18：作業ルール（CLAUDE.md）と、このメモを作成
-- 2026-10-19：描画実験シーンを作成（A個別300／B MultiMesh300、FPS・描画回数表示、Webスレッドなし設定、テスト追加）。ブランチ claude/happy-planck-pg17gs にプッシュ済み
-- 2026-10-20：iPhone 16 Plus（iOS 26.6、Safari）の計測結果を記録（FPS 60、描画回数 A 約226〜／B 17、PC参考 A 320／B 21）。日本語が□になる課題に対し、Noto Sans JP（OFL）の軽量版を同梱（`assets/fonts/`、`assets/LICENSES.md`）。フォント作成：npm `@expo-google-fonts/noto-sans-jp` の400Regularを fonttools の `pyftsubset` で、ASCII＋かな＋JIS X 0208漢字に絞った。コミット・プッシュはまだ
+- 2026-10-18：描画実験シーンを作成（A個別300／B MultiMesh300、FPS・描画回数表示、Webスレッドなし設定、テスト追加）。ブランチ claude/happy-planck-pg17gs にプッシュ済み
+- 2026-10-18：iPhone 16 Plus（iOS 26.6、Safari）の計測結果を記録（FPS 60、描画回数 A 約226〜／B 17、PC参考 A 320／B 21）。日本語が□になる課題に対し、Noto Sans JP（OFL）の軽量版を同梱（`assets/fonts/`、`assets/LICENSES.md`）。フォント作成：npm `@expo-google-fonts/noto-sans-jp` の400Regularを fonttools の `pyftsubset` で、ASCII＋かな＋JIS X 0208漢字に絞った。フォントの追加と、この記録は、ブランチ claude/happy-planck-pg17gs にプッシュ済み
+- 2026-10-18：iPhoneの再計測（デバッグなしの書き出し、1回ずつ）を記録：B FPS 59／描画回数 12、A FPS 39／描画回数 221。結論は「同じ種類の物はまとめて描画する」。3回ずつの再計測が必要。日本語表示は直ったことを確認。「次にやること」の先頭を通信の試作に変更。コードの変更なし。コミット・プッシュはまだ
