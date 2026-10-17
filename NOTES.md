@@ -1,18 +1,23 @@
 # 引き継ぎメモ
 
-更新：2026-10-19
+更新：2026-10-20
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
 - Godotのプロジェクトを作成済み（Compatibility）。`main.tscn`、`.gitignore` もある
 - GitHubに初回の保存済み：https://github.com/koyoy1016-gif/bigbusters-godot
 - Firebase：未設定（設定したら、ここに書く：プロジェクト名、場所）
-- iPhoneのブラウザでの実験：コードは作成済み（`scenes/render_test.tscn`）。実機での計測は未実施
+- iPhoneのブラウザでの実験：実機で計測済み（`scenes/render_test.tscn`）
   - 地面・ライト1つ・回転する箱。A：個別300個／B：MultiMesh 300個。キー1／2か画面ボタンで切り替え。左上にFPSと描画回数
   - 数値は `data/render_test.json`。Web書き出し設定は `export_presets.cfg`（スレッドなし）
-  - テスト：`godot --headless --path . --script res://tests/test_render_test.gd`（15項目すべて合格）
-  - 実際のWeb書き出し（書き出しテンプレート）とブラウザでの表示は未確認
-  - 起動シーン（run/main_scene）を `scenes/render_test.tscn` に変更した
+  - 計測結果（iPhone 16 Plus、iOS 26.6、Safari）：FPS 60（A・Bとも）。描画回数：A（個別300個）は約226〜（動くと変わる）、B（まとめて描画）は17
+  - PC（参考）：描画回数 A 320、B 21
+  - 分かったこと：Bは描画回数がAの約1/13。ただし、この数ではiPhoneでもA・Bとも60FPSで、差は出なかった（箱がもっと多い、重い場面での差は未確認）
+  - 課題：日本語が□になっていた → 日本語フォントを同梱して対応した（下記）。直ったかどうかは、実機で再確認が必要
+  - 日本語フォント：Noto Sans JP（SIL OFL 1.1）を軽くした版 `assets/fonts/NotoSansJP-Regular-subset.ttf`（約2.1MB）。ライセンスは `assets/LICENSES.md`。ラベルとボタンの文字サイズは32（`ui_font_size`）
+  - テスト：`godot --headless --path . --script res://tests/test_render_test.gd`（28項目すべて合格。フォントに画面の文字があることも確認）
+  - 起動シーン（run/main_scene）は `scenes/render_test.tscn`
+  - 未確認：フォント同梱後のWeb書き出しのサイズ、実機での表示
 
 ## 決まっていること
 - 2アプリ構成（アプリ1：友達用、通信あり／アプリ2：収益化用、1人＋AI3人、通信なし）
@@ -40,10 +45,12 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること
-1. 実験シーンをWeb書き出しして、iPhone SafariとAndroid ChromeでA/BのFPSと描画回数を測る（結果をここに書く）
-2. Firebaseを設定する（`docs` のまとめの2-1の手順）
-3. 通信の試作：2台のスマホで、同じ合言葉の部屋に入る
+1. フォント同梱後の版をWeb書き出しして、iPhoneで日本語が□にならないか確認する。あわせて、Android Chromeでも計測する
+2. 差が出る条件を探す（箱を増やす、動く敵を増やすなど）。今の300個では、AもBも60FPSだった
+3. Firebaseを設定する（`docs` のまとめの2-1の手順）
+4. 通信の試作：2台のスマホで、同じ合言葉の部屋に入る
 
 ## 作業ログ
 - 2026-10-18：作業ルール（CLAUDE.md）と、このメモを作成
-- 2026-10-19：描画実験シーンを作成（A個別300／B MultiMesh300、FPS・描画回数表示、Webスレッドなし設定、テスト追加）。コミット・プッシュはまだ
+- 2026-10-19：描画実験シーンを作成（A個別300／B MultiMesh300、FPS・描画回数表示、Webスレッドなし設定、テスト追加）。ブランチ claude/happy-planck-pg17gs にプッシュ済み
+- 2026-10-20：iPhone 16 Plus（iOS 26.6、Safari）の計測結果を記録（FPS 60、描画回数 A 約226〜／B 17、PC参考 A 320／B 21）。日本語が□になる課題に対し、Noto Sans JP（OFL）の軽量版を同梱（`assets/fonts/`、`assets/LICENSES.md`）。フォント作成：npm `@expo-google-fonts/noto-sans-jp` の400Regularを fonttools の `pyftsubset` で、ASCII＋かな＋JIS X 0208漢字に絞った。コミット・プッシュはまだ
