@@ -28,6 +28,11 @@ static func build_send_position_call(x: float, y: float) -> String:
 	return "window.bbFirebase.sendPosition(%s, %s)" % [str(x), str(y)]
 
 
+## 自分が与えた合計ダメージを送る（ボスの体力は、全員の合計から計算する）
+static func build_send_hits_call(total: float) -> String:
+	return "window.bbFirebase.sendHits(%s)" % str(total)
+
+
 static func build_state_query() -> String:
 	return "JSON.stringify(window.bbFirebase.state)"
 
@@ -53,6 +58,11 @@ func leave() -> void:
 ## 自分の箱の位置（0〜1）を送る。部屋に入っていなければ、JS側が何もしない
 func send_position(x: float, y: float) -> void:
 	js_eval.call(build_send_position_call(x, y))
+
+
+## 自分が与えた合計ダメージを送る。部屋に入っていなければ、JS側が何もしない
+func send_hits(total: float) -> void:
+	js_eval.call(build_send_hits_call(total))
 
 
 func read_state() -> Dictionary:

@@ -1,11 +1,20 @@
 extends Node3D
-## スティックの試作（2つ目）：横画面で、左のスティックで1人を動かし、右のボタンでジャンプ、
-## こうげきボタンで、近くのボスに当てる。
-## 数値は data/prototype_stick.json。動きは stick_math.gd、ダメージは scripts/combat/damage.gd。
+## スティックの試作（3つ目）：横画面で、左のスティックで1人を動かし、ジャンプ、こうげきでボスに当てる。
+## ブラウザ版では、合言葉の部屋に自動で入り、ほかの人の動きと、ボスの体力を共有する。
+## 合言葉は URL の ?room=1234 で決める（なければ data の既定値）。
+## 数値は data/prototype_stick.json。動きは stick_math.gd、ダメージは scripts/combat/damage.gd、
+## 通信は scripts/network/（room_bridge.gd、position_sync.gd、boss_sync.gd）。
 
 const CONFIG_PATH := "res://data/prototype_stick.json"
+const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
+const SLOTS := ["p1", "p2", "p3", "p4"]
 const StickMath := preload("res://scripts/prototype/stick_math.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
+const RoomCode := preload("res://scripts/network/room_code.gd")
+const Bridge := preload("res://scripts/network/room_bridge.gd")
+const Sync := preload("res://scripts/network/position_sync.gd")
+const BossSync := preload("res://scripts/network/boss_sync.gd")
+const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 
 var config: Dictionary = {}
 var player: MeshInstance3D
@@ -19,9 +28,25 @@ var button_touch := -1
 var velocity_y := 0.0
 var ground_y := 0.0
 var boss_hp := 0.0
+var my_hits := 0.0
+var others_hits := 0.0
 var attack_cooldown := 0.0
 var hit_flash := 0.0
 var won := false
+
+# 通信（ブラウザ版だけ）
+## JavaScriptBridge.eval の代わり。テストでは差し替える（橋渡しの js_eval も同じものにする）
+var js_eval: Callable = func(text: String) -> Variant: return JavaScriptBridge.eval(text, true)
+var use_network: bool = OS.has_feature("web")
+var net_active := false
+var bridge := Bridge.new()
+var room_code := ""
+var net_state: Dictionary = {}
+var others := {}
+var other_target := {}
+var other_pos := {}
+var since_poll := 0.0
+var last_sent_ms := -100000
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -36,6 +61,29 @@ static func load_config(path: String = CONFIG_PATH) -> Dictionary:
 	return {}
 
 
+## URL の ?room= の値が正しい合言葉ならそれを使う。なければ既定の合言葉
+static func pick_room_code(query: Variant, default_code: String, digit_count: int) -> String:
+	if query is String and RoomCode.is_valid_code(query, digit_count):
+		return query
+	return default_code
+
+
+## 部屋の状態から、画面に出す1行の文字を作る
+static func build_room_text(state: Dictionary, code: String, active: bool, cfg: Dictionary) -> String:
+	if not active:
+		return str(cfg["room_offline"])
+	match str(state.get("status", "")):
+		"in_room":
+			var members: Array = state.get("members", [])
+			return str(cfg["room_label"]) + " " + code + "：" + str(cfg["room_members_prefix"]) + str(members.size()) + str(cfg["room_members_suffix"])
+		"full":
+			return str(cfg["room_full"])
+		"reconnecting":
+			return str(cfg["room_reconnecting"])
+		_:
+			return str(cfg["room_connecting"])
+
+
 func _ready() -> void:
 	if config.is_empty():
 		config = load_config()
@@ -44,6 +92,21 @@ func _ready() -> void:
 	boss_hp = float(config["boss_hp"])
 	_build_world()
 	_build_ui()
+	if use_network:
+		_setup_network()
+
+
+## 合言葉の部屋に自動で入る。ブラウザ側の入り口（window.bbFirebase）がなければ、通信なしで遊ぶ
+func _setup_network() -> void:
+	var digits := int(RoomCode.load_config().get("code_digits", 4))
+	if str(js_eval.call("typeof window.bbFirebase")) != "object":
+		return
+	var query: Variant = js_eval.call("new URLSearchParams(window.location.search).get('room')")
+	room_code = pick_room_code(query, str(config["default_room"]), digits)
+	var config_json := JSON.stringify(CheckScreen.extract_firebase_config(CheckScreen.load_json(FIREBASE_CONFIG_PATH)))
+	bridge.js_eval = js_eval
+	net_active = true
+	bridge.join(config_json, room_code, digits)
 
 
 func _build_world() -> void:
@@ -64,29 +127,14 @@ func _build_world() -> void:
 	light.rotation_degrees = Vector3(rot[0], rot[1], rot[2])
 	add_child(light)
 
-	player = MeshInstance3D.new()
-	player.name = "Player"
-	var box := BoxMesh.new()
-	box.size = Vector3.ONE * float(config["player_size"])
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(str(config["player_color"]))
-	box.material = mat
-	player.mesh = box
+	player = _make_box("Player", float(config["player_size"]), Color(str(config["player_color"])))
 	player.position = Vector3(0.0, ground_y, 0.0)
-	add_child(player)
 
 	# ボス（仮の箱）。位置は床の上の (x, z)
-	boss = MeshInstance3D.new()
-	boss.name = "Boss"
-	var boss_box := BoxMesh.new()
-	boss_box.size = Vector3.ONE * float(config["boss_size"])
-	boss_material = StandardMaterial3D.new()
-	boss_material.albedo_color = Color(str(config["boss_color"]))
-	boss_box.material = boss_material
-	boss.mesh = boss_box
+	boss = _make_box("Boss", float(config["boss_size"]), Color(str(config["boss_color"])))
+	boss_material = (boss.mesh as BoxMesh).material as StandardMaterial3D
 	var bp: Array = config["boss_position"]
 	boss.position = Vector3(bp[0], float(config["boss_size"]) * 0.5, bp[1])
-	add_child(boss)
 
 	var camera := Camera3D.new()
 	camera.name = "Camera"
@@ -94,6 +142,19 @@ func _build_world() -> void:
 	var off: Array = config["camera_offset"]
 	add_child(camera)
 	camera.look_at_from_position(Vector3(off[0], off[1], off[2]), Vector3.ZERO, Vector3.UP)
+
+
+func _make_box(node_name: String, size: float, color: Color) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	node.name = node_name
+	var box := BoxMesh.new()
+	box.size = Vector3.ONE * size
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	box.material = mat
+	node.mesh = box
+	add_child(node)
+	return node
 
 
 func _build_ui() -> void:
@@ -116,6 +177,7 @@ func _process(delta: float) -> void:
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	hit_flash = maxf(0.0, hit_flash - delta)
 	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else Color(str(config["boss_color"]))
+	net_update(delta, Time.get_ticks_msec())
 	overlay.queue_redraw()
 
 
@@ -161,7 +223,8 @@ func jump() -> void:
 		velocity_y = float(config["jump_speed"])
 
 
-## こうげき：ボスに届く距離にいて、待ち時間が終わっていれば当たる。倒したあとは当たらない
+## こうげき：ボスに届く距離にいて、待ち時間が終わっていれば当たる。倒したあとは当たらない。
+## 与えた合計ダメージ（my_hits）を、部屋の全員に送る
 func attack() -> bool:
 	if won or attack_cooldown > 0.0:
 		return false
@@ -169,12 +232,79 @@ func attack() -> bool:
 	if not Damage.in_reach(player.position, boss.position, reach):
 		return false
 	attack_cooldown = float(config["attack_cooldown_sec"])
-	boss_hp = Damage.apply_damage(boss_hp, Damage.damage_amount(float(config["attack_power"]), float(config["attack_multiplier"])))
-	hit_flash = float(config["hit_flash_sec"])
-	if boss_hp <= 0.0:
+	my_hits += Damage.damage_amount(float(config["attack_power"]), float(config["attack_multiplier"]))
+	_recompute_boss_hp()
+	if net_active:
+		bridge.send_hits(my_hits)
+	return true
+
+
+## ボスの体力 = 最大 − 自分の合計 − ほかの人の合計。0になったら倒した
+func _recompute_boss_hp() -> void:
+	var new_hp := BossSync.boss_hp(float(config["boss_hp"]), my_hits, others_hits)
+	if new_hp < boss_hp - 0.001:
+		hit_flash = float(config["hit_flash_sec"])
+	boss_hp = new_hp
+	if boss_hp <= 0.0 and not won:
 		won = true
 		boss.visible = false
-	return true
+
+
+## 通信：一定の間隔でブラウザ側の状態を読み、自分の位置を送り、ほかの人の箱をなめらかに動かす
+func net_update(delta: float, now_ms: int) -> void:
+	if not net_active:
+		return
+	since_poll += delta
+	if since_poll >= float(config["net_poll_sec"]):
+		since_poll = 0.0
+		var state := bridge.read_state()
+		if not state.is_empty():
+			apply_net_state(state)
+	var me := str(net_state.get("slot", ""))
+	if me != "" and Sync.should_send(now_ms, last_sent_ms, int(config["send_interval_ms"])):
+		last_sent_ms = now_ms
+		var half := float(config["bounds"])
+		bridge.send_position((player.position.x + half) / (2.0 * half), (player.position.z + half) / (2.0 * half))
+	_update_others(delta)
+
+
+## ブラウザ側の状態を受け取る：ほかの人の位置と、ダメージの合計
+func apply_net_state(state: Dictionary) -> void:
+	net_state = state
+	var me := str(state.get("slot", ""))
+	others_hits = BossSync.others_total(state.get("hits", {}), me)
+	_recompute_boss_hp()
+	var positions := Sync.parse_positions(state.get("positions", {}))
+	positions.erase(me)
+	for slot in positions:
+		other_target[slot] = positions[slot]
+	for slot in other_target.keys():
+		if not positions.has(slot):
+			other_target.erase(slot)
+			other_pos.erase(slot)
+			if others.has(slot):
+				(others[slot] as Node).queue_free()
+				others.erase(slot)
+
+
+func _update_others(delta: float) -> void:
+	var half := float(config["bounds"])
+	var weight := Sync.smooth_weight(delta, float(config["smooth_per_sec"]))
+	for slot in other_target:
+		var target: Vector2 = other_target[slot]
+		var current: Vector2 = other_pos.get(slot, target)
+		current = current.lerp(target, weight)
+		other_pos[slot] = current
+		var node := _other_node(str(slot))
+		node.position = Vector3(current.x * 2.0 * half - half, ground_y, current.y * 2.0 * half - half)
+
+
+func _other_node(slot: String) -> MeshInstance3D:
+	if not others.has(slot):
+		var colors: Array = config["slot_colors"]
+		var index := maxi(0, SLOTS.find(slot))
+		others[slot] = _make_box("Other_" + slot, float(config["player_size"]), Color(str(colors[index % colors.size()])))
+	return others[slot]
 
 
 func _stick_input(pos: Vector2, screen: Vector2) -> Vector2:
@@ -225,6 +355,7 @@ func _draw_overlay() -> void:
 	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 	var hp_text := str(config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(config["boss_hp"]))
 	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+	overlay.draw_string(font, Vector2(16, fs * 4.4), build_room_text(net_state, room_code, net_active, config), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 
 	if won:
 		var win := str(config["win_text"])

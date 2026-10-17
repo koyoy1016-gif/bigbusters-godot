@@ -428,3 +428,44 @@ test('一覧には、60秒以内に書き直された人だけを出す', async 
   await sdk.db.set({ path: 'rooms/1234/players/p3' }, { uid: 'new', joinedAt: 2, seen: Date.now() });
   assert.deepStrictEqual([...bb.state.members], ['p1', 'p3']);
 });
+
+test('入っていなければ、ダメージは送らない', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  assert.equal(bb.sendHits(10), false);
+});
+
+test('入ると、自分の与えたダメージを0に戻し、送ると自分の枠に書く', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  sdk.store.set('rooms/1234/hits/p1', 55);
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  assert.equal(sdk.store.get('rooms/1234/hits/p1'), 0);
+  assert.equal(bb.sendHits(30), true);
+  assert.equal(sdk.store.get('rooms/1234/hits/p1'), 30);
+});
+
+test('他の人のダメージを受け取る', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  await sdk.db.set({ path: 'rooms/1234/hits/p2' }, 40);
+  assert.equal(bb.state.hits.p2, 40);
+});
+
+test('退出すると、自分のダメージも消える', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  bb.sendHits(30);
+  await bb.leaveRoom();
+  assert.equal(sdk.store.has('rooms/1234/hits/p1'), false);
+  assert.equal(Object.keys(bb.state.hits).length, 0);
+});
+
+test('ルールが未更新で、ダメージが書けなくても、入室は失敗しない', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc', deny: (path) => path.includes('/hits/') });
+  const bb = load(sdk);
+  assert.equal(await bb.joinRoom(CFG, '1234'), 'p1');
+  assert.equal(bb.state.status, 'in_room');
+});

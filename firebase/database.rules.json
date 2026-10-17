@@ -41,6 +41,12 @@
               ".validate": false
             }
           }
+        },
+        "hits": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.isNumber() && newData.val() >= 0))"
+          }
         }
       }
     }

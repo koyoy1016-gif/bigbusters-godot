@@ -40,6 +40,7 @@ func _initialize() -> void:
 	check(text.contains("site/firebase_check/index.html"), "確認用は /firebase_check/ の下に置く")
 	check(text.contains("site/room_check/index.html"), "画面用は /room_check/ の下に置く")
 	check(text.contains("site/stick/index.html"), "試作は /stick/ の下に置く")
+	check(text.contains('grep -q "gstatic.com/firebasejs/" stick/index.html'), "試作にも、Firebase SDKの読み込みが入っている（通信するため）")
 	check(text.contains("actions/deploy-pages@") and text.contains("actions/upload-pages-artifact@"), "GitHub Pages に公開する")
 	# 書き出し結果を、プロジェクトの中に置かない（素材として読み込まれるのを避ける）
 	check(not text.contains('"$PWD/site') and text.contains("$RUNNER_TEMP/site"), "書き出し先はプロジェクトの外")

@@ -8,16 +8,33 @@
   "gravity": 20.0,
   "jump_speed": 8.0,
   "light_energy": 1.0,
-  "light_rotation_deg": [-55.0, 35.0, 0.0],
-  "camera_offset": [0.0, 9.0, 12.0],
+  "light_rotation_deg": [
+    -55.0,
+    35.0,
+    0.0
+  ],
+  "camera_offset": [
+    0.0,
+    9.0,
+    12.0
+  ],
   "camera_fov": 55.0,
   "stick_zone_max_x_frac": 0.5,
   "button_zone_min_x_frac": 0.5,
-  "stick_center_frac": [0.15, 0.78],
+  "stick_center_frac": [
+    0.15,
+    0.78
+  ],
   "stick_radius_px": 90.0,
   "stick_dead_zone": 0.15,
-  "button_center_frac": [0.87, 0.78],
-  "attack_center_frac": [0.7, 0.78],
+  "button_center_frac": [
+    0.87,
+    0.78
+  ],
+  "attack_center_frac": [
+    0.7,
+    0.78
+  ],
   "button_radius_px": 64.0,
   "button_label": "ジャンプ",
   "attack_label": "こうげき",
@@ -28,7 +45,10 @@
   "boss_size": 3.0,
   "boss_color": "#c0392b",
   "boss_hit_color": "#ffffff",
-  "boss_position": [0.0, -6.0],
+  "boss_position": [
+    0.0,
+    -6.0
+  ],
   "attack_power": 10.0,
   "attack_multiplier": 1.0,
   "attack_reach": 2.0,
@@ -41,5 +61,22 @@
   "button_color": "#ffffff59",
   "button_pressed_color": "#ffffff99",
   "button_text_color": "#202020",
-  "text_color": "#ffffff"
+  "text_color": "#ffffff",
+  "default_room": "1111",
+  "net_poll_sec": 0.05,
+  "send_interval_ms": 100,
+  "smooth_per_sec": 10.0,
+  "slot_colors": [
+    "#ff7070",
+    "#70d0ff",
+    "#ffe070",
+    "#90ff90"
+  ],
+  "room_label": "部屋",
+  "room_members_prefix": "いま",
+  "room_members_suffix": "人",
+  "room_connecting": "つなぎ中",
+  "room_full": "満員",
+  "room_reconnecting": "再接続中",
+  "room_offline": "通信なし（1人）"
 }

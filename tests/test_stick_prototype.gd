@@ -4,6 +4,7 @@ extends SceneTree
 
 const StickMath := preload("res://scripts/prototype/stick_math.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
+const Proto := preload("res://scripts/prototype/stick_prototype.gd")
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const SCREEN := Vector2(1280, 720)
 
@@ -83,7 +84,7 @@ func _initialize() -> void:
 		check(float(d["stick_zone_max_x_frac"]) <= float(d["button_zone_min_x_frac"]), "スティックとボタンの領域が重ならない")
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + "0123456789/"
+		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + "0123456789/：（）"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -145,12 +146,61 @@ func _initialize() -> void:
 		check(s2.button_touch == -1 and s2.velocity_y == 0.0, "こうげきのボタンは、ジャンプにならない")
 		s2.handle_release(5)
 		s2.attack_cooldown = 0.0
-		s2.boss_hp = 5.0
+		s2.my_hits = float(cfg2["boss_hp"]) - 5.0
 		check(s2.attack() and s2.won and not s2.boss.visible, "体力を0にすると、勝ちになり、ボスが消える")
 		s2.attack_cooldown = 0.0
 		check(not s2.attack(), "倒したあとは、こうげきが当たらない")
 		root.remove_child(s2)
 		s2.free()
+
+	# 通信（偽のブラウザで確かめる）
+	check(Proto.pick_room_code("2468", "1111", 4) == "2468", "URLの合言葉が正しければ、それを使う")
+	check(Proto.pick_room_code("24a8", "1111", 4) == "1111", "URLの合言葉が不正なら、既定の合言葉")
+	check(Proto.pick_room_code(null, "1111", 4) == "1111", "URLに合言葉がなければ、既定の合言葉")
+	var cfg3: Dictionary = Proto.load_config()
+	check(Proto.build_room_text({}, "", false, cfg3) == str(cfg3["room_offline"]), "通信しないときの文字")
+	check(Proto.build_room_text({"status": "in_room", "members": ["p1", "p2"]}, "1111", true, cfg3) == "部屋 1111：いま2人", "入室中の文字：" + Proto.build_room_text({"status": "in_room", "members": ["p1", "p2"]}, "1111", true, cfg3))
+	check(Proto.build_room_text({"status": "full"}, "1111", true, cfg3) == str(cfg3["room_full"]), "満員の文字")
+	check(Proto.build_room_text({"status": "reconnecting"}, "1111", true, cfg3) == str(cfg3["room_reconnecting"]), "再接続中の文字")
+	check(Proto.build_room_text({"status": "joining"}, "1111", true, cfg3) == str(cfg3["room_connecting"]), "つなぎ中の文字")
+
+	var packed3 := load(SCENE) as PackedScene
+	if packed3 != null:
+		var sent: Array = []
+		var fake := func(text: String) -> Variant:
+			sent.append(text)
+			if text == "typeof window.bbFirebase":
+				return "object"
+			if text.begins_with("new URLSearchParams"):
+				return "2222"
+			if text.begins_with("JSON.stringify"):
+				return JSON.stringify({"status": "in_room", "slot": "p1", "members": ["p1", "p2"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}}, "hits": {"p2": 30}})
+			return null
+		var s3: Node = packed3.instantiate()
+		s3.use_network = false
+		root.add_child(s3)
+		if s3.get_node_or_null("Boss") == null:
+			s3._ready()
+		s3.js_eval = fake
+		s3._setup_network()
+		check(s3.net_active, "ブラウザの入り口があれば、通信が始まる")
+		check(s3.room_code == "2222", "URLの合言葉の部屋に入る")
+		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.joinRoom(") and str(t).contains('"2222"')), "入室の呼び出しが出る")
+		s3.net_update(0.06, 1000)
+		check(str(s3.net_state.get("slot", "")) == "p1", "状態を読む（自分は p1）")
+		check(s3.others.has("p2") and not s3.others.has("p1"), "ほかの人（p2）の箱ができる。自分の箱は増えない")
+		check(is_equal_approx(s3.others_hits, 30.0) and is_equal_approx(s3.boss_hp, 70.0), "ほかの人のダメージで、ボスの体力が減る")
+		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendPosition(0.5, 0.5)")), "自分の位置を送る（中心は 0.5, 0.5）")
+		s3.player.position = Vector3(0.0, s3.ground_y, float(s3.config["boss_position"][1]) + 2.0)
+		s3.attack_cooldown = 0.0
+		check(s3.attack() and is_equal_approx(s3.boss_hp, 60.0), "こうげきで、体力はほかの人の分と合わせて減る")
+		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHits(10")), "与えたダメージを送る")
+		s3.apply_net_state({"slot": "p1", "positions": {}, "hits": {"p2": 30}})
+		check(not s3.others.has("p2"), "ほかの人が抜けたら、箱を消す")
+		s3.apply_net_state({"slot": "p1", "hits": {"p2": 95}})
+		check(s3.won and not s3.boss.visible, "ほかの人のダメージで、ボスが倒れたとき、自分の画面でも倒れる")
+		root.remove_child(s3)
+		s3.free()
 
 	# 書き出しの設定
 	var project := FileAccess.get_file_as_string("res://project.godot")

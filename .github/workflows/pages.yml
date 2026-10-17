@@ -123,6 +123,7 @@ jobs:
           test -s room_check/index.pck
           test -s stick/index.html
           test -s stick/index.pck
+          grep -q "gstatic.com/firebasejs/" stick/index.html
           grep -q "gstatic.com/firebasejs/" room_check/index.html
           # 確認用にだけ、Firebase SDKの読み込みが入っている
           grep -q "gstatic.com/firebasejs/" firebase_check/index.html

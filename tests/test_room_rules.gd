@@ -66,6 +66,14 @@ func _initialize() -> void:
 	check(slot_rules.get("$other", {}).get(".validate") == false, "uid と joinedAt 以外の項目は書けない")
 	check(slot_rules.get("joinedAt", {}).get(".validate") == "newData.isNumber()", "joinedAt は数値")
 
+	# 与えたダメージ（hits）：自分の枠にだけ、0以上の数を書ける
+	var hits_rules: Dictionary = code.get("hits", {}).get("$slot", {})
+	var own_slot_write := "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid"
+	check(str(hits_rules.get(".write", "")) == own_slot_write, "ダメージを書けるのは、自分の枠の人だけ（位置と同じ条件）")
+	var hits_validate := str(hits_rules.get(".validate", ""))
+	check(hits_validate.contains("isNumber()") and hits_validate.contains(">= 0"), "ダメージは0以上の数")
+	check(_first_group("\\^p\\[1-(\\d)\\]", hits_validate) == str(int(cfg["max_players"])), "ダメージの枠の数も network.json と一致")
+
 	# 使っている場所の名前が、関数の組み立てと同じ
 	check(code.has("players") and RoomCode.room_path("1234", int(cfg["code_digits"])) == "rooms/1234" and rooms.has("$code"), "rooms/{合言葉} の形が、関数と一致")
 
