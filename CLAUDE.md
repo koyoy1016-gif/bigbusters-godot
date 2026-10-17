@@ -3,7 +3,7 @@
 ## 概要
 - Godot 4.7.2、GDScript、Compatibilityレンダラー
 - 最優先の動作環境：スマホのブラウザ（iPhone Safari、Android Chrome）、横画面。Web書き出しはスレッドなしで行う
-- 4人で1体の大型妖怪を倒す3D協力アクション
+- 4人で1体の大型ボスを倒す3D協力アクション
 - 2アプリ構成：アプリ1（友達用、Firebase通信あり）／アプリ2（収益化用、1人＋AI3人、通信なし、無料体験＋買い切り）。土台は1つのプロジェクトで共通にする
 - 仕様：`docs/bigbusters-spec-v2.md`
 - 全体のまとめ：`docs/bigbusters-summary-2026-10-17.md`
