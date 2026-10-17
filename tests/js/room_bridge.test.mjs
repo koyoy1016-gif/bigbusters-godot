@@ -112,6 +112,7 @@ test('4枠とも埋まっていれば、満員になり、入らない', async (
   assert.equal(await bb.joinRoom(CFG, '1234'), '');
   assert.equal(bb.state.status, 'full');
   assert.equal(sdk.store.get('rooms/1234/players/p1').uid, 'xp1');
+  assert.deepEqual([...bb.state.members], ['p1', 'p2', 'p3', 'p4']);
 });
 
 test('権限以外のエラーは、入らずに失敗として表示する', async () => {
