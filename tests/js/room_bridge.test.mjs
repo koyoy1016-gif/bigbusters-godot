@@ -26,7 +26,13 @@ function makeFakeSdk(opts = {}) {
     }
     return out;
   };
-  const snapOf = (ref) => ({ val: () => { const c = children(ref.path); return Object.keys(c).length ? c : null; } });
+  const snapOf = (ref) => ({
+    val: () => {
+      if (store.has(ref.path)) return store.get(ref.path);
+      const c = children(ref.path);
+      return Object.keys(c).length ? c : null;
+    },
+  });
   const notify = () => listeners.forEach((l) => l());
   const connectedListeners = new Set();
   let connectedNow = true;
@@ -263,4 +269,26 @@ test('満員で入れなかったときは、入り直しを続けない', async
   await bb.joinRoom(CFG, '1234');
   assert.equal(bb.state.status, 'full');
   assert.equal(bb._desired, null);
+});
+
+test('切断を検知できなくても、戻ったときに枠を確かめて、なければ入り直す', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.store.delete('rooms/1234/players/p1');
+  sdk.setConnected(true);
+  await flush();
+  assert.equal(bb.state.slot, 'p1');
+  assert.equal(bb.state.status, 'in_room');
+  assert.equal(sdk.store.get('rooms/1234/players/p1').uid, 'abc');
+});
+
+test('枠がまだあれば、戻ったときに入り直さない（二重に入らない）', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.setConnected(true);
+  await flush();
+  assert.equal(bb.state.slot, 'p1');
+  assert.equal(sdk.store.has('rooms/1234/players/p2'), false);
 });
