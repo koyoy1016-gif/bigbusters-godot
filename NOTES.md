@@ -1,13 +1,18 @@
 # 引き継ぎメモ
 
-更新：2026-10-18
+更新：2026-10-19
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
 - Godotのプロジェクトを作成済み（Compatibility）。`main.tscn`、`.gitignore` もある
 - GitHubに初回の保存済み：https://github.com/koyoy1016-gif/bigbusters-godot
 - Firebase：未設定（設定したら、ここに書く：プロジェクト名、場所）
-- iPhoneのブラウザでの実験：未実施
+- iPhoneのブラウザでの実験：コードは作成済み（`scenes/render_test.tscn`）。実機での計測は未実施
+  - 地面・ライト1つ・回転する箱。A：個別300個／B：MultiMesh 300個。キー1／2か画面ボタンで切り替え。左上にFPSと描画回数
+  - 数値は `data/render_test.json`。Web書き出し設定は `export_presets.cfg`（スレッドなし）
+  - テスト：`godot --headless --path . --script res://tests/test_render_test.gd`（15項目すべて合格）
+  - 実際のWeb書き出し（書き出しテンプレート）とブラウザでの表示は未確認
+  - 起動シーン（run/main_scene）を `scenes/render_test.tscn` に変更した
 
 ## 決まっていること
 - 2アプリ構成（アプリ1：友達用、通信あり／アプリ2：収益化用、1人＋AI3人、通信なし）
@@ -35,9 +40,10 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること
-1. iPhoneのブラウザで、簡単な3Dシーンが動くか実験する（FPSと描画回数を画面に表示する）
+1. 実験シーンをWeb書き出しして、iPhone SafariとAndroid ChromeでA/BのFPSと描画回数を測る（結果をここに書く）
 2. Firebaseを設定する（`docs` のまとめの2-1の手順）
 3. 通信の試作：2台のスマホで、同じ合言葉の部屋に入る
 
 ## 作業ログ
 - 2026-10-18：作業ルール（CLAUDE.md）と、このメモを作成
+- 2026-10-19：描画実験シーンを作成（A個別300／B MultiMesh300、FPS・描画回数表示、Webスレッドなし設定、テスト追加）。コミット・プッシュはまだ

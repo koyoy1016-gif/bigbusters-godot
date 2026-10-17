@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="bigbusters-godot"
-run/main_scene="uid://ch0scartdbqkt"
+run/main_scene="res://scenes/render_test.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
