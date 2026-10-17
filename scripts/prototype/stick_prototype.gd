@@ -1,13 +1,16 @@
 extends Node3D
-## スティックの試作：横画面で、左のスティックで1人を動かし、右のボタンでジャンプする。
-## ボスはまだ置かない（次の工程）。数値は data/prototype_stick.json から読む。
-## 動きの計算は stick_math.gd にある。
+## スティックの試作（2つ目）：横画面で、左のスティックで1人を動かし、右のボタンでジャンプ、
+## こうげきボタンで、近くのボスに当てる。
+## 数値は data/prototype_stick.json。動きは stick_math.gd、ダメージは scripts/combat/damage.gd。
 
 const CONFIG_PATH := "res://data/prototype_stick.json"
 const StickMath := preload("res://scripts/prototype/stick_math.gd")
+const Damage := preload("res://scripts/combat/damage.gd")
 
 var config: Dictionary = {}
 var player: MeshInstance3D
+var boss: MeshInstance3D
+var boss_material: StandardMaterial3D
 var overlay: Control
 var font: Font
 var stick_vec := Vector2.ZERO
@@ -15,6 +18,10 @@ var stick_touch := -1
 var button_touch := -1
 var velocity_y := 0.0
 var ground_y := 0.0
+var boss_hp := 0.0
+var attack_cooldown := 0.0
+var hit_flash := 0.0
+var won := false
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -34,6 +41,7 @@ func _ready() -> void:
 		config = load_config()
 	font = load(str(config["ui_font_path"])) as Font
 	ground_y = float(config["player_size"]) * 0.5
+	boss_hp = float(config["boss_hp"])
 	_build_world()
 	_build_ui()
 
@@ -67,6 +75,19 @@ func _build_world() -> void:
 	player.position = Vector3(0.0, ground_y, 0.0)
 	add_child(player)
 
+	# ボス（仮の箱）。位置は床の上の (x, z)
+	boss = MeshInstance3D.new()
+	boss.name = "Boss"
+	var boss_box := BoxMesh.new()
+	boss_box.size = Vector3.ONE * float(config["boss_size"])
+	boss_material = StandardMaterial3D.new()
+	boss_material.albedo_color = Color(str(config["boss_color"]))
+	boss_box.material = boss_material
+	boss.mesh = boss_box
+	var bp: Array = config["boss_position"]
+	boss.position = Vector3(bp[0], float(config["boss_size"]) * 0.5, bp[1])
+	add_child(boss)
+
 	var camera := Camera3D.new()
 	camera.name = "Camera"
 	camera.fov = float(config["camera_fov"])
@@ -92,6 +113,9 @@ func _process(delta: float) -> void:
 	var r := StickMath.jump_update(player.position.y, velocity_y, delta, float(config["gravity"]), ground_y)
 	player.position.y = r.x
 	velocity_y = r.y
+	attack_cooldown = maxf(0.0, attack_cooldown - delta)
+	hit_flash = maxf(0.0, hit_flash - delta)
+	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else Color(str(config["boss_color"]))
 	overlay.queue_redraw()
 
 
@@ -106,11 +130,13 @@ func _input(event: InputEvent) -> void:
 		handle_drag(event.index, event.position, screen)
 
 
-## 指が触れた。左の領域ならスティック、右の領域ならボタン（ジャンプ）
+## 指が触れた。左の領域ならスティック、こうげき、右の領域ならジャンプ
 func handle_press(index: int, pos: Vector2, screen: Vector2) -> void:
 	if stick_touch == -1 and pos.x < screen.x * float(config["stick_zone_max_x_frac"]):
 		stick_touch = index
 		stick_vec = _stick_input(pos, screen)
+	elif pos.distance_to(_attack_center(screen)) <= float(config["button_radius_px"]):
+		attack()
 	elif button_touch == -1 and pos.x >= screen.x * float(config["button_zone_min_x_frac"]):
 		button_touch = index
 		jump()
@@ -135,6 +161,22 @@ func jump() -> void:
 		velocity_y = float(config["jump_speed"])
 
 
+## こうげき：ボスに届く距離にいて、待ち時間が終わっていれば当たる。倒したあとは当たらない
+func attack() -> bool:
+	if won or attack_cooldown > 0.0:
+		return false
+	var reach := float(config["attack_reach"]) + float(config["boss_size"]) * 0.5
+	if not Damage.in_reach(player.position, boss.position, reach):
+		return false
+	attack_cooldown = float(config["attack_cooldown_sec"])
+	boss_hp = Damage.apply_damage(boss_hp, Damage.damage_amount(float(config["attack_power"]), float(config["attack_multiplier"])))
+	hit_flash = float(config["hit_flash_sec"])
+	if boss_hp <= 0.0:
+		won = true
+		boss.visible = false
+	return true
+
+
 func _stick_input(pos: Vector2, screen: Vector2) -> Vector2:
 	return StickMath.stick_vector(pos, _stick_center(screen), float(config["stick_radius_px"]), float(config["stick_dead_zone"]))
 
@@ -149,20 +191,42 @@ func _button_center(screen: Vector2) -> Vector2:
 	return Vector2(screen.x * f[0], screen.y * f[1])
 
 
+func _attack_center(screen: Vector2) -> Vector2:
+	var f: Array = config["attack_center_frac"]
+	return Vector2(screen.x * f[0], screen.y * f[1])
+
+
+func _draw_centered(center: Vector2, text: String, color: Color) -> void:
+	var fs := int(config["ui_font_size"])
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	overlay.draw_string(font, center + Vector2(-w * 0.5, fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
+
+
 func _draw_overlay() -> void:
 	var screen := overlay.size
-	var c := _stick_center(screen)
+	var fs := int(config["ui_font_size"])
+	var text_color := Color(str(config["text_color"]))
+	var button_text := Color(str(config["button_text_color"]))
 	var r := float(config["stick_radius_px"])
+	var c := _stick_center(screen)
 	overlay.draw_circle(c, r, Color(str(config["stick_base_color"])))
 	overlay.draw_circle(c + stick_vec * r, r * 0.4, Color(str(config["stick_knob_color"])))
 
+	var br := float(config["button_radius_px"])
+	var jump_color := str(config["button_pressed_color"]) if button_touch != -1 else str(config["button_color"])
 	var bc := _button_center(screen)
-	var pressed := button_touch != -1
-	var color := str(config["button_pressed_color"]) if pressed else str(config["button_color"])
-	overlay.draw_circle(bc, float(config["button_radius_px"]), Color(color))
-	var label := str(config["button_label"])
-	var fs := int(config["ui_font_size"])
-	var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	overlay.draw_string(font, bc + Vector2(-w * 0.5, fs * 0.35), label, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(str(config["button_text_color"])))
+	overlay.draw_circle(bc, br, Color(jump_color))
+	_draw_centered(bc, str(config["button_label"]), button_text)
 
-	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(str(config["text_color"])))
+	var ac := _attack_center(screen)
+	overlay.draw_circle(ac, br, Color(str(config["button_color"])))
+	_draw_centered(ac, str(config["attack_label"]), button_text)
+
+	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+	var hp_text := str(config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(config["boss_hp"]))
+	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+
+	if won:
+		var win := str(config["win_text"])
+		var w := font.get_string_size(win, HORIZONTAL_ALIGNMENT_LEFT, -1, fs * 2).x
+		overlay.draw_string(font, Vector2(screen.x * 0.5 - w * 0.5, screen.y * 0.4), win, HORIZONTAL_ALIGNMENT_LEFT, -1, fs * 2, text_color)

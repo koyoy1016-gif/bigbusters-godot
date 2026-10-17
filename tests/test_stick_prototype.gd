@@ -3,6 +3,7 @@ extends SceneTree
 ## スティックの試作：計算（stick_math.gd）、数値（data/prototype_stick.json）、画面の動き、書き出しの設定。
 
 const StickMath := preload("res://scripts/prototype/stick_math.gd")
+const Damage := preload("res://scripts/combat/damage.gd")
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const SCREEN := Vector2(1280, 720)
 
@@ -61,6 +62,15 @@ func _initialize() -> void:
 	var still := StickMath.jump_update(0.5, 0.0, 1.0 / 60.0, 20.0, 0.5)
 	check(is_equal_approx(still.x, 0.5) and is_equal_approx(still.y, 0.0), "地面にいて、速さ0なら、そのまま")
 
+	# ダメージの計算（damage.gd）
+	check(Damage.damage_amount(10.0, 1.0) == 10.0, "与えるダメージ：攻撃力×倍率")
+	check(Damage.damage_amount(-5.0, 1.0) == 0.0, "マイナスのダメージは0")
+	check(Damage.apply_damage(20.0, 5.0) == 15.0, "体力から、ダメージを引く")
+	check(Damage.apply_damage(5.0, 10.0) == 0.0, "体力は0より小さくならない")
+	check(Damage.in_reach(Vector3.ZERO, Vector3(0, 0, -3), 3.5), "届く距離の内側")
+	check(not Damage.in_reach(Vector3.ZERO, Vector3(0, 0, -4), 3.5), "届く距離の外側")
+	check(Damage.in_reach(Vector3(0, 5, 0), Vector3(0, 0, 0), 1.0), "高さは距離に入らない（床の上の距離）")
+
 	# 数値の設定
 	var cfg := FileAccess.get_file_as_string("res://data/prototype_stick.json")
 	var parsed: Variant = JSON.parse_string(cfg)
@@ -73,7 +83,7 @@ func _initialize() -> void:
 		check(float(d["stick_zone_max_x_frac"]) <= float(d["button_zone_min_x_frac"]), "スティックとボタンの領域が重ならない")
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + str(d["button_label"])
+		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + "0123456789/"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -111,6 +121,36 @@ func _initialize() -> void:
 		scene.handle_release(2)
 		root.remove_child(scene)
 		scene.free()
+
+	# ボスへの攻撃
+	var packed2 := load(SCENE) as PackedScene
+	check(packed2 != null, "試作の画面が読める（攻撃）")
+	if packed2 != null:
+		var s2: Node = packed2.instantiate()
+		root.add_child(s2)
+		if s2.get_node_or_null("Boss") == null:
+			s2._ready()
+		check(s2.get_node_or_null("Boss") != null, "ボス（Boss）がいる")
+		var cfg2: Dictionary = s2.config
+		var hp0: float = s2.boss_hp
+		check(not s2.attack(), "遠いと、こうげきは当たらない")
+		check(s2.boss_hp == hp0, "遠いときは、ボスの体力は減らない")
+		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
+		check(s2.attack(), "近くで、こうげきが当たる")
+		check(is_equal_approx(s2.boss_hp, hp0 - float(cfg2["attack_power"])), "当たると、攻撃力のぶん体力が減る")
+		check(not s2.attack(), "待ち時間の内は、もう一度は当たらない")
+		s2.attack_cooldown = 0.0
+		var attack_at: Vector2 = Vector2(SCREEN.x * cfg2["attack_center_frac"][0], SCREEN.y * cfg2["attack_center_frac"][1])
+		s2.handle_press(5, attack_at, SCREEN)
+		check(s2.button_touch == -1 and s2.velocity_y == 0.0, "こうげきのボタンは、ジャンプにならない")
+		s2.handle_release(5)
+		s2.attack_cooldown = 0.0
+		s2.boss_hp = 5.0
+		check(s2.attack() and s2.won and not s2.boss.visible, "体力を0にすると、勝ちになり、ボスが消える")
+		s2.attack_cooldown = 0.0
+		check(not s2.attack(), "倒したあとは、こうげきが当たらない")
+		root.remove_child(s2)
+		s2.free()
 
 	# 書き出しの設定
 	var project := FileAccess.get_file_as_string("res://project.godot")
