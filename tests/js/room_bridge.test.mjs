@@ -93,7 +93,7 @@ function makeFakeSdk(opts = {}) {
 
 function load(sdk) {
   const sandbox = { console, Date, JSON, Promise, Object, Array, String, Error };
-  sandbox.window = { bbFirebaseLoadSdk: () => Promise.resolve(sdk) };
+  sandbox.window = { bbFirebaseLoadSdk: () => Promise.resolve(sdk), bbNoHeartbeat: true };
   vm.runInNewContext(script, sandbox);
   return sandbox.window.bbFirebase;
 }
@@ -312,4 +312,52 @@ test('別の合言葉に入るときは、先の部屋から出てから入る',
   assert.equal(sdk.store.has('rooms/1234/players/p1'), false);
   assert.equal(sdk.store.get('rooms/5678/players/p1').uid, 'abc');
   assert.equal(bb.state.room, '5678');
+});
+
+test('同時に2回「入る」を押しても、枠は1つだけ', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  const [a, b] = await Promise.all([bb.joinRoom(CFG, '1234'), bb.joinRoom(CFG, '1234')]);
+  assert.equal(a, 'p1');
+  assert.equal(b, 'p1');
+  assert.equal(sdk.store.has('rooms/1234/players/p2'), false);
+});
+
+test('部屋にいる間の確認：枠が消えていたら、入り直す（切断を検知できなくても）', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.store.delete('rooms/1234/players/p1');
+  bb._check();
+  await flush();
+  assert.equal(bb.state.slot, 'p1');
+  assert.equal(sdk.store.get('rooms/1234/players/p1').uid, 'abc');
+});
+
+test('確認の返事が8秒以上ないときは、切断と表示する', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  bb._checking = true;
+  bb._checkStarted = Date.now() - 9000;
+  bb._check();
+  assert.equal(bb.state.connection, 'disconnected');
+  assert.equal(bb.state.status, 'reconnecting');
+});
+
+test('機内モードのあと戻ると、自分と相手の両方が一覧に出る', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.store.set('rooms/1234/players/p2', { uid: 'other', joinedAt: 1 });
+  await flush();
+  sdk.setConnected(false);
+  await flush();
+  assert.equal(bb.state.status, 'reconnecting');
+  sdk.setConnected(true);
+  await flush();
+  await flush();
+  assert.equal(bb.state.slot, 'p1');
+  assert.equal(bb.state.status, 'in_room');
+  assert.deepStrictEqual([...bb.state.members], ['p1', 'p2']);
 });
