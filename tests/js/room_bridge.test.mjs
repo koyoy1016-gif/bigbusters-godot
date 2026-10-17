@@ -292,3 +292,24 @@ test('枠がまだあれば、戻ったときに入り直さない（二重に�
   assert.equal(bb.state.slot, 'p1');
   assert.equal(sdk.store.has('rooms/1234/players/p2'), false);
 });
+
+test('同じ端末で、入るを何回押しても、枠は1つだけ', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  assert.equal(await bb.joinRoom(CFG, '1234'), 'p1');
+  assert.equal(await bb.joinRoom(CFG, '1234'), 'p1');
+  assert.equal(await bb.joinRoom(CFG, '1234'), 'p1');
+  assert.equal(sdk.store.has('rooms/1234/players/p2'), false);
+  assert.equal(sdk.store.has('rooms/1234/players/p3'), false);
+  assert.equal(bb.state.slot, 'p1');
+});
+
+test('別の合言葉に入るときは、先の部屋から出てから入る', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  assert.equal(await bb.joinRoom(CFG, '5678'), 'p1');
+  assert.equal(sdk.store.has('rooms/1234/players/p1'), false);
+  assert.equal(sdk.store.get('rooms/5678/players/p1').uid, 'abc');
+  assert.equal(bb.state.room, '5678');
+});
