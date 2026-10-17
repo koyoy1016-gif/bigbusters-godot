@@ -1,0 +1,11 @@
+{
+  "send_interval_ms": 100,
+  "angular_speed": 1.0,
+  "radius": 0.3,
+  "smooth_per_sec": 10.0,
+  "box_size": 40,
+  "rate_window_sec": 1.0,
+  "rate_text": "送信 %.1f 回/秒、受信 %.1f 回/秒",
+  "stage_color": "#243042",
+  "colors": ["#ff7070", "#70d0ff", "#ffe070", "#90ff90"]
+}

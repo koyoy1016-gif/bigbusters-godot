@@ -16,6 +16,10 @@ static func build_leave_call() -> String:
 	return "window.bbFirebase.leaveRoom()"
 
 
+static func build_send_position_call(x: float, y: float) -> String:
+	return "window.bbFirebase.sendPosition(%s, %s)" % [str(x), str(y)]
+
+
 static func build_state_query() -> String:
 	return "JSON.stringify(window.bbFirebase.state)"
 
@@ -36,6 +40,11 @@ func join(config_json: String, code: String, digits: int) -> bool:
 
 func leave() -> void:
 	js_eval.call(build_leave_call())
+
+
+## 自分の箱の位置（0〜1）を送る。部屋に入っていなければ、JS側が何もしない
+func send_position(x: float, y: float) -> void:
+	js_eval.call(build_send_position_call(x, y))
 
 
 func read_state() -> Dictionary:

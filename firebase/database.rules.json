@@ -20,6 +20,24 @@
               ".validate": false
             }
           }
+        },
+        "positions": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && newData.hasChildren(['x', 'y', 't']) && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('t').isNumber()",
+            "x": {
+              ".validate": "newData.isNumber()"
+            },
+            "y": {
+              ".validate": "newData.isNumber()"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
         }
       }
     }

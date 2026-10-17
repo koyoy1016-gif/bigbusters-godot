@@ -151,3 +151,43 @@ test('入り直しても、サインインは1回だけ', async () => {
   assert.equal(sdk.counts.signIn, 1);
   assert.equal(bb.state.status, 'in_room');
 });
+
+test('入っていなければ、位置は送らない', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  assert.equal(bb.sendPosition(0.5, 0.5), false);
+  assert.equal(bb.state.sent, 0);
+});
+
+test('入っていれば、位置を自分の枠に書き、送った数を数える', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  assert.equal(bb.sendPosition(0.25, 0.75), true);
+  const pos = sdk.store.get('rooms/1234/positions/p1');
+  assert.equal(pos.x, 0.25);
+  assert.equal(pos.y, 0.75);
+  assert.equal(typeof pos.t, 'number');
+  assert.equal(bb.state.sent, 1);
+});
+
+test('他の人の位置を受け取り、受けた数を数える', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  await sdk.db.set({ path: 'rooms/1234/positions/p2' }, { x: 0.1, y: 0.9, t: 5 });
+  assert.equal(bb.state.positions.p2.x, 0.1);
+  assert.ok(bb.state.received >= 1);
+});
+
+test('退出すると、位置も消え、切断時の削除の予約も取り消す', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  bb.sendPosition(0.5, 0.5);
+  assert.equal(sdk.disconnect.get('rooms/1234/positions/p1'), 'remove');
+  await bb.leaveRoom();
+  assert.equal(sdk.store.has('rooms/1234/positions/p1'), false);
+  assert.equal(sdk.disconnect.has('rooms/1234/positions/p1'), false);
+  assert.equal(Object.keys(bb.state.positions).length, 0);
+});
