@@ -2,3 +2,9 @@
 .godot/
 /android/
 web/
+# Firebaseの秘密情報（絶対にコミットしない）
+*firebase-adminsdk*.json
+*service-account*.json
+*serviceAccount*.json
+.env
+.env.*

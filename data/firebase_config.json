@@ -1,0 +1,10 @@
+{
+  "_memo": "公開してよい設定値だけを置く。管理者用の秘密鍵、サービスアカウントのファイルは絶対に入れない。値はFirebaseコンソールの「ウェブアプリ」の設定から転記したもの",
+  "projectId": "bigbusters-new",
+  "databaseURL": "https://bigbusters-new-default-rtdb.asia-southeast1.firebasedatabase.app",
+  "apiKey": "AIzaSyA6IJ6jPRQ0_uOQCEUOqnFdCIjfJzoNiiQ",
+  "authDomain": "bigbusters-new.firebaseapp.com",
+  "storageBucket": "bigbusters-new.firebasestorage.app",
+  "messagingSenderId": "1062674695019",
+  "appId": "1:1062674695019:web:dc986e36a6860ad0b5822e"
+}
