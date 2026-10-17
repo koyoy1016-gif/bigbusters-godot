@@ -15,6 +15,7 @@ var angle: float = 0.0
 var info_label: Label
 var button_a: Button
 var button_b: Button
+var ui_font: Font
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -112,9 +113,11 @@ func _build_ui() -> void:
 	layer.name = "UI"
 	add_child(layer)
 	var font_size: int = int(config["ui_font_size"])
+	ui_font = load(str(config["ui_font_path"])) as Font
 
 	info_label = Label.new()
 	info_label.position = Vector2(16, 12)
+	info_label.add_theme_font_override("font", ui_font)
 	info_label.add_theme_font_size_override("font_size", font_size)
 	info_label.add_theme_color_override("font_color", Color.WHITE)
 	info_label.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -124,7 +127,7 @@ func _build_ui() -> void:
 	var min_size_arr: Array = config["ui_button_min_size"]
 	var min_size := Vector2(min_size_arr[0], min_size_arr[1])
 	var row := HBoxContainer.new()
-	row.position = Vector2(16, 140)
+	row.position = Vector2(16, float(config["ui_button_top"]))
 	layer.add_child(row)
 	button_a = _make_button("A 個別", min_size, font_size)
 	button_b = _make_button("B Multi", min_size, font_size)
@@ -138,6 +141,7 @@ func _make_button(text: String, min_size: Vector2, font_size: int) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = min_size
+	button.add_theme_font_override("font", ui_font)
 	button.add_theme_font_size_override("font_size", font_size)
 	button.focus_mode = Control.FOCUS_NONE
 	return button

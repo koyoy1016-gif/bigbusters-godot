@@ -46,6 +46,18 @@ func _initialize() -> void:
 	node.button_a.pressed.emit()
 	check(node.mode == "A", "ボタンAで切り替わる")
 
+	check(node.ui_font != null, "日本語フォントが読み込めた")
+	var all_text: String = node.info_label.text + node.button_a.text + node.button_b.text
+	var missing := ""
+	for ch in all_text:
+		if ch != "\n" and not node.ui_font.has_char(ord(ch)):
+			missing += ch
+	check(missing == "", "画面の文字がすべてフォントにある（不足: %s）" % missing)
+	for word in "描画回数個別モード":
+		check(node.ui_font.has_char(ord(word)), "フォントに「%s」がある" % word)
+	check(node.info_label.get_theme_font("font") == node.ui_font, "ラベルにフォントを使っている")
+	check(node.button_a.get_theme_font("font") == node.ui_font, "ボタンにフォントを使っている")
+
 	var preset := FileAccess.get_file_as_string("res://export_presets.cfg")
 	check(preset.contains("variant/thread_support=false"), "Web書き出しがスレッドなし")
 

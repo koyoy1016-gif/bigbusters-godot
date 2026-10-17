@@ -12,6 +12,8 @@
   "light_rotation_deg": [-55.0, 35.0, 0.0],
   "camera_height_per_row": 1.6,
   "camera_fov": 60.0,
-  "ui_font_size": 28,
+  "ui_font_path": "res://assets/fonts/NotoSansJP-Regular-subset.ttf",
+  "ui_font_size": 32,
+  "ui_button_top": 190,
   "ui_button_min_size": [160, 90]
 }
