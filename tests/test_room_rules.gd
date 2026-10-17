@@ -52,16 +52,17 @@ func _initialize() -> void:
 	check(code_validate.contains("^[0-9]"), "合言葉は数字だけ（ルールでも検査）")
 	check(_first_group("\\{(\\d+)\\}", code_validate) == str(int(cfg["code_digits"])), "合言葉の桁数が network.json と一致（%s桁）" % str(int(cfg["code_digits"])))
 
-	# 参加者
-	var uid_rules: Dictionary = code.get("players", {}).get("$uid", {})
-	check(str(uid_rules.get(".write", "")) == "auth != null && auth.uid === $uid", "書けるのは、ログイン済みで、自分のuidの場所だけ")
-	var validate := str(uid_rules.get(".validate", ""))
-	check(_first_group("numChildren\\(\\) < (\\d+)", validate) == str(int(cfg["max_players"])), "人数の上限が network.json と一致（%s人）" % str(int(cfg["max_players"])))
-	check(validate.contains("data.exists()"), "すでにいる人の上書きは、人数に数えない")
-	check(validate.contains("!newData.exists()"), "自分の場所を消す（出る）ことはできる")
-	check(validate.contains("joinedAt") and validate.contains("=== now"), "joinedAt はサーバーの時刻")
-	check(uid_rules.get("$other", {}).get(".validate") == false, "joinedAt 以外の項目は書けない")
-	check(uid_rules.get("joinedAt", {}).get(".validate") == "newData.isNumber()", "joinedAt は数値")
+	# 参加者（枠は p1〜p4。空いている枠にだけ入れる。枠の数は network.json の max_players と一致）
+	var slot_rules: Dictionary = code.get("players", {}).get("$slot", {})
+	check(str(slot_rules.get(".write", "")) == "auth != null && (!data.exists() || data.child('uid').val() === auth.uid)", "書けるのは、ログイン済みで、空いている枠か、自分の枠だけ")
+	var validate := str(slot_rules.get(".validate", ""))
+	check(_first_group("\\^p\\[1-(\\d)\\]", validate) == str(int(cfg["max_players"])), "枠の数が network.json と一致（%s人）" % str(int(cfg["max_players"])))
+	check(validate.contains("newData.child('uid').val() === auth.uid"), "枠に入るとき、自分のuidを書く（他人の名前で入れない）")
+	check(validate.contains("!newData.exists()"), "自分の枠を消す（出る）ことはできる")
+	check(validate.contains("joinedAt"), "joinedAt を必ず書く")
+	check(slot_rules.get("uid", {}).get(".validate") == "newData.isString()", "uid は文字")
+	check(slot_rules.get("$other", {}).get(".validate") == false, "uid と joinedAt 以外の項目は書けない")
+	check(slot_rules.get("joinedAt", {}).get(".validate") == "newData.isNumber()", "joinedAt は数値")
 
 	# 使っている場所の名前が、関数の組み立てと同じ
 	check(code.has("players") and RoomCode.room_path("1234", int(cfg["code_digits"])) == "rooms/1234" and rooms.has("$code"), "rooms/{合言葉} の形が、関数と一致")

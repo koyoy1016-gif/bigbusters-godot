@@ -7,11 +7,18 @@
         ".validate": "$code.matches(/^[0-9]{4}$/)",
         ".read": "auth != null",
         "players": {
-          "$uid": {
-            ".write": "auth != null && auth.uid === $uid",
-            ".validate": "!newData.exists() || (newData.hasChildren(['joinedAt']) && newData.child('joinedAt').val() === now && (data.exists() || data.parent().numChildren() < 2))",
-            "joinedAt": { ".validate": "newData.isNumber()" },
-            "$other": { ".validate": false }
+          "$slot": {
+            ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid)",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.hasChildren(['uid', 'joinedAt']) && newData.child('uid').val() === auth.uid))",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
           }
         }
       }

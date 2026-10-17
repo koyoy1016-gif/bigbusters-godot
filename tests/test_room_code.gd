@@ -19,7 +19,7 @@ func _initialize() -> void:
 	var cfg: Dictionary = RoomCode.load_config()
 	check(not cfg.is_empty(), "network.json が読める")
 	check(cfg.get("code_digits") is float and int(cfg["code_digits"]) == 4, "合言葉は4桁")
-	check(cfg.get("max_players") is float and int(cfg["max_players"]) == 2, "人数の上限は2人")
+	check(cfg.get("max_players") is float and int(cfg["max_players"]) == 4, "人数の上限は4人")
 	check(float(cfg["max_players"]) == floorf(float(cfg["max_players"])) and int(cfg["max_players"]) >= 1, "人数の上限は1以上の整数")
 	var digits: int = int(cfg["code_digits"])
 
