@@ -28,10 +28,24 @@ function makeFakeSdk(opts = {}) {
   };
   const snapOf = (ref) => ({ val: () => { const c = children(ref.path); return Object.keys(c).length ? c : null; } });
   const notify = () => listeners.forEach((l) => l());
+  const connectedListeners = new Set();
+  let connectedNow = true;
   return {
     store,
     disconnect,
     counts,
+    // 接続の切り替え。切れたとき、サーバーは切断時の削除（onDisconnect）を実行する
+    setConnected: (v) => {
+      connectedNow = v;
+      if (!v) {
+        for (const [p, action] of disconnect) {
+          if (action === 'remove') { store.delete(p); }
+        }
+        disconnect.clear();
+        notify();
+      }
+      connectedListeners.forEach((cb) => cb({ val: () => v }));
+    },
     app: { initializeApp: (c) => ({ c }) },
     auth: {
       getAuth: (app) => ({ app }),
@@ -53,6 +67,11 @@ function makeFakeSdk(opts = {}) {
       },
       remove: async (ref) => { store.delete(ref.path); notify(); },
       onValue: (ref, cb) => {
+        if (ref.path === '.info/connected') {
+          connectedListeners.add(cb);
+          cb({ val: () => connectedNow });
+          return () => connectedListeners.delete(cb);
+        }
         const l = () => cb(snapOf(ref));
         listeners.add(l);
         l();
@@ -190,4 +209,58 @@ test('退出すると、位置も消え、切断時の削除の予約も取り�
   assert.equal(sdk.store.has('rooms/1234/positions/p1'), false);
   assert.equal(sdk.disconnect.has('rooms/1234/positions/p1'), false);
   assert.equal(Object.keys(bb.state.positions).length, 0);
+});
+
+const flush = () => new Promise((r) => setTimeout(r, 20));
+
+test('切れると、接続の状態は disconnected になり、部屋の枠は消える（サーバー側）', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.setConnected(false);
+  assert.equal(bb.state.connection, 'disconnected');
+  assert.equal(bb.state.status, 'reconnecting');
+  assert.equal(sdk.store.has('rooms/1234/players/p1'), false);
+});
+
+test('戻ると、同じ部屋に自動で入り直す', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.setConnected(false);
+  sdk.setConnected(true);
+  await flush();
+  assert.equal(bb.state.connection, 'connected');
+  assert.equal(bb.state.status, 'in_room');
+  assert.equal(bb.state.slot, 'p1');
+  assert.equal(sdk.store.get('rooms/1234/players/p1').uid, 'abc');
+});
+
+test('退出したあとは、戻っても入り直さない', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  await bb.leaveRoom();
+  sdk.setConnected(false);
+  sdk.setConnected(true);
+  await flush();
+  assert.equal(sdk.store.has('rooms/1234/players/p1'), false);
+  assert.equal(bb.state.status, 'left');
+});
+
+test('再接続の待ち時間は、少しずつ伸びて、16秒で止まる', () => {
+  const bb = load(makeFakeSdk());
+  assert.equal(bb.nextDelayMs(0), 1000);
+  assert.equal(bb.nextDelayMs(1), 2000);
+  assert.equal(bb.nextDelayMs(2), 4000);
+  assert.equal(bb.nextDelayMs(10), 16000);
+});
+
+test('満員で入れなかったときは、入り直しを続けない', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  for (const s of ['p1', 'p2', 'p3', 'p4']) sdk.store.set(`rooms/1234/players/${s}`, { uid: 'x' + s, joinedAt: 1 });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  assert.equal(bb.state.status, 'full');
+  assert.equal(bb._desired, null);
 });

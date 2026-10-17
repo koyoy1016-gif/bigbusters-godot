@@ -26,6 +26,7 @@ var code_label: Label
 var status_label: Label
 var members_label: Label
 var rate_label: Label
+var connection_label: Label
 var stage: Control
 var boxes := {}
 var box_targets := {}
@@ -67,6 +68,8 @@ static func build_status_text(state: Dictionary, texts: Dictionary) -> String:
 			return str(texts["in_room"]) % [str(state.get("slot", "")), members.size()]
 		"joining", "pending":
 			return str(texts["joining"])
+		"reconnecting":
+			return str(texts["reconnecting"])
 		"full":
 			return str(texts["full"])
 		"left":
@@ -77,6 +80,19 @@ static func build_status_text(state: Dictionary, texts: Dictionary) -> String:
 			return str(texts["error"]) % str(state.get("error", ""))
 		_:
 			return str(texts["idle"])
+
+
+## 接続の状態（JS）から、画面に出す1行の文字を作る
+static func build_connection_text(state: Dictionary, texts: Dictionary) -> String:
+	if str(state.get("status", "")) == "reconnecting":
+		return str(texts["reconnecting"])
+	match str(state.get("connection", "")):
+		"connected":
+			return str(texts["connected"])
+		"disconnected":
+			return str(texts["disconnected"])
+		_:
+			return str(texts["connecting"])
 
 
 ## 部屋にいる枠の一覧の文字
@@ -131,6 +147,8 @@ func _build_ui() -> void:
 	column.add_child(status_label)
 	members_label = _make_label(font, int(ui["small_font_size"]))
 	column.add_child(members_label)
+	connection_label = _make_label(font, int(ui["small_font_size"]))
+	column.add_child(connection_label)
 	rate_label = _make_label(font, int(ui["small_font_size"]))
 	column.add_child(rate_label)
 	var grid := GridContainer.new()
@@ -250,6 +268,7 @@ func poll() -> void:
 	last_state = state
 	_show_status(build_status_text(state, ui["texts"]))
 	members_label.text = build_members_text(state, ui["texts"])
+	connection_label.text = build_connection_text(state, ui["texts"])
 
 
 ## 送った回数と受けた回数から、回/秒を出す

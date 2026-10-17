@@ -44,6 +44,11 @@ func _initialize() -> void:
 	check(Screen.build_status_text({"status": "full"}, texts) == texts["full"], "満員")
 	check(Screen.build_status_text({"status": "left"}, texts) == texts["left"], "退室した")
 	check(Screen.build_status_text({"status": "error", "error": "network down"}, texts) == "うまくいきませんでした：network down", "失敗：エラーの文字が出る")
+	check(Screen.build_status_text({"status": "reconnecting"}, texts) == texts["reconnecting"], "再接続中の表示")
+	check(Screen.build_connection_text({"connection": "connected"}, texts) == texts["connected"], "接続の表示：接続済み")
+	check(Screen.build_connection_text({"connection": "disconnected"}, texts) == texts["disconnected"], "接続の表示：切断")
+	check(Screen.build_connection_text({"connection": "disconnected", "status": "reconnecting"}, texts) == texts["reconnecting"], "再接続中は、再接続中と出す")
+	check(Screen.build_connection_text({}, texts) == texts["connecting"], "まだ分からないときは、接続中")
 	check(Screen.build_members_text({"members": []}, texts) == texts["members_none"], "誰もいないときの一覧")
 	check(Screen.build_members_text({"members": ["p1", "p3"]}, texts) == "いま部屋にいる枠：p1, p3", "在室の枠を並べる")
 
