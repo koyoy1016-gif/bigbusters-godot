@@ -34,10 +34,11 @@ func _initialize() -> void:
 
 	# 書き出しのプリセット名が、export_presets.cfg にある
 	var presets := FileAccess.get_file_as_string("res://export_presets.cfg")
-	for name in ["Web", "Web (Firebase check)"]:
+	for name in ["Web", "Web (Firebase check)", "Web (Room check)"]:
 		check(presets.contains('name="%s"' % name), "プリセット「%s」がある" % name)
 		check(text.contains('--export-release "%s"' % name), "ワークフローがプリセット「%s」を書き出す" % name)
 	check(text.contains("site/firebase_check/index.html"), "確認用は /firebase_check/ の下に置く")
+	check(text.contains("site/room_check/index.html"), "画面用は /room_check/ の下に置く")
 	check(text.contains("actions/deploy-pages@") and text.contains("actions/upload-pages-artifact@"), "GitHub Pages に公開する")
 	# 書き出し結果を、プロジェクトの中に置かない（素材として読み込まれるのを避ける）
 	check(not text.contains('"$PWD/site') and text.contains("$RUNNER_TEMP/site"), "書き出し先はプロジェクトの外")

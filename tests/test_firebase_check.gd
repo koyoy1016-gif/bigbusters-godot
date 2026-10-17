@@ -122,7 +122,7 @@ func _initialize() -> void:
 
 	# 書き出しの設定
 	var presets := FileAccess.get_file_as_string("res://export_presets.cfg")
-	check(presets.count("variant/thread_support=false") == 2 and not presets.contains("thread_support=true"), "Web書き出しは2つとも、スレッドなし")
+	check(presets.count("variant/thread_support=false") == 3 and not presets.contains("thread_support=true"), "Web書き出しは3つとも、スレッドなし")
 	var cf := ConfigFile.new()
 	check(cf.load("res://export_presets.cfg") == OK, "export_presets.cfg が読める")
 	var head: String = str(cf.get_value("preset.1.options", "html/head_include", ""))

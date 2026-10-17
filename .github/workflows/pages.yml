@@ -98,6 +98,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/site/firebase_check"
           "$GODOT_DIR/godot" --headless --path . --export-release "Web (Firebase check)" "$RUNNER_TEMP/site/firebase_check/index.html"
 
+      - name: 画面用を書き出す（プリセット「Web (Room check)」→ /room_check/）
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/site/room_check"
+          "$GODOT_DIR/godot" --headless --path . --export-release "Web (Room check)" "$RUNNER_TEMP/site/room_check/index.html"
+
       - name: 書き出し結果を確認
         run: |
           set -euo pipefail
@@ -107,6 +113,9 @@ jobs:
           test -s index.pck
           test -s firebase_check/index.html
           test -s firebase_check/index.pck
+          test -s room_check/index.html
+          test -s room_check/index.pck
+          grep -q "gstatic.com/firebasejs/" room_check/index.html
           # 確認用にだけ、Firebase SDKの読み込みが入っている
           grep -q "gstatic.com/firebasejs/" firebase_check/index.html
           ! grep -q "gstatic.com/firebasejs/" index.html

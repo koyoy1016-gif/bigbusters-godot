@@ -1,0 +1,25 @@
+{
+  "poll_interval_sec": 0.2,
+  "ui_font_path": "res://assets/fonts/NotoSansJP-Regular-subset.ttf",
+  "font_size": 30,
+  "small_font_size": 26,
+  "background_color": "#1b2430",
+  "text_color": "#ffffff",
+  "placeholder": "_",
+  "keys": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "消す", "0", "入る"],
+  "leave_key": "出る",
+  "texts": {
+    "not_web": "部屋：Web版でのみ使えます",
+    "no_bridge": "部屋：ブラウザ側の準備（head_include）が見つかりません",
+    "idle": "4桁の合言葉を入れて、「入る」を押してください",
+    "need_digits": "合言葉は4桁の数字です",
+    "joining": "部屋に入っています…",
+    "in_room": "部屋に入りました（枠：%s、いま%d人）",
+    "full": "この部屋は満員です（4人まで）",
+    "left": "部屋から出ました",
+    "ok": "接続の準備ができました",
+    "error": "うまくいきませんでした：%s",
+    "members": "いま部屋にいる枠：%s",
+    "members_none": "いま部屋にいる枠：なし"
+  }
+}
