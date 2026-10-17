@@ -84,7 +84,7 @@ func _initialize() -> void:
 		check(float(d["stick_zone_max_x_frac"]) <= float(d["button_zone_min_x_frac"]), "スティックとボタンの領域が重ならない")
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + "0123456789/：（）"
+		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + "0123456789/：（）"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -134,6 +134,13 @@ func _initialize() -> void:
 		check(s2.get_node_or_null("Boss") != null, "ボス（Boss）がいる")
 		var cfg2: Dictionary = s2.config
 		var hp0: float = s2.boss_hp
+		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
+		check(not s2.attack(), "戦いが始まる前は、こうげきが当たらない")
+		var now := [1000000.0]
+		s2.clock_ms = func() -> float: return now[0]
+		s2.player.position = Vector3(0.0, s2.ground_y, 10.0)
+		s2.start_round()
+		check(s2.round_active() and s2.round_count == 1, "はじめるで、戦いが始まる（通信なし）")
 		check(not s2.attack(), "遠いと、こうげきは当たらない")
 		check(s2.boss_hp == hp0, "遠いときは、ボスの体力は減らない")
 		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
@@ -150,6 +157,43 @@ func _initialize() -> void:
 		check(s2.attack() and s2.won and not s2.boss.visible, "体力を0にすると、勝ちになり、ボスが消える")
 		s2.attack_cooldown = 0.0
 		check(not s2.attack(), "倒したあとは、こうげきが当たらない")
+		check(not s2.round_active(), "倒すと、戦いは終わる")
+		s2.start_round()
+		check(s2.round_active() and not s2.won and s2.boss.visible and s2.my_hits == 0.0 and s2.boss_hp == float(cfg2["boss_hp"]), "もういちどで、体力が元に戻り、また始まる")
+
+		# ボスの範囲攻撃：予告 → 一撃。輪の中で地面にいると当たり、ジャンプでよけられる
+		var hp_full: float = float(cfg2["player_hp"])
+		var t0: float = s2.round_start_ms
+		var first_ms: float = float(cfg2["slam_first_delay_sec"]) * 1000.0
+		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
+		now[0] = t0 + first_ms - float(cfg2["slam_telegraph_sec"]) * 500.0
+		s2.combat_update(0.016)
+		check(s2.slam_ring.visible and s2.my_hp == hp_full, "予告の最中は、輪が見えて、まだダメージは受けない")
+		now[0] = t0 + first_ms + 10.0
+		s2.combat_update(0.016)
+		check(is_equal_approx(s2.my_hp, hp_full - float(cfg2["slam_power"])), "輪の中で、地面にいると、一撃を受ける")
+		check(not s2.slam_ring.visible, "一撃のあとは、輪が消える")
+		var interval_ms: float = float(cfg2["slam_interval_sec"]) * 1000.0
+		var hp_before: float = s2.my_hp
+		s2.player.position.y = s2.ground_y + 1.5
+		now[0] = t0 + first_ms + interval_ms + 10.0
+		s2.combat_update(0.016)
+		check(s2.my_hp == hp_before, "ジャンプ中は、一撃をよけられる")
+		s2.player.position = Vector3(14.0, s2.ground_y, 14.0)
+		now[0] = t0 + first_ms + interval_ms * 2.0 + 10.0
+		s2.combat_update(0.016)
+		check(s2.my_hp == hp_before, "輪の外にいれば、一撃を受けない")
+		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
+		var guard := 0
+		while not s2.downed and guard < 20:
+			guard += 1
+			now[0] += interval_ms
+			s2.combat_update(0.016)
+		check(s2.downed and s2.my_hp <= 0.0, "体力が0になると、ダウンする")
+		check(s2.lost and not s2.round_active(), "1人だけでダウンすれば、全滅で戦いが終わる")
+		check(not s2.attack(), "ダウン中は、こうげきが当たらない")
+		s2.start_round()
+		check(s2.my_hp == hp_full and not s2.downed and not s2.lost, "もういちどで、ダウンから復活する")
 		root.remove_child(s2)
 		s2.free()
 
@@ -174,13 +218,15 @@ func _initialize() -> void:
 			if text.begins_with("new URLSearchParams"):
 				return "2222"
 			if text.begins_with("JSON.stringify"):
-				return JSON.stringify({"status": "in_room", "slot": "p1", "members": ["p1", "p2"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}}, "hits": {"p2": 30}})
+				return JSON.stringify({"status": "in_room", "slot": "p1", "members": ["p1", "p2"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}}, "hits": {"p2": 30}, "hp": {"p2": 100}, "round": 5000000})
 			return null
 		var s3: Node = packed3.instantiate()
 		s3.use_network = false
 		root.add_child(s3)
 		if s3.get_node_or_null("Boss") == null:
 			s3._ready()
+		var now3 := [5000000.0 + 5000.0]
+		s3.clock_ms = func() -> float: return now3[0]
 		s3.js_eval = fake
 		s3._setup_network()
 		check(s3.net_active, "ブラウザの入り口があれば、通信が始まる")
@@ -189,16 +235,37 @@ func _initialize() -> void:
 		s3.net_update(0.06, 1000)
 		check(str(s3.net_state.get("slot", "")) == "p1", "状態を読む（自分は p1）")
 		check(s3.others.has("p2") and not s3.others.has("p1"), "ほかの人（p2）の箱ができる。自分の箱は増えない")
-		check(is_equal_approx(s3.others_hits, 30.0) and is_equal_approx(s3.boss_hp, 70.0), "ほかの人のダメージで、ボスの体力が減る")
+		check(s3.round_active() and s3.round_count == 1, "部屋の開始の時刻が来ると、自分の画面でも戦いが始まる")
+		check(is_equal_approx(s3.others_hits, 30.0) and is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 30.0), "ほかの人のダメージで、ボスの体力が減る")
 		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendPosition(0.5, 0.5)")), "自分の位置を送る（中心は 0.5, 0.5）")
 		s3.player.position = Vector3(0.0, s3.ground_y, float(s3.config["boss_position"][1]) + 2.0)
 		s3.attack_cooldown = 0.0
-		check(s3.attack() and is_equal_approx(s3.boss_hp, 60.0), "こうげきで、体力はほかの人の分と合わせて減る")
+		check(s3.attack() and is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 40.0), "こうげきで、体力はほかの人の分と合わせて減る")
 		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHits(10")), "与えたダメージを送る")
 		s3.apply_net_state({"slot": "p1", "positions": {}, "hits": {"p2": 30}})
 		check(not s3.others.has("p2"), "ほかの人が抜けたら、箱を消す")
-		s3.apply_net_state({"slot": "p1", "hits": {"p2": 95}})
+		s3.apply_net_state({"slot": "p1", "hits": {"p2": 395}, "round": 5000000})
 		check(s3.won and not s3.boss.visible, "ほかの人のダメージで、ボスが倒れたとき、自分の画面でも倒れる")
+		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHp(")), "体力を送る")
+		var count_before: int = s3.round_count
+		s3.start_round()
+		check(sent.any(func(t): return str(t) == "window.bbFirebase.startRound()"), "通信中の「もういちど」は、部屋に開始を書く")
+		now3[0] = 5000000.0 + 20000.0
+		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2"], "hits": {"p2": 20}, "round": 5020000})
+		check(s3.round_active() and s3.round_count == count_before + 1 and s3.my_hits == 0.0, "新しい開始の時刻で、2回目の戦いが始まる")
+		check(is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"])), "開始の直後は、前の戦いのダメージを数えない")
+		now3[0] += 2000.0
+		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2"], "hits": {"p2": 20}, "round": 5020000})
+		check(is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 20.0), "少したつと、ほかの人のダメージを数える")
+		s3.player.position = Vector3(0.0, s3.ground_y, float(s3.config["boss_position"][1]) + 2.0)
+		s3._set_my_hp(0.0)
+		check(s3.downed and not s3.lost, "自分だけダウンでも、仲間が生きていれば全滅ではない")
+		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2"], "hits": {"p2": 20}, "hp": {"p2": 0}, "round": 5020000})
+		check(s3.lost, "仲間もダウンすれば、全滅")
+		check(s3.build_team_text().contains("p2"), "なかまの体力が画面に出る")
+		var count_now: int = s3.round_count
+		s3.apply_net_state({"slot": "p1", "members": ["p1"], "round": 4000000000000})
+		check(s3.round_count == count_now, "遠い未来の開始の時刻は、始めない")
 		root.remove_child(s3)
 		s3.free()
 

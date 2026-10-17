@@ -74,6 +74,19 @@ func _initialize() -> void:
 	check(hits_validate.contains("isNumber()") and hits_validate.contains(">= 0"), "ダメージは0以上の数")
 	check(_first_group("\\^p\\[1-(\\d)\\]", hits_validate) == str(int(cfg["max_players"])), "ダメージの枠の数も network.json と一致")
 
+	# 戦いの開始の時刻（round）：部屋にいる人だけが書ける。数値
+	var round_rules: Dictionary = code.get("round", {})
+	var round_write := str(round_rules.get(".write", ""))
+	for slot_name in ["p1", "p2", "p3", "p4"]:
+		check(round_write.contains("/players/%s/uid').val() === auth.uid" % slot_name), "開始の時刻は、枠 %s の人なら書ける" % slot_name)
+	check(round_write.begins_with("auth != null"), "開始の時刻を書けるのは、ログイン済みの人だけ")
+	check(str(round_rules.get(".validate", "")) == "newData.isNumber()", "開始の時刻は数値")
+
+	# 体力（hp）：自分の枠にだけ、0〜1000の数を書ける
+	var hp_rules: Dictionary = code.get("hp", {}).get("$slot", {})
+	check(str(hp_rules.get(".write", "")) == own_slot_write, "体力を書けるのは、自分の枠の人だけ")
+	check(str(hp_rules.get(".validate", "")).contains("<= 1000") and str(hp_rules.get(".validate", "")).contains(">= 0"), "体力は0〜1000の数")
+
 	# 使っている場所の名前が、関数の組み立てと同じ
 	check(code.has("players") and RoomCode.room_path("1234", int(cfg["code_digits"])) == "rooms/1234" and rooms.has("$code"), "rooms/{合言葉} の形が、関数と一致")
 

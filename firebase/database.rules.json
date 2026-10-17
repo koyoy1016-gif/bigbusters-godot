@@ -47,6 +47,16 @@
             ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
             ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.isNumber() && newData.val() >= 0))"
           }
+        },
+        "round": {
+          ".write": "auth != null && (root.child('rooms/' + $code + '/players/p1/uid').val() === auth.uid || root.child('rooms/' + $code + '/players/p2/uid').val() === auth.uid || root.child('rooms/' + $code + '/players/p3/uid').val() === auth.uid || root.child('rooms/' + $code + '/players/p4/uid').val() === auth.uid)",
+          ".validate": "newData.isNumber()"
+        },
+        "hp": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000))"
+          }
         }
       }
     }

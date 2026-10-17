@@ -1,15 +1,17 @@
 extends Node3D
-## スティックの試作（3つ目）：横画面で、左のスティックで1人を動かし、ジャンプ、こうげきでボスに当てる。
-## ブラウザ版では、合言葉の部屋に自動で入り、ほかの人の動きと、ボスの体力を共有する。
+## 試作：横画面で、左のスティックで動き、ジャンプ、こうげきでボスに当てる。
+## 「はじめる」で戦いが始まる。ボスは、床の予告の輪のあとに範囲攻撃をする（ジャンプでよける）。
+## ブラウザ版では、合言葉の部屋に自動で入り、ほかの人の動き・ボスの体力・戦いの開始を共有する。
 ## 合言葉は URL の ?room=1234 で決める（なければ data の既定値）。
 ## 数値は data/prototype_stick.json。動きは stick_math.gd、ダメージは scripts/combat/damage.gd、
-## 通信は scripts/network/（room_bridge.gd、position_sync.gd、boss_sync.gd）。
+## ボスの攻撃の予定は scripts/combat/boss_pattern.gd、通信は scripts/network/。
 
 const CONFIG_PATH := "res://data/prototype_stick.json"
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const SLOTS := ["p1", "p2", "p3", "p4"]
 const StickMath := preload("res://scripts/prototype/stick_math.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
+const Pattern := preload("res://scripts/combat/boss_pattern.gd")
 const RoomCode := preload("res://scripts/network/room_code.gd")
 const Bridge := preload("res://scripts/network/room_bridge.gd")
 const Sync := preload("res://scripts/network/position_sync.gd")
@@ -18,8 +20,11 @@ const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 
 var config: Dictionary = {}
 var player: MeshInstance3D
+var player_material: StandardMaterial3D
 var boss: MeshInstance3D
 var boss_material: StandardMaterial3D
+var slam_ring: MeshInstance3D
+var slam_material: StandardMaterial3D
 var overlay: Control
 var font: Font
 var stick_vec := Vector2.ZERO
@@ -30,9 +35,21 @@ var ground_y := 0.0
 var boss_hp := 0.0
 var my_hits := 0.0
 var others_hits := 0.0
+var my_hp := 0.0
+var downed := false
 var attack_cooldown := 0.0
 var hit_flash := 0.0
+var player_hit_flash := 0.0
 var won := false
+var lost := false
+
+# 戦い（0 のあいだは、戦いが始まっていない）
+var round_start_ms := 0.0
+var known_round := 0.0
+var round_count := 0
+var last_strike := 0
+## 現在の時刻（ミリ秒）。テストでは差し替える
+var clock_ms: Callable = func() -> float: return Time.get_unix_time_from_system() * 1000.0
 
 # 通信（ブラウザ版だけ）
 ## JavaScriptBridge.eval の代わり。テストでは差し替える（橋渡しの js_eval も同じものにする）
@@ -75,7 +92,11 @@ static func build_room_text(state: Dictionary, code: String, active: bool, cfg: 
 	match str(state.get("status", "")):
 		"in_room":
 			var members: Array = state.get("members", [])
-			return str(cfg["room_label"]) + " " + code + "：" + str(cfg["room_members_prefix"]) + str(members.size()) + str(cfg["room_members_suffix"])
+			var text := str(cfg["room_label"]) + " " + code + "：" + str(cfg["room_members_prefix"]) + str(members.size()) + str(cfg["room_members_suffix"])
+			var slot := str(state.get("slot", ""))
+			if slot != "":
+				text += "（" + str(cfg["room_you"]) + " " + slot + "）"
+			return text
 		"full":
 			return str(cfg["room_full"])
 		"reconnecting":
@@ -90,6 +111,7 @@ func _ready() -> void:
 	font = load(str(config["ui_font_path"])) as Font
 	ground_y = float(config["player_size"]) * 0.5
 	boss_hp = float(config["boss_hp"])
+	my_hp = float(config["player_hp"])
 	_build_world()
 	_build_ui()
 	if use_network:
@@ -128,6 +150,7 @@ func _build_world() -> void:
 	add_child(light)
 
 	player = _make_box("Player", float(config["player_size"]), Color(str(config["player_color"])))
+	player_material = (player.mesh as BoxMesh).material as StandardMaterial3D
 	player.position = Vector3(0.0, ground_y, 0.0)
 
 	# ボス（仮の箱）。位置は床の上の (x, z)
@@ -135,6 +158,22 @@ func _build_world() -> void:
 	boss_material = (boss.mesh as BoxMesh).material as StandardMaterial3D
 	var bp: Array = config["boss_position"]
 	boss.position = Vector3(bp[0], float(config["boss_size"]) * 0.5, bp[1])
+
+	# 範囲攻撃の予告の輪（床の上の、薄い円盤）
+	slam_ring = MeshInstance3D.new()
+	slam_ring.name = "SlamRing"
+	var disc := CylinderMesh.new()
+	disc.top_radius = float(config["slam_radius"])
+	disc.bottom_radius = float(config["slam_radius"])
+	disc.height = 0.04
+	slam_material = StandardMaterial3D.new()
+	slam_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	slam_material.albedo_color = Color(str(config["slam_color"]))
+	disc.material = slam_material
+	slam_ring.mesh = disc
+	slam_ring.position = Vector3(bp[0], 0.03, bp[1])
+	slam_ring.visible = false
+	add_child(slam_ring)
 
 	var camera := Camera3D.new()
 	camera.name = "Camera"
@@ -170,7 +209,8 @@ func _build_ui() -> void:
 
 
 func _process(delta: float) -> void:
-	player.position = StickMath.step_position(player.position, stick_vec, float(config["move_speed"]), delta, float(config["bounds"]))
+	var move := Vector2.ZERO if downed else stick_vec
+	player.position = StickMath.step_position(player.position, move, float(config["move_speed"]), delta, float(config["bounds"]))
 	var r := StickMath.jump_update(player.position.y, velocity_y, delta, float(config["gravity"]), ground_y)
 	player.position.y = r.x
 	velocity_y = r.y
@@ -178,6 +218,8 @@ func _process(delta: float) -> void:
 	hit_flash = maxf(0.0, hit_flash - delta)
 	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else Color(str(config["boss_color"]))
 	net_update(delta, Time.get_ticks_msec())
+	combat_update(delta)
+	player_material.albedo_color = _player_color()
 	overlay.queue_redraw()
 
 
@@ -192,9 +234,11 @@ func _input(event: InputEvent) -> void:
 		handle_drag(event.index, event.position, screen)
 
 
-## 指が触れた。左の領域ならスティック、こうげき、右の領域ならジャンプ
+## 指が触れた。「はじめる」（戦いの外）、左の領域ならスティック、こうげき、右の領域ならジャンプ
 func handle_press(index: int, pos: Vector2, screen: Vector2) -> void:
-	if stick_touch == -1 and pos.x < screen.x * float(config["stick_zone_max_x_frac"]):
+	if not round_active() and pos.distance_to(_start_center(screen)) <= float(config["start_radius_px"]):
+		start_round()
+	elif stick_touch == -1 and pos.x < screen.x * float(config["stick_zone_max_x_frac"]):
 		stick_touch = index
 		stick_vec = _stick_input(pos, screen)
 	elif pos.distance_to(_attack_center(screen)) <= float(config["button_radius_px"]):
@@ -217,16 +261,57 @@ func handle_release(index: int) -> void:
 		button_touch = -1
 
 
-## 地面にいるときだけ跳ぶ
+## 地面にいるときだけ跳ぶ。ダウン中は跳べない
 func jump() -> void:
+	if downed:
+		return
 	if is_equal_approx(player.position.y, ground_y):
 		velocity_y = float(config["jump_speed"])
 
 
-## こうげき：ボスに届く距離にいて、待ち時間が終わっていれば当たる。倒したあとは当たらない。
+## 戦いの最中か（始まっていて、まだ終わっていない）
+func round_active() -> bool:
+	return round_start_ms > 0.0 and not won and not lost
+
+
+## サーバーの時刻（ミリ秒）。端末の時計が少しずれていても、全員で同じになるよう、ずれを足す
+func server_now_ms() -> float:
+	return float(clock_ms.call()) + float(net_state.get("offset", 0.0))
+
+
+## 「はじめる／もういちど」。通信中は、開始の時刻を部屋に書く（全員の画面で同時に始まる）。通信なしなら、すぐ始める
+func start_round() -> void:
+	if round_active():
+		return
+	if net_active:
+		if str(net_state.get("slot", "")) != "":
+			bridge.start_round()
+	else:
+		_begin_round(server_now_ms())
+
+
+## 戦いを始める。体力とダメージを元に戻す。途中から入った人は、その時点の攻撃の回数から数える
+func _begin_round(start_ms: float) -> void:
+	round_start_ms = start_ms
+	round_count += 1
+	won = false
+	lost = false
+	downed = false
+	my_hits = 0.0
+	my_hp = float(config["player_hp"])
+	boss.visible = true
+	boss_hp = float(config["boss_hp"])
+	last_strike = Pattern.strike_index((server_now_ms() - start_ms) / 1000.0, float(config["slam_first_delay_sec"]), float(config["slam_interval_sec"]))
+	if net_active:
+		bridge.send_hits(0.0)
+		bridge.send_hp(my_hp)
+	_recompute_boss_hp()
+
+
+## こうげき：戦いの最中で、ボスに届く距離にいて、待ち時間が終わっていれば当たる。
 ## 与えた合計ダメージ（my_hits）を、部屋の全員に送る
 func attack() -> bool:
-	if won or attack_cooldown > 0.0:
+	if not round_active() or downed or attack_cooldown > 0.0:
 		return false
 	var reach := float(config["attack_reach"]) + float(config["boss_size"]) * 0.5
 	if not Damage.in_reach(player.position, boss.position, reach):
@@ -239,15 +324,72 @@ func attack() -> bool:
 	return true
 
 
-## ボスの体力 = 最大 − 自分の合計 − ほかの人の合計。0になったら倒した
+## 戦いの始まりの直後は、ほかの人の古いダメージ（前の戦いの分）が残っているので、少しのあいだ数えない
+func _effective_others_hits() -> float:
+	if round_start_ms <= 0.0:
+		return 0.0
+	if server_now_ms() - round_start_ms < float(config["round_grace_sec"]) * 1000.0:
+		return 0.0
+	return others_hits
+
+
+## ボスの体力 = 最大 − 自分の合計 − ほかの人の合計。0になったら倒した（戦いの最中だけ）
 func _recompute_boss_hp() -> void:
-	var new_hp := BossSync.boss_hp(float(config["boss_hp"]), my_hits, others_hits)
+	var mine := my_hits if round_start_ms > 0.0 else 0.0
+	var new_hp := BossSync.boss_hp(float(config["boss_hp"]), mine, _effective_others_hits())
 	if new_hp < boss_hp - 0.001:
 		hit_flash = float(config["hit_flash_sec"])
 	boss_hp = new_hp
-	if boss_hp <= 0.0 and not won:
+	if round_start_ms > 0.0 and boss_hp <= 0.0 and not won and not lost:
 		won = true
 		boss.visible = false
+
+
+## 戦いの進み：ボスの範囲攻撃（予告の輪、一撃）。時刻だけで決まるので、全員の画面で同じになる
+func combat_update(delta: float) -> void:
+	player_hit_flash = maxf(0.0, player_hit_flash - delta)
+	if not round_active():
+		slam_ring.visible = false
+		return
+	var t := (server_now_ms() - round_start_ms) / 1000.0
+	var first := float(config["slam_first_delay_sec"])
+	var interval := float(config["slam_interval_sec"])
+	var index := Pattern.strike_index(t, first, interval)
+	while last_strike < index and round_active():
+		last_strike += 1
+		_resolve_strike()
+	var progress := Pattern.telegraph_progress(t, first, interval, float(config["slam_telegraph_sec"]))
+	slam_ring.visible = progress >= 0.0 and round_active()
+	if slam_ring.visible:
+		var base := Color(str(config["slam_color"]))
+		slam_material.albedo_color = Color(base.r, base.g, base.b, lerpf(float(config["slam_min_alpha"]), float(config["slam_max_alpha"]), progress))
+
+
+## 一撃が当たった。輪の中にいて、地面にいれば（ジャンプでよけていなければ）ダメージを受ける
+func _resolve_strike() -> void:
+	if downed:
+		return
+	var airborne := player.position.y > ground_y + float(config["dodge_height"])
+	if airborne or not Damage.in_reach(player.position, boss.position, float(config["slam_radius"])):
+		return
+	player_hit_flash = float(config["hit_flash_sec"])
+	_set_my_hp(Damage.apply_damage(my_hp, Damage.damage_amount(float(config["slam_power"]), float(config["slam_multiplier"]))))
+
+
+func _set_my_hp(value: float) -> void:
+	my_hp = value
+	if my_hp <= 0.0:
+		downed = true
+	if net_active:
+		bridge.send_hp(my_hp)
+	_check_wipe()
+
+
+## 部屋にいる全員がダウンしたら、全滅
+func _check_wipe() -> void:
+	if downed and not lost and round_start_ms > 0.0:
+		if BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", [])):
+			lost = true
 
 
 ## 通信：一定の間隔でブラウザ側の状態を読み、自分の位置を送り、ほかの人の箱をなめらかに動かす
@@ -268,12 +410,21 @@ func net_update(delta: float, now_ms: int) -> void:
 	_update_others(delta)
 
 
-## ブラウザ側の状態を受け取る：ほかの人の位置と、ダメージの合計
+## ブラウザ側の状態を受け取る：戦いの開始、ほかの人の位置・ダメージ・体力
 func apply_net_state(state: Dictionary) -> void:
 	net_state = state
 	var me := str(state.get("slot", ""))
-	others_hits = BossSync.others_total(state.get("hits", {}), me)
+	var members: Array = state.get("members", [])
+	others_hits = BossSync.others_total(state.get("hits", {}), me, members)
+	# 戦いの開始：新しい開始の時刻が来たら、始める。古すぎる時刻（前の日の戦いなど）は無視する
+	var r := float(state.get("round", 0.0))
+	if r != known_round:
+		known_round = r
+		var age_ms := server_now_ms() - r
+		if r > 0.0 and age_ms <= float(config["round_max_sec"]) * 1000.0 and age_ms >= -float(config["round_future_sec"]) * 1000.0:
+			_begin_round(r)
 	_recompute_boss_hp()
+	_check_wipe()
 	var positions := Sync.parse_positions(state.get("positions", {}))
 	positions.erase(me)
 	for slot in positions:
@@ -299,11 +450,26 @@ func _update_others(delta: float) -> void:
 		node.position = Vector3(current.x * 2.0 * half - half, ground_y, current.y * 2.0 * half - half)
 
 
+func _slot_color(slot: String) -> Color:
+	var colors: Array = config["slot_colors"]
+	var index := SLOTS.find(slot)
+	if index < 0:
+		return Color(str(config["player_color"]))
+	return Color(str(colors[index % colors.size()]))
+
+
+## 自分の箱の色：同じ人は、全員の画面で同じ色（枠の色）。ダウン中・ダメージを受けた瞬間は別の色
+func _player_color() -> Color:
+	if downed:
+		return Color(str(config["player_down_color"]))
+	if player_hit_flash > 0.0:
+		return Color(str(config["player_hit_color"]))
+	return _slot_color(str(net_state.get("slot", "")))
+
+
 func _other_node(slot: String) -> MeshInstance3D:
 	if not others.has(slot):
-		var colors: Array = config["slot_colors"]
-		var index := maxi(0, SLOTS.find(slot))
-		others[slot] = _make_box("Other_" + slot, float(config["player_size"]), Color(str(colors[index % colors.size()])))
+		others[slot] = _make_box("Other_" + slot, float(config["player_size"]), _slot_color(slot))
 	return others[slot]
 
 
@@ -326,10 +492,31 @@ func _attack_center(screen: Vector2) -> Vector2:
 	return Vector2(screen.x * f[0], screen.y * f[1])
 
 
-func _draw_centered(center: Vector2, text: String, color: Color) -> void:
-	var fs := int(config["ui_font_size"])
+func _start_center(screen: Vector2) -> Vector2:
+	var f: Array = config["start_center_frac"]
+	return Vector2(screen.x * f[0], screen.y * f[1])
+
+
+func _draw_centered(center: Vector2, text: String, color: Color, scale: float = 1.0) -> void:
+	var fs := int(float(config["ui_font_size"]) * scale)
 	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	overlay.draw_string(font, center + Vector2(-w * 0.5, fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
+
+
+## なかまの体力の一覧（部屋にいる、自分以外）。体力がまだ届いていない人は、満タンとして出す
+func build_team_text() -> String:
+	var me := str(net_state.get("slot", ""))
+	var hp_map: Variant = net_state.get("hp", {})
+	var text := ""
+	for slot in net_state.get("members", []):
+		if str(slot) == me:
+			continue
+		var value: Variant = hp_map.get(str(slot), null) if hp_map is Dictionary else null
+		var hp := float(value) if (value is float or value is int) else float(config["player_hp"])
+		text += "  " + str(slot) + " " + str(ceili(hp))
+	if text == "":
+		return ""
+	return str(config["team_label"]) + text
 
 
 func _draw_overlay() -> void:
@@ -355,9 +542,21 @@ func _draw_overlay() -> void:
 	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 	var hp_text := str(config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(config["boss_hp"]))
 	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	overlay.draw_string(font, Vector2(16, fs * 4.4), build_room_text(net_state, room_code, net_active, config), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+	var my_text := str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(config["player_hp"]))
+	if downed:
+		my_text += "  " + str(config["down_text"])
+	overlay.draw_string(font, Vector2(16, fs * 4.4), my_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+	var team := build_team_text()
+	var next_line := 5.9
+	if team != "":
+		overlay.draw_string(font, Vector2(16, fs * next_line), team, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+		next_line += 1.5
+	overlay.draw_string(font, Vector2(16, fs * next_line), build_room_text(net_state, room_code, net_active, config), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 
-	if won:
-		var win := str(config["win_text"])
-		var w := font.get_string_size(win, HORIZONTAL_ALIGNMENT_LEFT, -1, fs * 2).x
-		overlay.draw_string(font, Vector2(screen.x * 0.5 - w * 0.5, screen.y * 0.4), win, HORIZONTAL_ALIGNMENT_LEFT, -1, fs * 2, text_color)
+	if not round_active():
+		var sc := _start_center(screen)
+		overlay.draw_circle(sc, float(config["start_radius_px"]), Color(str(config["button_color"])))
+		_draw_centered(sc, str(config["restart_label"]) if round_count > 0 else str(config["start_label"]), button_text)
+	if won or lost:
+		var result := str(config["win_text"]) if won else str(config["lose_text"])
+		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), result, text_color, 2.0)

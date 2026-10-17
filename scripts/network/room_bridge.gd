@@ -33,6 +33,16 @@ static func build_send_hits_call(total: float) -> String:
 	return "window.bbFirebase.sendHits(%s)" % str(total)
 
 
+## 自分の体力を送る（なかまの体力の表示と、全滅の判定に使う）
+static func build_send_hp_call(hp: float) -> String:
+	return "window.bbFirebase.sendHp(%s)" % str(hp)
+
+
+## 戦いを始める（開始の時刻を、部屋に書く）
+static func build_start_round_call() -> String:
+	return "window.bbFirebase.startRound()"
+
+
 static func build_state_query() -> String:
 	return "JSON.stringify(window.bbFirebase.state)"
 
@@ -63,6 +73,14 @@ func send_position(x: float, y: float) -> void:
 ## 自分が与えた合計ダメージを送る。部屋に入っていなければ、JS側が何もしない
 func send_hits(total: float) -> void:
 	js_eval.call(build_send_hits_call(total))
+
+
+func send_hp(hp: float) -> void:
+	js_eval.call(build_send_hp_call(hp))
+
+
+func start_round() -> void:
+	js_eval.call(build_start_round_call())
 
 
 func read_state() -> Dictionary:
