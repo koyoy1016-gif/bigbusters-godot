@@ -54,12 +54,14 @@ func _initialize() -> void:
 
 	# 参加者（枠は p1〜p4。空いている枠にだけ入れる。枠の数は network.json の max_players と一致）
 	var slot_rules: Dictionary = code.get("players", {}).get("$slot", {})
-	check(str(slot_rules.get(".write", "")) == "auth != null && (!data.exists() || data.child('uid').val() === auth.uid)", "書けるのは、ログイン済みで、空いている枠か、自分の枠だけ")
+	check(str(slot_rules.get(".write", "")) == "auth != null && (!data.exists() || data.child('uid').val() === auth.uid || (data.child('seen').isNumber() && data.child('seen').val() < now - 60000))", "書けるのは、ログイン済みで、空いている枠か、自分の枠か、書き直されず60秒過ぎた枠だけ")
+	check(_first_group("now - (\\d+)", str(slot_rules.get(".write", ""))) == str(int(cfg["hold_seconds"]) * 1000), "枠の保持時間（60秒）が network.json と一致")
 	var validate := str(slot_rules.get(".validate", ""))
 	check(_first_group("\\^p\\[1-(\\d)\\]", validate) == str(int(cfg["max_players"])), "枠の数が network.json と一致（%s人）" % str(int(cfg["max_players"])))
 	check(validate.contains("newData.child('uid').val() === auth.uid"), "枠に入るとき、自分のuidを書く（他人の名前で入れない）")
 	check(validate.contains("!newData.exists()"), "自分の枠を消す（出る）ことはできる")
 	check(validate.contains("joinedAt"), "joinedAt を必ず書く")
+	check(validate.contains("'seen'") and slot_rules.get("seen", {}).get(".validate") == "newData.isNumber()", "seen（最後に生きていた時刻）を必ず書く・数値")
 	check(slot_rules.get("uid", {}).get(".validate") == "newData.isString()", "uid は文字")
 	check(slot_rules.get("$other", {}).get(".validate") == false, "uid と joinedAt 以外の項目は書けない")
 	check(slot_rules.get("joinedAt", {}).get(".validate") == "newData.isNumber()", "joinedAt は数値")

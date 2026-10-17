@@ -8,8 +8,16 @@ const RoomCode := preload("res://scripts/network/room_code.gd")
 var js_eval: Callable = func(code: String) -> Variant: return JavaScriptBridge.eval(code, true)
 
 
-static func build_join_call(config_json: String, code: String) -> String:
-	return "window.bbFirebase.joinRoom(%s, %s)" % [JSON.stringify(config_json), JSON.stringify(code)]
+## 時間の設定（data/network.json）を、JSに渡す形にする。枠の保持時間と、書き直す間隔（ミリ秒）
+static func build_timing_json(net: Dictionary) -> String:
+	return JSON.stringify({
+		"hold_ms": int(net.get("hold_seconds", 60)) * 1000,
+		"heartbeat_ms": int(net.get("heartbeat_seconds", 5)) * 1000,
+	})
+
+
+static func build_join_call(config_json: String, code: String, timing_json: String = "{}") -> String:
+	return "window.bbFirebase.joinRoom(%s, %s, %s)" % [JSON.stringify(config_json), JSON.stringify(code), JSON.stringify(timing_json)]
 
 
 static func build_leave_call() -> String:
@@ -34,7 +42,7 @@ static func parse_state(raw: String) -> Dictionary:
 func join(config_json: String, code: String, digits: int) -> bool:
 	if not RoomCode.is_valid_code(code, digits):
 		return false
-	js_eval.call(build_join_call(config_json, code))
+	js_eval.call(build_join_call(config_json, code, build_timing_json(RoomCode.load_config())))
 	return true
 
 

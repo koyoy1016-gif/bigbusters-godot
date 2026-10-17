@@ -40,7 +40,8 @@ func _initialize() -> void:
 			return '{"status":"in_room","slot":"p1","members":["p1"],"uid":"abc"}'
 		return null
 	check(bridge.join(CONFIG_JSON, "1234", digits) == true, "正しい合言葉は、入室を頼める")
-	check(str(log[0]).begins_with("window.bbFirebase.joinRoom(") and str(log[0]).ends_with(', "1234")'), "入室の呼び出しに、合言葉が入る（%s）" % str(log[0]))
+	check(str(log[0]).begins_with("window.bbFirebase.joinRoom(") and str(log[0]).contains(', "1234", '), "入室の呼び出しに、合言葉が入る（%s）" % str(log[0]))
+	check(str(log[0]).contains("hold_ms") and str(log[0]).contains("heartbeat_ms"), "入室の呼び出しに、枠の保持時間と書き直す間隔が入る")
 	check(str(log[0]).contains("bigbusters-new"), "入室の呼び出しに、設定（JSON）が渡る")
 	bridge.leave()
 	check(log[1] == "window.bbFirebase.leaveRoom()", "退出の呼び出し")
@@ -53,7 +54,7 @@ func _initialize() -> void:
 	var cf := ConfigFile.new()
 	check(cf.load(PRESETS) == OK, "export_presets.cfg が読める")
 	var head: String = str(cf.get_value("preset.1.options", "html/head_include", ""))
-	for word in ["joinRoom", "leaveRoom", "onDisconnect", "onValue", "PERMISSION_DENIED", "firebase-database.js", "signInAnonymously", "window.bbFirebase"]:
+	for word in ["joinRoom", "leaveRoom", "onDisconnect", "onValue", "PERMISSION_DENIED", "firebase-database.js", "signInAnonymously", "window.bbFirebase", "visibilitychange", "seen"]:
 		check(head.contains(word), "入り口に「%s」がある" % word)
 	check(head.count("gstatic.com/firebasejs/") == 1, "SDKの場所は1か所だけ（固定バージョン）")
 	for word in ["apiKey", "AIza", "bigbusters-new"]:

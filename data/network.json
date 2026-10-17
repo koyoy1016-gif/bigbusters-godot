@@ -1,4 +1,6 @@
 {
   "code_digits": 4,
-  "max_players": 4
+  "max_players": 4,
+  "hold_seconds": 60,
+  "heartbeat_seconds": 5
 }

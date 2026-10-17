@@ -8,12 +8,15 @@
         ".read": "auth != null",
         "players": {
           "$slot": {
-            ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid)",
-            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.hasChildren(['uid', 'joinedAt']) && newData.child('uid').val() === auth.uid))",
+            ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid || (data.child('seen').isNumber() && data.child('seen').val() < now - 60000))",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.hasChildren(['uid', 'joinedAt', 'seen']) && newData.child('uid').val() === auth.uid))",
             "uid": {
               ".validate": "newData.isString()"
             },
             "joinedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "seen": {
               ".validate": "newData.isNumber()"
             },
             "$other": {

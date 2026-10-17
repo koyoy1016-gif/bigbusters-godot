@@ -111,13 +111,13 @@ test('空の部屋：p1に入り、部屋に書き、切断時の削除を予約
   const written = sdk.store.get('rooms/1234/players/p1');
   assert.equal(written.uid, 'abc');
   assert.equal(typeof written.joinedAt, 'number');
-  assert.equal(sdk.disconnect.get('rooms/1234/players/p1'), 'remove');
+  assert.equal(sdk.disconnect.has('rooms/1234/players/p1'), false);
   assert.deepEqual([...bb.state.members], ['p1']);
 });
 
 test('p1が埋まっていれば、p2に入る', async () => {
   const sdk = makeFakeSdk({ uid: 'abc' });
-  sdk.store.set('rooms/1234/players/p1', { uid: 'zzz', joinedAt: 1 });
+  sdk.store.set('rooms/1234/players/p1', { uid: 'zzz', joinedAt: 1, seen: Date.now() });
   const bb = load(sdk);
   assert.equal(await bb.joinRoom(CFG, '1234'), 'p2');
   assert.equal(sdk.store.get('rooms/1234/players/p2').uid, 'abc');
@@ -132,7 +132,7 @@ test('書き込みの直前に取られたら（権限で拒否）、次の枠�
 
 test('4枠とも埋まっていれば、満員になり、入らない', async () => {
   const sdk = makeFakeSdk({ uid: 'abc' });
-  for (const s of ['p1', 'p2', 'p3', 'p4']) sdk.store.set(`rooms/1234/players/${s}`, { uid: 'x' + s, joinedAt: 1 });
+  for (const s of ['p1', 'p2', 'p3', 'p4']) sdk.store.set(`rooms/1234/players/${s}`, { uid: 'x' + s, joinedAt: 1, seen: Date.now() });
   const bb = load(sdk);
   assert.equal(await bb.joinRoom(CFG, '1234'), '');
   assert.equal(bb.state.status, 'full');
@@ -163,7 +163,7 @@ test('他の人が入ると、在室の一覧が更新される', async () => {
   const sdk = makeFakeSdk({ uid: 'abc' });
   const bb = load(sdk);
   await bb.joinRoom(CFG, '1234');
-  await sdk.db.set({ path: 'rooms/1234/players/p3' }, { uid: 'q', joinedAt: 2 });
+  await sdk.db.set({ path: 'rooms/1234/players/p3' }, { uid: 'q', joinedAt: 2, seen: Date.now() });
   assert.deepEqual([...bb.state.members], ['p1', 'p3']);
 });
 
@@ -219,14 +219,14 @@ test('退出すると、位置も消え、切断時の削除の予約も取り�
 
 const flush = () => new Promise((r) => setTimeout(r, 20));
 
-test('切れると、接続の状態は disconnected になり、部屋の枠は消える（サーバー側）', async () => {
+test('切れても、枠は消さない（60秒の保持）。接続の状態は disconnected と表示する', async () => {
   const sdk = makeFakeSdk({ uid: 'abc' });
   const bb = load(sdk);
   await bb.joinRoom(CFG, '1234');
   sdk.setConnected(false);
   assert.equal(bb.state.connection, 'disconnected');
   assert.equal(bb.state.status, 'reconnecting');
-  assert.equal(sdk.store.has('rooms/1234/players/p1'), false);
+  assert.equal(sdk.store.get('rooms/1234/players/p1').uid, 'abc');
 });
 
 test('戻ると、同じ部屋に自動で入り直す', async () => {
@@ -264,7 +264,7 @@ test('再接続の待ち時間は、少しずつ伸びて、16秒で止まる', 
 
 test('満員で入れなかったときは、入り直しを続けない', async () => {
   const sdk = makeFakeSdk({ uid: 'abc' });
-  for (const s of ['p1', 'p2', 'p3', 'p4']) sdk.store.set(`rooms/1234/players/${s}`, { uid: 'x' + s, joinedAt: 1 });
+  for (const s of ['p1', 'p2', 'p3', 'p4']) sdk.store.set(`rooms/1234/players/${s}`, { uid: 'x' + s, joinedAt: 1, seen: Date.now() });
   const bb = load(sdk);
   await bb.joinRoom(CFG, '1234');
   assert.equal(bb.state.status, 'full');
@@ -328,7 +328,7 @@ test('部屋にいる間の確認：枠が消えていたら、入り直す（�
   const bb = load(sdk);
   await bb.joinRoom(CFG, '1234');
   sdk.store.delete('rooms/1234/players/p1');
-  bb._check();
+  bb._beat();
   await flush();
   assert.equal(bb.state.slot, 'p1');
   assert.equal(sdk.store.get('rooms/1234/players/p1').uid, 'abc');
@@ -340,7 +340,7 @@ test('確認の返事が8秒以上ないときは、切断と表示する', asyn
   await bb.joinRoom(CFG, '1234');
   bb._checking = true;
   bb._checkStarted = Date.now() - 9000;
-  bb._check();
+  bb._beat();
   assert.equal(bb.state.connection, 'disconnected');
   assert.equal(bb.state.status, 'reconnecting');
 });
@@ -349,7 +349,7 @@ test('機内モードのあと戻ると、自分と相手の両方が一覧に�
   const sdk = makeFakeSdk({ uid: 'abc' });
   const bb = load(sdk);
   await bb.joinRoom(CFG, '1234');
-  sdk.store.set('rooms/1234/players/p2', { uid: 'other', joinedAt: 1 });
+  sdk.store.set('rooms/1234/players/p2', { uid: 'other', joinedAt: 1, seen: Date.now() });
   await flush();
   sdk.setConnected(false);
   await flush();
@@ -360,4 +360,71 @@ test('機内モードのあと戻ると、自分と相手の両方が一覧に�
   assert.equal(bb.state.slot, 'p1');
   assert.equal(bb.state.status, 'in_room');
   assert.deepStrictEqual([...bb.state.members], ['p1', 'p2']);
+});
+
+test('心拍で、自分の枠の最後の時刻を書き直す', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.store.get('rooms/1234/players/p1').seen = 1;
+  bb._beat();
+  const w = sdk.store.get('rooms/1234/players/p1');
+  assert.equal(w.uid, 'abc');
+  assert.ok(w.seen > 1000);
+});
+
+test('タブを切って60秒以内に戻れば、枠は残り、同じ枠のまま', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.store.get('rooms/1234/players/p1').seen = Date.now() - 30000;
+  sdk.setConnected(false);
+  sdk.setConnected(true);
+  await flush();
+  assert.equal(bb.state.slot, 'p1');
+  assert.equal(bb.state.status, 'in_room');
+  assert.equal(sdk.store.get('rooms/1234/players/p1').uid, 'abc');
+});
+
+test('タブを切って60秒以上たつと、ほかの人がその枠を取れる。戻った人は次の枠に入る', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.store.set('rooms/1234/players/p1', { uid: 'def', joinedAt: 2, seen: Date.now() });
+  sdk.setConnected(false);
+  sdk.setConnected(true);
+  await flush();
+  assert.equal(bb.state.slot, 'p2');
+  assert.equal(bb.state.status, 'in_room');
+  assert.equal(sdk.store.get('rooms/1234/players/p1').uid, 'def');
+  assert.equal(sdk.store.get('rooms/1234/players/p2').uid, 'abc');
+});
+
+test('60秒以上前の枠は、空いている枠として取れる', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  sdk.store.set('rooms/1234/players/p1', { uid: 'zzz', joinedAt: 1, seen: Date.now() - 61000 });
+  const bb = load(sdk);
+  assert.equal(await bb.joinRoom(CFG, '1234'), 'p1');
+});
+
+test('心拍で「枠を取られた」と分かったら、次の枠に入る', async () => {
+  let blocked = false;
+  const sdk = makeFakeSdk({ uid: 'abc', deny: (p) => blocked && p === 'rooms/1234/players/p1' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.store.set('rooms/1234/players/p1', { uid: 'def', joinedAt: 2, seen: Date.now() });
+  blocked = true;
+  bb._beat();
+  await flush();
+  assert.equal(bb.state.slot, 'p2');
+  assert.equal(sdk.store.get('rooms/1234/players/p2').uid, 'abc');
+});
+
+test('一覧には、60秒以内に書き直された人だけを出す', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  sdk.store.set('rooms/1234/players/p2', { uid: 'old', joinedAt: 1, seen: Date.now() - 61000 });
+  await sdk.db.set({ path: 'rooms/1234/players/p3' }, { uid: 'new', joinedAt: 2, seen: Date.now() });
+  assert.deepStrictEqual([...bb.state.members], ['p1', 'p3']);
 });
