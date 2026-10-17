@@ -26,7 +26,7 @@
   - ブラウザ側のJSは、Nodeで偽のSDKに差し替えて動作を確認した（成功・失敗・不正なJSON・2回呼んでも1回だけ。リポジトリにはテストとして入れていない）
   - **未確認**：①実際のブラウザでSDKが読み込めるか（この環境では gstatic に接続できず、`11.10.0` のファイルがあるかも未確認。npmには存在）②機能タグによる起動シーンの切り替えと `head_include` の書き出し（書き出しテンプレートがなく、実際の書き出しは未実施）③iPhone Safariで匿名ログインが通るか ④Authenticationで匿名が有効か（ユーザーから聞いただけ）⑤`getAuth` が使うIndexedDBなどが、iPhoneのSafariで使えるか
 - 通信の試作 手順1-1（合言葉の関数・設定・ルール案）：作成済み。**画面とネットワークの接続は、まだ作っていない**
-  - `data/network.json`：`code_digits: 4`、`max_players: 2`
+  - `data/network.json`：`code_digits: 4`、`max_players: 4`
   - `scripts/network/room_code.gd`：`is_valid_code(code, digits)`（半角の数字0〜9だけで、ちょうど桁数。全角・空白・符号・記号は不可）、`room_path(code, digits)`（`rooms/1234`。不正なら空の文字列）、`load_config()`
   - `firebase/database.rules.json`：ルールの**案**。**Firebaseには適用していない**（`firebase.json` もない）。設計の「4. 必要なルール案」と同じ内容
   - テスト：`tests/test_room_code.gd`（37項目合格：設定値、通る合言葉、通らない合言葉（全角・空白・記号など19種）、場所の組み立て）、`tests/test_room_rules.gd`（22項目合格：ルールの形、`network.json` の桁数・人数との一致、全体が拒否のままか、一覧が読めないか、など）。設定値をわざと変えると、失敗することも確認した
@@ -95,7 +95,7 @@
 1. （ユーザー）GitHubで、Pages の Source を「GitHub Actions」にし、`github-pages` 環境に `claude/happy-planck-pg17gs` を許可する。その後、Actions の実行結果（成功か、失敗ならエラーの文字、所要時間）を確認して、`NOTES.md` に書く。公開のURLを確定する
 2. 公開されたURLを、iPhoneで開く。`/`（描画実験）と `/firebase_check/`（Firebase OK が出るか）を確認する
 3. Android Chromeでも、同じ確認を行う。再読み込みして、uidが変わらないかも見る
-4. 通信の試作の手順1-2（ユーザー）：`firebase/database.rules.json` をコンソールの Realtime Database →「ルール」に貼って公開し、プレイグラウンドで確認する。（その前に、設計の「6. ユーザーに確認したいこと」の1〜3に答える。未回答。推奨のまま、1-1を進めた）。次の作業は 1-3（ブラウザ側のJSと橋渡し）
+4. 通信の試作の手順1-2（ユーザー）：`firebase/database.rules.json` は公開済み（枠の方式）。プレイグラウンドで、枠の方式の9項目（p1〜p4、他人の枠、p5、退出、joinedAtの型、余分な項目、5桁の合言葉）を確かめて、結果を送る。次の作業は 1-3（ブラウザ側のJSと橋渡し、枠への参加）
 5. 描画実験の再計測：iPhoneで A・B を3回ずつ測って平均を出す。Android Chromeでも測る。前回との食い違い（FPS 60 と 39）の原因も見る
 6. 差が出る条件を探す（箱を増やす、動く敵を増やすなど）
 
@@ -119,7 +119,7 @@
 #### 方針
 - 部屋は「最初の人が入った時に、できる」。部屋を作る専用の操作は置かない（作る・入るを1つにする）。参加者がゼロになると、Realtime Databaseは空のデータを自動で消すので、部屋も消える
 - 人数の上限は、**ルール（サーバー側）で守る**。画面だけで止めても、守れたことにならない
-- 試作の上限は2人。最終形は4人なので、上限は `data/network.json` の `max_players` に置く（ルールのファイルにも同じ数が必要。下の「同期のテスト」で、2つが一致することを確かめる）
+- 人数の上限は4人（`data/network.json` の `max_players: 4`）。部屋の中に枠 `p1`〜`p4` を作り、空いている枠にだけ入れる。Realtime Databaseのルールは人数を数えられないので（`numChildren` は使えない）、枠の数で上限を守る。枠の数と `max_players` が一致することは、`tests/test_room_rules.gd` で確かめる
 - 「部屋のメンバー」と「動きの位置」は、別の場所に分ける（手順2で位置を1秒10回書き込む。メンバーの一覧を見張っているところに混ぜると、10回/秒でそのたびに通知が来てしまう）
 
 #### 1. 部屋のデータの形（Realtime Database）
@@ -230,4 +230,5 @@ rooms/
 - 2026-10-18：iPhone Safariで Firebase 確認シーンが「Firebase OK（uWJEjQ）」と表示されたことを、ユーザーのスクリーンショットで確認し、記録した。コードの変更なし。コミット・プッシュはまだ（この `NOTES.md` の更新のみ）
 - 2026-10-18：通信の試作の手順1（4桁の合言葉の部屋）の設計を `NOTES.md` に書いた（データの形、入る流れ、2人までの確認方法、作る順番1-1〜1-5、ルール案）。コードは書いていない。ルール案は未検証・未公開。コミット・プッシュはまだ
 - 2026-10-18：GitHub Pages への自動公開の準備。①全履歴の秘密情報の検索（見つからず）②`CLAUDE.md` ルール11の変更（テスト全合格なら自動コミット・プッシュ）③`.github/workflows/pages.yml` を作成（actionlintでエラーなし）。この環境で、テンプレートの取り出し・全テスト・2つの書き出し・実ブラウザの表示を再現して確認。テスト：firebase_check 38／firebase_config 23／pages_workflow 23／render_test 28（すべて合格、失敗0）。GitHub上での実行、公開のURL、Pagesの設定は未確認
+- 2026-10-18：人数の上限を枠の方式に変更（A1：参加時刻はアプリが送る数字をそのまま使う／B1：枠 p1〜p4）。ルールは `firebase/database.rules.json` が正（コンソールに公開する内容と同じ）。`NOTES.md` の手順1のルール案は古い版。`numChildren` はRealtime Databaseで使えず、コンソールでエラーになったため変更。Godotの6つのテストを、Godot 4.7.2 headless で実行して全合格（失敗0）。ルールの動作（誰が書けるか）は、Firebaseのプレイグラウンドで確かめる。エミュレータ版のテストは、この環境から npm と Google のストレージに接続できないため未作成
 - 2026-10-18：通信の試作 手順1-1：合言葉の検査・部屋の場所の関数（`scripts/network/room_code.gd`）、`data/network.json`（4桁・2人）、ルールの案（`firebase/database.rules.json`、未適用）、テスト2つ（37項目・22項目）を追加。全6テスト合格（合計171項目、失敗0）。画面・ネットワーク接続は未着手。ルールの動作は未確認
