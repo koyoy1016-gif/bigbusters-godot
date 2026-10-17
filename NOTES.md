@@ -13,6 +13,15 @@
   - テスト：`godot --headless --path . --script res://tests/test_firebase_config.gd`（全項目の値、`apiKey` が空でなく `AIza` で始まる39文字であること、秘密情報が入っていないことを確認。結果は作業ログ）
   - 決定：つなぎ方は案A（JavaScriptBridge）、ログインは匿名ログイン、4桁の合言葉は試作では許容（下の「通信の試作の計画」）
   - 未確認：Firestoreの場所、Realtime Databaseがロックモードか、Sparkプランのままか。Authenticationで匿名が有効なことは、ユーザーから聞いた（コンソールでの確認はしていない）
+- Firebase JS SDK の呼び出し確認（`JavaScriptBridge`）：**コードは作ったが、iPhoneで確かめるまで、接続できたとは書かない**（実機・ブラウザでは未確認）
+  - 内容：Web版から匿名ログイン（`signInAnonymously`）を1回だけ呼び、画面に「Firebase OK（uidの先頭6文字）」または「Firebase NG：エラーの文字」を出す。合言葉の部屋・同期は未着手
+  - 構成：シーン `scenes/experiments/firebase_check.tscn`、スクリプト `scripts/experiments/firebase_check.gd`、画面の文字・位置・時間切れの秒数・SDKのバージョンは `data/firebase_check.json`、設定値は `data/firebase_config.json`（`_memo` は渡さない）
+  - SDKは書き出しの `head_include`（`export_presets.cfg` の preset.1）で読み込む。公式CDN `https://www.gstatic.com/firebasejs/11.10.0/`（バージョン固定）。ブラウザ側は `window.bbFirebase`（`signIn` と `state`）。Godotは `JavaScriptBridge.eval` で呼び、0.2秒ごとに `state` を読む（コールバック方式は使っていない）。15秒で終わらなければNG
+  - 起動：既存の起動シーン（render_test）は変えていない。確認用に、書き出しプリセット「Web (Firebase check)」（機能タグ `firebase_check`、書き出し先 `web/firebase_check/index.html`）を足し、`project.godot` に `run/main_scene.firebase_check` を足した。このプリセットで書き出したときだけ確認シーンから始まる
+  - 通常の書き出し（preset.0、render_test）は変えていない。どちらのプリセットも、スレッドなし
+  - テスト：`tests/test_firebase_check.gd`（38項目合格）。偽のブラウザ側（差し替えた `js_eval`）で、成功・失敗・SDK未読み込み・時間切れの表示と、signInが1回だけ呼ばれることを確認。書き出し設定（スレッドなし、SDKの固定バージョン、設定値の直書きなし）と、起動シーンが変わっていないことも確認
+  - ブラウザ側のJSは、Nodeで偽のSDKに差し替えて動作を確認した（成功・失敗・不正なJSON・2回呼んでも1回だけ。リポジトリにはテストとして入れていない）
+  - **未確認**：①実際のブラウザでSDKが読み込めるか（この環境では gstatic に接続できず、`11.10.0` のファイルがあるかも未確認。npmには存在）②機能タグによる起動シーンの切り替えと `head_include` の書き出し（書き出しテンプレートがなく、実際の書き出しは未実施）③iPhone Safariで匿名ログインが通るか ④Authenticationで匿名が有効か（ユーザーから聞いただけ）⑤`getAuth` が使うIndexedDBなどが、iPhoneのSafariで使えるか
 - iPhoneのブラウザでの実験：実機で計測済み（`scenes/render_test.tscn`）
   - 地面・ライト1つ・回転する箱。A：個別300個／B：MultiMesh 300個。キー1／2か画面ボタンで切り替え。左上にFPSと描画回数
   - 数値は `data/render_test.json`。Web書き出し設定は `export_presets.cfg`（スレッドなし）
@@ -58,8 +67,8 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること
-1. 通信の試作の手順1の最初：`JavaScriptBridge` でFirebase JS SDKを呼べるか、小さく確かめる（Godot 4.7.2、スレッドなしのWeb書き出し。未検証）
-2. 通信の試作（ロードマップ 10/19〜20）。下の「通信の試作の計画」を、手順1→2→3の順に、**1つずつ**行う（1回の依頼で1手順）
+1. 確認用のWeb書き出し：プリセット「Web (Firebase check)」で `web/firebase_check/` に書き出し、HTTPSで公開（またはローカルサーバー）して、iPhone Safari と Android Chrome で開く。「Firebase OK（…）」が出るか見る。NGなら、エラーの文字を `NOTES.md` に書く
+2. （1が通ったら）通信の試作の手順1：4桁の合言葉で部屋に入る。ルールを書いてテストしてから設定する
 3. 描画実験の再計測：iPhoneで A・B を3回ずつ測って平均を出す。Android Chromeでも測る。前回との食い違い（FPS 60 と 39）の原因も見る
 4. 差が出る条件を探す（箱を増やす、動く敵を増やすなど）
 
@@ -109,3 +118,4 @@
 - 2026-10-18：通信の試作の準備（コードなし）。Firebaseの設定値の置き場所を `data/firebase_config.json` に決め、`projectId`、`databaseURL` を記入（他は空欄）。秘密情報を除外する `.gitignore` と、設定ファイルのテストを追加。通信の試作の計画（手順1：合言葉の部屋、手順2：10回/秒の同期、手順3：接続状態と再接続）を書いた。コミット・プッシュはまだ
 - 2026-10-18：`data/firebase_config.json` に authDomain、storageBucket、messagingSenderId、appId を記入（apiKeyは値が渡されず空欄のまま）。決定事項を記録（案A：JavaScriptBridge、匿名ログイン、4桁の合言葉は試作で許容）。テストを更新。コミット・プッシュはまだ
 - 2026-10-18：`apiKey` を `data/firebase_config.json` に記入。7項目すべてが依頼の値と一致、`apiKey` は39文字で `AIza` 始まり。テスト結果：`test_firebase_config.gd` 合格（失敗0）、`test_render_test.gd` 合格（失敗0）。ゲームのコードは変更なし。コミット・プッシュはまだ
+- 2026-10-18：`JavaScriptBridge` で Firebase JS SDK を呼ぶ小さな確認を作成（匿名ログインを1回、結果を画面に表示）。シーン・スクリプトは experiments/ の下、文字などは `data/firebase_check.json`。SDKは `head_include` で gstatic の 11.10.0 を読み込む。確認用の書き出しプリセットを追加。テスト：`test_firebase_check.gd` 38合格／`test_firebase_config.gd` 23合格／`test_render_test.gd` 28合格（失敗0）。**iPhoneで確かめるまで、接続できたとは書かない**。Web書き出し・ブラウザでの動作は未実施。コミット・プッシュはまだ

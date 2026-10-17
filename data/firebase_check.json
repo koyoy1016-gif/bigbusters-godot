@@ -1,0 +1,20 @@
+{
+  "sdk_version": "11.10.0",
+  "poll_interval_sec": 0.2,
+  "timeout_sec": 15.0,
+  "uid_prefix_length": 6,
+  "ui_font_path": "res://assets/fonts/NotoSansJP-Regular-subset.ttf",
+  "ui_font_size": 32,
+  "label_position": [24, 24],
+  "label_width": 1100,
+  "background_color": "#1b2430",
+  "text_color": "#ffffff",
+  "texts": {
+    "not_web": "Firebase：Web版でのみ確認できます",
+    "no_bridge": "Firebase NG：ブラウザ側の準備（head_include）が見つかりません",
+    "pending": "Firebase 接続中…",
+    "ok": "Firebase OK（%s）",
+    "ng": "Firebase NG：%s",
+    "timeout": "接続が%d秒で終わりませんでした"
+  }
+}
