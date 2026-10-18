@@ -22,6 +22,8 @@ const BossSync := preload("res://scripts/network/boss_sync.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 const Recorder := preload("res://scripts/combat/highlight_recorder.gd")
 const CrowdState := preload("res://scripts/combat/crowd_state.gd")
+const CharacterData := preload("res://scripts/characters/character_data.gd")
+const CharacterView := preload("res://scripts/characters/character_view.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 
 var config: Dictionary = {}
@@ -30,6 +32,7 @@ var player_material: StandardMaterial3D
 var boss: MeshInstance3D
 var sub_crowd: Node3D
 var recorder := Recorder.new()
+var char_view: Node3D = null
 var crowd_state := CrowdState.new()
 var touch_timer := 0.0
 var since_sample := 0.0
@@ -228,6 +231,33 @@ func _build_world() -> void:
 	add_child(camera)
 	camera.look_at_from_position(camera_offset, Vector3.ZERO, Vector3.UP)
 	player_marker_material = _add_marker(player, Color(str(config["player_color"])))
+	_attach_character()
+
+
+## 自分のキャラのモデル（data/characters.json）があれば、箱の代わりに出す。なければ箱のまま
+func _attach_character() -> void:
+	var cfg := CharacterData.load_config()
+	var def := CharacterData.find(cfg, str(cfg.get("player_character", "")))
+	if def.is_empty() or not CharacterData.has_model(def):
+		return
+	var view := CharacterView.new()
+	if not view.setup(def):
+		view.free()
+		return
+	view.position = Vector3(0.0, -ground_y, 0.0)
+	player.add_child(view)
+	player.mesh = null
+	char_view = view
+
+
+## 動作に合わせて、モデルのアニメと向きを更新する（モデルがなければ何もしない）
+func _update_character(delta: float) -> void:
+	if char_view == null:
+		return
+	var airborne := player.position.y > ground_y + 0.05
+	char_view.play_action(CharacterData.pick_action(downed, airborne, attack_flash > 0.0, stick_vec.length() > 0.1))
+	if not downed:
+		char_view.face(stick_vec, delta)
 
 
 ## 光が当たらない面が真っ黒にならないよう、まわりからの明るさ（環境光）を足す
@@ -312,6 +342,7 @@ func _process(delta: float) -> void:
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
 	_record_highlight(delta)
+	_update_character(delta)
 	var crowd_t := maxf(0.0, (server_now_ms() - round_start_ms) / 1000.0) if round_active() else 0.0
 	crowd_state.refresh(crowd_t)
 	sub_crowd.update_at(crowd_t, crowd_state)

@@ -36,3 +36,15 @@
 - Windows PC に、Blender と MakeHuman を入れて作業できるか（無料。手順は Claude が書く）。
 - リアル路線を優先するか、アニメ調でもよいか。
 - 最初に作るキャラは、主人公の忍者1体でよいか。
+
+## ユーザーの回答（2026-10-18 22:00）
+- 1（PCでBlender/MakeHumanを使えるか）：家で確認する。いったん保留
+- 2：リアル路線を優先
+- 3：最初のキャラは、主人公の「剣士」
+
+## 作ったもの（2026-10-18）
+- `data/characters.json`：キャラの一覧（id・名前・種類・役割・モデルのファイル・面の数の予算・動作とアニメ名の対応）。いまは主人公の「けんし」1体。`model` が空のあいだは、箱で出る
+- `scripts/characters/character_data.gd`：読み込み・検索・データの誤り探し・動作の選び方
+- `scripts/characters/character_view.gd`：モデル（glTFの場面）の読み込み、アニメ再生、向き
+- 戦いの画面：`data/characters.json` の `player_character` にモデルがあれば、自分の箱の代わりにモデルを出す
+- モデルを入れる手順：glTFを `assets/models/` に置く→`characters.json` の `model` にパスを書く→アニメ名を `animations` に合わせる。ライセンスは `assets/LICENSES.md` に書く

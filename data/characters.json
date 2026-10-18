@@ -1,0 +1,24 @@
+{
+  "player_character": "hero_swordsman",
+  "actions": ["idle", "run", "jump", "attack", "down"],
+  "characters": [
+    {
+      "id": "hero_swordsman",
+      "name": "けんし",
+      "kind": "ally",
+      "role": "アタッカー",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Sword_Attack",
+        "down": "Death"
+      }
+    }
+  ],
+  "budgets": {"ally": 15000, "sub_enemy": 5000, "boss": 30000}
+}
