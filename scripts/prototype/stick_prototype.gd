@@ -106,6 +106,8 @@ var last_char_sent_ms := -100000
 var other_views := {}  ## 枠 → ほかの人のモデルの見た目（CharacterView）
 var bridge := Bridge.new()
 var room_code := ""
+## 画面の流れ（game_flow）が決めた合言葉。空なら、URLの ?room=、なければ既定
+var forced_room_code := ""
 var net_state: Dictionary = {}
 var others := {}
 var other_target := {}
@@ -172,7 +174,7 @@ func _setup_network() -> void:
 	if str(js_eval.call("typeof window.bbFirebase")) != "object":
 		return
 	var query: Variant = js_eval.call("new URLSearchParams(window.location.search).get('room')")
-	room_code = pick_room_code(query, str(config["default_room"]), digits)
+	room_code = forced_room_code if RoomCode.is_valid_code(forced_room_code, digits) else pick_room_code(query, str(config["default_room"]), digits)
 	var config_json := JSON.stringify(CheckScreen.extract_firebase_config(CheckScreen.load_json(FIREBASE_CONFIG_PATH)))
 	bridge.js_eval = js_eval
 	net_active = true

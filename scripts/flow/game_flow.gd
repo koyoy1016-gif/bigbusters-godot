@@ -8,6 +8,8 @@ const Quality := preload("res://scripts/core/quality.gd")
 const SaveData := preload("res://scripts/flow/save_data.gd")
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const Replay := preload("res://scripts/flow/highlight_replay.gd")
+const RoomLink := preload("res://scripts/network/room_link.gd")
+const RoomCode := preload("res://scripts/network/room_code.gd")
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const BENCH_SCENE := "res://scenes/prototype/crowd_bench.tscn"
@@ -44,6 +46,10 @@ var selected_character := ""
 var lobby_char: Label
 var formation_stats: Label
 var formation_buttons: Dictionary = {}
+var room_code := ""
+var room_from_url := false
+var room_label: Label
+var js_eval: Callable = func(text: String) -> Variant: return JavaScriptBridge.eval(text, true)
 var rematch_wait_reward: Label
 var rematch_wait_next: Label
 var my_rematch_vote := false
@@ -70,6 +76,7 @@ func _ready() -> void:
 	layer.name = "Menus"
 	layer.layer = 10
 	add_child(layer)
+	init_room()
 	_build_panels()
 	if OS.has_feature("web") and str(JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('bench') || ''", true)) != "":
 		query_bench = true
@@ -159,6 +166,14 @@ func _build_panels() -> void:
 	l.add_child(stage_row)
 	play_button = _make_button(str(config["play_label"]), big, play)
 	l.add_child(play_button)
+	room_label = _make_label("", text_size, text_color)
+	l.add_child(room_label)
+	var room_row := HBoxContainer.new()
+	room_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	room_row.add_theme_constant_override("separation", 16)
+	room_row.add_child(_make_button(str(config["invite_label"]), small, invite))
+	room_row.add_child(_make_button(str(config["new_room_label"]), small, new_room))
+	l.add_child(room_row)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 20)
@@ -306,7 +321,9 @@ func change_quality() -> void:
 
 
 func _apply_quality() -> void:
-	var lights := get_tree().get_nodes_in_group("sun") if get_tree() != null else []
+	var lights: Array[Node] = []
+	if get_tree() != null:
+		lights = get_tree().get_nodes_in_group("sun")
 	Quality.apply(quality_name, quality_config, get_viewport(), lights)
 
 
@@ -348,6 +365,7 @@ func _refresh_lobby() -> void:
 	var cdef := CharacterData.find(characters_cfg, selected_character)
 	lobby_char.text = (str(config["lobby_char_label"]) + "：" + str(cdef["role"]) + " " + str(cdef["name"])) if not cdef.is_empty() else ""
 	play_button.disabled = not bool(stage["open"])
+	room_label.text = (str(config["room_from_url_note"]) if room_from_url else str(config["room_label"])) + " " + room_code
 	quality_button.text = str(config["quality_label"]) + "：" + Quality.label_of(quality_name, quality_config)
 
 
@@ -382,12 +400,46 @@ func _rematch_update(delta: float) -> void:
 	rematch_wait_next.text = text
 
 
+## 部屋の合言葉を決める：URLの ?room= があればそれ（しょうたいされた）、なければ新しく作る（毎回べつの部屋）
+func init_room() -> void:
+	var digits := int(RoomCode.load_config().get("code_digits", 4))
+	var query: Variant = null
+	if str(js_eval.call("typeof window")) == "object":
+		query = js_eval.call("new URLSearchParams(window.location.search).get('room')")
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var picked := RoomLink.pick(query, digits, rng)
+	room_code = str(picked["code"])
+	room_from_url = bool(picked["from_url"])
+
+
+## 新しい合言葉の部屋にする（前の仲間とは、べつの部屋になる）
+func new_room() -> void:
+	var digits := int(RoomCode.load_config().get("code_digits", 4))
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	room_code = RoomLink.generate_code(digits, rng)
+	room_from_url = false
+	_refresh_lobby()
+
+
+## しょうたい：この部屋のURLを作って、ブラウザ側の「おくる」画面を出す
+func invite() -> void:
+	if str(js_eval.call("typeof window")) != "object":
+		toast_label.text = str(config["invite_offline_note"])
+		toast_time = 2.5
+		return
+	var base := str(js_eval.call("window.location.origin + window.location.pathname"))
+	js_eval.call(RoomLink.build_share_call(RoomLink.build_url(base, room_code), config["share_labels"]))
+
+
 func _start_battle() -> void:
 	_end_battle_node()
 	var packed := load(BATTLE_SCENE) as PackedScene
 	battle = packed.instantiate()
 	battle.flow_mode = true
 	battle.selected_character = selected_character
+	battle.forced_room_code = room_code
 	battle.round_ended.connect(_on_round_ended)
 	battle.round_started.connect(_on_round_started)
 	add_child(battle)

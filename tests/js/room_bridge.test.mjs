@@ -593,3 +593,37 @@ test('ルールが未更新で、キャラが書けなくても、入室は失�
   bb.sendChar('guardian');
   assert.equal(bb.state.status, 'in_room');
 });
+
+// ---- しょうたいの「おくる」画面（window.bbShare）：偽のDOMで動かす ----
+test('bbShare：おくる画面を作り、LINEのURLとコピーができ、とじると消える', async () => {
+  const mkEl = (tag) => {
+    const el = { tag, children: [], style: {}, parentNode: null, id: '', textContent: '', value: '' };
+    el.appendChild = (c) => { c.parentNode = el; el.children.push(c); return c; };
+    el.removeChild = (c) => { el.children = el.children.filter((x) => x !== c); c.parentNode = null; };
+    el.select = () => {};
+    el.setSelectionRange = () => {};
+    return el;
+  };
+  const body = mkEl('body');
+  const document = { body, createElement: mkEl, getElementById: (id) => { const f = (n) => n.id === id ? n : n.children.map(f).find(Boolean); return f(body) || null; }, execCommand: () => true };
+  const copied = [];
+  const navigator = { share: () => Promise.resolve(), clipboard: { writeText: (t) => { copied.push(t); return Promise.resolve(); } } };
+  const win = { };
+  const ctx = vm.createContext({ window: win, document, navigator, encodeURIComponent, console });
+  vm.runInContext(script, ctx);
+  const labels = { title: 'T', message: 'いっしょに', line: 'LINE', share: '送る', copy: 'コピー', copied: 'ok', close: 'とじる' };
+  win.bbShare.show('https://x/?room=1234', labels);
+  const box = document.getElementById('bb-share');
+  assert.ok(box, 'おくる画面ができる');
+  const all = [];
+  const walk = (n) => { all.push(n); n.children.forEach(walk); };
+  walk(box);
+  const link = all.find((n) => n.tag === 'a');
+  assert.equal(link.href, 'https://line.me/R/msg/text/?' + encodeURIComponent('いっしょに https://x/?room=1234'), 'LINEのURL');
+  const buttons = all.filter((n) => n.tag === 'button');
+  assert.equal(buttons.length, 3, '共有・コピー・とじる');
+  buttons.find((b) => b.textContent === 'コピー').onclick();
+  assert.deepEqual(copied, ['https://x/?room=1234'], 'URLをコピーする');
+  buttons.find((b) => b.textContent === 'とじる').onclick();
+  assert.equal(document.getElementById('bb-share'), null, 'とじると消える');
+});
