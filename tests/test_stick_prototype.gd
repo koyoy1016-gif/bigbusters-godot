@@ -280,9 +280,9 @@ func _initialize() -> void:
 		s6.round_end_ms = now6[0]
 		var lines: Array = s6.build_result_lines()
 		check(lines.size() == 3 and str(lines[0]).ends_with("1：23"), "結果：かかった時間（83秒＝1：23）：" + str(lines))
-		check(str(lines[1]).ends_with("123") and str(lines[2]).contains("1 つよい 123") and str(lines[2]).contains("2 かたい 77"), "結果：与えたダメージの順位（役割の名前つき）：" + str(lines[2]))
+		check(str(lines[1]).ends_with("123") and str(lines[2]).contains("1 アタッカー 123") and str(lines[2]).contains("2 サポーター 77"), "結果：与えたダメージの順位（役割の名前つき）：" + str(lines[2]))
 		s6.net_state = {"slot": "p1", "members": ["p1", "p2"], "hits": {"p1": 123, "p2": 500}}
-		check(str(s6.build_result_lines()[2]).contains("1 かたい 500") and str(s6.build_result_lines()[2]).contains("2 つよい 123"), "ほかの人のほうが多ければ、順位が入れ替わる")
+		check(str(s6.build_result_lines()[2]).contains("1 サポーター 500") and str(s6.build_result_lines()[2]).contains("2 アタッカー 123"), "ほかの人のほうが多ければ、順位が入れ替わる")
 		s6.net_state = {"slot": "p1", "members": ["p1"], "hits": {}}
 		check(s6.build_result_lines().size() == 2, "1人だけのときは、順位の行は出さない")
 		s6.won = false
@@ -361,15 +361,15 @@ func _initialize() -> void:
 		s4.net_state = {"slot": "p2"}
 		var hp_p2: float = s4.role_value("hp")
 		s4.net_state = {"slot": "p1"}
-		check(hp_p2 > s4.role_value("hp"), "p2（かたい）は、p1（つよい）より体力が多い")
-		check(roles["p1"]["attack_power"] > roles["p2"]["attack_power"], "p1（つよい）は、p2（かたい）よりこうげきが強い")
-		check(roles["p3"]["move_speed"] > roles["p1"]["move_speed"] and roles["p3"]["attack_cooldown_sec"] < roles["p1"]["attack_cooldown_sec"], "p3（はやい）は、速く動け、連続でこうげきできる")
-		check(roles["p4"]["jump_speed"] > roles["p1"]["jump_speed"], "p4（とぶ）は、高く跳べる")
+		check(hp_p2 > s4.role_value("hp"), "p2（サポーター）は、p1（アタッカー）より体力が多い")
+		check(roles["p1"]["attack_power"] > roles["p2"]["attack_power"], "p1（アタッカー）は、p2（サポーター）よりこうげきが強い")
+		check(roles["p3"]["move_speed"] > roles["p1"]["move_speed"] and roles["p3"]["attack_cooldown_sec"] < roles["p1"]["attack_cooldown_sec"], "p3（クイック）は、速く動け、連続でこうげきできる")
+		check(roles["p3"]["jump_speed"] > roles["p1"]["jump_speed"], "p3（クイック）は、高く跳べる")
 		s4.net_state = {}
 		check(s4.role_value("hp") == float(roles["p1"]["hp"]), "通信なしのときは、p1の役割")
-		s4.net_state = {"slot": "p4"}
+		s4.net_state = {"slot": "p3"}
 		s4.jump()
-		check(is_equal_approx(s4.velocity_y, float(roles["p4"]["jump_speed"])), "跳ぶ強さに、役割が効く")
+		check(is_equal_approx(s4.velocity_y, float(roles["p3"]["jump_speed"])), "跳ぶ強さに、役割が効く")
 		root.remove_child(s4)
 		s4.free()
 
@@ -454,7 +454,7 @@ func _initialize() -> void:
 
 	# 書き出しの設定
 	var project := FileAccess.get_file_as_string("res://project.godot")
-	check(project.contains('run/main_scene.stick_prototype="res://scenes/prototype/stick_prototype.tscn"'), "機能タグ stick_prototype で、この画面が開く")
+	check(project.contains('run/main_scene.stick_prototype="res://scenes/game_flow.tscn"'), "機能タグ stick_prototype で、この画面が開く")
 	check(project.contains("emulate_touch_from_mouse=true"), "PCでは、マウスでタッチを真似られる（確認用）")
 	var presets := FileAccess.get_file_as_string("res://export_presets.cfg")
 	check(presets.contains('custom_features="stick_prototype"'), "書き出しのプリセットに stick_prototype がある")

@@ -14,7 +14,7 @@ config/name="bigbusters-godot"
 run/main_scene="res://scenes/render_test.tscn"
 run/main_scene.firebase_check="res://scenes/experiments/firebase_check.tscn"
 run/main_scene.room_screen="res://scenes/experiments/room_screen.tscn"
-run/main_scene.stick_prototype="res://scenes/prototype/stick_prototype.tscn"
+run/main_scene.stick_prototype="res://scenes/game_flow.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 

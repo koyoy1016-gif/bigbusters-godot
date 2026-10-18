@@ -6,6 +6,9 @@ extends Node3D
 ## 数値は data/prototype_stick.json。動きは stick_math.gd、ダメージは scripts/combat/damage.gd、
 ## ボスの攻撃の予定は scripts/combat/boss_pattern.gd、通信は scripts/network/。
 
+## 戦いが終わった（倒した：true、全滅：false）。画面の流れ（game_flow.gd）が受け取る
+signal round_ended(won_flag: bool)
+
 const CONFIG_PATH := "res://data/prototype_stick.json"
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const SLOTS := ["p1", "p2", "p3", "p4"]
@@ -56,6 +59,8 @@ var known_round := 0.0
 var round_count := 0
 var last_strike := 0
 var round_end_ms := 0.0
+## 画面の流れの中で動かすとき true。「もういちど」ボタンは、流れ側が受け持つので出さない
+var flow_mode := false
 var jump_flash := 0.0
 var attack_flash := 0.0
 ## 現在の時刻（ミリ秒）。テストでは差し替える
@@ -259,6 +264,12 @@ func _build_ui() -> void:
 	layer.add_child(overlay)
 
 
+func _exit_tree() -> void:
+	# 部屋から抜ける（枠を空ける）
+	if net_active:
+		bridge.leave()
+
+
 func _process(delta: float) -> void:
 	var move := Vector2.ZERO if downed else stick_vec
 	player.position = StickMath.step_position(player.position, move, role_value("move_speed"), delta, float(config["bounds"]))
@@ -293,7 +304,7 @@ func _input(event: InputEvent) -> void:
 
 ## 指が触れた。「はじめる」（戦いの外）、左の領域ならスティック、こうげき、右の領域ならジャンプ
 func handle_press(index: int, pos: Vector2, screen: Vector2) -> void:
-	if not round_active() and pos.distance_to(_start_center(screen)) <= float(config["start_radius_px"]):
+	if _start_button_visible() and pos.distance_to(_start_center(screen)) <= float(config["start_radius_px"]):
 		start_round()
 	elif stick_touch == -1 and pos.x < screen.x * float(config["stick_zone_max_x_frac"]):
 		stick_touch = index
@@ -337,6 +348,33 @@ func role() -> Dictionary:
 
 func role_value(key: String) -> float:
 	return float(role().get(key, config.get(key, 0.0)))
+
+
+## 「はじめる／もういちど」ボタンを出すか。流れの中では、最初の「はじめる」だけ（もういちどは流れ側）
+func _start_button_visible() -> bool:
+	return not round_active() and (not flow_mode or round_count == 0)
+
+
+## 与えたダメージの順位（多い順）。[{slot, hits}, ...]
+func ranking_entries() -> Array:
+	var me := str(net_state.get("slot", ""))
+	var hits: Variant = net_state.get("hits", {})
+	var entries: Array = [{"slot": me, "hits": my_hits}]
+	if hits is Dictionary:
+		for slot in net_state.get("members", []):
+			if str(slot) == me:
+				continue
+			var v: Variant = hits.get(str(slot), null)
+			if v is float or v is int:
+				entries.append({"slot": str(slot), "hits": float(v)})
+	entries.sort_custom(func(x, y): return float(x["hits"]) > float(y["hits"]))
+	return entries
+
+
+## 役割の名前（枠から）
+func role_name_of(slot: String) -> String:
+	var roles: Dictionary = config["roles"]
+	return str(roles.get(slot if roles.has(slot) else "p1", {}).get("name", ""))
 
 
 ## 戦いの最中か（始まっていて、まだ終わっていない）
@@ -414,6 +452,7 @@ func _recompute_boss_hp() -> void:
 	if round_start_ms > 0.0 and boss_hp <= 0.0 and not won and not lost:
 		won = true
 		round_end_ms = server_now_ms()
+		round_ended.emit(true)
 		boss.visible = false
 
 
@@ -433,24 +472,11 @@ func build_result_lines() -> Array:
 	var secs := int(maxf(0.0, round_end_ms - round_start_ms) / 1000.0)
 	var lines: Array = [str(config["result_time_label"]) + "：" + str(secs / 60) + "：" + ("%02d" % (secs % 60))]
 	lines.append(str(config["result_mine_label"]) + "：" + str(int(my_hits)))
-	var me := str(net_state.get("slot", ""))
-	var hits: Variant = net_state.get("hits", {})
-	var entries: Array = [{"slot": me, "hits": my_hits}]
-	if hits is Dictionary:
-		for slot in net_state.get("members", []):
-			if str(slot) == me:
-				continue
-			var v: Variant = hits.get(str(slot), null)
-			if v is float or v is int:
-				entries.append({"slot": str(slot), "hits": float(v)})
-	entries.sort_custom(func(x, y): return float(x["hits"]) > float(y["hits"]))
+	var entries := ranking_entries()
 	if entries.size() > 1:
-		var roles: Dictionary = config["roles"]
 		var text := str(config["result_rank_label"]) + "："
 		for i in entries.size():
-			var slot_name := str(entries[i]["slot"])
-			var role_name := str(roles.get(slot_name if roles.has(slot_name) else "p1", {}).get("name", ""))
-			text += "  " + str(i + 1) + " " + role_name + " " + str(int(entries[i]["hits"]))
+			text += "  " + str(i + 1) + " " + role_name_of(str(entries[i]["slot"])) + " " + str(int(entries[i]["hits"]))
 		lines.append(text)
 	return lines
 
@@ -521,6 +547,7 @@ func _check_wipe() -> void:
 		if BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms):
 			lost = true
 			round_end_ms = server_now_ms()
+			round_ended.emit(false)
 
 
 ## 通信：一定の間隔でブラウザ側の状態を読み、自分の位置を送り、ほかの人の箱をなめらかに動かす
@@ -722,7 +749,7 @@ func _draw_overlay() -> void:
 		next_line += 1.5
 	overlay.draw_string(font, Vector2(16, fs * next_line), build_room_text(net_state, room_code, net_active, config), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 
-	if not round_active():
+	if _start_button_visible():
 		var sc := _start_center(screen)
 		overlay.draw_circle(sc, float(config["start_radius_px"]), Color(str(config["button_color"])))
 		_draw_centered(sc, str(config["restart_label"]) if round_count > 0 else str(config["start_label"]), button_text)
