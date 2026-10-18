@@ -280,9 +280,9 @@ func _initialize() -> void:
 		s6.round_end_ms = now6[0]
 		var lines: Array = s6.build_result_lines()
 		check(lines.size() == 3 and str(lines[0]).ends_with("1：23"), "結果：かかった時間（83秒＝1：23）：" + str(lines))
-		check(str(lines[1]).ends_with("123") and str(lines[2]).contains("1 アタッカー 123") and str(lines[2]).contains("2 サポーター 77"), "結果：与えたダメージの順位（役割の名前つき）：" + str(lines[2]))
+		check(str(lines[1]).ends_with("123") and str(lines[2]).contains("1 ファイター 123") and str(lines[2]).contains("2 ガーディアン 77"), "結果：与えたダメージの順位（役割の名前つき）：" + str(lines[2]))
 		s6.net_state = {"slot": "p1", "members": ["p1", "p2"], "hits": {"p1": 123, "p2": 500}}
-		check(str(s6.build_result_lines()[2]).contains("1 サポーター 500") and str(s6.build_result_lines()[2]).contains("2 アタッカー 123"), "ほかの人のほうが多ければ、順位が入れ替わる")
+		check(str(s6.build_result_lines()[2]).contains("1 ガーディアン 500") and str(s6.build_result_lines()[2]).contains("2 ファイター 123"), "ほかの人のほうが多ければ、順位が入れ替わる")
 		s6.net_state = {"slot": "p1", "members": ["p1"], "hits": {}}
 		check(s6.build_result_lines().size() == 2, "1人だけのときは、順位の行は出さない")
 		s6.won = false
@@ -361,10 +361,10 @@ func _initialize() -> void:
 		s4.net_state = {"slot": "p2"}
 		var hp_p2: float = s4.role_value("hp")
 		s4.net_state = {"slot": "p1"}
-		check(hp_p2 > s4.role_value("hp"), "p2（サポーター）は、p1（アタッカー）より体力が多い")
-		check(roles["p1"]["attack_power"] > roles["p2"]["attack_power"], "p1（アタッカー）は、p2（サポーター）よりこうげきが強い")
-		check(roles["p3"]["move_speed"] > roles["p1"]["move_speed"] and roles["p3"]["attack_cooldown_sec"] < roles["p1"]["attack_cooldown_sec"], "p3（クイック）は、速く動け、連続でこうげきできる")
-		check(roles["p3"]["jump_speed"] > roles["p1"]["jump_speed"], "p3（クイック）は、高く跳べる")
+		check(hp_p2 > s4.role_value("hp"), "p2（ガーディアン）は、p1（ファイター）より体力が多い")
+		check(roles["p1"]["attack_power"] > roles["p2"]["attack_power"], "p1（ファイター）は、p2（ガーディアン）よりこうげきが強い")
+		check(roles["p3"]["attack_reach"] > float(s4.config["attack_reach"]) * 2.0 and roles["p3"]["hp"] < roles["p1"]["hp"], "p3（シューター）は、遠くからこうげきできるが、体力は少ない")
+		check(roles["p2"]["hp"] > roles["p4"]["hp"] and roles["p4"]["attack_reach"] > float(s4.config["attack_reach"]), "p2（ガーディアン）がいちばん体力が多い。p4（サポート）は、少し離れてもこうげきできる")
 		s4.net_state = {}
 		check(s4.role_value("hp") == float(roles["p1"]["hp"]), "通信なしのときは、p1の役割")
 		s4.net_state = {"slot": "p3"}
@@ -417,7 +417,7 @@ func _initialize() -> void:
 		s3.player.position = Vector3(0.0, s3.ground_y, float(s3.config["boss_position"][1]) + 2.0)
 		s3.attack_cooldown = 0.0
 		check(s3.attack() and is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 30.0 - s3.role_value("attack_power")), "こうげきで、体力はほかの人の分と合わせて減る")
-		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHits(15")), "与えたダメージを送る")
+		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHits(" + str(int(s3.role_value("attack_power"))))), "与えたダメージを送る")
 		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2", "p3"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}, "p3": {"x": 0.1, "y": 0.1, "t": 1}, "p4": {"x": 0.9, "y": 0.9, "t": 1}}, "hits": {"p2": 30}})
 		check(s3.other_target.has("p2") and s3.other_target.has("p3") and not s3.other_target.has("p4"), "部屋にいない人（p4）の古い位置は、箱にしない")
 		s3.apply_net_state({"slot": "p1", "members": ["p1"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}}, "hits": {}})

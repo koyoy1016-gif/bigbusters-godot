@@ -27,7 +27,7 @@
       "archetype": "swordsman",
       "weapon": "けん",
       "note": "主人公。ばらんすのよい近接",
-      "skill": "大ぶり",
+      "skill": "斬る",
       "break_power": 1.5
     },
     {
@@ -181,7 +181,7 @@
         "attack": "Attack",
         "down": "Death"
       },
-      "skill": "しょうかん",
+      "skill": "召喚",
       "break_power": 1.0
     },
     {
@@ -203,7 +203,7 @@
         "attack": "Attack",
         "down": "Death"
       },
-      "skill": "かいふく",
+      "skill": "回復",
       "break_power": 1.0
     }
   ],
@@ -224,5 +224,6 @@
     "シューター": "遠距離から攻撃する",
     "ガーディアン": "盾で味方を守る",
     "サポート": "回復・味方を出す、など味方を助ける"
-  }
+  },
+  "skill_note": "Xの技（仮案。ユーザー決定 2026-10-18）"
 }

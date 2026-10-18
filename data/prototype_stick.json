@@ -109,36 +109,38 @@
   "round_future_sec": 10.0,
   "roles": {
     "p1": {
-      "name": "アタッカー",
-      "hp": 80.0,
-      "move_speed": 6.0,
+      "name": "ファイター",
+      "hp": 100.0,
+      "move_speed": 7.0,
       "jump_speed": 8.0,
-      "attack_power": 15.0,
-      "attack_cooldown_sec": 0.4
+      "attack_power": 12.0,
+      "attack_cooldown_sec": 0.35
     },
     "p2": {
-      "name": "サポーター",
+      "name": "ガーディアン",
       "hp": 160.0,
       "move_speed": 5.0,
       "jump_speed": 8.0,
       "attack_power": 7.0,
-      "attack_cooldown_sec": 0.4
+      "attack_cooldown_sec": 0.5
     },
     "p3": {
-      "name": "クイック",
-      "hp": 100.0,
-      "move_speed": 9.0,
-      "jump_speed": 10.0,
+      "name": "シューター",
+      "hp": 70.0,
+      "move_speed": 6.0,
+      "jump_speed": 8.0,
       "attack_power": 9.0,
-      "attack_cooldown_sec": 0.25
+      "attack_cooldown_sec": 0.3,
+      "attack_reach": 7.0
     },
     "p4": {
-      "name": "リカバリー",
+      "name": "サポート",
       "hp": 90.0,
       "move_speed": 6.0,
       "jump_speed": 8.0,
-      "attack_power": 8.0,
-      "attack_cooldown_sec": 0.4
+      "attack_power": 6.0,
+      "attack_cooldown_sec": 0.4,
+      "attack_reach": 4.0
     }
   },
   "role_label": "やく",
@@ -158,7 +160,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "18",
+  "build_id": "19",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "marker_size": 0.35,

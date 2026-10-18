@@ -521,7 +521,7 @@ func highlight_data() -> Dictionary:
 func attack() -> bool:
 	if not round_active() or downed or attack_cooldown > 0.0:
 		return false
-	var reach := float(config["attack_reach"]) + float(config["boss_size"]) * 0.5
+	var reach := role_value("attack_reach") + float(config["boss_size"]) * 0.5
 	if not Damage.in_reach(player.position, boss.position, reach):
 		return _attack_sub_enemy()
 	attack_cooldown = role_value("attack_cooldown_sec")
@@ -534,7 +534,7 @@ func attack() -> bool:
 
 ## サブ敵への攻撃。届く距離のいちばん近い敵に当たる。ボスの体力には数えない（自分の画面の中だけ）
 func _attack_sub_enemy() -> bool:
-	var reach := float(config["attack_reach"]) + float((config["sub_enemy_size"] as Array)[0]) * 0.5
+	var reach := role_value("attack_reach") + float((config["sub_enemy_size"] as Array)[0]) * 0.5
 	var i := crowd_state.nearest_alive(sub_crowd.last_positions, player.position, reach)
 	if i < 0:
 		return false

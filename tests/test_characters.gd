@@ -61,6 +61,16 @@ func _initialize() -> void:
 		if str(c.get("skill", "")) == "" or not c.has("break_power"):
 			skills_ok = false
 	check(skills_ok, "全員に、Xの技と、ゲージ割りの強さがある")
+	var skill_font_ok := true
+	for c in cfg["characters"]:
+		for ch in str(c["skill"]):
+			if not font.has_char(ch.unicode_at(0)):
+				skill_font_ok = false
+	check(skill_font_ok, "Xの技の名前の文字がフォントにある")
+	var skills := {}
+	for c in cfg["characters"]:
+		skills[str(c["id"])] = str(c["skill"])
+	check(skills["hero_swordsman"] == "斬る" and skills["guardian"] == "バリア" and skills["sprinter"] == "ダッシュ" and skills["brawler"] == "ダッシュ" and skills["gunner"] == "射撃" and skills["healer"] == "回復" and skills["bomber"] == "投げ" and skills["mage"] == "魔法" and skills["summoner"] == "召喚", "Xの技は、ユーザーが決めた仮案どおり")
 	for want in ["swordsman", "speed", "fist", "gun", "bomb", "magic", "shield", "summon", "heal"]:
 		check(kinds.has(want), "タイプ " + want + " がいる")
 	for a in cfg["actions"]:
