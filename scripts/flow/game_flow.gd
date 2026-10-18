@@ -6,6 +6,7 @@ extends Node
 const Logic := preload("res://scripts/flow/flow_logic.gd")
 const Quality := preload("res://scripts/core/quality.gd")
 const SaveData := preload("res://scripts/flow/save_data.gd")
+const Replay := preload("res://scripts/flow/highlight_replay.gd")
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const BENCH_SCENE := "res://scenes/prototype/crowd_bench.tscn"
@@ -30,6 +31,8 @@ var stage_label: Label
 var play_button: Button
 var toast_label: Label
 var highlight_best: Label
+var highlight_replay: Control
+var highlight_info: Dictionary = {}
 var reward_label: Label
 var query_bench := false
 var quality_config: Dictionary = {}
@@ -164,6 +167,12 @@ func _build_panels() -> void:
 	h.add_child(_make_label(str(config["highlight_note"]), text_size, text_color))
 	highlight_best = _make_label("", text_size, text_color)
 	h.add_child(highlight_best)
+	highlight_replay = Replay.new()
+	var rs: Array = config["highlight_replay_size"]
+	highlight_replay.custom_minimum_size = Vector2(rs[0], rs[1])
+	var replay_holder := CenterContainer.new()
+	replay_holder.add_child(highlight_replay)
+	h.add_child(replay_holder)
 	h.add_child(_make_button(str(config["next_label"]), big, func(): event("done")))
 
 	# 報酬
@@ -194,7 +203,10 @@ func goto(new_state: String) -> void:
 		Logic.LOBBY:
 			_refresh_lobby()
 		Logic.HIGHLIGHT:
-			highlight_best.text = best_text
+			highlight_best.text = best_text if best_text != "" else str(config["highlight_none"])
+			highlight_replay.visible = not highlight_info.is_empty()
+			if not highlight_info.is_empty():
+				highlight_replay.setup(highlight_info["points"], highlight_info["boss"], float(highlight_info["bounds"]), highlight_info["color"])
 		Logic.REWARD:
 			reward_label.text = str(config["reward_coin_prefix"]) + str(last_reward)
 
@@ -276,6 +288,7 @@ func _on_round_ended(won_flag: bool) -> void:
 	last_won = won_flag
 	_result_timer = float(config["result_show_sec"])
 	if battle != null:
+		highlight_info = battle.highlight_data()
 		var entries: Array = battle.ranking_entries()
 		if not entries.is_empty():
 			best_text = str(config["highlight_best"]) + "：" + battle.role_name_of(str(entries[0]["slot"])) + " " + str(int(entries[0]["hits"]))
@@ -310,6 +323,7 @@ func _process(delta: float) -> void:
 					_result_timer = -1.0
 					event("ended")
 		Logic.HIGHLIGHT:
+			highlight_replay.advance(delta)
 			if state_time >= float(config["highlight_sec"]):
 				event("done")
 

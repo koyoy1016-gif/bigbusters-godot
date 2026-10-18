@@ -20,6 +20,7 @@ const Bridge := preload("res://scripts/network/room_bridge.gd")
 const Sync := preload("res://scripts/network/position_sync.gd")
 const BossSync := preload("res://scripts/network/boss_sync.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
+const Recorder := preload("res://scripts/combat/highlight_recorder.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 
 var config: Dictionary = {}
@@ -27,6 +28,8 @@ var player: MeshInstance3D
 var player_material: StandardMaterial3D
 var boss: MeshInstance3D
 var sub_crowd: Node3D
+var recorder := Recorder.new()
+var since_sample := 0.0
 var boss_material: StandardMaterial3D
 var slam_ring: MeshInstance3D
 var slam_material: StandardMaterial3D
@@ -293,6 +296,7 @@ func _process(delta: float) -> void:
 	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else boss_base
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
+	_record_highlight(delta)
 	sub_crowd.update_at(maxf(0.0, (server_now_ms() - round_start_ms) / 1000.0) if round_active() else 0.0)
 	player_material.albedo_color = _player_color()
 	player_marker_material.albedo_color = _slot_color(str(net_state.get("slot", "")))
@@ -419,12 +423,45 @@ func _begin_round(start_ms: float) -> void:
 	my_hits = 0.0
 	my_hp = role_value("hp")
 	boss.visible = true
+	recorder.clear()
+	since_sample = 0.0
 	boss_hp = float(config["boss_hp"])
 	last_strike = _strike_count((server_now_ms() - start_ms) / 1000.0)
 	if net_active:
 		bridge.send_hits(0.0)
 		bridge.send_hp(my_hp, round_start_ms)
 	_recompute_boss_hp()
+
+
+## ハイライト用に、全員の位置と合計ダメージを、決まった間隔で控える
+func _record_highlight(delta: float) -> void:
+	if not round_active():
+		return
+	since_sample += delta
+	if since_sample < float(config["highlight_sample_sec"]):
+		return
+	since_sample = 0.0
+	var t := (server_now_ms() - round_start_ms) / 1000.0
+	var me := str(net_state.get("slot", "p1"))
+	recorder.record(me, t, player.position.x, player.position.z, my_hits)
+	var hits: Variant = net_state.get("hits", {})
+	var half := float(config["bounds"])
+	for slot in other_pos:
+		var p: Vector2 = other_pos[slot]
+		var v: Variant = hits.get(str(slot), 0.0) if hits is Dictionary else 0.0
+		recorder.record(str(slot), t, p.x * 2.0 * half - half, p.y * 2.0 * half - half, float(v) if (v is float or v is int) else 0.0)
+
+
+## ハイライトのデータ。ベストアタッカー（いちばん稼いだ人の、いちばん稼いだ区間）。なければ {}
+func highlight_data() -> Dictionary:
+	var best := recorder.best_window(float(config["highlight_window_sec"]))
+	if best.is_empty():
+		return {}
+	best["points"] = recorder.path(str(best["slot"]), float(best["start"]), float(best["end"]))
+	best["boss"] = Vector2(boss.position.x, boss.position.z)
+	best["bounds"] = float(config["bounds"])
+	best["color"] = _slot_color(str(best["slot"]))
+	return best
 
 
 ## こうげき：戦いの最中で、ボスに届く距離にいて、待ち時間が終わっていれば当たる。

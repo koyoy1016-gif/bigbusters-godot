@@ -4,6 +4,7 @@
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【最新 2026-10-18 21:10】版14。直近の追加：サブ敵10体のまとめ描画（見た目だけ）、ハイライトの最初の形（戦い中に全員の位置・ダメージを0.1秒ごとに記録→いちばん稼いだ人の6秒を、真上から見た2D図で約10秒再生。`つぎへ`で飛ばせる）。未確認：実機での表示・重さ。次にやること：①実機確認（ユーザー）②サブ敵の当たり判定と攻撃③味方キャラの本物のモデル（パイプラインの検討）④Firebaseルール変更（全員さいせん・リカバリーの回復。まとめて1回で貼り直し。全文を返信に書く）
 - Godotのプロジェクトを作成済み（Compatibility）。`main.tscn`、`.gitignore` もある
 - GitHubに初回の保存済み：https://github.com/koyoy1016-gif/bigbusters-godot
 - Firebase：プロジェクト `bigbusters-new` を作成済み。Realtime Databaseの場所は `asia-southeast1`（シンガポール）
@@ -306,3 +307,4 @@ rooms/
 - 2026-10-18 20:20：ユーザーの回答。画質「低」は動くが見た目の質は低い（許容）。読み込みの重さ（wasm約39.5MB）は「このまま」で決定。送られた計測画面は古い版（影の表示なし、9行）で、新しい18行版ではなかった。再計測は URL の末尾に &v=2 を付けて開いてもらう。コード変更なし
 - 2026-10-18 20:37：iPhone（Safari）で18行の負荷試験の結果。影なしは全18通りが60FPS（24体×2万面＝約48万面でも）。影ありは、4体は59〜60、16体は60/57/52（2k/8k/20k）、24体は60/57/54。結論：体の数と面の数は、いまの範囲では問題ない。影は少し重い（20kで−6〜8FPS）。画質「低」は影なしのまま。予算（暫定）：味方1体 約15k面まで、サブ敵 約5k、ボス 約30k（合計 約13万面）。注意：試験の体は単色の筒なので、本物のモデル（貼り絵・骨）で再測定が必要。コード変更なし
 - 2026-10-18 20:55：サブ敵の群れを追加（見た目だけ。10体、MultiMeshで1回の描画）。動きは `scripts/combat/crowd_pattern.gd`（時間だけで決まる関数。通信は要らない）、描画は `scripts/prototype/sub_enemy_crowd.gd`、数値は `data/prototype_stick.json` の `sub_enemy_*`。版13。テスト `tests/test_crowd_pattern.gd`。未確認：実機での重さ（10体＋ボス＋味方）。当たり判定・攻撃はまだない
+- 2026-10-18 21:10：ハイライトの最初の形を追加。`scripts/combat/highlight_recorder.gd`（記録と、いちばん稼いだ区間を探す計算）、`scripts/flow/highlight_replay.gd`（真上から見た2D再生）、戦いの記録は `stick_prototype.gd` の `_record_highlight`/`highlight_data`。数値：`highlight_sample_sec` 0.1、`highlight_window_sec` 6（prototype_stick.json）、`highlight_sec` 10（game_flow.json）。テスト `tests/test_highlight.gd`、流れのテストも更新。未確認：実機。本物の3D再生は、キャラのモデルができてから
