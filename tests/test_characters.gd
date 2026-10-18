@@ -166,7 +166,18 @@ func _initialize() -> void:
 			if mt.resource_name == "Human.body":
 				body_ok = mt.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED
 	check(hair_ok and body_ok, "髪は切り抜き、体は不透明に直っている")
-	check(tris > 1000 and tris <= int(cfg["budgets"]["ally"]) * 2, "面の数が予算の2倍以内（いまは約29,700。あとで減らす）：" + str(tris))
+	check(tris > 1000 and tris <= int(float(cfg["budgets"]["ally"]) * 2.2), "面の数が予算の2.2倍以内（いまは約30,000＝体＋小物。あとで減らすか、予算を上げる）：" + str(tris))
+	# 小物（剣・ベルト）：骨に付く
+	var items := rv.model.find_children("Item_*", "BoneAttachment3D", true, false)
+	check(items.size() == 2, "剣とベルトが骨に付いている：" + str(items.size()))
+	var sword := rv.model.find_child("Item_sword_basic", true, false) as BoneAttachment3D
+	check(sword != null and sword.bone_name == "wrist.R", "剣は右手首の骨に付く")
+	check(sword != null and sword.get_child(0).get_child_count() == 4, "剣は4つの部品（つか・かざり・つば・刃）")
+	var none := CharacterView.attach_items(rv.model, ["no_such_item"])
+	check(none == 0, "知らない小物の id は、何も付けない")
+	var bad_bone := CharacterView.attach_items(rv.model, ["x"], {"x": {"bone": "no_such_bone", "parts": []}})
+	check(bad_bone == 0, "骨がなければ、付けない")
+	check(CharacterView.attach_items(rv.model, []) == 0, "小物の指定が空なら、何もしない")
 	rv.queue_free()
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(model_path))

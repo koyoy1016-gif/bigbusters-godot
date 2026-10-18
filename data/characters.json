@@ -16,8 +16,9 @@
       "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 1.3,
       "procedural_anims": true,
+      "attachments": ["sword_basic", "belt_basic"],
       "animations": {
         "idle": "Idle",
         "run": "Run",
