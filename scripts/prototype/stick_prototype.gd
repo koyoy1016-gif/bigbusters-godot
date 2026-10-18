@@ -20,11 +20,13 @@ const Bridge := preload("res://scripts/network/room_bridge.gd")
 const Sync := preload("res://scripts/network/position_sync.gd")
 const BossSync := preload("res://scripts/network/boss_sync.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
+const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 
 var config: Dictionary = {}
 var player: MeshInstance3D
 var player_material: StandardMaterial3D
 var boss: MeshInstance3D
+var sub_crowd: Node3D
 var boss_material: StandardMaterial3D
 var slam_ring: MeshInstance3D
 var slam_material: StandardMaterial3D
@@ -175,6 +177,12 @@ func _build_world() -> void:
 	var bp: Array = config["boss_position"]
 	boss.position = Vector3(bp[0], float(config["boss_size"]) * 0.5, bp[1])
 
+	# サブ敵の群れ（見た目だけ。時間で動くので通信は要らない）
+	sub_crowd = SubCrowd.new()
+	sub_crowd.name = "SubCrowd"
+	add_child(sub_crowd)
+	sub_crowd.setup(config, Vector2(bp[0], bp[1]))
+
 	# 範囲攻撃の予告の輪（床の上の、薄い円盤）
 	slam_ring = MeshInstance3D.new()
 	slam_ring.name = "SlamRing"
@@ -285,6 +293,7 @@ func _process(delta: float) -> void:
 	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else boss_base
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
+	sub_crowd.update_at(maxf(0.0, (server_now_ms() - round_start_ms) / 1000.0) if round_active() else 0.0)
 	player_material.albedo_color = _player_color()
 	player_marker_material.albedo_color = _slot_color(str(net_state.get("slot", "")))
 	apply_orientation(Vector2(get_window().size) if get_window() != null else Vector2(16, 9))
