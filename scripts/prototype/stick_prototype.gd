@@ -28,6 +28,7 @@ var slam_material: StandardMaterial3D
 var charge_strip: MeshInstance3D
 var camera: Camera3D
 var camera_offset := Vector3.ZERO
+var portrait_mode := false
 var camera_target := Vector3.ZERO
 var player_marker_material: StandardMaterial3D
 var charge_material: StandardMaterial3D
@@ -274,6 +275,7 @@ func _process(delta: float) -> void:
 	combat_update(delta)
 	player_material.albedo_color = _player_color()
 	player_marker_material.albedo_color = _slot_color(str(net_state.get("slot", "")))
+	apply_orientation(Vector2(get_window().size) if get_window() != null else Vector2(16, 9))
 	camera_update(delta)
 	overlay.queue_redraw()
 
@@ -609,23 +611,51 @@ func _stick_input(pos: Vector2, screen: Vector2) -> Vector2:
 	return StickMath.stick_vector(pos, _stick_center(screen), float(config["stick_radius_px"]), float(config["stick_dead_zone"]))
 
 
+## 縦長の画面か
+static func is_portrait(size: Vector2) -> bool:
+	return size.y > size.x
+
+
+## 配置の値。縦長の画面では、「…_portrait」があればそちらを使う
+func _layout(key: String, screen: Vector2) -> Array:
+	if is_portrait(screen) and config.has(key + "_portrait"):
+		return config[key + "_portrait"]
+	return config[key]
+
+
+## 縦横の向きを合わせる：基準の大きさ（文字・ボタンの大きさの元）、カメラの見え方を切り替える。向きが変わったときだけ動く
+func apply_orientation(window_size: Vector2) -> void:
+	var portrait := is_portrait(window_size)
+	if portrait == portrait_mode:
+		return
+	portrait_mode = portrait
+	var base: Array = config["portrait_base_size"] if portrait else config["landscape_base_size"]
+	var win := get_window()
+	if win != null:
+		win.content_scale_size = Vector2i(int(base[0]), int(base[1]))
+	var off: Array = config["camera_offset_portrait"] if portrait else config["camera_offset"]
+	camera_offset = Vector3(off[0], off[1], off[2])
+	camera.keep_aspect = Camera3D.KEEP_WIDTH if portrait else Camera3D.KEEP_HEIGHT
+	camera.fov = float(config["camera_fov_portrait"]) if portrait else float(config["camera_fov"])
+
+
 func _stick_center(screen: Vector2) -> Vector2:
-	var f: Array = config["stick_center_frac"]
+	var f: Array = _layout("stick_center_frac", screen)
 	return Vector2(screen.x * f[0], screen.y * f[1])
 
 
 func _button_center(screen: Vector2) -> Vector2:
-	var f: Array = config["button_center_frac"]
+	var f: Array = _layout("button_center_frac", screen)
 	return Vector2(screen.x * f[0], screen.y * f[1])
 
 
 func _attack_center(screen: Vector2) -> Vector2:
-	var f: Array = config["attack_center_frac"]
+	var f: Array = _layout("attack_center_frac", screen)
 	return Vector2(screen.x * f[0], screen.y * f[1])
 
 
 func _start_center(screen: Vector2) -> Vector2:
-	var f: Array = config["start_center_frac"]
+	var f: Array = _layout("start_center_frac", screen)
 	return Vector2(screen.x * f[0], screen.y * f[1])
 
 
@@ -667,9 +697,9 @@ func _draw_overlay() -> void:
 	overlay.draw_circle(ac, br, Color(attack_color))
 	_draw_centered(ac, str(config["attack_label"]), button_text)
 
-	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]) + "   " + str(config["build_label"]) + str(config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var bp: Array = config["bossbar_pos"]
-	var bs: Array = config["bossbar_size"]
+	overlay.draw_string(font, Vector2(16, fs * 1.4), (str(config["hint_portrait"]) if is_portrait(screen) else str(config["hint"])) + "   " + str(config["build_label"]) + str(config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+	var bp: Array = _layout("bossbar_pos", screen)
+	var bs: Array = _layout("bossbar_size", screen)
 	var bar_rect := Rect2(Vector2(screen.x * bp[0], screen.y * bp[1]), Vector2(screen.x * bs[0], maxf(10.0, screen.y * bs[1])))
 	overlay.draw_rect(bar_rect, Color(str(config["bossbar_back_color"])))
 	var frac := clampf(boss_hp / float(config["boss_hp"]), 0.0, 1.0)

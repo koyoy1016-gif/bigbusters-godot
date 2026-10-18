@@ -100,7 +100,7 @@ func _initialize() -> void:
 		check(float(d["stick_zone_max_x_frac"]) <= float(d["button_zone_min_x_frac"]), "スティックとボタンの領域が重ならない")
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["enrage_text"]) + str(d["result_time_label"]) + str(d["result_mine_label"]) + str(d["result_team_label"]) + str(d["result_rank_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
+		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["hint_portrait"]) + str(d["enrage_text"]) + str(d["result_time_label"]) + str(d["result_mine_label"]) + str(d["result_team_label"]) + str(d["result_rank_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -309,6 +309,38 @@ func _initialize() -> void:
 		check(s7.attack_flash == 0.0 and s7.jump_flash == 0.0, "時間がたつと、色が戻る")
 		root.remove_child(s7)
 		s7.free()
+
+	# 縦画面
+	var packed8 := load(SCENE) as PackedScene
+	if packed8 != null:
+		var s8: Node = packed8.instantiate()
+		root.add_child(s8)
+		if s8.get_node_or_null("Boss") == null:
+			s8._ready()
+		check(Proto.is_portrait(Vector2(390, 844)) and not Proto.is_portrait(Vector2(844, 390)) and not Proto.is_portrait(Vector2(500, 500)), "縦長かどうかの判定")
+		var land := Vector2(1152, 648)
+		var port := Vector2(648, 1152)
+		var c_land: Vector2 = s8._stick_center(land)
+		var c_port: Vector2 = s8._stick_center(port)
+		check(c_port.y > port.y * 0.8 and c_port.x < port.x * 0.35, "縦画面では、スティックは左下（画面の下のほう）")
+		check(c_land.is_equal_approx(Vector2(land.x * s8.config["stick_center_frac"][0], land.y * s8.config["stick_center_frac"][1])), "横画面の配置は、いままでどおり")
+		var a_port: Vector2 = s8._attack_center(port)
+		var j_port: Vector2 = s8._button_center(port)
+		var br: float = float(s8.config["button_radius_px"])
+		check(a_port.distance_to(j_port) > br * 2.0 and j_port.x + br <= port.x and a_port.distance_to(c_port) > float(s8.config["stick_radius_px"]) + br, "縦画面で、ボタンどうしが重ならず、画面の中に収まる")
+		var sc_port: Vector2 = s8._start_center(port)
+		check(sc_port.distance_to(a_port) > float(s8.config["start_radius_px"]) + br and sc_port.distance_to(c_port) > float(s8.config["start_radius_px"]) + float(s8.config["stick_radius_px"]), "縦画面で、はじめるボタンが、ほかのボタンと重ならない")
+		s8.apply_orientation(Vector2(390, 844))
+		check(s8.portrait_mode and s8.camera.keep_aspect == Camera3D.KEEP_WIDTH and is_equal_approx(s8.camera.fov, float(s8.config["camera_fov_portrait"])), "縦画面では、カメラは幅を基準にする")
+		check(s8.camera_offset.is_equal_approx(Vector3(s8.config["camera_offset_portrait"][0], s8.config["camera_offset_portrait"][1], s8.config["camera_offset_portrait"][2])), "縦画面のカメラの位置")
+		s8.apply_orientation(Vector2(844, 390))
+		check(not s8.portrait_mode and s8.camera.keep_aspect == Camera3D.KEEP_HEIGHT and is_equal_approx(s8.camera.fov, float(s8.config["camera_fov"])), "横に戻すと、カメラも元に戻る")
+		# 縦画面でも、タッチの操作が同じように働く
+		s8.handle_press(1, c_port, port)
+		check(s8.stick_touch == 1, "縦画面：スティックの領域を押すと、スティックが動く")
+		s8.handle_release(1)
+		root.remove_child(s8)
+		s8.free()
 
 	# 役割（仮）：枠ごとに強さが違う
 	var packed4 := load(SCENE) as PackedScene
