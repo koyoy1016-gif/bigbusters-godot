@@ -17,6 +17,7 @@
       "heads_tall": 7.5,
       "tri_budget": 15000,
       "model_scale": 0.6,
+      "procedural_anims": true,
       "animations": {
         "idle": "Idle",
         "run": "Run",

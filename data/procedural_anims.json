@@ -1,0 +1,53 @@
+{
+  "_memo": "MPFBの骨に、コードで動きを付ける数値。角度は度。前に振る向きがプラス。アニメ集（Quaternius）が入ったら、置き換える",
+  "fps": 30,
+  "idle": {
+    "seconds": 2.4,
+    "breath_deg": 1.5,
+    "arm_sway_deg": 2.5,
+    "head_deg": 1.5,
+    "knee_bend_deg": 4.0,
+    "root_bob": 0.006
+  },
+  "run": {
+    "seconds": 0.6,
+    "leg_deg": 42.0,
+    "knee_deg": 70.0,
+    "arm_deg": 45.0,
+    "elbow_deg": 70.0,
+    "lean_deg": 9.0,
+    "twist_deg": 8.0,
+    "root_bob": 0.035
+  },
+  "jump": {
+    "seconds": 0.8,
+    "hip_deg": 35.0,
+    "knee_deg": 55.0,
+    "arm_deg": 70.0,
+    "elbow_deg": 30.0,
+    "wobble_deg": 4.0,
+    "lean_deg": 4.0
+  },
+  "attack": {
+    "seconds": 0.5,
+    "windup_arm_deg": 165.0,
+    "swing_arm_deg": 25.0,
+    "elbow_deg": 35.0,
+    "twist_deg": 28.0,
+    "lean_deg": 14.0,
+    "off_arm_deg": -25.0,
+    "step_hip_deg": 28.0,
+    "lunge": 0.12,
+    "windup_end": 0.3,
+    "swing_end": 0.62
+  },
+  "death": {
+    "seconds": 1.1,
+    "fall_deg": 88.0,
+    "drop": 0.92,
+    "knee_deg": 25.0,
+    "arm_out_deg": 8.0,
+    "fall_start": 0.08,
+    "fall_end": 0.7
+  }
+}

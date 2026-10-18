@@ -3,6 +3,7 @@ extends Node3D
 ## モデルがなければ、何も出さない（呼び出し側が、箱のままにする）。
 
 const CharacterData := preload("res://scripts/characters/character_data.gd")
+const ProceduralAnims := preload("res://scripts/characters/procedural_anims.gd")
 
 var character: Dictionary = {}
 var model: Node = null
@@ -24,6 +25,8 @@ func setup(def: Dictionary) -> bool:
 	var s := float(def.get("model_scale", 1.0))
 	scale = Vector3.ONE * s
 	player = _find_player(model)
+	if player == null and bool(def.get("procedural_anims", false)):
+		player = ProceduralAnims.build_player(model, ProceduralAnims.load_config())
 	fix_materials(model, def)
 	return true
 
