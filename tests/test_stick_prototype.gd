@@ -4,6 +4,7 @@ extends SceneTree
 
 const StickMath := preload("res://scripts/prototype/stick_math.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
+const Pattern := preload("res://scripts/combat/boss_pattern.gd")
 const Proto := preload("res://scripts/prototype/stick_prototype.gd")
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const SCREEN := Vector2(1280, 720)
@@ -99,7 +100,7 @@ func _initialize() -> void:
 		check(float(d["stick_zone_max_x_frac"]) <= float(d["button_zone_min_x_frac"]), "スティックとボタンの領域が重ならない")
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + _role_names(d) + "0123456789/：（）"
+		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -198,6 +199,28 @@ func _initialize() -> void:
 		now[0] = t0 + first_ms + interval_ms * 2.0 + 10.0
 		s2.combat_update(0.016)
 		check(s2.my_hp == hp_before, "輪の外にいれば、一撃を受けない")
+		# 2回目は突進：通り道（帯）の中にいると当たり、横にずれるか跳べばよけられる
+		var lane2: float = Pattern.lane_x(2, cfg2["charge_lanes"])
+		var charge_t: float = t0 + first_ms + interval_ms - float(cfg2["slam_telegraph_sec"]) * 500.0
+		s2.last_strike = 1
+		s2.my_hp = hp_full
+		s2.player.position = Vector3(lane2, s2.ground_y, 2.0)
+		now[0] = charge_t
+		s2.combat_update(0.016)
+		check(s2.charge_strip.visible and not s2.slam_ring.visible, "突進の予告の最中は、帯が見える（輪は見えない）")
+		check(is_equal_approx(s2.charge_strip.position.x, lane2), "帯は、突進の通り道の位置にある")
+		s2.last_strike = 2
+		s2.my_hp = hp_full
+		s2.player.position = Vector3(lane2, s2.ground_y, 2.0)
+		s2._resolve_strike(2)
+		check(is_equal_approx(s2.my_hp, hp_full - float(cfg2["charge_power"])), "突進の通り道の中にいると、突進を受ける")
+		s2.my_hp = hp_full
+		s2.player.position = Vector3(lane2 + float(cfg2["charge_half_width"]) + 1.0, s2.ground_y, 2.0)
+		s2._resolve_strike(2)
+		check(s2.my_hp == hp_full, "横にずれれば、突進をよけられる")
+		s2.player.position = Vector3(lane2, s2.ground_y + 1.5, 2.0)
+		s2._resolve_strike(2)
+		check(s2.my_hp == hp_full, "跳んでいれば、突進をよけられる")
 		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
 		var guard := 0
 		while not s2.downed and guard < 20:

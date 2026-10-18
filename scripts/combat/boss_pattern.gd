@@ -19,3 +19,23 @@ static func telegraph_progress(t: float, first_delay: float, interval: float, te
 	if remaining > telegraph:
 		return -1.0
 	return clampf(1.0 - remaining / telegraph, 0.0, 1.0)
+
+
+## n 回目の一撃の種類（cycle を順番に繰り返す）。n は 1 から
+static func attack_kind(n: int, cycle: Array) -> String:
+	if cycle.is_empty() or n < 1:
+		return ""
+	return str(cycle[(n - 1) % cycle.size()])
+
+
+## n 回目の突進の、通り道の中心の x（lanes を順番に使う。時刻だけで決まるので、全員の画面で同じ）
+static func lane_x(n: int, lanes: Array) -> float:
+	if lanes.is_empty() or n < 1:
+		return 0.0
+	return float(lanes[(n - 1) % lanes.size()])
+
+
+## 突進の通り道（帯）の中にいるか。x が中心から half_width 以内で、z が from_z〜to_z の間
+static func in_lane(x: float, z: float, center_x: float, half_width: float, from_z: float, to_z: float) -> bool:
+	return absf(x - center_x) <= half_width and z >= from_z and z <= to_z
+

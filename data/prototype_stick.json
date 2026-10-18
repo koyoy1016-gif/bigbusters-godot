@@ -141,5 +141,22 @@
       "name": "とぶ"
     }
   },
-  "role_label": "やく"
+  "role_label": "やく",
+  "attack_cycle": [
+    "slam",
+    "charge"
+  ],
+  "charge_half_width": 1.5,
+  "charge_length": 18.0,
+  "charge_power": 30.0,
+  "charge_lanes": [
+    -6.0,
+    0.0,
+    6.0,
+    -3.0,
+    3.0
+  ],
+  "charge_color": "#ff9a20",
+  "build_label": "版",
+  "build_id": "6"
 }

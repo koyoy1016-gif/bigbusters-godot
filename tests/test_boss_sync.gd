@@ -56,6 +56,17 @@ func _initialize() -> void:
 	check(is_equal_approx(Pattern.telegraph_progress(6.4, 3.0, 4.0, 1.2), 0.5), "2回目の予告の途中も 0.5")
 	check(Pattern.telegraph_progress(-1.0, 3.0, 4.0, 1.2) == -1.0, "時刻がマイナスなら -1")
 
+	# 攻撃の種類と、突進の通り道
+	var cyc := ["slam", "charge"]
+	check(Pattern.attack_kind(1, cyc) == "slam" and Pattern.attack_kind(2, cyc) == "charge" and Pattern.attack_kind(3, cyc) == "slam", "一撃の種類は、輪→突進→輪…の順")
+	check(Pattern.attack_kind(0, cyc) == "" and Pattern.attack_kind(1, []) == "", "0回目・種類なしは空")
+	var lanes := [-6.0, 0.0, 6.0]
+	check(Pattern.lane_x(1, lanes) == -6.0 and Pattern.lane_x(3, lanes) == 6.0 and Pattern.lane_x(4, lanes) == -6.0, "突進の通り道は、順番に繰り返す")
+	check(Pattern.lane_x(0, lanes) == 0.0 and Pattern.lane_x(2, []) == 0.0, "0回目・通り道なしは 0")
+	check(Pattern.in_lane(0.5, 0.0, 0.0, 1.5, -6.0, 12.0), "通り道の中")
+	check(not Pattern.in_lane(2.0, 0.0, 0.0, 1.5, -6.0, 12.0), "横にずれていれば、外")
+	check(not Pattern.in_lane(0.0, 13.0, 0.0, 1.5, -6.0, 12.0) and not Pattern.in_lane(0.0, -7.0, 0.0, 1.5, -6.0, 12.0), "奥・手前に外れていれば、外")
+
 	# ボスの体力
 	check(is_equal_approx(BossSync.boss_hp(100.0, 30.0, 25.0), 45.0), "体力 = 最大 − 自分 − ほかの人")
 	check(BossSync.boss_hp(100.0, 80.0, 40.0) == 0.0, "体力は0より小さくならない")

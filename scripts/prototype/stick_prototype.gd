@@ -25,6 +25,8 @@ var boss: MeshInstance3D
 var boss_material: StandardMaterial3D
 var slam_ring: MeshInstance3D
 var slam_material: StandardMaterial3D
+var charge_strip: MeshInstance3D
+var charge_material: StandardMaterial3D
 var overlay: Control
 var font: Font
 var stick_vec := Vector2.ZERO
@@ -174,6 +176,19 @@ func _build_world() -> void:
 	slam_ring.position = Vector3(bp[0], 0.03, bp[1])
 	slam_ring.visible = false
 	add_child(slam_ring)
+
+	# 突進の予告の帯（ボスから手前へ伸びる、床の上の薄い板）
+	charge_strip = MeshInstance3D.new()
+	charge_strip.name = "ChargeStrip"
+	var strip := BoxMesh.new()
+	strip.size = Vector3(float(config["charge_half_width"]) * 2.0, 0.04, float(config["charge_length"]))
+	charge_material = StandardMaterial3D.new()
+	charge_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	charge_material.albedo_color = Color(str(config["charge_color"]))
+	strip.material = charge_material
+	charge_strip.mesh = strip
+	charge_strip.visible = false
+	add_child(charge_strip)
 
 	var camera := Camera3D.new()
 	camera.name = "Camera"
@@ -361,6 +376,7 @@ func combat_update(delta: float) -> void:
 	player_hit_flash = maxf(0.0, player_hit_flash - delta)
 	if not round_active():
 		slam_ring.visible = false
+		charge_strip.visible = false
 		return
 	var t := (server_now_ms() - round_start_ms) / 1000.0
 	var first := float(config["slam_first_delay_sec"])
@@ -368,23 +384,43 @@ func combat_update(delta: float) -> void:
 	var index := Pattern.strike_index(t, first, interval)
 	while last_strike < index and round_active():
 		last_strike += 1
-		_resolve_strike()
+		_resolve_strike(last_strike)
 	var progress := Pattern.telegraph_progress(t, first, interval, float(config["slam_telegraph_sec"]))
-	slam_ring.visible = progress >= 0.0 and round_active()
+	var upcoming := Pattern.attack_kind(index + 1, config["attack_cycle"])
+	var alpha := lerpf(float(config["slam_min_alpha"]), float(config["slam_max_alpha"]), maxf(progress, 0.0))
+	slam_ring.visible = progress >= 0.0 and round_active() and upcoming == "slam"
+	charge_strip.visible = progress >= 0.0 and round_active() and upcoming == "charge"
 	if slam_ring.visible:
 		var base := Color(str(config["slam_color"]))
-		slam_material.albedo_color = Color(base.r, base.g, base.b, lerpf(float(config["slam_min_alpha"]), float(config["slam_max_alpha"]), progress))
+		slam_material.albedo_color = Color(base.r, base.g, base.b, alpha)
+	if charge_strip.visible:
+		var lane := Pattern.lane_x(index + 1, config["charge_lanes"])
+		charge_strip.position = Vector3(lane, 0.03, boss.position.z + float(config["charge_length"]) * 0.5)
+		var cb := Color(str(config["charge_color"]))
+		charge_material.albedo_color = Color(cb.r, cb.g, cb.b, alpha)
 
 
-## 一撃が当たった。輪の中にいて、地面にいれば（ジャンプでよけていなければ）ダメージを受ける
-func _resolve_strike() -> void:
+## n 回目の一撃が当たった。輪（slam）か、突進の帯（charge）の中にいて、地面にいれば（ジャンプでよけていなければ）ダメージを受ける
+func _resolve_strike(n: int) -> void:
 	if downed:
 		return
 	var airborne := player.position.y > ground_y + float(config["dodge_height"])
-	if airborne or not Damage.in_reach(player.position, boss.position, float(config["slam_radius"])):
+	if airborne:
 		return
+	var kind := Pattern.attack_kind(n, config["attack_cycle"])
+	var power := 0.0
+	if kind == "charge":
+		var lane := Pattern.lane_x(n, config["charge_lanes"])
+		var from_z := boss.position.z
+		if not Pattern.in_lane(player.position.x, player.position.z, lane, float(config["charge_half_width"]), from_z, from_z + float(config["charge_length"])):
+			return
+		power = float(config["charge_power"])
+	else:
+		if not Damage.in_reach(player.position, boss.position, float(config["slam_radius"])):
+			return
+		power = float(config["slam_power"])
 	player_hit_flash = float(config["hit_flash_sec"])
-	_set_my_hp(Damage.apply_damage(my_hp, Damage.damage_amount(float(config["slam_power"]), float(config["slam_multiplier"]))))
+	_set_my_hp(Damage.apply_damage(my_hp, Damage.damage_amount(power, float(config["slam_multiplier"]))))
 
 
 func _set_my_hp(value: float) -> void:
@@ -547,7 +583,7 @@ func _draw_overlay() -> void:
 	overlay.draw_circle(ac, br, Color(str(config["button_color"])))
 	_draw_centered(ac, str(config["attack_label"]), button_text)
 
-	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]) + "   " + str(config["build_label"]) + str(config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 	var hp_text := str(config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(config["boss_hp"]))
 	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(role_value("hp")))
