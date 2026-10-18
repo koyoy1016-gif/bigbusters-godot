@@ -1,6 +1,12 @@
 {
   "player_character": "hero_swordsman",
-  "actions": ["idle", "run", "jump", "attack", "down"],
+  "actions": [
+    "idle",
+    "run",
+    "jump",
+    "attack",
+    "down"
+  ],
   "characters": [
     {
       "id": "hero_swordsman",
@@ -17,8 +23,182 @@
         "jump": "Jump",
         "attack": "Sword_Attack",
         "down": "Death"
+      },
+      "archetype": "swordsman",
+      "weapon": "けん",
+      "note": "主人公。ばらんすのよい近接"
+    },
+    {
+      "id": "sprinter",
+      "name": "はやて",
+      "kind": "ally",
+      "role": "クイック",
+      "archetype": "speed",
+      "weapon": "あし・短い刃",
+      "note": "足がとても速い。すばやく動いて当てる",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Attack",
+        "down": "Death"
+      }
+    },
+    {
+      "id": "brawler",
+      "name": "こぶし",
+      "kind": "ally",
+      "role": "アタッカー",
+      "archetype": "fist",
+      "weapon": "こぶし",
+      "note": "拳でたたかう近接",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Attack",
+        "down": "Death"
+      }
+    },
+    {
+      "id": "gunner",
+      "name": "じゅうし",
+      "kind": "ally",
+      "role": "アタッカー",
+      "archetype": "gun",
+      "weapon": "じゅう",
+      "note": "はなれて撃つ遠距離",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Attack",
+        "down": "Death"
+      }
+    },
+    {
+      "id": "bomber",
+      "name": "ばくだん",
+      "kind": "ally",
+      "role": "アタッカー",
+      "archetype": "bomb",
+      "weapon": "しゅりゅうだん・ばくだん",
+      "note": "投げて、範囲にダメージ",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Attack",
+        "down": "Death"
+      }
+    },
+    {
+      "id": "mage",
+      "name": "まほう",
+      "kind": "ally",
+      "role": "アタッカー",
+      "archetype": "magic",
+      "weapon": "まほう",
+      "note": "魔法っぽいもので戦う",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Attack",
+        "down": "Death"
+      }
+    },
+    {
+      "id": "guardian",
+      "name": "たて",
+      "kind": "ally",
+      "role": "サポーター",
+      "archetype": "shield",
+      "weapon": "たて",
+      "note": "盾で守る。味方をかばう",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Attack",
+        "down": "Death"
+      }
+    },
+    {
+      "id": "summoner",
+      "name": "よびだし",
+      "kind": "ally",
+      "role": "サポーター",
+      "archetype": "summon",
+      "weapon": "よびだし",
+      "note": "Xボタンで、味方をもう1人出す（操作系）",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Attack",
+        "down": "Death"
+      }
+    },
+    {
+      "id": "healer",
+      "name": "いやし",
+      "kind": "ally",
+      "role": "リカバリー",
+      "archetype": "heal",
+      "weapon": "つえ",
+      "note": "味方を回復する",
+      "model": "",
+      "heads_tall": 7.5,
+      "tri_budget": 15000,
+      "model_scale": 1.0,
+      "animations": {
+        "idle": "Idle",
+        "run": "Run",
+        "jump": "Jump",
+        "attack": "Attack",
+        "down": "Death"
       }
     }
   ],
-  "budgets": {"ally": 15000, "sub_enemy": 5000, "boss": 30000}
+  "budgets": {
+    "ally": 15000,
+    "sub_enemy": 5000,
+    "boss": 30000
+  },
+  "role_colors": {
+    "アタッカー": "#d94a3d",
+    "クイック": "#e0b030",
+    "サポーター": "#3d7fd9",
+    "リカバリー": "#3dbf6a"
+  },
+  "role_colors_note": "仮。4つの役職＝4色。色は、あとで決める"
 }

@@ -31,6 +31,20 @@ func _initialize() -> void:
 		if not font.has_char(ch.unicode_at(0)):
 			ok = false
 	check(ok, "名前の文字がフォントにある")
+	var roles := cfg["role_colors"] as Dictionary
+	check(roles.size() == 4, "役職は4つ（4色）")
+	var kinds := {}
+	var all_ok := true
+	for c in cfg["characters"]:
+		kinds[str(c["archetype"])] = true
+		if not roles.has(str(c["role"])):
+			all_ok = false
+		for ch in str(c["name"]):
+			if not font.has_char(ch.unicode_at(0)):
+				all_ok = false
+	check(all_ok, "全員の役職が4つのどれか。名前の文字がフォントにある")
+	for want in ["swordsman", "speed", "fist", "gun", "bomb", "magic", "shield", "summon", "heal"]:
+		check(kinds.has(want), "タイプ " + want + " がいる")
 	for a in cfg["actions"]:
 		check(CharacterData.animation_for(hero, a) != "", "動作 " + a + " のアニメ名がある")
 	check(CharacterData.pick_action(true, true, true, true) == "down", "ダウンが最優先")
