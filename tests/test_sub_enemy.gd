@@ -75,6 +75,7 @@ func _initialize() -> void:
 	s.player.position.y = s.ground_y + float(s.config["dodge_height"]) + 1.0
 	s._touch_update(0.016)
 	check(s.my_hp == hp_air, "ジャンプ中は、ふれてもダメージを受けない")
+	check(s.camera.environment != null and s.camera.environment.ambient_light_energy > 0.0, "光が当たらない面が真っ黒にならない（環境光がある）")
 	root.remove_child(s)
 	s.free()
 	print("失敗: ", failures)

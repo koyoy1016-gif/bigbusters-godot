@@ -56,6 +56,12 @@ func _build(config: Dictionary, flow_config: Dictionary) -> void:
 	crowd.setup(config, boss_xz)
 	camera = Camera3D.new()
 	camera.fov = float(config["camera_fov"])
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(str(config["ambient_color"]))
+	env.ambient_light_energy = float(config["ambient_energy"])
+	camera.environment = env
 	viewport.add_child(camera)
 	cam_distance = float(flow_config.get("replay_cam_distance", cam_distance))
 	cam_height = float(flow_config.get("replay_cam_height", cam_height))

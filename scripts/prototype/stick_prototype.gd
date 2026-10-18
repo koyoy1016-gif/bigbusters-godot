@@ -224,9 +224,20 @@ func _build_world() -> void:
 	camera.fov = float(config["camera_fov"])
 	var off: Array = config["camera_offset"]
 	camera_offset = Vector3(off[0], off[1], off[2])
+	camera.environment = make_environment(config)
 	add_child(camera)
 	camera.look_at_from_position(camera_offset, Vector3.ZERO, Vector3.UP)
 	player_marker_material = _add_marker(player, Color(str(config["player_color"])))
+
+
+## 光が当たらない面が真っ黒にならないよう、まわりからの明るさ（環境光）を足す
+static func make_environment(cfg: Dictionary) -> Environment:
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CLEAR_COLOR
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(str(cfg["ambient_color"]))
+	env.ambient_light_energy = float(cfg["ambient_energy"])
+	return env
 
 
 ## 頭の上の印。ほかの物に隠れても見える（深さを無視する）ので、ボスの後ろに回っても、自分の位置が分かる
