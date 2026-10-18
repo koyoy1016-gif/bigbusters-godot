@@ -418,6 +418,10 @@ func _initialize() -> void:
 		s3.attack_cooldown = 0.0
 		check(s3.attack() and is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 30.0 - s3.role_value("attack_power")), "こうげきで、体力はほかの人の分と合わせて減る")
 		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHits(15")), "与えたダメージを送る")
+		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2", "p3"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}, "p3": {"x": 0.1, "y": 0.1, "t": 1}, "p4": {"x": 0.9, "y": 0.9, "t": 1}}, "hits": {"p2": 30}})
+		check(s3.other_target.has("p2") and s3.other_target.has("p3") and not s3.other_target.has("p4"), "部屋にいない人（p4）の古い位置は、箱にしない")
+		s3.apply_net_state({"slot": "p1", "members": ["p1"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}}, "hits": {}})
+		check(not s3.other_target.has("p2") and not s3.others.has("p2"), "部屋にいない人の箱は、消える")
 		s3.apply_net_state({"slot": "p1", "positions": {}, "hits": {"p2": 30}})
 		check(not s3.others.has("p2"), "ほかの人が抜けたら、箱を消す")
 		s3.apply_net_state({"slot": "p1", "hits": {"p2": 395}, "round": 5000000})

@@ -560,6 +560,11 @@ func apply_net_state(state: Dictionary) -> void:
 	_check_wipe()
 	var positions := Sync.parse_positions(state.get("positions", {}))
 	positions.erase(me)
+	# いま部屋にいる人（members）の位置だけ出す。前の人の古い位置が残っていても、箱は出さない
+	if state.has("members"):
+		for slot in positions.keys():
+			if not members.has(str(slot)):
+				positions.erase(slot)
 	for slot in positions:
 		other_target[slot] = positions[slot]
 	for slot in other_target.keys():
