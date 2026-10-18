@@ -108,6 +108,10 @@ var bridge := Bridge.new()
 var room_code := ""
 ## 画面の流れ（game_flow）が決めた合言葉。空なら、URLの ?room=、なければ既定
 var forced_room_code := ""
+## 画面の流れ（game_flow）が、ロビーから入っている部屋の橋渡し。あれば、それを使い、部屋に入りも出もしない
+var shared_bridge: RefCounted = null
+## 部屋に前からあった戦いの開始時刻（これと同じ間は、新しい戦いとして始めない）
+var ignore_round := 0.0
 var net_state: Dictionary = {}
 var others := {}
 var other_target := {}
@@ -164,12 +168,18 @@ func _ready() -> void:
 	my_hp = role_value("hp")
 	_build_world()
 	_build_ui()
-	if use_network:
+	if use_network or shared_bridge != null:
 		_setup_network()
 
 
 ## 合言葉の部屋に自動で入る。ブラウザ側の入り口（window.bbFirebase）がなければ、通信なしで遊ぶ
 func _setup_network() -> void:
+	if shared_bridge != null:
+		bridge = shared_bridge
+		room_code = forced_room_code
+		known_round = ignore_round
+		net_active = true
+		return
 	var digits := int(RoomCode.load_config().get("code_digits", 4))
 	if str(js_eval.call("typeof window.bbFirebase")) != "object":
 		return
@@ -410,7 +420,7 @@ func rematch_votes() -> Dictionary:
 
 func _exit_tree() -> void:
 	# 部屋から抜ける（枠を空ける）
-	if net_active:
+	if net_active and shared_bridge == null:
 		bridge.leave()
 
 

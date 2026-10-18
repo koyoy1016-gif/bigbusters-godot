@@ -16,7 +16,7 @@ const TRANSITIONS := {
 	"formation": {"back": "lobby"},
 	"battle": {"ended": "highlight"},
 	"highlight": {"done": "reward"},
-	"reward": {"rematch": "battle", "next": "next"},
+	"reward": {"rematch": "battle", "next": "next", "lobby": "lobby"},
 	"next": {"rematch": "battle", "lobby": "lobby"},
 }
 

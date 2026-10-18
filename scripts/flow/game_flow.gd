@@ -10,6 +10,9 @@ const CharacterData := preload("res://scripts/characters/character_data.gd")
 const Replay := preload("res://scripts/flow/highlight_replay.gd")
 const RoomLink := preload("res://scripts/network/room_link.gd")
 const RoomCode := preload("res://scripts/network/room_code.gd")
+const Bridge := preload("res://scripts/network/room_bridge.gd")
+const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
+const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const BENCH_SCENE := "res://scenes/prototype/crowd_bench.tscn"
@@ -49,6 +52,14 @@ var formation_buttons: Dictionary = {}
 var room_code := ""
 var room_from_url := false
 var room_label: Label
+## ロビーから入っている部屋（戦いを出入りしても、部屋は続く）
+var bridge: RefCounted = null
+var room_state: Dictionary = {}
+var stale_round := 0.0
+var stale_pending := false
+var room_poll_timer := 0.0
+var post_time := 0.0
+var clock_ms: Callable = func() -> float: return Time.get_unix_time_from_system() * 1000.0
 var js_eval: Callable = func(text: String) -> Variant: return JavaScriptBridge.eval(text, true)
 var rematch_wait_reward: Label
 var rematch_wait_next: Label
@@ -78,6 +89,7 @@ func _ready() -> void:
 	add_child(layer)
 	init_room()
 	_build_panels()
+	join_room()
 	if OS.has_feature("web") and str(JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('bench') || ''", true)) != "":
 		query_bench = true
 	if query_bench:
@@ -239,6 +251,7 @@ func _build_panels() -> void:
 	rematch_wait_reward = _make_label("", 28, Color(1.0, 0.85, 0.4))
 	r.add_child(rematch_wait_reward)
 	r.add_child(_make_button(str(config["next_label"]), big, func(): event("next")))
+	r.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
 
 	# つぎへ（さいせん／ロビー）
 	var n := _make_panel(Logic.NEXT)
@@ -252,6 +265,12 @@ func _build_panels() -> void:
 func goto(new_state: String) -> void:
 	if new_state == Logic.HIGHLIGHT:
 		_capture_result()
+	if new_state == Logic.REWARD:
+		post_time = 0.0
+	if new_state in [Logic.LOBBY, Logic.FORMATION, Logic.TITLE] and battle != null and is_instance_valid(battle) and battle.net_active:
+		if not battle.net_state.is_empty():
+			room_state = battle.net_state
+		stale_round = float(room_state.get("round", 0.0))
 	state = new_state
 	state_time = 0.0
 	for key in panels:
@@ -288,6 +307,9 @@ func event(name_text: String) -> void:
 		return
 	if state == Logic.HIGHLIGHT and name_text == "done":
 		_give_reward()
+	if name_text == "lobby" and _room_battle():
+		# ロビーに戻る：全員をロビーに戻す（部屋は続く）
+		battle.send_rematch_vote("lobby")
 	if name_text == "rematch" and _room_battle():
 		# 通信中は、全員が「さいせん」を選んだときだけ始まる
 		my_rematch_vote = true
@@ -365,7 +387,7 @@ func _refresh_lobby() -> void:
 	var cdef := CharacterData.find(characters_cfg, selected_character)
 	lobby_char.text = (str(config["lobby_char_label"]) + "：" + str(cdef["role"]) + " " + str(cdef["name"])) if not cdef.is_empty() else ""
 	play_button.disabled = not bool(stage["open"])
-	room_label.text = (str(config["room_from_url_note"]) if room_from_url else str(config["room_label"])) + " " + room_code
+	_refresh_room_label()
 	quality_button.text = str(config["quality_label"]) + "：" + Quality.label_of(quality_name, quality_config)
 
 
@@ -385,19 +407,87 @@ func _on_round_started() -> void:
 		goto(Logic.BATTLE)
 
 
-## 全員さいせんの判定。全員が選んだら、いちばん若い枠の人が開始の時刻を書く
+## 全員さいせんの判定。1人でも「ロビー」なら全員ロビー。全員が「さいせん」なら、いちばん若い枠の人が開始の時刻を書く。
+## 時間内にそろわなかったら、全員ロビーに戻す（ひとりだけ「さいせん」で、ひとりはロビー、にはならない）
 func _rematch_update(delta: float) -> void:
 	var votes: Dictionary = battle.rematch_votes()
 	var members: Array = battle.net_state.get("members", [])
+	var decision := Logic.rematch_decision(votes, members)
+	if decision == "lobby":
+		goto(Logic.LOBBY)
+		return
 	var text := ""
+	if state != Logic.HIGHLIGHT:
+		post_time += delta
+		if post_time >= float(config["rematch_timeout_sec"]):
+			battle.send_rematch_vote("lobby")
+			goto(Logic.LOBBY)
+			return
 	if my_rematch_vote:
 		text = str(config["rematch_wait_text"]) + "（" + str(Logic.vote_count(votes, members)) + "/" + str(members.size()) + "）"
 		starter_cooldown = maxf(0.0, starter_cooldown - delta)
-		if Logic.rematch_decision(votes, members) == "rematch" and Logic.lowest_slot(members) == str(battle.net_state.get("slot", "")) and starter_cooldown <= 0.0:
+		if decision == "rematch" and Logic.lowest_slot(members) == str(battle.net_state.get("slot", "")) and starter_cooldown <= 0.0:
 			starter_cooldown = float(config["rematch_resend_sec"])
 			battle.start_round()
 	rematch_wait_reward.text = text
 	rematch_wait_next.text = text
+
+
+## ロビーの時点で、部屋に入る（ブラウザ側の入り口があるときだけ。なければ通信なし）
+func join_room() -> void:
+	if str(js_eval.call("typeof window.bbFirebase")) != "object":
+		return
+	var digits := int(RoomCode.load_config().get("code_digits", 4))
+	if bridge == null:
+		bridge = Bridge.new()
+		bridge.js_eval = js_eval
+	var config_json := JSON.stringify(CheckScreen.extract_firebase_config(CheckScreen.load_json(FIREBASE_CONFIG_PATH)))
+	room_state = {}
+	stale_round = 0.0
+	stale_pending = true
+	bridge.join(config_json, room_code, digits)
+
+
+func leave_room() -> void:
+	if bridge != null:
+		bridge.leave()
+
+
+func _exit_tree() -> void:
+	leave_room()
+
+
+## 部屋の状態を、ときどき読む。戦いがあれば、戦いが読んだものを使う
+func _poll_room(delta: float) -> void:
+	if bridge == null:
+		return
+	if battle != null and is_instance_valid(battle) and battle.net_active:
+		room_state = battle.net_state
+	else:
+		room_poll_timer += delta
+		if room_poll_timer < float(config["room_poll_sec"]):
+			return
+		room_poll_timer = 0.0
+		var st: Dictionary = bridge.read_state()
+		if not st.is_empty():
+			room_state = st
+	if stale_pending and str(room_state.get("status", "")) == "in_room":
+		stale_round = float(room_state.get("round", 0.0))
+		stale_pending = false
+	if state == Logic.LOBBY:
+		_refresh_room_label()
+		# 仲間が戦いを始めたら、いっしょに戦いに入る（部屋で落ち合う）
+		var r := float(room_state.get("round", 0.0))
+		var age_ms := float(clock_ms.call()) + float(room_state.get("offset", 0.0)) - r
+		if not stale_pending and r > 0.0 and r != stale_round and age_ms <= float(config["autojoin_max_age_sec"]) * 1000.0 and age_ms >= -10000.0:
+			goto(Logic.BATTLE)
+
+
+func _refresh_room_label() -> void:
+	var text := (str(config["room_from_url_note"]) if room_from_url else str(config["room_label"])) + " " + room_code
+	if bridge != null and str(room_state.get("status", "")) == "in_room":
+		text += "　" + str(config["room_members_prefix"]) + str((room_state.get("members", []) as Array).size()) + str(config["room_members_suffix"])
+	room_label.text = text
 
 
 ## 部屋の合言葉を決める：URLの ?room= があればそれ（しょうたいされた）、なければ新しく作る（毎回べつの部屋）
@@ -420,6 +510,8 @@ func new_room() -> void:
 	rng.randomize()
 	room_code = RoomLink.generate_code(digits, rng)
 	room_from_url = false
+	leave_room()
+	join_room()
 	_refresh_lobby()
 
 
@@ -433,6 +525,8 @@ func invite() -> void:
 	js_eval.call(RoomLink.build_share_call(RoomLink.build_url(base, room_code), config["share_labels"]))
 
 
+
+
 func _start_battle() -> void:
 	_end_battle_node()
 	var packed := load(BATTLE_SCENE) as PackedScene
@@ -440,6 +534,9 @@ func _start_battle() -> void:
 	battle.flow_mode = true
 	battle.selected_character = selected_character
 	battle.forced_room_code = room_code
+	if bridge != null:
+		battle.shared_bridge = bridge
+		battle.ignore_round = float(room_state.get("round", 0.0)) if stale_pending else stale_round
 	battle.round_ended.connect(_on_round_ended)
 	battle.round_started.connect(_on_round_started)
 	add_child(battle)
@@ -483,6 +580,7 @@ func _give_reward() -> void:
 
 func _process(delta: float) -> void:
 	state_time += delta
+	_poll_room(delta)
 	if toast_time > 0.0:
 		toast_time -= delta
 		if toast_time <= 0.0:
@@ -505,6 +603,8 @@ func _process(delta: float) -> void:
 			if _room_battle():
 				_rematch_update(delta)
 		Logic.HIGHLIGHT:
+			if _room_battle():
+				_rematch_update(delta)
 			highlight_replay.advance(delta)
 			if state_time >= float(config["highlight_sec"]):
 				event("done")
