@@ -158,5 +158,19 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "6"
+  "build_id": "7",
+  "camera_follow": 0.5,
+  "camera_follow_per_sec": 6.0,
+  "marker_size": 0.35,
+  "marker_height": 1.1,
+  "bossbar_pos": [
+    0.62,
+    0.05
+  ],
+  "bossbar_size": [
+    0.35,
+    0.04
+  ],
+  "bossbar_back_color": "#202020b0",
+  "bossbar_color": "#e04040"
 }

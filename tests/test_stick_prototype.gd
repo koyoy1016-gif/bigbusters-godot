@@ -235,6 +235,28 @@ func _initialize() -> void:
 		root.remove_child(s2)
 		s2.free()
 
+	# カメラの追従と、頭の上の印
+	var packed5 := load(SCENE) as PackedScene
+	if packed5 != null:
+		var s5: Node = packed5.instantiate()
+		root.add_child(s5)
+		if s5.get_node_or_null("Boss") == null:
+			s5._ready()
+		check(s5.player.get_node_or_null("Marker") != null, "自分の箱の上に、印がある")
+		check((s5.player.get_node("Marker") as MeshInstance3D).mesh.material.no_depth_test, "印は、ほかの物に隠れても見える（深さを無視）")
+		var cam_start: Vector3 = s5.camera.position
+		s5.player.position = Vector3(10.0, s5.ground_y, -10.0)
+		for i in 60:
+			s5.camera_update(0.1)
+		var want: Vector3 = Vector3(10.0, 0.0, -10.0) * float(s5.config["camera_follow"]) + s5.camera_offset
+		check(s5.camera.position.distance_to(want) < 0.05, "カメラは、自分の動きの一部だけ、ついていく")
+		check(s5.camera.position.distance_to(cam_start) > 3.0, "カメラが動いた")
+		s5.other_target["p2"] = Vector2(0.5, 0.5)
+		s5._update_others(0.1)
+		check(s5.others.has("p2") and (s5.others["p2"] as Node).get_node_or_null("Marker") != null, "ほかの人の箱にも、印がある")
+		root.remove_child(s5)
+		s5.free()
+
 	# 役割（仮）：枠ごとに強さが違う
 	var packed4 := load(SCENE) as PackedScene
 	if packed4 != null:

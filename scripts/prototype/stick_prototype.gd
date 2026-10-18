@@ -26,6 +26,10 @@ var boss_material: StandardMaterial3D
 var slam_ring: MeshInstance3D
 var slam_material: StandardMaterial3D
 var charge_strip: MeshInstance3D
+var camera: Camera3D
+var camera_offset := Vector3.ZERO
+var camera_target := Vector3.ZERO
+var player_marker_material: StandardMaterial3D
 var charge_material: StandardMaterial3D
 var overlay: Control
 var font: Font
@@ -190,12 +194,40 @@ func _build_world() -> void:
 	charge_strip.visible = false
 	add_child(charge_strip)
 
-	var camera := Camera3D.new()
+	camera = Camera3D.new()
 	camera.name = "Camera"
 	camera.fov = float(config["camera_fov"])
 	var off: Array = config["camera_offset"]
+	camera_offset = Vector3(off[0], off[1], off[2])
 	add_child(camera)
-	camera.look_at_from_position(Vector3(off[0], off[1], off[2]), Vector3.ZERO, Vector3.UP)
+	camera.look_at_from_position(camera_offset, Vector3.ZERO, Vector3.UP)
+	player_marker_material = _add_marker(player, Color(str(config["player_color"])))
+
+
+## 頭の上の印。ほかの物に隠れても見える（深さを無視する）ので、ボスの後ろに回っても、自分の位置が分かる
+func _add_marker(parent: Node3D, color: Color) -> StandardMaterial3D:
+	var marker := MeshInstance3D.new()
+	marker.name = "Marker"
+	var box := BoxMesh.new()
+	box.size = Vector3.ONE * float(config["marker_size"])
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.no_depth_test = true
+	mat.render_priority = 10
+	box.material = mat
+	marker.mesh = box
+	marker.position = Vector3(0.0, float(config["marker_height"]), 0.0)
+	parent.add_child(marker)
+	return mat
+
+
+## カメラは、自分の動きに合わせて、ゆっくりついていく（動きの一部だけ）。f 秒あたりの追いつきの速さは data で決める
+func camera_update(delta: float) -> void:
+	var goal := Vector3(player.position.x, 0.0, player.position.z) * float(config["camera_follow"])
+	camera_target = camera_target.lerp(goal, Sync.smooth_weight(delta, float(config["camera_follow_per_sec"])))
+	var pos := camera_target + camera_offset
+	camera.transform = Transform3D(Basis.looking_at(camera_target - pos, Vector3.UP), pos)
 
 
 func _make_box(node_name: String, size: float, color: Color) -> MeshInstance3D:
@@ -235,6 +267,8 @@ func _process(delta: float) -> void:
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
 	player_material.albedo_color = _player_color()
+	player_marker_material.albedo_color = _slot_color(str(net_state.get("slot", "")))
+	camera_update(delta)
 	overlay.queue_redraw()
 
 
@@ -519,6 +553,7 @@ func _player_color() -> Color:
 func _other_node(slot: String) -> MeshInstance3D:
 	if not others.has(slot):
 		others[slot] = _make_box("Other_" + slot, float(config["player_size"]), _slot_color(slot))
+		_add_marker(others[slot], _slot_color(slot))
 	return others[slot]
 
 
@@ -584,6 +619,12 @@ func _draw_overlay() -> void:
 	_draw_centered(ac, str(config["attack_label"]), button_text)
 
 	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]) + "   " + str(config["build_label"]) + str(config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+	var bp: Array = config["bossbar_pos"]
+	var bs: Array = config["bossbar_size"]
+	var bar_rect := Rect2(Vector2(screen.x * bp[0], screen.y * bp[1]), Vector2(screen.x * bs[0], maxf(10.0, screen.y * bs[1])))
+	overlay.draw_rect(bar_rect, Color(str(config["bossbar_back_color"])))
+	var frac := clampf(boss_hp / float(config["boss_hp"]), 0.0, 1.0)
+	overlay.draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * frac, bar_rect.size.y)), Color(str(config["bossbar_color"])))
 	var hp_text := str(config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(config["boss_hp"]))
 	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(role_value("hp")))
