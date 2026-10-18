@@ -23,7 +23,9 @@ func _initialize() -> void:
 	var hero := CharacterData.find(cfg, str(cfg["player_character"]))
 	check(not hero.is_empty() and hero["name"] == "けんし", "主人公（けんし）がいる")
 	check(CharacterData.find(cfg, "zzz").is_empty(), "知らないidは空")
-	check(not CharacterData.has_model(hero), "モデルのファイルがまだないので、箱のまま")
+	var no_model := CharacterData.find(cfg, "guardian")
+	check(not CharacterData.has_model(no_model), "モデルのファイルがまだないキャラ（たて）は、箱のまま")
+	check(CharacterData.has_model(hero), "主人公（けんし）は、本物のモデルのファイルがある")
 	check(float(hero["tri_budget"]) <= float(cfg["budgets"]["ally"]), "面の数の予算が、味方の上限以内")
 	var font := load("res://assets/fonts/NotoSansJP-Regular-subset.ttf") as Font
 	var ok := true
@@ -100,7 +102,7 @@ func _initialize() -> void:
 
 	# モデルなし
 	var v0 := CharacterView.new()
-	check(not v0.setup(hero), "モデルがなければ、読み込みは失敗（箱のまま）")
+	check(not v0.setup(no_model), "モデルがなければ、読み込みは失敗（箱のまま）")
 	v0.free()
 
 	# モデルあり（骨つきの試験用の人型＋アニメ入りの場面を作って、読み込む）
@@ -144,6 +146,29 @@ func _initialize() -> void:
 	var r := view.rotation.y
 	view.face(Vector2.ZERO, 1.0)
 	check(view.rotation.y == r, "止まっているときは、向きを変えない")
+	# 本物の剣士のモデル（MPFB）：骨・メッシュ・材質直しが効いている
+	var rv := CharacterView.new()
+	root.add_child(rv)
+	check(rv.setup(hero), "剣士の本物のモデルを読み込める")
+	var skels := rv.model.find_children("*", "Skeleton3D", true, false)
+	check(skels.size() == 1 and (skels[0] as Skeleton3D).get_bone_count() >= 100, "骨が100本以上ある")
+	var tris := 0
+	var hair_ok := false
+	var body_ok := false
+	for m in rv.model.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (m as MeshInstance3D).mesh
+		for i in mesh.get_surface_count():
+			var arr := mesh.surface_get_arrays(i)
+			tris += (arr[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+			var mt := mesh.surface_get_material(i) as StandardMaterial3D
+			if mt.resource_name.to_lower().contains("short"):
+				hair_ok = mt.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+			if mt.resource_name == "Human.body":
+				body_ok = mt.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED
+	check(hair_ok and body_ok, "髪は切り抜き、体は不透明に直っている")
+	check(tris > 1000 and tris <= int(cfg["budgets"]["ally"]) * 2, "面の数が予算の2倍以内（いまは約29,700。あとで減らす）：" + str(tris))
+	rv.queue_free()
+
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(model_path))
 	print("失敗: ", failures)
 	quit(1 if failures > 0 else 0)

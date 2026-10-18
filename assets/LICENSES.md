@@ -11,3 +11,9 @@
 - フォントを改変（文字の絞り込み）したので、ファイル名に Reserved Font Name の 'Source' を使っていない
 - フォント単体を売ることはしない（OFLの条件）。ゲームに同梱するのは問題ない
 - 必要な文字が増えたときは、文字を足して作り直す（作り方は `NOTES.md` の作業ログ）
+
+## 3Dモデル
+
+| ファイル | 内容 | ライセンス | 入手先 | 備考 |
+|---|---|---|---|---|
+| `assets/models/hero_swordsman.glb`（と、取り込み時に出る `hero_swordsman_*.png`） | 剣士（体・髪・眉・まつ毛・目・服・靴） | CC0（下の素材はMakeHumanの「system assets CC0」の配布物）。**未確認**：各素材ごとのライセンス表示は、配布ページの説明（CC0と書かれたzip名）による。素材ごとのファイルの表記は見ていない | Blender 5.2.2 LTS＋MPFB 2.0.18（アドオンはGPL。作ったキャラは対象外とされている）で、ユーザーが作成 | 使った素材：体（basemesh、Young asian male肌）、髪 short04、眉 eyebrow001/004、まつ毛 eyelashes01、目 low-poly（brown_eye）、服 male_casualsuit06、靴 shoes01。Tシャツの「MakeHuman」ロゴと隅の透かし文字は、画像を塗りつぶして消した。テクスチャは縮小（肌・服1024、ほか512） |
