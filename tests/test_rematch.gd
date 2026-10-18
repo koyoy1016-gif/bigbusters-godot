@@ -39,7 +39,7 @@ func _initialize() -> void:
 	b.round_start_ms = 1000.0
 	b.won = true
 	b.known_round = 1000.0
-	b.net_state = {"slot": "p1", "members": ["p1", "p2"], "votes": {}, "round": 1000.0}
+	b.net_state = {"slot": "p1", "members": ["p1", "p2"], "votes": {}, "round": 1000.0, "hp": {"p2": {"hp": 100.0, "round": 1000.0}}}
 	flow.goto("highlight")
 	check(flow.battle == b and b.dormant, "通信中は、ハイライトの間も、戦いを部屋に残して休止する")
 	check(not (b.get_node("UI") as CanvasLayer).visible, "休止中は戦いの画面を隠す")

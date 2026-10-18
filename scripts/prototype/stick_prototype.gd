@@ -406,6 +406,19 @@ func _dormant_update(delta: float) -> void:
 			apply_net_state(state)
 
 
+## 部屋にいるのに、この戦いに出ていない人（あとから入ってきた人）。戦いに出た人は、開始のとき体力を部屋に書いている
+func idle_members() -> Array:
+	var out: Array = []
+	if not net_active:
+		return out
+	var me := str(net_state.get("slot", ""))
+	var joined := BossSync.others_hp(net_state.get("hp", {}), me, net_state.get("members", []), round_start_ms)
+	for slot in net_state.get("members", []):
+		if str(slot) != me and not joined.has(str(slot)):
+			out.append(str(slot))
+	return out
+
+
 ## 「さいせん」「ロビー」の投票を送る。いまの戦いの開始時刻といっしょに書く
 func send_rematch_vote(vote: String) -> void:
 	if net_active and str(net_state.get("slot", "")) != "":

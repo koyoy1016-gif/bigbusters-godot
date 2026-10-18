@@ -55,12 +55,12 @@ var room_label: Label
 ## ロビーから入っている部屋（戦いを出入りしても、部屋は続く）
 var bridge: RefCounted = null
 var room_state: Dictionary = {}
-var stale_round := 0.0
-var stale_pending := false
 var room_poll_timer := 0.0
 var post_time := 0.0
 var clock_ms: Callable = func() -> float: return Time.get_unix_time_from_system() * 1000.0
 var js_eval: Callable = func(text: String) -> Variant: return JavaScriptBridge.eval(text, true)
+var rematch_button_reward: Button
+var rematch_button_next: Button
 var rematch_wait_reward: Label
 var rematch_wait_next: Label
 var my_rematch_vote := false
@@ -131,7 +131,7 @@ func _make_button(text: String, min_size: Array, callback: Callable) -> Button:
 
 
 ## 画面いっぱいの背景と、真ん中に縦に並べる入れ物を作る
-func _make_panel(panel_name: String) -> VBoxContainer:
+func _make_panel(panel_name: String, separation: int = 28) -> VBoxContainer:
 	var root := Control.new()
 	root.name = panel_name
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -142,7 +142,7 @@ func _make_panel(panel_name: String) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 28)
+	box.add_theme_constant_override("separation", separation)
 	root.add_child(box)
 	layer.add_child(root)
 	panels[panel_name] = root
@@ -163,7 +163,7 @@ func _build_panels() -> void:
 	t.add_child(_make_label(str(config["title_loading"]), text_size, text_color))
 
 	# ロビー
-	var l := _make_panel(Logic.LOBBY)
+	var l := _make_panel(Logic.LOBBY, int(config["lobby_separation"]))
 	l.add_child(_make_label(str(config["title_text"]), heading, Color(str(config["title_color"]))))
 	lobby_info = _make_label("", text_size, text_color)
 	l.add_child(lobby_info)
@@ -183,8 +183,8 @@ func _build_panels() -> void:
 	var room_row := HBoxContainer.new()
 	room_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	room_row.add_theme_constant_override("separation", 16)
-	room_row.add_child(_make_button(str(config["invite_label"]), small, invite))
-	room_row.add_child(_make_button(str(config["new_room_label"]), small, new_room))
+	room_row.add_child(_make_button(str(config["invite_label"]), [280, 80], invite))
+	room_row.add_child(_make_button(str(config["new_room_label"]), [280, 80], new_room))
 	l.add_child(room_row)
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -247,7 +247,8 @@ func _build_panels() -> void:
 	r.add_child(_make_label(str(config["reward_title"]), heading, Color(str(config["title_color"]))))
 	reward_label = _make_label("", heading, Color(1.0, 0.85, 0.4))
 	r.add_child(reward_label)
-	r.add_child(_make_button(str(config["rematch_label"]), big, func(): event("rematch")))
+	rematch_button_reward = _make_button(str(config["rematch_label"]), big, func(): event("rematch"))
+	r.add_child(rematch_button_reward)
 	rematch_wait_reward = _make_label("", 28, Color(1.0, 0.85, 0.4))
 	r.add_child(rematch_wait_reward)
 	r.add_child(_make_button(str(config["next_label"]), big, func(): event("next")))
@@ -255,7 +256,8 @@ func _build_panels() -> void:
 
 	# つぎへ（さいせん／ロビー）
 	var n := _make_panel(Logic.NEXT)
-	n.add_child(_make_button(str(config["rematch_label"]), big, func(): event("rematch")))
+	rematch_button_next = _make_button(str(config["rematch_label"]), big, func(): event("rematch"))
+	n.add_child(rematch_button_next)
 	rematch_wait_next = _make_label("", 28, Color(1.0, 0.85, 0.4))
 	n.add_child(rematch_wait_next)
 	n.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
@@ -267,10 +269,9 @@ func goto(new_state: String) -> void:
 		_capture_result()
 	if new_state == Logic.REWARD:
 		post_time = 0.0
-	if new_state in [Logic.LOBBY, Logic.FORMATION, Logic.TITLE] and battle != null and is_instance_valid(battle) and battle.net_active:
-		if not battle.net_state.is_empty():
-			room_state = battle.net_state
-		stale_round = float(room_state.get("round", 0.0))
+		if rematch_button_reward != null:
+			rematch_button_reward.visible = true
+			rematch_button_next.visible = true
 	state = new_state
 	state_time = 0.0
 	for key in panels:
@@ -417,6 +418,16 @@ func _rematch_update(delta: float) -> void:
 		goto(Logic.LOBBY)
 		return
 	var text := ""
+	# この戦いに出ていない人が部屋にいたら、「さいせん」は使えない（ロビーで合流してから、いっしょに戦う）
+	var idle: Array = battle.idle_members()
+	var can_rematch := idle.is_empty()
+	rematch_button_reward.visible = can_rematch
+	rematch_button_next.visible = can_rematch
+	if not can_rematch:
+		text = str(config["party_gathered_text"])
+		rematch_wait_reward.text = text
+		rematch_wait_next.text = text
+		return
 	if state != Logic.HIGHLIGHT:
 		post_time += delta
 		if post_time >= float(config["rematch_timeout_sec"]):
@@ -443,8 +454,6 @@ func join_room() -> void:
 		bridge.js_eval = js_eval
 	var config_json := JSON.stringify(CheckScreen.extract_firebase_config(CheckScreen.load_json(FIREBASE_CONFIG_PATH)))
 	room_state = {}
-	stale_round = 0.0
-	stale_pending = true
 	bridge.join(config_json, room_code, digits)
 
 
@@ -471,16 +480,8 @@ func _poll_room(delta: float) -> void:
 		var st: Dictionary = bridge.read_state()
 		if not st.is_empty():
 			room_state = st
-	if stale_pending and str(room_state.get("status", "")) == "in_room":
-		stale_round = float(room_state.get("round", 0.0))
-		stale_pending = false
 	if state == Logic.LOBBY:
 		_refresh_room_label()
-		# 仲間が戦いを始めたら、いっしょに戦いに入る（部屋で落ち合う）
-		var r := float(room_state.get("round", 0.0))
-		var age_ms := float(clock_ms.call()) + float(room_state.get("offset", 0.0)) - r
-		if not stale_pending and r > 0.0 and r != stale_round and age_ms <= float(config["autojoin_max_age_sec"]) * 1000.0 and age_ms >= -10000.0:
-			goto(Logic.BATTLE)
 
 
 func _refresh_room_label() -> void:
@@ -535,8 +536,12 @@ func _start_battle() -> void:
 	battle.selected_character = selected_character
 	battle.forced_room_code = room_code
 	if bridge != null:
+		# 入った時点で部屋にあった戦いは、始めない（戦いの最中の人の試合に、あとから入らない）
+		var latest: Dictionary = bridge.read_state()
+		if not latest.is_empty():
+			room_state = latest
 		battle.shared_bridge = bridge
-		battle.ignore_round = float(room_state.get("round", 0.0)) if stale_pending else stale_round
+		battle.ignore_round = float(room_state.get("round", 0.0))
 	battle.round_ended.connect(_on_round_ended)
 	battle.round_started.connect(_on_round_started)
 	add_child(battle)
