@@ -24,7 +24,39 @@ func setup(def: Dictionary) -> bool:
 	var s := float(def.get("model_scale", 1.0))
 	scale = Vector3.ONE * s
 	player = _find_player(model)
+	fix_materials(model, def)
 	return true
+
+
+## 書き出したモデルの材質を、軽く正しく見えるように直す。
+## 全部が「半透明」で出てくるので、ふつうの材質は不透明に、髪・眉・まつ毛は「切り抜き」にする
+## （名前に cutout_keywords のどれかが入っているものが切り抜き）。ツヤ出し（クリアコート）は切る
+static func fix_materials(node: Node, def: Dictionary) -> int:
+	var keywords: Array = def.get("cutout_keywords", ["hair", "short", "eyebrow", "eyelash"])
+	var count := 0
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		if mi.mesh != null:
+			for i in mi.mesh.get_surface_count():
+				var mat := mi.mesh.surface_get_material(i) as StandardMaterial3D
+				if mat == null:
+					continue
+				var nm := mat.resource_name.to_lower()
+				var cut := false
+				for k in keywords:
+					if nm.contains(str(k).to_lower()):
+						cut = true
+				if cut:
+					mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+					mat.alpha_scissor_threshold = float(def.get("cutout_threshold", 0.5))
+				else:
+					mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+				mat.cull_mode = BaseMaterial3D.CULL_BACK
+				mat.clearcoat_enabled = false
+				count += 1
+	for c in node.get_children():
+		count += fix_materials(c, def)
+	return count
 
 
 func _find_player(node: Node) -> AnimationPlayer:
