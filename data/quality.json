@@ -1,0 +1,8 @@
+{
+  "default": "low",
+  "order": ["low", "high"],
+  "presets": {
+    "low": {"label": "ひくい", "msaa": 0, "shadow": false, "max_fps": 30, "scale_3d": 0.8},
+    "high": {"label": "たかい", "msaa": 2, "shadow": true, "max_fps": 60, "scale_3d": 1.0}
+  }
+}

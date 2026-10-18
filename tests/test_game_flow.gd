@@ -60,17 +60,17 @@ func _initialize() -> void:
 
 	# 保存
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SAVE))
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0}, "保存がなければ、最初の値")
-	check(SaveData.write_save(TEMP_SAVE, {"coins": 120, "wins": 4}), "保存できる")
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 120, "wins": 4}, "保存した値が読める")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": ""}, "保存がなければ、最初の値")
+	check(SaveData.write_save(TEMP_SAVE, {"coins": 120, "wins": 4, "quality": "high"}), "保存できる")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 120, "wins": 4, "quality": "high"}, "保存した値が読める")
 	var f := FileAccess.open(TEMP_SAVE, FileAccess.WRITE)
 	f.store_string("これはJSONではない")
 	f = null
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0}, "壊れた保存は、最初の値に戻す")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": ""}, "壊れた保存は、最初の値に戻す")
 	f = FileAccess.open(TEMP_SAVE, FileAccess.WRITE)
 	f.store_string('{"coins": -5, "wins": "x"}')
 	f = null
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0}, "マイナスや文字の値は、捨てる")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": ""}, "マイナスや文字の値は、捨てる")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SAVE))
 
 	# 文字が、フォントにある
@@ -104,6 +104,12 @@ func _initialize() -> void:
 		check(flow.state == "lobby" and flow.panels["lobby"].visible, "タイトルのあと、自動でロビーに移る")
 		check(str(flow.lobby_info.text).contains("ランク 1") and str(flow.lobby_info.text).contains("コイン 0"), "ロビーに、ランクとコイン：" + str(flow.lobby_info.text))
 		check(flow.stage_label.text == "きたせんじゅ" and not flow.play_button.disabled, "ステージ1が選ばれていて、プレイできる")
+		check(str(flow.quality_button.text).begins_with("がしつ："), "ロビーに、画質のボタン：" + str(flow.quality_button.text))
+		var q0: String = flow.quality_name
+		flow.change_quality()
+		check(flow.quality_name != q0 and SaveData.load_save(TEMP_SAVE)["quality"] == flow.quality_name, "画質を切り替えると、保存される")
+		flow.change_quality()
+		check(flow.quality_name == q0, "もう一度で、元に戻る")
 		flow.change_stage(1)
 		check(flow.play_button.disabled and flow.stage_label.text == "？？？", "次のステージ（未開放）は、プレイできない")
 		flow.play()

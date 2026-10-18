@@ -17,6 +17,7 @@
   "play_label": "プレイ",
   "lobby_buttons": ["へんせい", "そうび", "ガチャ", "キャラ", "つうしん"],
   "coming_soon": "じゅんびちゅう",
+  "quality_label": "がしつ",
   "toast_sec": 1.5,
   "result_show_sec": 2.5,
   "highlight_title": "ハイライト",

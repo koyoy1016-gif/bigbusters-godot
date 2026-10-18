@@ -159,6 +159,7 @@ func _build_world() -> void:
 
 	var light := DirectionalLight3D.new()
 	light.name = "Light"
+	light.add_to_group("sun")
 	light.light_energy = float(config["light_energy"])
 	var rot: Array = config["light_rotation_deg"]
 	light.rotation_degrees = Vector3(rot[0], rot[1], rot[2])

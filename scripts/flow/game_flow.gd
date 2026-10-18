@@ -4,6 +4,7 @@ extends Node
 ## 決まりごとは flow_logic.gd、数値と文字は data/game_flow.json、保存は save_data.gd。
 
 const Logic := preload("res://scripts/flow/flow_logic.gd")
+const Quality := preload("res://scripts/core/quality.gd")
 const SaveData := preload("res://scripts/flow/save_data.gd")
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -31,6 +32,9 @@ var toast_label: Label
 var highlight_best: Label
 var reward_label: Label
 var query_bench := false
+var quality_config: Dictionary = {}
+var quality_name := "low"
+var quality_button: Button
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -43,6 +47,8 @@ func _ready() -> void:
 		config = load_config()
 	font = load(str(config["ui_font_path"])) as Font
 	save = SaveData.load_save(str(config["save_path"]))
+	quality_config = Quality.load_config()
+	quality_name = Quality.resolve(str(save.get("quality", "")), quality_config)
 	layer = CanvasLayer.new()
 	layer.name = "Menus"
 	layer.layer = 10
@@ -54,6 +60,7 @@ func _ready() -> void:
 		get_tree().change_scene_to_file.call_deferred(BENCH_SCENE)
 		return
 	_apply_window_scale()
+	_apply_quality()
 	goto(Logic.TITLE)
 
 
@@ -144,6 +151,10 @@ func _build_panels() -> void:
 	for name_text in config["lobby_buttons"]:
 		grid.add_child(_make_button(str(name_text), small, show_toast))
 	l.add_child(grid_holder)
+	quality_button = _make_button("", small, change_quality)
+	var quality_holder := CenterContainer.new()
+	quality_holder.add_child(quality_button)
+	l.add_child(quality_holder)
 	toast_label = _make_label("", text_size, Color(1.0, 0.85, 0.4))
 	l.add_child(toast_label)
 
@@ -213,6 +224,20 @@ func change_stage(step: int) -> void:
 	_refresh_lobby()
 
 
+## 画質を「低」「高」で切り替える（選びは保存する）
+func change_quality() -> void:
+	quality_name = Quality.next_preset(quality_name, quality_config)
+	save["quality"] = quality_name
+	SaveData.write_save(str(config["save_path"]), save)
+	_apply_quality()
+	_refresh_lobby()
+
+
+func _apply_quality() -> void:
+	var lights := get_tree().get_nodes_in_group("sun") if get_tree() != null else []
+	Quality.apply(quality_name, quality_config, get_viewport(), lights)
+
+
 func show_toast() -> void:
 	toast_label.text = str(config["coming_soon"])
 	toast_time = float(config["toast_sec"])
@@ -224,6 +249,7 @@ func _refresh_lobby() -> void:
 	var stage: Dictionary = config["stages"][stage_index]
 	stage_label.text = str(stage["name"])
 	play_button.disabled = not bool(stage["open"])
+	quality_button.text = str(config["quality_label"]) + "：" + Quality.label_of(quality_name, quality_config)
 
 
 func _start_battle() -> void:
@@ -233,6 +259,7 @@ func _start_battle() -> void:
 	battle.flow_mode = true
 	battle.round_ended.connect(_on_round_ended)
 	add_child(battle)
+	_apply_quality()
 
 
 var _rematch_pending := false
