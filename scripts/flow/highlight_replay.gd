@@ -1,10 +1,12 @@
 extends SubViewportContainer
 ## ハイライトの再生（3D）。ベストアタッカーの足あとの通りに動く箱を、後ろから追いかけるカメラで映す。
 ## ボスとサブ敵も、戦いの時間どおりに動く（サブ敵の動きは時間だけで決まるため再現できる）。
-## 見た目は仮の箱。本物のキャラができたら差し替える。
+## 本物のモデルがあるキャラなら、そのモデル（走る・待つ・ボスの近くではこうげき）で出す。なければ箱
 
 const Recorder := preload("res://scripts/combat/highlight_recorder.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
+const CharacterView := preload("res://scripts/characters/character_view.gd")
+const CharacterData := preload("res://scripts/characters/character_data.gd")
 
 var points: Array = []
 var play_time := 0.0
@@ -23,6 +25,15 @@ var half := 15.0
 var cam_pos := Vector3.ZERO
 var built := false
 var player_half_height := 0.5
+var char_view: Node3D = null  ## 本物のモデルの見た目（なければ null で、箱）
+var last_xz := Vector2.ZERO
+var has_last := false
+var attack_distance := 4.0
+var attack_repeat_sec := 0.8
+var attack_timer := 0.0
+var moving_speed := 0.5
+var flow_cfg: Dictionary = {}
+var char_def: Dictionary = {}
 
 
 func _build(config: Dictionary, flow_config: Dictionary) -> void:
@@ -63,10 +74,35 @@ func _build(config: Dictionary, flow_config: Dictionary) -> void:
 	env.ambient_light_energy = float(config["ambient_energy"])
 	camera.environment = env
 	viewport.add_child(camera)
+	flow_cfg = flow_config
+	attack_distance = float(flow_config.get("replay_attack_distance", attack_distance))
+	attack_repeat_sec = float(flow_config.get("replay_attack_repeat_sec", attack_repeat_sec))
+	moving_speed = float(flow_config.get("replay_moving_speed", moving_speed))
 	cam_distance = float(flow_config.get("replay_cam_distance", cam_distance))
 	cam_height = float(flow_config.get("replay_cam_height", cam_height))
 	cam_follow_per_sec = float(flow_config.get("replay_cam_follow_per_sec", cam_follow_per_sec))
 	built = true
+
+
+## キャラを切り替える。モデルがあれば箱を隠してモデルを出す。なければ箱
+func _set_character(character: Dictionary) -> void:
+	var same: bool = char_view != null and character.get("id", "") == char_def.get("id", "-")
+	if same:
+		return
+	if char_view != null:
+		char_view.queue_free()
+		char_view = null
+	char_def = character
+	player_box.visible = true
+	if character.is_empty() or not CharacterData.has_model(character):
+		return
+	var view := CharacterView.new()
+	if not view.setup(character):
+		view.free()
+		return
+	viewport.add_child(view)
+	char_view = view
+	player_box.visible = false
 
 
 func _box(size: float, color: Color) -> MeshInstance3D:
@@ -81,7 +117,7 @@ func _box(size: float, color: Color) -> MeshInstance3D:
 
 
 ## path_points：足あと [Vector3(時間, x, z)]。config：戦いの設定。flow_config：画面の流れの設定
-func setup(path_points: Array, boss: Vector2, half_bounds: float, color: Color, config: Dictionary = {}, flow_config: Dictionary = {}) -> void:
+func setup(path_points: Array, boss: Vector2, half_bounds: float, color: Color, config: Dictionary = {}, flow_config: Dictionary = {}, character: Dictionary = {}) -> void:
 	points = path_points
 	boss_xz = boss
 	half = half_bounds
@@ -93,6 +129,9 @@ func setup(path_points: Array, boss: Vector2, half_bounds: float, color: Color, 
 		_build(config, flow_config)
 	if built:
 		player_material.albedo_color = color
+		_set_character(character)
+		has_last = false
+		attack_timer = 0.0
 		_place(true)
 
 
@@ -124,9 +163,38 @@ func _place(snap: bool, delta: float = 0.0) -> void:
 	var p := current_position()
 	var y: float = player_half_height
 	player_box.position = Vector3(p.x, y, p.y)
+	if char_view != null:
+		_update_character(p, snap, delta)
 	var t := (points[0] as Vector3).x + play_time if not points.is_empty() else play_time
 	crowd.update_at(t)
 	var want := camera_target_position(p, boss_xz, cam_distance, cam_height)
 	cam_pos = want if snap else cam_pos.lerp(want, clampf(cam_follow_per_sec * delta, 0.0, 1.0))
 	var look := Vector3(p.x, 1.0, p.y)
 	camera.transform = Transform3D(Basis.looking_at(look - cam_pos, Vector3.UP), cam_pos)
+
+
+## モデルの位置・向き・動き。動いていれば走る、止まっていれば待つ、ボスの近くならこうげき（くり返す）
+func _update_character(p: Vector2, snap: bool, delta: float) -> void:
+	char_view.position = Vector3(p.x, 0.0, p.y)
+	var step := Vector2.ZERO
+	if has_last and not snap and delta > 0.0:
+		step = (p - last_xz) / delta
+	last_xz = p
+	has_last = true
+	var to_boss := boss_xz - p
+	var near_boss := to_boss.length() <= attack_distance
+	attack_timer = maxf(0.0, attack_timer - delta)
+	if near_boss:
+		char_view.face(to_boss, delta)
+		if attack_timer <= 0.0:
+			char_view.current_action = ""
+			char_view.play_action("attack")
+			attack_timer = attack_repeat_sec
+		elif attack_timer < attack_repeat_sec - 0.55:
+			char_view.play_action("idle")
+	else:
+		attack_timer = 0.0
+		var moving := step.length() > moving_speed
+		char_view.play_action("run" if moving else "idle")
+		if moving:
+			char_view.face(step, delta)

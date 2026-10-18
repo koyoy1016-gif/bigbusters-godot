@@ -573,6 +573,8 @@ func highlight_data() -> Dictionary:
 	best["bounds"] = float(config["bounds"])
 	best["color"] = _slot_color(str(best["slot"]))
 	best["config"] = config
+	var cfg_chars := CharacterData.load_config()
+	best["character"] = selected_def() if selected_character != "" else CharacterData.find(cfg_chars, str(cfg_chars.get("player_character", "")))
 	return best
 
 

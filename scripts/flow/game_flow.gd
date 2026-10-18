@@ -244,7 +244,7 @@ func goto(new_state: String) -> void:
 			highlight_best.text = best_text if best_text != "" else str(config["highlight_none"])
 			highlight_replay.visible = not highlight_info.is_empty()
 			if not highlight_info.is_empty():
-				highlight_replay.setup(highlight_info["points"], highlight_info["boss"], float(highlight_info["bounds"]), highlight_info["color"], highlight_info["config"], config)
+				highlight_replay.setup(highlight_info["points"], highlight_info["boss"], float(highlight_info["bounds"]), highlight_info["color"], highlight_info["config"], config, highlight_info.get("character", {}))
 		Logic.REWARD:
 			reward_label.text = str(config["reward_coin_prefix"]) + str(last_reward)
 
