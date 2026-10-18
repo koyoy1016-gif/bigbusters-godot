@@ -67,11 +67,17 @@ func _initialize() -> void:
 	check(is_equal_approx(rep.player_box.position.z, 1.2), "箱が動く")
 	rep.advance(10.0)
 	check(rep.play_time == 0.0, "終わったら、最初から繰り返す")
-	var t1 := Replay.camera_target_position(Vector2(0, 4), Vector2(0, -6), 7.0, 4.5)
-	check(t1.is_equal_approx(Vector3(0, 4.5, 11)), "カメラは、ボスから見てプレイヤーの後ろ側（ボスが奥に見える）")
-	check(Replay.camera_target_position(Vector2(2, 2), Vector2(2, 2), 7.0, 4.5).is_finite(), "ボスと同じ位置でも壊れない")
-	var cam_to_player := (Vector3(rep.player_box.position.x, 1.0, rep.player_box.position.z) - rep.camera.position).normalized()
-	check((-rep.camera.global_transform.basis.z).dot(cam_to_player) > 0.99 if rep.camera.is_inside_tree() else (-rep.camera.transform.basis.z).dot(cam_to_player) > 0.9, "カメラがプレイヤーのほうを向いている")
+	var fr: Dictionary = Replay.camera_frame(Vector2(0, 4), Vector2(0, -6), 7.0, 4.5)
+	check((fr["look"] as Vector3).is_equal_approx(Vector3(0, 1.2, -1)), "カメラは、プレイヤーとボスの真ん中を見る")
+	check(Replay.camera_frame(Vector2(2, 2), Vector2(2, 2), 7.0, 4.5)["pos"].is_finite(), "ボスと同じ位置でも壊れない")
+	for pl in [Vector2(0, 4), Vector2(0, -5.5), Vector2(12, 12), Vector2(-3, -6)]:
+		var f2: Dictionary = Replay.camera_frame(pl, Vector2(0, -6), 7.0, 4.5)
+		var cp: Vector3 = f2["pos"]
+		var fwd := ((f2["look"] as Vector3) - cp).normalized()
+		var ok := true
+		for target in [Vector3(pl.x, 1.0, pl.y), Vector3(0, 1.5, -6)]:
+			ok = ok and fwd.dot((target - cp).normalized()) > 0.7
+		check(ok, "プレイヤーもボスも、カメラの前にある（" + str(pl) + "）")
 	# 本物のモデルがあるキャラなら、箱の代わりにモデルを出す
 	const CharacterData := preload("res://scripts/characters/character_data.gd")
 	var ccfg := CharacterData.load_config()

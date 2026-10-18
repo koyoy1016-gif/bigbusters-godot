@@ -413,7 +413,7 @@ func _initialize() -> void:
 		check(s3.others.has("p2") and not s3.others.has("p1"), "ほかの人（p2）の箱ができる。自分の箱は増えない")
 		check(s3.round_active() and s3.round_count == 1, "部屋の開始の時刻が来ると、自分の画面でも戦いが始まる")
 		check(is_equal_approx(s3.others_hits, 30.0) and is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 30.0), "ほかの人のダメージで、ボスの体力が減る")
-		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendPosition(0.5, 0.5)")), "自分の位置を送る（中心は 0.5, 0.5）")
+		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendPosition(0.4, 0.7)")), "自分の位置を送る（戦いの始まりで、p1の最初の位置 (-3, 6) に戻っている）")
 		s3.player.position = Vector3(0.0, s3.ground_y, float(s3.config["boss_position"][1]) + 2.0)
 		s3.attack_cooldown = 0.0
 		check(s3.attack() and is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 30.0 - s3.role_value("attack_power")), "こうげきで、体力はほかの人の分と合わせて減る")

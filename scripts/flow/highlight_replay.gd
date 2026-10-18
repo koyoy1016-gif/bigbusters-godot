@@ -16,6 +16,7 @@ var cam_height := 4.5
 var cam_follow_per_sec := 6.0
 var viewport: SubViewport
 var camera: Camera3D
+var cam_look := Vector3.ZERO
 var player_box: MeshInstance3D
 var player_material: StandardMaterial3D
 var boss_box: MeshInstance3D
@@ -152,11 +153,17 @@ func current_position() -> Vector2:
 	return Recorder.position_on_path(points, (points[0] as Vector3).x + play_time)
 
 
-## カメラの狙う位置：ボスから見てプレイヤーの後ろ側（ボスが奥に見える）
-static func camera_target_position(player_xz: Vector2, boss: Vector2, distance: float, height: float) -> Vector3:
+## カメラの枠どり：プレイヤーとボスの両方が画面に入る。2人の真ん中を見て、斜め後ろから、離れているほど引く
+## 戻り値：{pos: カメラの位置, look: 見る位置}
+static func camera_frame(player_xz: Vector2, boss: Vector2, distance: float, height: float) -> Dictionary:
 	var away := player_xz - boss
-	var dir := away.normalized() if away.length() > 0.001 else Vector2(0, 1)
-	return Vector3(player_xz.x + dir.x * distance, height, player_xz.y + dir.y * distance)
+	var gap := away.length()
+	var dir := away / gap if gap > 0.001 else Vector2(0, 1)
+	var side := Vector2(-dir.y, dir.x)
+	var back := (dir * 0.6 + side * 0.8).normalized()
+	var mid := (player_xz + boss) * 0.5
+	var d := distance + gap * 0.5
+	return {"pos": Vector3(mid.x + back.x * d, height + gap * 0.3, mid.y + back.y * d), "look": Vector3(mid.x, 1.2, mid.y)}
 
 
 func _place(snap: bool, delta: float = 0.0) -> void:
@@ -167,9 +174,12 @@ func _place(snap: bool, delta: float = 0.0) -> void:
 		_update_character(p, snap, delta)
 	var t := (points[0] as Vector3).x + play_time if not points.is_empty() else play_time
 	crowd.update_at(t)
-	var want := camera_target_position(p, boss_xz, cam_distance, cam_height)
-	cam_pos = want if snap else cam_pos.lerp(want, clampf(cam_follow_per_sec * delta, 0.0, 1.0))
-	var look := Vector3(p.x, 1.0, p.y)
+	var frame := camera_frame(p, boss_xz, cam_distance, cam_height)
+	var want: Vector3 = frame["pos"]
+	var k := clampf(cam_follow_per_sec * delta, 0.0, 1.0)
+	cam_pos = want if snap else cam_pos.lerp(want, k)
+	cam_look = frame["look"] if snap else cam_look.lerp(frame["look"], k)
+	var look := cam_look
 	camera.transform = Transform3D(Basis.looking_at(look - cam_pos, Vector3.UP), cam_pos)
 
 

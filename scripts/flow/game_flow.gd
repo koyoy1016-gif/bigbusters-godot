@@ -235,6 +235,8 @@ func _build_panels() -> void:
 
 ## 状態を切り替える：その画面だけ出す。戦いに入るときは戦いを作り、出るときは片づける
 func goto(new_state: String) -> void:
+	if new_state == Logic.HIGHLIGHT:
+		_capture_result()
 	state = new_state
 	state_time = 0.0
 	for key in panels:
@@ -405,11 +407,18 @@ func _end_battle_node() -> void:
 func _on_round_ended(won_flag: bool) -> void:
 	last_won = won_flag
 	_result_timer = float(config["result_show_sec"])
-	if battle != null:
-		highlight_info = battle.highlight_data()
-		var entries: Array = battle.ranking_entries()
-		if not entries.is_empty():
-			best_text = str(config["highlight_best"]) + "：" + battle.role_name_of(str(entries[0]["slot"])) + " " + str(int(entries[0]["hits"]))
+	_capture_result()
+
+
+## 結果（ハイライトの元・ベストアタッカー）を控える。戦いが終わった直後と、ハイライトに入る直前の2回やる。
+## ほかの人の最終ダメージが、少し遅れて届くので、あとの回が正しい（2台で数がずれないように）
+func _capture_result() -> void:
+	if battle == null or not is_instance_valid(battle):
+		return
+	highlight_info = battle.highlight_data()
+	var entries: Array = battle.ranking_entries()
+	if not entries.is_empty():
+		best_text = str(config["highlight_best"]) + "：" + battle.role_name_of(str(entries[0]["slot"])) + " " + str(int(entries[0]["hits"]))
 
 
 func _give_reward() -> void:

@@ -602,6 +602,16 @@ func start_round() -> void:
 		_begin_round(server_now_ms())
 
 
+## 戦いの始まりで、自分の枠の最初の位置に戻る（ひとり用は p1 の位置）
+func _return_to_spawn() -> void:
+	var spawns: Dictionary = config.get("spawn_points", {})
+	var slot := str(net_state.get("slot", "p1")) if net_active else "p1"
+	var sp: Array = spawns.get(slot, spawns.get("p1", [0.0, 6.0]))
+	player.position = Vector3(float(sp[0]), ground_y, float(sp[1]))
+	velocity_y = 0.0
+	stick_vec = Vector2.ZERO
+
+
 ## 戦いを始める。体力とダメージを元に戻す。途中から入った人は、その時点の攻撃の回数から数える
 func _begin_round(start_ms: float) -> void:
 	round_start_ms = start_ms
@@ -611,6 +621,7 @@ func _begin_round(start_ms: float) -> void:
 	round_end_ms = 0.0
 	downed = false
 	my_hits = 0.0
+	_return_to_spawn()
 	my_hp = role_value("hp")
 	boss.visible = true
 	recorder.clear()

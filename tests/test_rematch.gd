@@ -71,6 +71,11 @@ func _initialize() -> void:
 	b._begin_round(5000.0)
 	check(flow.state == "battle" and not b.dormant and flow.battle == b, "新しい戦いが始まると、戦いに戻る（作り直さない）")
 	check((b.get_node("UI") as CanvasLayer).visible and not flow.my_rematch_vote, "画面が戻り、投票はリセットされる")
+	# さいせんで、最初の位置に戻る
+	b.player.position = Vector3(9.0, 0.0, -9.0)
+	b.won = true
+	b._begin_round(6000.0)
+	check(is_equal_approx(b.player.position.x, 3.0) and is_equal_approx(b.player.position.z, 6.0), "さいせんで、自分の枠（p2）の最初の位置に戻る")
 	# ロビーに戻れば、片づく
 	flow.goto("highlight")
 	flow.goto("lobby")
