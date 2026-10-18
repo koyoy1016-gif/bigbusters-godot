@@ -24,6 +24,7 @@ const Recorder := preload("res://scripts/combat/highlight_recorder.gd")
 const CrowdState := preload("res://scripts/combat/crowd_state.gd")
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const CharacterView := preload("res://scripts/characters/character_view.gd")
+const Skills := preload("res://scripts/combat/skills.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 
 var config: Dictionary = {}
@@ -33,6 +34,19 @@ var boss: MeshInstance3D
 var sub_crowd: Node3D
 var recorder := Recorder.new()
 var char_view: Node3D = null
+var skills_cfg: Dictionary = {}
+var skill_cooldown := 0.0
+var skill_flash := 0.0
+var facing := Vector2(0.0, -1.0)
+var dash_left := 0.0
+var dash_dir := Vector2.ZERO
+var guard_left := 0.0
+var bomb: Dictionary = {}
+var summon_left := 0.0
+var summon_timer := 0.0
+var skill_fx: MeshInstance3D
+var skill_fx_left := 0.0
+var summon_node: MeshInstance3D
 ## 選んだキャラ（画面の流れから渡される。空なら、古い「枠で決まる役割」）
 var selected_character := ""
 var characters_cfg: Dictionary = {}
@@ -225,6 +239,21 @@ func _build_world() -> void:
 	charge_strip.visible = false
 	add_child(charge_strip)
 
+	skill_fx = MeshInstance3D.new()
+	skill_fx.name = "SkillFx"
+	skill_fx.visible = false
+	add_child(skill_fx)
+	summon_node = MeshInstance3D.new()
+	summon_node.name = "SummonAlly"
+	var sbox := BoxMesh.new()
+	sbox.size = Vector3(0.6, 0.8, 0.6)
+	var smat := StandardMaterial3D.new()
+	smat.albedo_color = Color(0.9, 0.95, 1.0)
+	sbox.material = smat
+	summon_node.mesh = sbox
+	summon_node.visible = false
+	add_child(summon_node)
+
 	camera = Camera3D.new()
 	camera.name = "Camera"
 	camera.fov = float(config["camera_fov"])
@@ -345,6 +374,7 @@ func _process(delta: float) -> void:
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
 	_record_highlight(delta)
+	_skill_update(delta)
 	_update_character(delta)
 	var crowd_t := maxf(0.0, (server_now_ms() - round_start_ms) / 1000.0) if round_active() else 0.0
 	crowd_state.refresh(crowd_t)
@@ -375,6 +405,9 @@ func handle_press(index: int, pos: Vector2, screen: Vector2) -> void:
 	elif stick_touch == -1 and pos.x < screen.x * float(config["stick_zone_max_x_frac"]):
 		stick_touch = index
 		stick_vec = _stick_input(pos, screen)
+	elif pos.distance_to(_skill_center(screen)) <= float(config["button_radius_px"]):
+		skill_flash = float(config["press_flash_sec"])
+		use_skill()
 	elif pos.distance_to(_attack_center(screen)) <= float(config["button_radius_px"]):
 		attack_flash = float(config["press_flash_sec"])
 		attack()
@@ -495,6 +528,12 @@ func _begin_round(start_ms: float) -> void:
 	boss.visible = true
 	recorder.clear()
 	since_sample = 0.0
+	skill_cooldown = 0.0
+	dash_left = 0.0
+	guard_left = 0.0
+	bomb = {}
+	summon_left = 0.0
+	summon_timer = 0.0
 	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
 	touch_timer = 0.0
 	boss_hp = float(config["boss_hp"])
@@ -553,6 +592,219 @@ func attack() -> bool:
 	return true
 
 
+## ダメージを受ける。ダッシュ中は受けない。バリア中は、技の設定の割合に減らす
+func _take_damage(amount: float) -> void:
+	if dash_left > 0.0:
+		return
+	if guard_left > 0.0:
+		amount *= float(_skill_def().get("damage_taken_multiplier", 1.0))
+	_set_my_hp(Damage.apply_damage(my_hp, amount))
+
+
+## 自分のXの技の名前。選んだキャラの技。なければ「斬る」
+func skill_name() -> String:
+	var def := selected_def()
+	return str(def.get("skill", "斬る")) if not def.is_empty() else "斬る"
+
+
+func _skill_def() -> Dictionary:
+	if skills_cfg.is_empty():
+		skills_cfg = Skills.load_config()
+	var d: Variant = skills_cfg.get(skill_name(), {})
+	return d if d is Dictionary else {}
+
+
+func _damage_boss(amount: float) -> void:
+	my_hits += amount
+	_recompute_boss_hp()
+	if net_active:
+		bridge.send_hits(my_hits)
+
+
+func _crowd_xz(i: int) -> Vector2:
+	var p: Vector3 = sub_crowd.last_positions[i]
+	return Vector2(p.x, p.z)
+
+
+func _round_t() -> float:
+	return (server_now_ms() - round_start_ms) / 1000.0
+
+
+## Xの技を使う。使えたら true
+func use_skill() -> bool:
+	if not round_active() or downed or skill_cooldown > 0.0:
+		return false
+	var sc := _skill_def()
+	if sc.is_empty():
+		return false
+	var origin := Vector2(player.position.x, player.position.z)
+	var boss_xz := Vector2(boss.position.x, boss.position.z)
+	var boss_r := float(config["boss_size"]) * 0.5
+	var sub_r := float((config["sub_enemy_size"] as Array)[0]) * 0.5
+	var power := role_value("attack_power")
+	var respawn := float(config["sub_enemy_respawn_sec"])
+	var dmg := Skills.skill_damage(power, sc)
+	var kind := str(sc["kind"])
+	match kind:
+		"arc":
+			var hit_any := false
+			if Skills.in_arc(origin, facing, boss_xz, float(sc["radius"]), float(sc["half_angle_deg"]), boss_r):
+				_damage_boss(dmg)
+				hit_any = true
+			for i in crowd_state.count():
+				if crowd_state.is_alive(i) and Skills.in_arc(origin, facing, _crowd_xz(i), float(sc["radius"]), float(sc["half_angle_deg"]), sub_r):
+					crowd_state.hit(i, dmg, _round_t(), respawn)
+			var fx_mesh := CylinderMesh.new()
+			fx_mesh.top_radius = float(sc["radius"])
+			fx_mesh.bottom_radius = float(sc["radius"])
+			fx_mesh.height = 0.05
+			_show_fx(fx_mesh, Vector3(origin.x, 0.06, origin.y), sc)
+			if hit_any:
+				hit_flash = float(config["hit_flash_sec"])
+		"line":
+			var best := -2
+			var hit_list: Array = []
+			var d_boss := Skills.strip_distance(origin, facing, boss_xz, float(sc["length"]), float(sc["half_width"]), boss_r)
+			if d_boss >= 0.0:
+				hit_list.append([d_boss, -1])
+			for i in crowd_state.count():
+				if crowd_state.is_alive(i):
+					var d := Skills.strip_distance(origin, facing, _crowd_xz(i), float(sc["length"]), float(sc["half_width"]), sub_r)
+					if d >= 0.0:
+						hit_list.append([d, i])
+			hit_list.sort_custom(func(a, b): return a[0] < b[0])
+			for h in hit_list:
+				if bool(sc.get("pierce", false)) or best == -2:
+					best = int(h[1])
+					if int(h[1]) == -1:
+						_damage_boss(dmg)
+					else:
+						crowd_state.hit(int(h[1]), dmg, _round_t(), respawn)
+				else:
+					break
+			var box := BoxMesh.new()
+			box.size = Vector3(float(sc["half_width"]) * 2.0, 0.05, float(sc["length"]))
+			var mid := origin + facing.normalized() * float(sc["length"]) * 0.5
+			_show_fx(box, Vector3(mid.x, 0.06, mid.y), sc, atan2(facing.x, facing.y))
+		"dash":
+			dash_dir = facing
+			dash_left = float(sc["duration_sec"])
+		"lob":
+			var target := Skills.lob_point(origin, facing, float(sc["throw_distance"]), float(config["bounds"]))
+			bomb = {"pos": target, "left": float(sc["delay_sec"]), "damage": dmg}
+		"guard":
+			guard_left = float(sc["duration_sec"])
+			var disc := CylinderMesh.new()
+			disc.top_radius = 1.4
+			disc.bottom_radius = 1.4
+			disc.height = 2.0
+			_show_fx(disc, Vector3(origin.x, 1.0, origin.y), sc, 0.0, guard_left)
+		"heal":
+			my_hp = minf(role_value("hp"), my_hp + float(sc["heal"]))
+			if net_active:
+				bridge.send_hp(my_hp, round_start_ms)
+			var disc2 := CylinderMesh.new()
+			disc2.top_radius = 1.2
+			disc2.bottom_radius = 1.2
+			disc2.height = 0.05
+			_show_fx(disc2, Vector3(origin.x, 0.06, origin.y), sc)
+		"summon":
+			summon_left = float(sc["duration_sec"])
+			summon_timer = 0.0
+	skill_cooldown = float(sc["cooldown_sec"])
+	return true
+
+
+## 技の見た目（床に、半透明の形を少しのあいだ出す）
+func _show_fx(mesh: PrimitiveMesh, pos: Vector3, sc: Dictionary, yaw: float = 0.0, time: float = -1.0) -> void:
+	if skill_fx == null:
+		return
+	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(str(sc.get("fx_color", "#ffffffb0")))
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = mat
+	skill_fx.mesh = mesh
+	skill_fx.position = pos
+	skill_fx.rotation = Vector3(0.0, yaw, 0.0)
+	skill_fx.visible = true
+	skill_fx_left = time if time > 0.0 else float(sc.get("fx_sec", 0.2))
+
+
+## 技の進み（待ち時間、ダッシュ、バリア、投げた爆弾、しょうかん）
+func _skill_update(delta: float) -> void:
+	skill_cooldown = maxf(0.0, skill_cooldown - delta)
+	skill_flash = maxf(0.0, skill_flash - delta)
+	if stick_vec.length() > 0.1 and not downed:
+		facing = stick_vec.normalized()
+	if skill_fx != null:
+		skill_fx_left = maxf(0.0, skill_fx_left - delta)
+		if skill_fx_left <= 0.0:
+			skill_fx.visible = false
+		elif guard_left > 0.0:
+			skill_fx.position = Vector3(player.position.x, 1.0, player.position.z)
+	if not round_active():
+		dash_left = 0.0
+		guard_left = 0.0
+		bomb = {}
+		summon_left = 0.0
+		if summon_node != null:
+			summon_node.visible = false
+		return
+	var sc := _skill_def()
+	if dash_left > 0.0:
+		var step := minf(delta, dash_left)
+		dash_left -= delta
+		var dist := float(sc.get("distance", 0.0)) * step / maxf(0.001, float(sc.get("duration_sec", 0.2)))
+		var from := Vector2(player.position.x, player.position.z)
+		var to := Skills.dash_target(from, dash_dir, dist, float(config["bounds"]))
+		player.position.x = to.x
+		player.position.z = to.y
+	if guard_left > 0.0:
+		guard_left = maxf(0.0, guard_left - delta)
+	if not bomb.is_empty():
+		bomb["left"] = float(bomb["left"]) - delta
+		if float(bomb["left"]) <= 0.0:
+			_explode_bomb(sc)
+			bomb = {}
+	if summon_left > 0.0:
+		summon_left -= delta
+		summon_timer += delta
+		_update_summon_node(sc)
+		if summon_timer >= float(sc.get("hit_interval_sec", 0.5)):
+			summon_timer = 0.0
+			if boss.visible:
+				_damage_boss(Skills.skill_damage(role_value("attack_power"), sc))
+	elif summon_node != null:
+		summon_node.visible = false
+
+
+func _explode_bomb(sc: Dictionary) -> void:
+	var center: Vector2 = bomb["pos"]
+	var dmg := float(bomb["damage"])
+	var boss_xz := Vector2(boss.position.x, boss.position.z)
+	if Skills.in_circle(center, boss_xz, float(sc["radius"]), float(config["boss_size"]) * 0.5):
+		_damage_boss(dmg)
+	var sub_r := float((config["sub_enemy_size"] as Array)[0]) * 0.5
+	for i in crowd_state.count():
+		if crowd_state.is_alive(i) and Skills.in_circle(center, _crowd_xz(i), float(sc["radius"]), sub_r):
+			crowd_state.hit(i, dmg, _round_t(), float(config["sub_enemy_respawn_sec"]))
+	var disc := CylinderMesh.new()
+	disc.top_radius = float(sc["radius"])
+	disc.bottom_radius = float(sc["radius"])
+	disc.height = 0.05
+	_show_fx(disc, Vector3(center.x, 0.06, center.y), sc)
+
+
+## しょうかんした味方（見た目は、ボスのまわりを回る小さな箱。自分の画面だけ）
+func _update_summon_node(sc: Dictionary) -> void:
+	if summon_node == null:
+		return
+	summon_node.visible = true
+	var a := float(sc.get("duration_sec", 8.0)) - summon_left
+	summon_node.position = Vector3(boss.position.x + cos(a * 2.0) * 3.5, 0.4, boss.position.z + sin(a * 2.0) * 3.5)
+
+
 ## サブ敵への攻撃。届く距離のいちばん近い敵に当たる。ボスの体力には数えない（自分の画面の中だけ）
 func _attack_sub_enemy() -> bool:
 	var reach := role_value("attack_reach") + float((config["sub_enemy_size"] as Array)[0]) * 0.5
@@ -570,7 +822,7 @@ func _touch_update(delta: float) -> void:
 	if not round_active() or downed:
 		touch_timer = 0.0
 		return
-	var airborne := player.position.y > ground_y + float(config["dodge_height"])
+	var airborne := player.position.y > ground_y + float(config["dodge_height"]) or dash_left > 0.0
 	var near := not airborne and crowd_state.nearest_alive(sub_crowd.last_positions, player.position, float(config["sub_enemy_touch_range"])) >= 0
 	if not near:
 		touch_timer = 0.0
@@ -579,7 +831,7 @@ func _touch_update(delta: float) -> void:
 	if touch_timer <= 0.0:
 		touch_timer = float(config["sub_enemy_touch_interval_sec"])
 		player_hit_flash = float(config["hit_flash_sec"])
-		_set_my_hp(Damage.apply_damage(my_hp, Damage.damage_amount(float(config["sub_enemy_touch_power"]), float(config["sub_enemy_touch_multiplier"]))))
+		_take_damage(Damage.damage_amount(float(config["sub_enemy_touch_power"]), float(config["sub_enemy_touch_multiplier"])))
 
 
 ## 戦いの始まりの直後は、ほかの人の古いダメージ（前の戦いの分）が残っているので、少しのあいだ数えない
@@ -665,6 +917,8 @@ func _resolve_strike(n: int) -> void:
 	var airborne := player.position.y > ground_y + float(config["dodge_height"])
 	if airborne:
 		return
+	if dash_left > 0.0:
+		return
 	var kind := Pattern.attack_kind(n, config["attack_cycle"])
 	var power := 0.0
 	if kind == "charge":
@@ -678,7 +932,7 @@ func _resolve_strike(n: int) -> void:
 			return
 		power = float(config["slam_power"])
 	player_hit_flash = float(config["hit_flash_sec"])
-	_set_my_hp(Damage.apply_damage(my_hp, Damage.damage_amount(power, float(config["slam_multiplier"]))))
+	_take_damage(Damage.damage_amount(power, float(config["slam_multiplier"])))
 
 
 func _set_my_hp(value: float) -> void:
@@ -830,6 +1084,11 @@ func _button_center(screen: Vector2) -> Vector2:
 	return Vector2(screen.x * f[0], screen.y * f[1])
 
 
+func _skill_center(screen: Vector2) -> Vector2:
+	var f: Array = _layout("skill_center_frac", screen)
+	return Vector2(screen.x * f[0], screen.y * f[1])
+
+
 func _attack_center(screen: Vector2) -> Vector2:
 	var f: Array = _layout("attack_center_frac", screen)
 	return Vector2(screen.x * f[0], screen.y * f[1])
@@ -872,6 +1131,11 @@ func _draw_overlay() -> void:
 	var bc := _button_center(screen)
 	overlay.draw_circle(bc, br, Color(jump_color))
 	_draw_centered(bc, str(config["button_label"]), button_text)
+
+	var skc := _skill_center(screen)
+	var skill_color := str(config["button_pressed_color"]) if skill_flash > 0.0 else (str(config["button_cooldown_color"]) if skill_cooldown > 0.0 else str(config["button_color"]))
+	overlay.draw_circle(skc, br, Color(skill_color))
+	_draw_centered(skc, skill_name(), button_text)
 
 	var ac := _attack_center(screen)
 	var attack_color := str(config["button_pressed_color"]) if attack_flash > 0.0 else (str(config["button_cooldown_color"]) if attack_cooldown > 0.0 else str(config["button_color"]))

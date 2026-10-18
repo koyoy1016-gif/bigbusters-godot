@@ -31,6 +31,14 @@
     0.87,
     0.78
   ],
+  "skill_center_frac": [
+    0.785,
+    0.56
+  ],
+  "skill_center_frac_portrait": [
+    0.74,
+    0.76
+  ],
   "attack_center_frac": [
     0.7,
     0.78
@@ -161,7 +169,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "20",
+  "build_id": "21",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "marker_size": 0.35,
