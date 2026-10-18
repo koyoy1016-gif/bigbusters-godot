@@ -9,7 +9,7 @@ const ANIM_NAMES := ["Idle", "Run", "Jump", "Sword_Attack", "Death"]
 const BONES := [
 	"root", "spine05", "spine03", "spine02", "neck01", "head",
 	"upperleg01.L", "lowerleg01.L", "upperleg01.R", "lowerleg01.R",
-	"upperarm01.L", "lowerarm01.L", "upperarm01.R", "lowerarm01.R",
+	"upperarm01.L", "lowerarm01.L", "upperarm01.R", "lowerarm01.R", "wrist.R",
 ]
 
 
@@ -112,6 +112,8 @@ static func pose_at(anim: String, t: float, cfg: Dictionary) -> Dictionary:
 			var lean_a := lerpf(0.0, float(c["lean_deg"]), swing) * (1.0 - rec)
 			rot["upperarm01.R"] = fwd(arm)
 			rot["lowerarm01.R"] = fwd(elbow)
+			# 手首：腕が上がった分、手首を逆にまわして、刃が後ろを向かないようにする（持つ手の向きを、なるべく保つ）
+			rot["wrist.R"] = fwd(-(arm + elbow) * float(c.get("wrist_cancel", 0.0)))
 			rot["upperarm01.L"] = fwd(float(c["off_arm_deg"]) * (swing * (1.0 - rec)))
 			rot["spine02"] = yaw(tw)
 			rot["spine05"] = lean(lean_a)

@@ -31,6 +31,14 @@ func at(player: AnimationPlayer, sk: Skeleton3D, anim: String, t: float) -> void
 
 
 func _initialize() -> void:
+	# 手首の補正：こうげきで腕が上がるとき、手首が逆にまわる（刃が後ろを向かないように）
+	var pcfg := PA.load_config()
+	var wind := PA.pose_at("Sword_Attack", float(pcfg["attack"]["seconds"]) * float(pcfg["attack"]["windup_end"]), pcfg)
+	var wrist: Basis = wind["rot"]["wrist.R"]
+	var arm: Basis = wind["rot"]["upperarm01.R"]
+	check(not wrist.is_equal_approx(Basis.IDENTITY) and (wrist * arm).get_euler().length() < arm.get_euler().length(), "ふりかぶりで、手首が腕を打ち消す向きにまわる")
+	var rest := PA.pose_at("Sword_Attack", 0.0, pcfg)
+	check((rest["rot"]["wrist.R"] as Basis).is_equal_approx(Basis.IDENTITY), "こうげきの前は、手首はそのまま")
 	var cfg := CharacterData.load_config()
 	var hero := CharacterData.find(cfg, str(cfg["player_character"]))
 	check(bool(hero.get("procedural_anims", false)), "剣士は、コードの動きを使う設定")

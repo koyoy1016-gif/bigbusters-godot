@@ -30,7 +30,7 @@
   },
   "attack": {
     "seconds": 0.5,
-    "windup_arm_deg": 165.0,
+    "windup_arm_deg": 150.0,
     "swing_arm_deg": 25.0,
     "elbow_deg": 35.0,
     "twist_deg": 28.0,
@@ -39,7 +39,8 @@
     "step_hip_deg": 28.0,
     "lunge": 0.12,
     "windup_end": 0.3,
-    "swing_end": 0.62
+    "swing_end": 0.62,
+    "wrist_cancel": 0.75
   },
   "death": {
     "seconds": 1.1,
