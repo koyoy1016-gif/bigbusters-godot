@@ -46,6 +46,8 @@
   "reward_win_coins": 50,
   "reward_lose_coins": 10,
   "rematch_label": "さいせん",
+  "rematch_wait_text": "みんなをまっています",
+  "rematch_resend_sec": 3.0,
   "lobby_label": "ロビー",
   "wins_per_rank": 3,
   "save_path": "user://save.json",

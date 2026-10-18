@@ -44,6 +44,10 @@ var selected_character := ""
 var lobby_char: Label
 var formation_stats: Label
 var formation_buttons: Dictionary = {}
+var rematch_wait_reward: Label
+var rematch_wait_next: Label
+var my_rematch_vote := false
+var starter_cooldown := 0.0
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -217,11 +221,15 @@ func _build_panels() -> void:
 	reward_label = _make_label("", heading, Color(1.0, 0.85, 0.4))
 	r.add_child(reward_label)
 	r.add_child(_make_button(str(config["rematch_label"]), big, func(): event("rematch")))
+	rematch_wait_reward = _make_label("", 28, Color(1.0, 0.85, 0.4))
+	r.add_child(rematch_wait_reward)
 	r.add_child(_make_button(str(config["next_label"]), big, func(): event("next")))
 
 	# つぎへ（さいせん／ロビー）
 	var n := _make_panel(Logic.NEXT)
 	n.add_child(_make_button(str(config["rematch_label"]), big, func(): event("rematch")))
+	rematch_wait_next = _make_label("", 28, Color(1.0, 0.85, 0.4))
+	n.add_child(rematch_wait_next)
 	n.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
 
 
@@ -232,7 +240,14 @@ func goto(new_state: String) -> void:
 	for key in panels:
 		(panels[key] as Control).visible = (key == new_state)
 	if new_state == Logic.BATTLE:
-		_start_battle()
+		if battle != null and battle.dormant:
+			battle.set_dormant(false)
+			_apply_quality()
+		else:
+			_start_battle()
+		my_rematch_vote = false
+	elif _keeps_room(new_state):
+		battle.set_dormant(true)
 	else:
 		_end_battle_node()
 	match new_state:
@@ -256,6 +271,11 @@ func event(name_text: String) -> void:
 		return
 	if state == Logic.HIGHLIGHT and name_text == "done":
 		_give_reward()
+	if name_text == "rematch" and _room_battle():
+		# 通信中は、全員が「さいせん」を選んだときだけ始まる
+		my_rematch_vote = true
+		battle.send_rematch_vote("rematch")
+		return
 	if next_state == Logic.BATTLE and name_text == "rematch":
 		_rematch_pending = true
 	goto(next_state)
@@ -329,6 +349,37 @@ func _refresh_lobby() -> void:
 	quality_button.text = str(config["quality_label"]) + "：" + Quality.label_of(quality_name, quality_config)
 
 
+## 部屋につながった戦いが残っているか
+func _room_battle() -> bool:
+	return battle != null and is_instance_valid(battle) and battle.net_active
+
+
+## ハイライト・報酬・つぎへの間は、部屋に残す（戦いは休止）
+func _keeps_room(new_state: String) -> bool:
+	return _room_battle() and new_state in [Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT]
+
+
+func _on_round_started() -> void:
+	# ほかの人が（または自分が）新しい戦いを始めた。休止中なら、戦いに戻る
+	if battle != null and battle.dormant and state in [Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT]:
+		goto(Logic.BATTLE)
+
+
+## 全員さいせんの判定。全員が選んだら、いちばん若い枠の人が開始の時刻を書く
+func _rematch_update(delta: float) -> void:
+	var votes: Dictionary = battle.rematch_votes()
+	var members: Array = battle.net_state.get("members", [])
+	var text := ""
+	if my_rematch_vote:
+		text = str(config["rematch_wait_text"]) + "（" + str(Logic.vote_count(votes, members)) + "/" + str(members.size()) + "）"
+		starter_cooldown = maxf(0.0, starter_cooldown - delta)
+		if Logic.rematch_decision(votes, members) == "rematch" and Logic.lowest_slot(members) == str(battle.net_state.get("slot", "")) and starter_cooldown <= 0.0:
+			starter_cooldown = float(config["rematch_resend_sec"])
+			battle.start_round()
+	rematch_wait_reward.text = text
+	rematch_wait_next.text = text
+
+
 func _start_battle() -> void:
 	_end_battle_node()
 	var packed := load(BATTLE_SCENE) as PackedScene
@@ -336,6 +387,7 @@ func _start_battle() -> void:
 	battle.flow_mode = true
 	battle.selected_character = selected_character
 	battle.round_ended.connect(_on_round_ended)
+	battle.round_started.connect(_on_round_started)
 	add_child(battle)
 	_apply_quality()
 
@@ -388,6 +440,9 @@ func _process(delta: float) -> void:
 				if _result_timer <= 0.0:
 					_result_timer = -1.0
 					event("ended")
+		Logic.REWARD, Logic.NEXT:
+			if _room_battle():
+				_rematch_update(delta)
 		Logic.HIGHLIGHT:
 			highlight_replay.advance(delta)
 			if state_time >= float(config["highlight_sec"]):

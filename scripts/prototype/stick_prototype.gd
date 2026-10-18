@@ -8,6 +8,8 @@ extends Node3D
 
 ## 戦いが終わった（倒した：true、全滅：false）。画面の流れ（game_flow.gd）が受け取る
 signal round_ended(won_flag: bool)
+## 新しい戦いが始まった（通信で、ほかの人が始めた場合も）
+signal round_started
 
 const CONFIG_PATH := "res://data/prototype_stick.json"
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
@@ -24,6 +26,7 @@ const Recorder := preload("res://scripts/combat/highlight_recorder.gd")
 const CrowdState := preload("res://scripts/combat/crowd_state.gd")
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const CharacterView := preload("res://scripts/characters/character_view.gd")
+const Logic := preload("res://scripts/flow/flow_logic.gd")
 const Skills := preload("res://scripts/combat/skills.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 
@@ -363,6 +366,46 @@ func _build_ui() -> void:
 	layer.add_child(overlay)
 
 
+## 休止：ハイライト・報酬の間、部屋に残したまま、画面と操作だけ止める（全員さいせんのため）
+var dormant := false
+
+
+func set_dormant(on: bool) -> void:
+	dormant = on
+	for child in get_children():
+		if child is Node3D:
+			(child as Node3D).visible = not on
+		elif child is CanvasLayer:
+			(child as CanvasLayer).visible = not on
+	if on:
+		stick_vec = Vector2.ZERO
+		stick_touch = -1
+
+
+## 休止中の更新：部屋の状態だけ読む（新しい戦いの開始を受け取るため）
+func _dormant_update(delta: float) -> void:
+	if not net_active:
+		return
+	since_poll += delta
+	if since_poll >= float(config["net_poll_sec"]):
+		since_poll = 0.0
+		var state := bridge.read_state()
+		if not state.is_empty():
+			apply_net_state(state)
+
+
+## 「さいせん」「ロビー」の投票を送る。いまの戦いの開始時刻といっしょに書く
+func send_rematch_vote(vote: String) -> void:
+	if net_active and str(net_state.get("slot", "")) != "":
+		bridge.send_vote(vote, round_start_ms)
+
+
+## いまの戦いについての投票（{枠: "rematch" か "lobby"}）
+func rematch_votes() -> Dictionary:
+	var raw: Variant = net_state.get("votes", {})
+	return Logic.current_votes(raw if raw is Dictionary else {}, round_start_ms)
+
+
 func _exit_tree() -> void:
 	# 部屋から抜ける（枠を空ける）
 	if net_active:
@@ -370,6 +413,9 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	if dormant:
+		_dormant_update(delta)
+		return
 	var move := Vector2.ZERO if downed else stick_vec
 	player.position = StickMath.step_position(player.position, move, role_value("move_speed"), delta, float(config["bounds"]))
 	var r := StickMath.jump_update(player.position.y, velocity_y, delta, float(config["gravity"]), ground_y)
@@ -398,6 +444,8 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if dormant:
+		return
 	var screen := get_viewport().get_visible_rect().size
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -581,6 +629,7 @@ func _begin_round(start_ms: float) -> void:
 		bridge.send_hits(0.0)
 		bridge.send_hp(my_hp, round_start_ms)
 	_recompute_boss_hp()
+	round_started.emit()
 
 
 ## ハイライト用に、全員の位置と合計ダメージを、決まった間隔で控える

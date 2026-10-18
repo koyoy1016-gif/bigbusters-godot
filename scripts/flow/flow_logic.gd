@@ -52,3 +52,31 @@ static func rematch_decision(votes: Dictionary, members: Array) -> String:
 		if v != "rematch":
 			all_rematch = false
 	return "rematch" if all_rematch else "wait"
+
+
+## 部屋の votes（{枠: {v, round}}）から、いまの戦い（round_ms）の分だけ取り出す。前の戦いの古い投票は無視する
+static func current_votes(raw: Dictionary, round_ms: float) -> Dictionary:
+	var out := {}
+	for slot in raw:
+		var item: Variant = raw[slot]
+		if item is Dictionary and float(item.get("round", 0.0)) == round_ms:
+			out[str(slot)] = str(item.get("v", ""))
+	return out
+
+
+## 部屋にいる人のうち、いちばん若い枠（p1が先）。「さいせん」の開始の時刻を書く係
+static func lowest_slot(members: Array) -> String:
+	var best := ""
+	for slot in members:
+		if best == "" or str(slot) < best:
+			best = str(slot)
+	return best
+
+
+## 「さいせん」を選んだ人の数
+static func vote_count(votes: Dictionary, members: Array) -> int:
+	var n := 0
+	for slot in members:
+		if str(votes.get(str(slot), "")) == "rematch":
+			n += 1
+	return n
