@@ -9,10 +9,14 @@ const HIGHLIGHT := "highlight"
 const REWARD := "reward"
 const NEXT := "next"
 const FORMATION := "formation"
+const ACCOUNT := "account"
+const FRIENDS := "friends"
 
 const TRANSITIONS := {
 	"title": {"loaded": "lobby"},
-	"lobby": {"play": "battle", "formation": "formation"},
+	"lobby": {"play": "battle", "formation": "formation", "account": "account", "friends": "friends"},
+	"account": {"back": "lobby"},
+	"friends": {"back": "lobby"},
 	"formation": {"back": "lobby"},
 	"battle": {"ended": "highlight"},
 	"highlight": {"done": "reward"},

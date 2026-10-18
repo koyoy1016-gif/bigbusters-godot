@@ -11,6 +11,7 @@ const Replay := preload("res://scripts/flow/highlight_replay.gd")
 const RoomLink := preload("res://scripts/network/room_link.gd")
 const RoomCode := preload("res://scripts/network/room_code.gd")
 const Bridge := preload("res://scripts/network/room_bridge.gd")
+const AccountBridge := preload("res://scripts/network/account_bridge.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const CONFIG_PATH := "res://data/game_flow.json"
@@ -51,6 +52,16 @@ var formation_stats: Label
 var formation_buttons: Dictionary = {}
 var room_code := ""
 var room_from_url := false
+var account: RefCounted = null
+var account_state: Dictionary = {}
+var account_poll_timer := 0.0
+var account_signature := ""
+var save_applied := false
+var account_box: VBoxContainer
+var friends_box: VBoxContainer
+var invite_join_button: Button
+var invite_join_from := ""
+var invite_join_room := ""
 var room_label: Label
 ## ロビーから入っている部屋（戦いを出入りしても、部屋は続く）
 var bridge: RefCounted = null
@@ -90,6 +101,7 @@ func _ready() -> void:
 	init_room()
 	_build_panels()
 	join_room()
+	init_account()
 	if OS.has_feature("web") and str(JavaScriptBridge.eval("new URLSearchParams(window.location.search).get('bench') || ''", true)) != "":
 		query_bench = true
 	if query_bench:
@@ -186,6 +198,9 @@ func _build_panels() -> void:
 	room_row.add_child(_make_button(str(config["invite_label"]), [280, 80], invite))
 	room_row.add_child(_make_button(str(config["new_room_label"]), [280, 80], new_room))
 	l.add_child(room_row)
+	invite_join_button = _make_button("", big, join_invite)
+	invite_join_button.visible = false
+	l.add_child(invite_join_button)
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 20)
@@ -196,6 +211,10 @@ func _build_panels() -> void:
 		var cb: Callable = show_toast
 		if str(name_text) == str(config["formation_label"]):
 			cb = func(): event("formation")
+		elif str(name_text) == str(config["account_label"]):
+			cb = func(): event("account")
+		elif str(name_text) == str(config["friends_label"]):
+			cb = func(): event("friends")
 		grid.add_child(_make_button(str(name_text), small, cb))
 	l.add_child(grid_holder)
 	quality_button = _make_button("", small, change_quality)
@@ -227,6 +246,24 @@ func _build_panels() -> void:
 	formation_stats = _make_label("", int(config["formation_stats_font_size"]), text_color)
 	f.add_child(formation_stats)
 	f.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
+
+	# アカウント
+	var acc_panel := _make_panel(Logic.ACCOUNT, 18)
+	acc_panel.add_child(_make_label(str(config["account_title"]), heading, Color(str(config["title_color"]))))
+	account_box = VBoxContainer.new()
+	account_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	account_box.add_theme_constant_override("separation", 14)
+	acc_panel.add_child(account_box)
+	acc_panel.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
+
+	# フレンド
+	var fr_panel := _make_panel(Logic.FRIENDS, 18)
+	fr_panel.add_child(_make_label(str(config["friends_title"]), heading, Color(str(config["title_color"]))))
+	friends_box = VBoxContainer.new()
+	friends_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	friends_box.add_theme_constant_override("separation", 12)
+	fr_panel.add_child(friends_box)
+	fr_panel.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
 
 	# ハイライト
 	var h := _make_panel(Logic.HIGHLIGHT)
@@ -292,6 +329,12 @@ func goto(new_state: String) -> void:
 			_refresh_lobby()
 		Logic.FORMATION:
 			_refresh_formation()
+		Logic.ACCOUNT:
+			account_signature = ""
+			_refresh_account()
+		Logic.FRIENDS:
+			account_signature = ""
+			_refresh_friends()
 		Logic.HIGHLIGHT:
 			highlight_best.text = best_text if best_text != "" else str(config["highlight_none"])
 			highlight_replay.visible = not highlight_info.is_empty()
@@ -338,7 +381,7 @@ func change_stage(step: int) -> void:
 func change_quality() -> void:
 	quality_name = Quality.next_preset(quality_name, quality_config)
 	save["quality"] = quality_name
-	SaveData.write_save(str(config["save_path"]), save)
+	_write_save()
 	_apply_quality()
 	_refresh_lobby()
 
@@ -361,7 +404,7 @@ func select_character(id: String) -> void:
 		return
 	selected_character = id
 	save["character"] = id
-	SaveData.write_save(str(config["save_path"]), save)
+	_write_save()
 	_refresh_formation()
 
 
@@ -442,6 +485,175 @@ func _rematch_update(delta: float) -> void:
 			battle.start_round()
 	rematch_wait_reward.text = text
 	rematch_wait_next.text = text
+
+
+## ---- アカウント（ログイン・保存・フレンド）。入力欄は、ブラウザ側の本物の入力欄 ----
+func init_account() -> void:
+	var acc := AccountBridge.new()
+	acc.js_eval = js_eval
+	if not acc.available():
+		return
+	account = acc
+	var config_json := JSON.stringify(CheckScreen.extract_firebase_config(CheckScreen.load_json(FIREBASE_CONFIG_PATH)))
+	account.init(config_json)
+	account.set_save(save)
+
+
+func _poll_account(delta: float) -> void:
+	if account == null:
+		return
+	account_poll_timer += delta
+	if account_poll_timer < float(config["account_poll_sec"]):
+		return
+	account_poll_timer = 0.0
+	var st: Dictionary = account.read_state()
+	if st.is_empty():
+		return
+	account_state = st
+	if bool(st.get("signedIn", false)) and st.get("save") is Dictionary and not save_applied:
+		save_applied = true
+		_apply_server_save(st["save"])
+	_refresh_invite_button()
+	var sig := JSON.stringify([st.get("signedIn"), st.get("loginId"), st.get("nickname"), st.get("friendCode"), st.get("friends"), st.get("inbox"), st.get("message")])
+	if sig != account_signature:
+		account_signature = sig
+		if state == Logic.ACCOUNT:
+			_refresh_account()
+		elif state == Logic.FRIENDS:
+			_refresh_friends()
+
+
+## ログインした人の記録（サーバー）を、この端末にも反映する（サーバーの記録を正とする）
+func _apply_server_save(server: Dictionary) -> void:
+	save["coins"] = int(server.get("coins", save.get("coins", 0)))
+	save["wins"] = int(server.get("wins", save.get("wins", 0)))
+	var ch := str(server.get("character", ""))
+	if ch != "" and not CharacterData.find(characters_cfg, ch).is_empty():
+		save["character"] = ch
+		selected_character = ch
+	var q := str(server.get("quality", ""))
+	if q != "":
+		save["quality"] = q
+		quality_name = Quality.resolve(q, quality_config)
+	SaveData.write_save(str(config["save_path"]), save)
+	if state == Logic.LOBBY:
+		_refresh_lobby()
+
+
+func _clear_box(box: Control) -> void:
+	for child in box.get_children():
+		box.remove_child(child)
+		child.queue_free()
+
+
+func _info(text: String) -> Label:
+	var label := _make_label(text, int(config["text_font_size"]), Color(str(config["text_color"])))
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.custom_minimum_size = Vector2(int(config["portrait_base_size"][0]) - 40, 0)
+	return label
+
+
+func _small_button(text: String, callback: Callable) -> Button:
+	return _make_button(text, [int(config["portrait_base_size"][0]) - 80, 80], callback)
+
+
+func _show_form(kind: String) -> void:
+	if account != null:
+		account.show_form(kind, config["account_forms"])
+
+
+func _refresh_account() -> void:
+	_clear_box(account_box)
+	if account == null:
+		account_box.add_child(_info(str(config["account_unavailable"])))
+		return
+	var st := account_state
+	if bool(st.get("signedIn", false)):
+		account_box.add_child(_info(str(config["account_signed_in"]) + "\n" + str(config["account_id_label"]) + "：" + str(st.get("loginId", ""))))
+		var nick := str(st.get("nickname", ""))
+		account_box.add_child(_info(str(config["account_nickname_label"]) + "：" + (nick if nick != "" else str(config["friends_no_name"]))))
+		account_box.add_child(_small_button(str(config["account_nickname"]), func(): _show_form("nickname")))
+		account_box.add_child(_small_button(str(config["account_logout"]), func(): account.logout()))
+	else:
+		account_box.add_child(_info(str(config["account_guest"])))
+		account_box.add_child(_small_button(str(config["account_create"]), func(): _show_form("register")))
+		account_box.add_child(_small_button(str(config["account_login"]), func(): _show_form("login")))
+		account_box.add_child(_small_button(str(config["account_recover"]), func(): _show_form("recover")))
+	var message := str(st.get("message", ""))
+	if message != "":
+		account_box.add_child(_info(message))
+
+
+func _refresh_friends() -> void:
+	_clear_box(friends_box)
+	if account == null:
+		friends_box.add_child(_info(str(config["account_unavailable"])))
+		return
+	var st := account_state
+	if not bool(st.get("signedIn", false)):
+		friends_box.add_child(_info(str(config["friends_need_login"])))
+		return
+	friends_box.add_child(_info(str(config["friends_code_label"]) + "\n" + str(st.get("friendCode", ""))))
+	friends_box.add_child(_small_button(str(config["friends_add"]), func(): _show_form("friend")))
+	for item in st.get("inbox", []):
+		var from := str(item.get("from", ""))
+		var nick := str(item.get("nickname", ""))
+		if nick == "":
+			nick = str(config["friends_no_name"])
+		if str(item.get("type", "")) == "friend":
+			friends_box.add_child(_info(nick + str(config["friends_request_from"])))
+			friends_box.add_child(_small_button(str(config["friends_accept"]), func(): account.accept(from)))
+			friends_box.add_child(_small_button(str(config["friends_decline"]), func(): account.remove_inbox(from)))
+		elif str(item.get("type", "")) == "invite":
+			var room := str(item.get("room", ""))
+			friends_box.add_child(_info(nick + str(config["friends_invite_from"])))
+			friends_box.add_child(_small_button(str(config["friends_join"]), func(): join_invite_of(from, room)))
+			friends_box.add_child(_small_button(str(config["friends_dismiss"]), func(): account.remove_inbox(from)))
+	var friends: Array = st.get("friends", [])
+	if friends.is_empty():
+		friends_box.add_child(_info(str(config["friends_none"])))
+	for f in friends:
+		var fsid := str(f.get("sid", ""))
+		var fnick := str(f.get("nickname", ""))
+		if fnick == "":
+			fnick = str(config["friends_no_name"])
+		friends_box.add_child(_small_button(fnick + "：" + str(config["friends_invite"]), func(): account.invite(fsid, room_code)))
+
+
+## ロビーに、フレンドからのしょうたいがあれば、「◯◯のへやに さんか」を出す
+func _refresh_invite_button() -> void:
+	invite_join_from = ""
+	invite_join_room = ""
+	for item in account_state.get("inbox", []):
+		if str(item.get("type", "")) == "invite":
+			invite_join_from = str(item.get("from", ""))
+			invite_join_room = str(item.get("room", ""))
+			var nick := str(item.get("nickname", ""))
+			invite_join_button.text = (nick if nick != "" else str(config["friends_no_name"])) + str(config["lobby_invite_join"])
+			break
+	invite_join_button.visible = state == Logic.LOBBY and invite_join_from != ""
+
+
+func join_invite() -> void:
+	join_invite_of(invite_join_from, invite_join_room)
+
+
+## しょうたいに さんか：その部屋に入り直す（部屋は、ロビーから続く）
+func join_invite_of(from: String, room: String) -> void:
+	if room == "" or not RoomCode.is_valid_code(room, int(RoomCode.load_config().get("code_digits", 4))):
+		return
+	if account != null:
+		account.remove_inbox(from)
+	if battle != null:
+		return
+	room_code = room
+	room_from_url = true
+	leave_room()
+	join_room()
+	if state != Logic.LOBBY:
+		goto(Logic.LOBBY)
+	else:
+		_refresh_lobby()
 
 
 ## ロビーの時点で、部屋に入る（ブラウザ側の入り口があるときだけ。なければ通信なし）
@@ -575,17 +787,24 @@ func _capture_result() -> void:
 		best_text = str(config["highlight_best"]) + "：" + battle.role_name_of(str(entries[0]["slot"])) + " " + str(int(entries[0]["hits"]))
 
 
+func _write_save() -> void:
+	SaveData.write_save(str(config["save_path"]), save)
+	if account != null:
+		account.set_save(save)
+
+
 func _give_reward() -> void:
 	last_reward = Logic.reward_coins(last_won, int(config["reward_win_coins"]), int(config["reward_lose_coins"]))
 	save["coins"] = int(save.get("coins", 0)) + last_reward
 	if last_won:
 		save["wins"] = int(save.get("wins", 0)) + 1
-	SaveData.write_save(str(config["save_path"]), save)
+	_write_save()
 
 
 func _process(delta: float) -> void:
 	state_time += delta
 	_poll_room(delta)
+	_poll_account(delta)
 	if toast_time > 0.0:
 		toast_time -= delta
 		if toast_time <= 0.0:
