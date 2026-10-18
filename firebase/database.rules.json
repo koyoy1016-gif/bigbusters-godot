@@ -117,7 +117,7 @@
         "owners": {
           ".read": "auth != null && root.child('saves/' + $sid + '/owners/' + auth.uid).exists()",
           "$uid": {
-            ".write": "auth != null && ((!root.child('saves/' + $sid + '/owners').exists() && $uid === auth.uid) || auth.uid === root.child('saves/' + $sid + '/recovery').val() || (root.child('saves/' + $sid + '/owners/' + auth.uid).exists() && (newData.exists() || $uid !== root.child('saves/' + $sid + '/recovery').val())))",
+            ".write": "auth != null && ((!root.child('saves/' + $sid + '/owners').exists() && $uid === auth.uid) || (auth.uid === root.child('saves/' + $sid + '/recovery').val() && (newData.exists() || $uid !== auth.uid)) || (root.child('saves/' + $sid + '/owners/' + auth.uid).exists() && (newData.exists() || $uid !== root.child('saves/' + $sid + '/recovery').val())))",
             ".validate": "newData.val() === true"
           }
         },

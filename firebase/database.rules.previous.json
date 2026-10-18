@@ -1,0 +1,115 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$code": {
+        ".validate": "$code.matches(/^[0-9]{4}$/)",
+        ".read": "auth != null",
+        "players": {
+          "$slot": {
+            ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid || (data.child('seen').isNumber() && data.child('seen').val() < now - 60000))",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.hasChildren(['uid', 'joinedAt', 'seen']) && newData.child('uid').val() === auth.uid))",
+            "uid": {
+              ".validate": "newData.isString()"
+            },
+            "joinedAt": {
+              ".validate": "newData.isNumber()"
+            },
+            "seen": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "positions": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && newData.hasChildren(['x', 'y', 't']) && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('t').isNumber()",
+            "x": {
+              ".validate": "newData.isNumber()"
+            },
+            "y": {
+              ".validate": "newData.isNumber()"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "hits": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.isNumber() && newData.val() >= 0))"
+          }
+        },
+        "round": {
+          ".write": "auth != null && (root.child('rooms/' + $code + '/players/p1/uid').val() === auth.uid || root.child('rooms/' + $code + '/players/p2/uid').val() === auth.uid || root.child('rooms/' + $code + '/players/p3/uid').val() === auth.uid || root.child('rooms/' + $code + '/players/p4/uid').val() === auth.uid)",
+          ".validate": "newData.isNumber()"
+        },
+        "hp": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || newData.hasChildren(['hp', 'round']))",
+            "hp": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+            },
+            "round": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "chars": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.isString() && newData.val().matches(/^[a-z0-9_]{1,32}$/)))"
+          }
+        },
+        "votes": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || newData.hasChildren(['v', 'round']))",
+            "v": {
+              ".validate": "newData.isString() && (newData.val() === 'rematch' || newData.val() === 'lobby')"
+            },
+            "round": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "effects": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || newData.hasChildren(['type', 't', 'value', 'round']))",
+            "type": {
+              ".validate": "newData.isString() && newData.val().matches(/^[a-z_]{1,16}$/)"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "value": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+            },
+            "round": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    }
+  }
+}
