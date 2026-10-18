@@ -19,6 +19,21 @@ func check(cond: bool, msg: String) -> void:
 		failures += 1
 
 
+func _unique(a: Array) -> bool:
+	for i in a.size():
+		for j in range(i + 1, a.size()):
+			if a[i] == a[j]:
+				return false
+	return true
+
+
+func _role_names(d: Dictionary) -> String:
+	var t := ""
+	for k in d["roles"]:
+		t += str(d["roles"][k]["name"])
+	return t
+
+
 func _initialize() -> void:
 	# スティックの向き
 	var c := Vector2(100, 100)
@@ -84,7 +99,7 @@ func _initialize() -> void:
 		check(float(d["stick_zone_max_x_frac"]) <= float(d["button_zone_min_x_frac"]), "スティックとボタンの領域が重ならない")
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + "0123456789/：（）"
+		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + _role_names(d) + "0123456789/：（）"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -145,7 +160,7 @@ func _initialize() -> void:
 		check(s2.boss_hp == hp0, "遠いときは、ボスの体力は減らない")
 		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
 		check(s2.attack(), "近くで、こうげきが当たる")
-		check(is_equal_approx(s2.boss_hp, hp0 - float(cfg2["attack_power"])), "当たると、攻撃力のぶん体力が減る")
+		check(is_equal_approx(s2.boss_hp, hp0 - s2.role_value("attack_power")), "当たると、攻撃力のぶん体力が減る")
 		check(not s2.attack(), "待ち時間の内は、もう一度は当たらない")
 		s2.attack_cooldown = 0.0
 		var attack_at: Vector2 = Vector2(SCREEN.x * cfg2["attack_center_frac"][0], SCREEN.y * cfg2["attack_center_frac"][1])
@@ -162,7 +177,7 @@ func _initialize() -> void:
 		check(s2.round_active() and not s2.won and s2.boss.visible and s2.my_hits == 0.0 and s2.boss_hp == float(cfg2["boss_hp"]), "もういちどで、体力が元に戻り、また始まる")
 
 		# ボスの範囲攻撃：予告 → 一撃。輪の中で地面にいると当たり、ジャンプでよけられる
-		var hp_full: float = float(cfg2["player_hp"])
+		var hp_full: float = s2.role_value("hp")
 		var t0: float = s2.round_start_ms
 		var first_ms: float = float(cfg2["slam_first_delay_sec"]) * 1000.0
 		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
@@ -196,6 +211,37 @@ func _initialize() -> void:
 		check(s2.my_hp == hp_full and not s2.downed and not s2.lost, "もういちどで、ダウンから復活する")
 		root.remove_child(s2)
 		s2.free()
+
+	# 役割（仮）：枠ごとに強さが違う
+	var packed4 := load(SCENE) as PackedScene
+	if packed4 != null:
+		var s4: Node = packed4.instantiate()
+		root.add_child(s4)
+		if s4.get_node_or_null("Boss") == null:
+			s4._ready()
+		var roles: Dictionary = s4.config["roles"]
+		check(roles.size() == 4 and roles.has("p1") and roles.has("p4"), "役割が4つある（p1〜p4）")
+		var names := []
+		for k in roles:
+			names.append(roles[k]["name"])
+		check(names.size() == 4 and _unique(names), "4つの役割の名前は、すべて違う")
+		for slot in ["p1", "p2", "p3", "p4"]:
+			s4.net_state = {"slot": slot}
+			check(s4.role_value("hp") == float(roles[slot]["hp"]) and s4.role_value("move_speed") == float(roles[slot]["move_speed"]), "枠 %s：体力と速さが、役割どおり" % slot)
+		s4.net_state = {"slot": "p2"}
+		var hp_p2: float = s4.role_value("hp")
+		s4.net_state = {"slot": "p1"}
+		check(hp_p2 > s4.role_value("hp"), "p2（かたい）は、p1（つよい）より体力が多い")
+		check(roles["p1"]["attack_power"] > roles["p2"]["attack_power"], "p1（つよい）は、p2（かたい）よりこうげきが強い")
+		check(roles["p3"]["move_speed"] > roles["p1"]["move_speed"] and roles["p3"]["attack_cooldown_sec"] < roles["p1"]["attack_cooldown_sec"], "p3（はやい）は、速く動け、連続でこうげきできる")
+		check(roles["p4"]["jump_speed"] > roles["p1"]["jump_speed"], "p4（とぶ）は、高く跳べる")
+		s4.net_state = {}
+		check(s4.role_value("hp") == float(roles["p1"]["hp"]), "通信なしのときは、p1の役割")
+		s4.net_state = {"slot": "p4"}
+		s4.jump()
+		check(is_equal_approx(s4.velocity_y, float(roles["p4"]["jump_speed"])), "跳ぶ強さに、役割が効く")
+		root.remove_child(s4)
+		s4.free()
 
 	# 通信（偽のブラウザで確かめる）
 	check(Proto.pick_room_code("2468", "1111", 4) == "2468", "URLの合言葉が正しければ、それを使う")
@@ -240,8 +286,8 @@ func _initialize() -> void:
 		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendPosition(0.5, 0.5)")), "自分の位置を送る（中心は 0.5, 0.5）")
 		s3.player.position = Vector3(0.0, s3.ground_y, float(s3.config["boss_position"][1]) + 2.0)
 		s3.attack_cooldown = 0.0
-		check(s3.attack() and is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 40.0), "こうげきで、体力はほかの人の分と合わせて減る")
-		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHits(10")), "与えたダメージを送る")
+		check(s3.attack() and is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 30.0 - s3.role_value("attack_power")), "こうげきで、体力はほかの人の分と合わせて減る")
+		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHits(15")), "与えたダメージを送る")
 		s3.apply_net_state({"slot": "p1", "positions": {}, "hits": {"p2": 30}})
 		check(not s3.others.has("p2"), "ほかの人が抜けたら、箱を消す")
 		s3.apply_net_state({"slot": "p1", "hits": {"p2": 395}, "round": 5000000})

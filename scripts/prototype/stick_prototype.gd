@@ -111,7 +111,7 @@ func _ready() -> void:
 	font = load(str(config["ui_font_path"])) as Font
 	ground_y = float(config["player_size"]) * 0.5
 	boss_hp = float(config["boss_hp"])
-	my_hp = float(config["player_hp"])
+	my_hp = role_value("hp")
 	_build_world()
 	_build_ui()
 	if use_network:
@@ -210,7 +210,7 @@ func _build_ui() -> void:
 
 func _process(delta: float) -> void:
 	var move := Vector2.ZERO if downed else stick_vec
-	player.position = StickMath.step_position(player.position, move, float(config["move_speed"]), delta, float(config["bounds"]))
+	player.position = StickMath.step_position(player.position, move, role_value("move_speed"), delta, float(config["bounds"]))
 	var r := StickMath.jump_update(player.position.y, velocity_y, delta, float(config["gravity"]), ground_y)
 	player.position.y = r.x
 	velocity_y = r.y
@@ -266,7 +266,18 @@ func jump() -> void:
 	if downed:
 		return
 	if is_equal_approx(player.position.y, ground_y):
-		velocity_y = float(config["jump_speed"])
+		velocity_y = role_value("jump_speed")
+
+
+## 自分の役割（枠で決まる。通信なしのときは p1）。数値は data の roles（仮）
+func role() -> Dictionary:
+	var slot := str(net_state.get("slot", ""))
+	var roles: Dictionary = config["roles"]
+	return roles.get(slot if roles.has(slot) else "p1", {})
+
+
+func role_value(key: String) -> float:
+	return float(role().get(key, config.get(key, 0.0)))
 
 
 ## 戦いの最中か（始まっていて、まだ終わっていない）
@@ -298,7 +309,7 @@ func _begin_round(start_ms: float) -> void:
 	lost = false
 	downed = false
 	my_hits = 0.0
-	my_hp = float(config["player_hp"])
+	my_hp = role_value("hp")
 	boss.visible = true
 	boss_hp = float(config["boss_hp"])
 	last_strike = Pattern.strike_index((server_now_ms() - start_ms) / 1000.0, float(config["slam_first_delay_sec"]), float(config["slam_interval_sec"]))
@@ -316,8 +327,8 @@ func attack() -> bool:
 	var reach := float(config["attack_reach"]) + float(config["boss_size"]) * 0.5
 	if not Damage.in_reach(player.position, boss.position, reach):
 		return false
-	attack_cooldown = float(config["attack_cooldown_sec"])
-	my_hits += Damage.damage_amount(float(config["attack_power"]), float(config["attack_multiplier"]))
+	attack_cooldown = role_value("attack_cooldown_sec")
+	my_hits += Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]))
 	_recompute_boss_hp()
 	if net_active:
 		bridge.send_hits(my_hits)
@@ -414,6 +425,8 @@ func net_update(delta: float, now_ms: int) -> void:
 func apply_net_state(state: Dictionary) -> void:
 	net_state = state
 	var me := str(state.get("slot", ""))
+	if round_start_ms <= 0.0:
+		my_hp = role_value("hp")
 	var members: Array = state.get("members", [])
 	others_hits = BossSync.others_total(state.get("hits", {}), me, members)
 	# 戦いの開始：新しい開始の時刻が来たら、始める。古すぎる時刻（前の日の戦いなど）は無視する
@@ -537,7 +550,7 @@ func _draw_overlay() -> void:
 	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 	var hp_text := str(config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(config["boss_hp"]))
 	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var my_text := str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(config["player_hp"]))
+	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(role_value("hp")))
 	if downed:
 		my_text += "  " + str(config["down_text"])
 	overlay.draw_string(font, Vector2(16, fs * 4.4), my_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
