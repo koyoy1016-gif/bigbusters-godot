@@ -461,6 +461,7 @@ func highlight_data() -> Dictionary:
 	best["boss"] = Vector2(boss.position.x, boss.position.z)
 	best["bounds"] = float(config["bounds"])
 	best["color"] = _slot_color(str(best["slot"]))
+	best["config"] = config
 	return best
 
 
