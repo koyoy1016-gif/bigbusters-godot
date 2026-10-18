@@ -100,7 +100,7 @@ func _initialize() -> void:
 		check(float(d["stick_zone_max_x_frac"]) <= float(d["button_zone_min_x_frac"]), "スティックとボタンの領域が重ならない")
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["enrage_text"]) + str(d["result_time_label"]) + str(d["result_mine_label"]) + str(d["result_team_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
+		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["enrage_text"]) + str(d["result_time_label"]) + str(d["result_mine_label"]) + str(d["result_team_label"]) + str(d["result_rank_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -280,11 +280,35 @@ func _initialize() -> void:
 		s6.round_end_ms = now6[0]
 		var lines: Array = s6.build_result_lines()
 		check(lines.size() == 3 and str(lines[0]).ends_with("1：23"), "結果：かかった時間（83秒＝1：23）：" + str(lines))
-		check(str(lines[1]).ends_with("123") and str(lines[2]).contains("p2 77"), "結果：自分とほかの人のダメージ")
+		check(str(lines[1]).ends_with("123") and str(lines[2]).contains("1 つよい 123") and str(lines[2]).contains("2 かたい 77"), "結果：与えたダメージの順位（役割の名前つき）：" + str(lines[2]))
+		s6.net_state = {"slot": "p1", "members": ["p1", "p2"], "hits": {"p1": 123, "p2": 500}}
+		check(str(s6.build_result_lines()[2]).contains("1 かたい 500") and str(s6.build_result_lines()[2]).contains("2 つよい 123"), "ほかの人のほうが多ければ、順位が入れ替わる")
+		s6.net_state = {"slot": "p1", "members": ["p1"], "hits": {}}
+		check(s6.build_result_lines().size() == 2, "1人だけのときは、順位の行は出さない")
 		s6.won = false
 		s6.round_start_ms = 0.0
 		root.remove_child(s6)
 		s6.free()
+
+	# ボタンを押したときの反応
+	var packed7 := load(SCENE) as PackedScene
+	if packed7 != null:
+		var s7: Node = packed7.instantiate()
+		root.add_child(s7)
+		if s7.get_node_or_null("Boss") == null:
+			s7._ready()
+		var at7: Vector2 = Vector2(SCREEN.x * s7.config["attack_center_frac"][0], SCREEN.y * s7.config["attack_center_frac"][1])
+		s7.handle_press(1, at7, SCREEN)
+		check(s7.attack_flash > 0.0, "こうげきボタンを押すと、色が変わる（当たらなくても）")
+		s7.handle_release(1)
+		var jp7: Vector2 = Vector2(SCREEN.x * s7.config["button_center_frac"][0], SCREEN.y * s7.config["button_center_frac"][1])
+		s7.handle_press(2, jp7, SCREEN)
+		s7.handle_release(2)
+		check(s7.jump_flash > 0.0, "ジャンプボタンは、すぐ離しても、少し色が残る")
+		s7._process(0.2)
+		check(s7.attack_flash == 0.0 and s7.jump_flash == 0.0, "時間がたつと、色が戻る")
+		root.remove_child(s7)
+		s7.free()
 
 	# 役割（仮）：枠ごとに強さが違う
 	var packed4 := load(SCENE) as PackedScene

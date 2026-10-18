@@ -55,6 +55,8 @@ var known_round := 0.0
 var round_count := 0
 var last_strike := 0
 var round_end_ms := 0.0
+var jump_flash := 0.0
+var attack_flash := 0.0
 ## 現在の時刻（ミリ秒）。テストでは差し替える
 var clock_ms: Callable = func() -> float: return Time.get_unix_time_from_system() * 1000.0
 
@@ -264,6 +266,8 @@ func _process(delta: float) -> void:
 	velocity_y = r.y
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	hit_flash = maxf(0.0, hit_flash - delta)
+	jump_flash = maxf(0.0, jump_flash - delta)
+	attack_flash = maxf(0.0, attack_flash - delta)
 	var boss_base := Color(str(config["enrage_color"])) if is_enraged() else Color(str(config["boss_color"]))
 	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else boss_base
 	net_update(delta, Time.get_ticks_msec())
@@ -293,9 +297,11 @@ func handle_press(index: int, pos: Vector2, screen: Vector2) -> void:
 		stick_touch = index
 		stick_vec = _stick_input(pos, screen)
 	elif pos.distance_to(_attack_center(screen)) <= float(config["button_radius_px"]):
+		attack_flash = float(config["press_flash_sec"])
 		attack()
 	elif button_touch == -1 and pos.x >= screen.x * float(config["button_zone_min_x_frac"]):
 		button_touch = index
+		jump_flash = float(config["press_flash_sec"])
 		jump()
 
 
@@ -427,16 +433,23 @@ func build_result_lines() -> Array:
 	lines.append(str(config["result_mine_label"]) + "：" + str(int(my_hits)))
 	var me := str(net_state.get("slot", ""))
 	var hits: Variant = net_state.get("hits", {})
-	var text := ""
+	var entries: Array = [{"slot": me, "hits": my_hits}]
 	if hits is Dictionary:
 		for slot in net_state.get("members", []):
 			if str(slot) == me:
 				continue
 			var v: Variant = hits.get(str(slot), null)
 			if v is float or v is int:
-				text += "  " + str(slot) + " " + str(int(v))
-	if text != "":
-		lines.append(str(config["result_team_label"]) + text)
+				entries.append({"slot": str(slot), "hits": float(v)})
+	entries.sort_custom(func(x, y): return float(x["hits"]) > float(y["hits"]))
+	if entries.size() > 1:
+		var roles: Dictionary = config["roles"]
+		var text := str(config["result_rank_label"]) + "："
+		for i in entries.size():
+			var slot_name := str(entries[i]["slot"])
+			var role_name := str(roles.get(slot_name if roles.has(slot_name) else "p1", {}).get("name", ""))
+			text += "  " + str(i + 1) + " " + role_name + " " + str(int(entries[i]["hits"]))
+		lines.append(text)
 	return lines
 
 
@@ -644,13 +657,14 @@ func _draw_overlay() -> void:
 	overlay.draw_circle(c + stick_vec * r, r * 0.4, Color(str(config["stick_knob_color"])))
 
 	var br := float(config["button_radius_px"])
-	var jump_color := str(config["button_pressed_color"]) if button_touch != -1 else str(config["button_color"])
+	var jump_color := str(config["button_pressed_color"]) if (button_touch != -1 or jump_flash > 0.0) else str(config["button_color"])
 	var bc := _button_center(screen)
 	overlay.draw_circle(bc, br, Color(jump_color))
 	_draw_centered(bc, str(config["button_label"]), button_text)
 
 	var ac := _attack_center(screen)
-	overlay.draw_circle(ac, br, Color(str(config["button_color"])))
+	var attack_color := str(config["button_pressed_color"]) if attack_flash > 0.0 else (str(config["button_cooldown_color"]) if attack_cooldown > 0.0 else str(config["button_color"]))
+	overlay.draw_circle(ac, br, Color(attack_color))
 	_draw_centered(ac, str(config["attack_label"]), button_text)
 
 	overlay.draw_string(font, Vector2(16, fs * 1.4), str(config["hint"]) + "   " + str(config["build_label"]) + str(config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
