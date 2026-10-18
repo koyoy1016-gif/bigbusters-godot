@@ -100,6 +100,7 @@ var js_eval: Callable = func(text: String) -> Variant: return JavaScriptBridge.e
 var use_network: bool = OS.has_feature("web")
 var net_active := false
 var last_char_sent_ms := -100000
+var other_views := {}  ## 枠 → ほかの人のモデルの見た目（CharacterView）
 var bridge := Bridge.new()
 var room_code := ""
 var net_state: Dictionary = {}
@@ -281,6 +282,14 @@ func _attach_character() -> void:
 	player.add_child(view)
 	player.mesh = null
 	char_view = view
+	_raise_marker(player)
+
+
+## 印（頭の上の小さな箱）を、モデルの頭の上に上げる
+func _raise_marker(node: Node3D) -> void:
+	var marker := node.get_node_or_null("Marker") as Node3D
+	if marker != null:
+		marker.position.y = float(config.get("marker_height_model", config["marker_height"]))
 
 
 ## 動作に合わせて、モデルのアニメと向きを更新する（モデルがなければ何もしない）
@@ -1036,6 +1045,7 @@ func apply_net_state(state: Dictionary) -> void:
 			if others.has(slot):
 				(others[slot] as Node).queue_free()
 				others.erase(slot)
+				other_views.erase(slot)
 
 
 func _update_others(delta: float) -> void:
@@ -1047,7 +1057,9 @@ func _update_others(delta: float) -> void:
 		current = current.lerp(target, weight)
 		other_pos[slot] = current
 		var node := _other_node(str(slot))
+		var old_pos := node.position
 		node.position = Vector3(current.x * 2.0 * half - half, ground_y, current.y * 2.0 * half - half)
+		_update_other_view(str(slot), node, node.position - old_pos, delta)
 
 
 func _slot_color(slot: String) -> Color:
@@ -1065,6 +1077,48 @@ func _player_color() -> Color:
 	if player_hit_flash > 0.0:
 		return Color(str(config["player_hit_color"]))
 	return _slot_color(str(net_state.get("slot", "")))
+
+
+## ほかの人のキャラの見た目。共有されたキャラにモデルがあれば、箱の代わりにモデルを出す（キャラが変われば作り直す）。
+## 動いていれば走り、止まっていれば待つ。モデルがない・まだ共有されていなければ、箱のまま
+func _update_other_view(slot: String, node: MeshInstance3D, step: Vector3, delta: float) -> void:
+	var def := char_def_of(slot)
+	var want := str(def.get("id", "")) if not def.is_empty() and CharacterData.has_model(def) else ""
+	var have := ""
+	if other_views.has(slot):
+		have = str(other_views[slot].character.get("id", ""))
+	if want != have:
+		if other_views.has(slot):
+			(other_views[slot] as Node).queue_free()
+			other_views.erase(slot)
+		if want == "":
+			node.mesh = _other_box_mesh(slot)
+		else:
+			var view := CharacterView.new()
+			if view.setup(def):
+				view.position = Vector3(0.0, -ground_y, 0.0)
+				node.add_child(view)
+				node.mesh = null
+				other_views[slot] = view
+				_raise_marker(node)
+			else:
+				view.free()
+	if other_views.has(slot) and delta > 0.0:
+		var view: Node3D = other_views[slot]
+		var speed := Vector2(step.x, step.z) / delta
+		var moving := speed.length() > float(config.get("other_moving_speed", 0.5))
+		view.play_action("run" if moving else "idle")
+		if moving:
+			view.face(speed, delta)
+
+
+func _other_box_mesh(slot: String) -> BoxMesh:
+	var box := BoxMesh.new()
+	box.size = Vector3.ONE * float(config["player_size"])
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = _slot_color(slot)
+	box.material = mat
+	return box
 
 
 func _other_node(slot: String) -> MeshInstance3D:

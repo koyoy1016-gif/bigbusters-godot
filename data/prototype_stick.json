@@ -175,6 +175,8 @@
   "camera_follow_per_sec": 6.0,
   "marker_size": 0.35,
   "marker_height": 1.1,
+  "marker_height_model": 2.5,
+  "other_moving_speed": 0.5,
   "bossbar_pos": [
     0.62,
     0.05

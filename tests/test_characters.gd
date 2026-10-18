@@ -117,6 +117,20 @@ func _initialize() -> void:
 	b.net_state["chars"] = {"p1": "guardian"}
 	b._share_my_character(110000)
 	check(sent.size() == 2, "部屋の記録が同じなら、送らない")
+	# ほかの人の見た目：共有されたキャラにモデルがあれば、箱の代わりにモデル
+	b.net_state = {"slot": "p1", "members": ["p1", "p2"], "chars": {"p2": "hero_swordsman"}}
+	var n2: MeshInstance3D = b._other_node("p2")
+	check(n2.mesh != null, "最初は箱")
+	b._update_other_view("p2", n2, Vector3.ZERO, 0.1)
+	check(b.other_views.has("p2") and n2.mesh == null, "剣士（モデルあり）が共有されたら、箱を外してモデルを出す")
+	check(is_equal_approx(n2.get_node("Marker").position.y, float(b.config["marker_height_model"])), "印が、モデルの頭の上に上がる")
+	b._update_other_view("p2", n2, Vector3(1, 0, 0), 0.1)
+	check(b.other_views["p2"].current_action == "run", "動いていれば走る")
+	b._update_other_view("p2", n2, Vector3.ZERO, 0.1)
+	check(b.other_views["p2"].current_action == "idle", "止まれば待つ")
+	b.net_state["chars"] = {"p2": "healer"}
+	b._update_other_view("p2", n2, Vector3.ZERO, 0.1)
+	check(not b.other_views.has("p2") and n2.mesh != null, "モデルのないキャラに変わったら、箱にもどる")
 	b.net_active = false
 	root.remove_child(b)
 	b.free()
