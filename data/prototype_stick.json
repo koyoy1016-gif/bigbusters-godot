@@ -144,6 +144,7 @@
     }
   },
   "role_label": "やく",
+  "others_label": "なかま",
   "attack_cycle": [
     "slam",
     "charge"
@@ -160,7 +161,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "19",
+  "build_id": "20",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "marker_size": 0.35,

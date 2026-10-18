@@ -43,6 +43,7 @@ func _initialize() -> void:
 	# 決まりごと
 	check(Logic.next_state("title", "loaded") == "lobby", "タイトル → ロビー")
 	check(Logic.next_state("lobby", "play") == "battle", "ロビー → 戦い")
+	check(Logic.next_state("lobby", "formation") == "formation" and Logic.next_state("formation", "back") == "lobby" and Logic.next_state("formation", "play") == "formation", "ロビー ⇔ へんせい")
 	check(Logic.next_state("battle", "ended") == "highlight", "戦い → ハイライト")
 	check(Logic.next_state("highlight", "done") == "reward", "ハイライト → 報酬")
 	check(Logic.next_state("reward", "rematch") == "battle" and Logic.next_state("reward", "next") == "next", "報酬 → さいせん（戦い）／つぎへ")
@@ -60,17 +61,17 @@ func _initialize() -> void:
 
 	# 保存
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SAVE))
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": ""}, "保存がなければ、最初の値")
-	check(SaveData.write_save(TEMP_SAVE, {"coins": 120, "wins": 4, "quality": "high"}), "保存できる")
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 120, "wins": 4, "quality": "high"}, "保存した値が読める")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": ""}, "保存がなければ、最初の値")
+	check(SaveData.write_save(TEMP_SAVE, {"coins": 120, "wins": 4, "quality": "high", "character": "gunner"}), "保存できる")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 120, "wins": 4, "quality": "high", "character": "gunner"}, "保存した値が読める")
 	var f := FileAccess.open(TEMP_SAVE, FileAccess.WRITE)
 	f.store_string("これはJSONではない")
 	f = null
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": ""}, "壊れた保存は、最初の値に戻す")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": ""}, "壊れた保存は、最初の値に戻す")
 	f = FileAccess.open(TEMP_SAVE, FileAccess.WRITE)
 	f.store_string('{"coins": -5, "wins": "x"}')
 	f = null
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": ""}, "マイナスや文字の値は、捨てる")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": ""}, "マイナスや文字の値は、捨てる")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SAVE))
 
 	# 文字が、フォントにある
@@ -116,8 +117,21 @@ func _initialize() -> void:
 		check(flow.state == "lobby" and flow.toast_label.text == "じゅんびちゅう", "未開放を押すと、「じゅんびちゅう」と出る")
 		flow.change_stage(1)
 		check(flow.stage_label.text == "きたせんじゅ", "ステージ選択は、ぐるっと戻る")
+		# へんせい：キャラを選ぶ
+		check(flow.selected_character == "hero_swordsman" and str(flow.lobby_char.text).contains("ファイター けんし"), "最初のキャラは、主人公のけんし：" + str(flow.lobby_char.text))
+		flow.event("formation")
+		check(flow.state == "formation" and flow.panels["formation"].visible and not flow.panels["lobby"].visible, "へんせいの画面に移る")
+		check(flow.formation_buttons.size() == 9 and flow.formation_buttons["hero_swordsman"].disabled and not flow.formation_buttons["gunner"].disabled, "9人のボタン。選んでいるキャラは押せない")
+		flow.select_character("gunner")
+		check(flow.selected_character == "gunner" and SaveData.load_save(TEMP_SAVE)["character"] == "gunner", "キャラを選ぶと、保存される")
+		check(str(flow.formation_stats.text).contains("シューター じゅうし") and str(flow.formation_stats.text).contains("射撃") and str(flow.formation_stats.text).count("\n") == 2 and flow.formation_buttons["gunner"].disabled, "選んだキャラの性能とわざが出る：" + str(flow.formation_stats.text))
+		flow.select_character("zzz")
+		check(flow.selected_character == "gunner", "知らないキャラは選べない")
+		flow.event("back")
+		check(flow.state == "lobby" and str(flow.lobby_char.text).contains("シューター じゅうし"), "ロビーに戻ると、選んだキャラが出る")
 		flow.play()
 		_ensure_ready(flow.battle)
+		check(flow.battle.selected_character == "gunner" and is_equal_approx(flow.battle.role_value("attack_reach"), 7.0) and is_equal_approx(flow.battle.my_hp, 70.0), "戦いは、選んだキャラ（じゅうし）の性能で動く")
 		check(flow.state == "battle" and flow.battle != null and flow.battle.flow_mode, "プレイで、戦いが始まる（流れの中のモード）")
 		check(not flow.panels["lobby"].visible, "戦いの間は、メニューを隠す")
 		flow.battle.my_hits = 100.0

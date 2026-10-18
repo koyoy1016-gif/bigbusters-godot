@@ -33,6 +33,9 @@ var boss: MeshInstance3D
 var sub_crowd: Node3D
 var recorder := Recorder.new()
 var char_view: Node3D = null
+## 選んだキャラ（画面の流れから渡される。空なら、古い「枠で決まる役割」）
+var selected_character := ""
+var characters_cfg: Dictionary = {}
 var crowd_state := CrowdState.new()
 var touch_timer := 0.0
 var since_sample := 0.0
@@ -237,7 +240,7 @@ func _build_world() -> void:
 ## 自分のキャラのモデル（data/characters.json）があれば、箱の代わりに出す。なければ箱のまま
 func _attach_character() -> void:
 	var cfg := CharacterData.load_config()
-	var def := CharacterData.find(cfg, str(cfg.get("player_character", "")))
+	var def := selected_def() if selected_character != "" else CharacterData.find(cfg, str(cfg.get("player_character", "")))
 	if def.is_empty() or not CharacterData.has_model(def):
 		return
 	var view := CharacterView.new()
@@ -402,8 +405,23 @@ func jump() -> void:
 		velocity_y = role_value("jump_speed")
 
 
-## 自分の役割（枠で決まる。通信なしのときは p1）。数値は data の roles（仮）
+## 選んだキャラの定義。なければ {}
+func selected_def() -> Dictionary:
+	if selected_character == "":
+		return {}
+	if characters_cfg.is_empty():
+		characters_cfg = CharacterData.load_config()
+	return CharacterData.find(characters_cfg, selected_character)
+
+
+## 自分の役割。選んだキャラがあれば、そのキャラの性能（data/characters.json）。なければ、枠で決まる古い役割（data の roles）
 func role() -> Dictionary:
+	var def := selected_def()
+	if not def.is_empty():
+		var r: Dictionary = (def["stats"] as Dictionary).duplicate()
+		r["name"] = str(def["role"])
+		r["character_name"] = str(def["name"])
+		return r
 	var slot := str(net_state.get("slot", ""))
 	var roles: Dictionary = config["roles"]
 	return roles.get(slot if roles.has(slot) else "p1", {})
@@ -436,6 +454,9 @@ func ranking_entries() -> Array:
 
 ## 役割の名前（枠から）
 func role_name_of(slot: String) -> String:
+	if selected_character != "":
+		# 選んだキャラの共有は、まだ（通信は今後）。ほかの人は「なかま」と出す
+		return str(role().get("name", "")) if slot == str(net_state.get("slot", "p1")) or not net_active else str(config.get("others_label", "なかま"))
 	var roles: Dictionary = config["roles"]
 	return str(roles.get(slot if roles.has(slot) else "p1", {}).get("name", ""))
 
@@ -866,7 +887,7 @@ func _draw_overlay() -> void:
 	overlay.draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * frac, bar_rect.size.y)), Color(str(config["bossbar_color"])))
 	var hp_text := str(config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(config["boss_hp"]))
 	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(role_value("hp")))
+	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + (("（" + str(role()["character_name"]) + "）") if role().has("character_name") else "") + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(role_value("hp")))
 	if downed:
 		my_text += "  " + str(config["down_text"])
 	overlay.draw_string(font, Vector2(16, fs * 4.4), my_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)

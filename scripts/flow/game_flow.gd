@@ -6,6 +6,7 @@ extends Node
 const Logic := preload("res://scripts/flow/flow_logic.gd")
 const Quality := preload("res://scripts/core/quality.gd")
 const SaveData := preload("res://scripts/flow/save_data.gd")
+const CharacterData := preload("res://scripts/characters/character_data.gd")
 const Replay := preload("res://scripts/flow/highlight_replay.gd")
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -38,6 +39,11 @@ var query_bench := false
 var quality_config: Dictionary = {}
 var quality_name := "low"
 var quality_button: Button
+var characters_cfg: Dictionary = {}
+var selected_character := ""
+var lobby_char: Label
+var formation_stats: Label
+var formation_buttons: Dictionary = {}
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -50,6 +56,10 @@ func _ready() -> void:
 		config = load_config()
 	font = load(str(config["ui_font_path"])) as Font
 	save = SaveData.load_save(str(config["save_path"]))
+	characters_cfg = CharacterData.load_config()
+	selected_character = str(save.get("character", ""))
+	if CharacterData.find(characters_cfg, selected_character).is_empty():
+		selected_character = str(characters_cfg.get("player_character", ""))
 	quality_config = Quality.load_config()
 	quality_name = Quality.resolve(str(save.get("quality", "")), quality_config)
 	layer = CanvasLayer.new()
@@ -152,14 +162,40 @@ func _build_panels() -> void:
 	var grid_holder := CenterContainer.new()
 	grid_holder.add_child(grid)
 	for name_text in config["lobby_buttons"]:
-		grid.add_child(_make_button(str(name_text), small, show_toast))
+		var cb: Callable = show_toast
+		if str(name_text) == str(config["formation_label"]):
+			cb = func(): event("formation")
+		grid.add_child(_make_button(str(name_text), small, cb))
 	l.add_child(grid_holder)
 	quality_button = _make_button("", small, change_quality)
 	var quality_holder := CenterContainer.new()
 	quality_holder.add_child(quality_button)
 	l.add_child(quality_holder)
+	lobby_char = _make_label("", text_size, text_color)
+	l.add_child(lobby_char)
 	toast_label = _make_label("", text_size, Color(1.0, 0.85, 0.4))
 	l.add_child(toast_label)
+
+	# へんせい（キャラを選ぶ）
+	var f := _make_panel(Logic.FORMATION)
+	f.add_child(_make_label(str(config["formation_title"]), heading, Color(str(config["title_color"]))))
+	var fgrid := GridContainer.new()
+	fgrid.columns = 2
+	fgrid.add_theme_constant_override("h_separation", 16)
+	fgrid.add_theme_constant_override("v_separation", 16)
+	for c in characters_cfg.get("characters", []):
+		var id := str(c["id"])
+		var label := str(c["role"]) + "\n" + str(c["name"])
+		var b := _make_button(label, [260, 110], func(): select_character(id))
+		b.add_theme_font_size_override("font_size", int(config["formation_button_font_size"]))
+		formation_buttons[id] = b
+		fgrid.add_child(b)
+	var fholder := CenterContainer.new()
+	fholder.add_child(fgrid)
+	f.add_child(fholder)
+	formation_stats = _make_label("", int(config["formation_stats_font_size"]), text_color)
+	f.add_child(formation_stats)
+	f.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
 
 	# ハイライト
 	var h := _make_panel(Logic.HIGHLIGHT)
@@ -202,6 +238,8 @@ func goto(new_state: String) -> void:
 	match new_state:
 		Logic.LOBBY:
 			_refresh_lobby()
+		Logic.FORMATION:
+			_refresh_formation()
 		Logic.HIGHLIGHT:
 			highlight_best.text = best_text if best_text != "" else str(config["highlight_none"])
 			highlight_replay.visible = not highlight_info.is_empty()
@@ -255,11 +293,38 @@ func show_toast() -> void:
 	toast_time = float(config["toast_sec"])
 
 
+## キャラを選ぶ（自分の端末に保存。戦いは、選んだキャラの性能で動く）
+func select_character(id: String) -> void:
+	if CharacterData.find(characters_cfg, id).is_empty():
+		return
+	selected_character = id
+	save["character"] = id
+	SaveData.write_save(str(config["save_path"]), save)
+	_refresh_formation()
+
+
+func _refresh_formation() -> void:
+	var def := CharacterData.find(characters_cfg, selected_character)
+	for id in formation_buttons:
+		(formation_buttons[id] as Button).disabled = (id == selected_character)
+	if def.is_empty():
+		formation_stats.text = ""
+		return
+	var labels: Dictionary = config["stat_labels"]
+	var st: Dictionary = def["stats"]
+	formation_stats.text = str(config["formation_selected"]) + "：" + str(def["role"]) + " " + str(def["name"]) + "\n" \
+		+ str(labels["hp"]) + " " + str(int(st["hp"])) + "  " + str(labels["move_speed"]) + " " + str(int(st["move_speed"])) + "\n" \
+		+ str(labels["attack_power"]) + " " + str(int(st["attack_power"])) + "  " + str(labels["attack_reach"]) + " " + str(int(st["attack_reach"])) \
+		+ "  " + str(labels["skill"]) + "：" + str(def["skill"])
+
+
 func _refresh_lobby() -> void:
 	var rank := Logic.player_rank(int(save.get("wins", 0)), int(config["wins_per_rank"]))
 	lobby_info.text = str(config["lobby_rank_label"]) + " " + str(rank) + "    " + str(config["lobby_coin_label"]) + " " + str(int(save.get("coins", 0)))
 	var stage: Dictionary = config["stages"][stage_index]
 	stage_label.text = str(stage["name"])
+	var cdef := CharacterData.find(characters_cfg, selected_character)
+	lobby_char.text = (str(config["lobby_char_label"]) + "：" + str(cdef["role"]) + " " + str(cdef["name"])) if not cdef.is_empty() else ""
 	play_button.disabled = not bool(stage["open"])
 	quality_button.text = str(config["quality_label"]) + "：" + Quality.label_of(quality_name, quality_config)
 
@@ -269,6 +334,7 @@ func _start_battle() -> void:
 	var packed := load(BATTLE_SCENE) as PackedScene
 	battle = packed.instantiate()
 	battle.flow_mode = true
+	battle.selected_character = selected_character
 	battle.round_ended.connect(_on_round_ended)
 	add_child(battle)
 	_apply_quality()

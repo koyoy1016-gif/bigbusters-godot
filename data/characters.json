@@ -28,7 +28,15 @@
       "weapon": "けん",
       "note": "主人公。ばらんすのよい近接",
       "skill": "斬る",
-      "break_power": 1.5
+      "break_power": 1.5,
+      "stats": {
+        "hp": 100.0,
+        "move_speed": 7.0,
+        "jump_speed": 8.0,
+        "attack_power": 12.0,
+        "attack_cooldown_sec": 0.35,
+        "attack_reach": 2.0
+      }
     },
     {
       "id": "sprinter",
@@ -50,7 +58,15 @@
         "down": "Death"
       },
       "skill": "ダッシュ",
-      "break_power": 1.0
+      "break_power": 1.0,
+      "stats": {
+        "hp": 70.0,
+        "move_speed": 10.0,
+        "jump_speed": 10.0,
+        "attack_power": 8.0,
+        "attack_cooldown_sec": 0.25,
+        "attack_reach": 2.0
+      }
     },
     {
       "id": "brawler",
@@ -72,7 +88,15 @@
         "down": "Death"
       },
       "skill": "ダッシュ",
-      "break_power": 2.0
+      "break_power": 2.0,
+      "stats": {
+        "hp": 90.0,
+        "move_speed": 8.0,
+        "jump_speed": 8.0,
+        "attack_power": 10.0,
+        "attack_cooldown_sec": 0.3,
+        "attack_reach": 2.0
+      }
     },
     {
       "id": "gunner",
@@ -94,7 +118,15 @@
         "down": "Death"
       },
       "skill": "射撃",
-      "break_power": 1.0
+      "break_power": 1.0,
+      "stats": {
+        "hp": 70.0,
+        "move_speed": 6.0,
+        "jump_speed": 8.0,
+        "attack_power": 9.0,
+        "attack_cooldown_sec": 0.3,
+        "attack_reach": 7.0
+      }
     },
     {
       "id": "bomber",
@@ -116,7 +148,15 @@
         "down": "Death"
       },
       "skill": "投げ",
-      "break_power": 2.0
+      "break_power": 2.0,
+      "stats": {
+        "hp": 75.0,
+        "move_speed": 5.0,
+        "jump_speed": 8.0,
+        "attack_power": 11.0,
+        "attack_cooldown_sec": 0.6,
+        "attack_reach": 6.0
+      }
     },
     {
       "id": "mage",
@@ -138,7 +178,15 @@
         "down": "Death"
       },
       "skill": "魔法",
-      "break_power": 1.0
+      "break_power": 1.0,
+      "stats": {
+        "hp": 65.0,
+        "move_speed": 5.5,
+        "jump_speed": 8.0,
+        "attack_power": 12.0,
+        "attack_cooldown_sec": 0.5,
+        "attack_reach": 7.0
+      }
     },
     {
       "id": "guardian",
@@ -160,7 +208,15 @@
         "down": "Death"
       },
       "skill": "バリア",
-      "break_power": 3.0
+      "break_power": 3.0,
+      "stats": {
+        "hp": 160.0,
+        "move_speed": 5.0,
+        "jump_speed": 8.0,
+        "attack_power": 7.0,
+        "attack_cooldown_sec": 0.5,
+        "attack_reach": 2.0
+      }
     },
     {
       "id": "summoner",
@@ -182,7 +238,15 @@
         "down": "Death"
       },
       "skill": "召喚",
-      "break_power": 1.0
+      "break_power": 1.0,
+      "stats": {
+        "hp": 80.0,
+        "move_speed": 6.0,
+        "jump_speed": 8.0,
+        "attack_power": 6.0,
+        "attack_cooldown_sec": 0.4,
+        "attack_reach": 5.0
+      }
     },
     {
       "id": "healer",
@@ -204,7 +268,15 @@
         "down": "Death"
       },
       "skill": "回復",
-      "break_power": 1.0
+      "break_power": 1.0,
+      "stats": {
+        "hp": 85.0,
+        "move_speed": 6.0,
+        "jump_speed": 8.0,
+        "attack_power": 5.0,
+        "attack_cooldown_sec": 0.4,
+        "attack_reach": 5.0
+      }
     }
   ],
   "budgets": {
@@ -225,5 +297,6 @@
     "ガーディアン": "盾で味方を守る",
     "サポート": "回復・味方を出す、など味方を助ける"
   },
-  "skill_note": "Xの技（仮案。ユーザー決定 2026-10-18）"
+  "skill_note": "Xの技（仮案。ユーザー決定 2026-10-18）",
+  "stats_note": "仮の数値。ユーザーが調整する"
 }

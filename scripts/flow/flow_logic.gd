@@ -8,10 +8,12 @@ const BATTLE := "battle"
 const HIGHLIGHT := "highlight"
 const REWARD := "reward"
 const NEXT := "next"
+const FORMATION := "formation"
 
 const TRANSITIONS := {
 	"title": {"loaded": "lobby"},
-	"lobby": {"play": "battle"},
+	"lobby": {"play": "battle", "formation": "formation"},
+	"formation": {"back": "lobby"},
 	"battle": {"ended": "highlight"},
 	"highlight": {"done": "reward"},
 	"reward": {"rematch": "battle", "next": "next"},

@@ -81,6 +81,16 @@ func _initialize() -> void:
 	check(CharacterData.pick_action(false, false, false, true) == "run", "動いていれば走る")
 	check(CharacterData.pick_action(false, false, false, false) == "idle", "何もなければ待つ")
 	# 誤りの検出
+	var packed_battle := load("res://scenes/prototype/stick_prototype.tscn") as PackedScene
+	var b: Node = packed_battle.instantiate()
+	b.selected_character = "guardian"
+	root.add_child(b)
+	if b.get_node_or_null("Boss") == null:
+		b._ready()
+	check(is_equal_approx(b.role_value("hp"), 160.0) and b.role().get("name") == "ガーディアン" and b.role().get("character_name") == "たて", "選んだキャラ（たて）の性能・役職名で動く")
+	check(b.role_name_of("p1") == "ガーディアン", "通信なしなら、自分の役職名が出る")
+	root.remove_child(b)
+	b.free()
 	var bad := {"actions": ["idle"], "budgets": {"ally": 100}, "player_character": "nobody", "characters": [
 		{"id": "a", "name": "x", "kind": "ally", "tri_budget": 999, "animations": {}},
 		{"id": "a", "name": "y", "kind": "ally", "tri_budget": 1, "animations": {"idle": "I"}},

@@ -3,6 +3,7 @@ extends RefCounted
 ## モデル（glTF）のファイルがまだないキャラは、箱の見た目で出る（has_model が false）。
 
 const PATH := "res://data/characters.json"
+const STAT_KEYS := ["hp", "move_speed", "jump_speed", "attack_power", "attack_cooldown_sec", "attack_reach"]
 
 
 static func load_config(path: String = PATH) -> Dictionary:
@@ -63,6 +64,13 @@ static func validate(cfg: Dictionary) -> Array:
 		var kind := str(c.get("kind", ""))
 		if budgets.has(kind) and float(c.get("tri_budget", 0)) > float(budgets[kind]):
 			errors.append(id + "：面の数の予算が、種類の上限（" + str(budgets[kind]) + "）を超えている")
+		var stats: Variant = c.get("stats", null)
+		if not (stats is Dictionary):
+			errors.append(id + "：statsがない")
+		else:
+			for key in STAT_KEYS:
+				if not stats.has(key) or float(stats[key]) <= 0.0:
+					errors.append(id + "：stats の " + key + " がない、または0以下")
 		var anims: Variant = c.get("animations", {})
 		if anims is Dictionary:
 			for a in actions:
