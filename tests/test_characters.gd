@@ -42,7 +42,25 @@ func _initialize() -> void:
 		for ch in str(c["name"]):
 			if not font.has_char(ch.unicode_at(0)):
 				all_ok = false
-	check(all_ok, "全員の役職が4つのどれか。名前の文字がフォントにある")
+	for k in roles:
+		for ch in str(k):
+			if not font.has_char(ch.unicode_at(0)):
+				all_ok = false
+	check(all_ok, "全員の役職が4つのどれか。名前・役職名の文字がフォントにある")
+	var count := {}
+	for c in cfg["characters"]:
+		count[str(c["role"])] = int(count.get(str(c["role"]), 0)) + 1
+	var most := 0
+	var least := 99
+	for k in roles:
+		most = maxi(most, int(count.get(k, 0)))
+		least = mini(least, int(count.get(k, 0)))
+	check(least >= 2 and most - least <= 1, "役職ごとの人数が、かたよらない（最少 " + str(least) + "・最多 " + str(most) + "）")
+	var skills_ok := true
+	for c in cfg["characters"]:
+		if str(c.get("skill", "")) == "" or not c.has("break_power"):
+			skills_ok = false
+	check(skills_ok, "全員に、Xの技と、ゲージ割りの強さがある")
 	for want in ["swordsman", "speed", "fist", "gun", "bomb", "magic", "shield", "summon", "heal"]:
 		check(kinds.has(want), "タイプ " + want + " がいる")
 	for a in cfg["actions"]:

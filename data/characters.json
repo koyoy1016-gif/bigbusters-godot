@@ -12,7 +12,7 @@
       "id": "hero_swordsman",
       "name": "けんし",
       "kind": "ally",
-      "role": "アタッカー",
+      "role": "ファイター",
       "model": "",
       "heads_tall": 7.5,
       "tri_budget": 15000,
@@ -26,13 +26,15 @@
       },
       "archetype": "swordsman",
       "weapon": "けん",
-      "note": "主人公。ばらんすのよい近接"
+      "note": "主人公。ばらんすのよい近接",
+      "skill": "大ぶり",
+      "break_power": 1.5
     },
     {
       "id": "sprinter",
       "name": "はやて",
       "kind": "ally",
-      "role": "クイック",
+      "role": "ラッシャー",
       "archetype": "speed",
       "weapon": "あし・短い刃",
       "note": "足がとても速い。すばやく動いて当てる",
@@ -46,13 +48,15 @@
         "jump": "Jump",
         "attack": "Attack",
         "down": "Death"
-      }
+      },
+      "skill": "ダッシュ",
+      "break_power": 1.0
     },
     {
       "id": "brawler",
       "name": "こぶし",
       "kind": "ally",
-      "role": "アタッカー",
+      "role": "ラッシャー",
       "archetype": "fist",
       "weapon": "こぶし",
       "note": "拳でたたかう近接",
@@ -66,13 +70,15 @@
         "jump": "Jump",
         "attack": "Attack",
         "down": "Death"
-      }
+      },
+      "skill": "ダッシュ",
+      "break_power": 2.0
     },
     {
       "id": "gunner",
       "name": "じゅうし",
       "kind": "ally",
-      "role": "アタッカー",
+      "role": "シューター",
       "archetype": "gun",
       "weapon": "じゅう",
       "note": "はなれて撃つ遠距離",
@@ -86,13 +92,15 @@
         "jump": "Jump",
         "attack": "Attack",
         "down": "Death"
-      }
+      },
+      "skill": "射撃",
+      "break_power": 1.0
     },
     {
       "id": "bomber",
       "name": "ばくだん",
       "kind": "ally",
-      "role": "アタッカー",
+      "role": "キャスター",
       "archetype": "bomb",
       "weapon": "しゅりゅうだん・ばくだん",
       "note": "投げて、範囲にダメージ",
@@ -106,13 +114,15 @@
         "jump": "Jump",
         "attack": "Attack",
         "down": "Death"
-      }
+      },
+      "skill": "投げ",
+      "break_power": 2.0
     },
     {
       "id": "mage",
       "name": "まほう",
       "kind": "ally",
-      "role": "アタッカー",
+      "role": "キャスター",
       "archetype": "magic",
       "weapon": "まほう",
       "note": "魔法っぽいもので戦う",
@@ -126,13 +136,15 @@
         "jump": "Jump",
         "attack": "Attack",
         "down": "Death"
-      }
+      },
+      "skill": "魔法",
+      "break_power": 1.0
     },
     {
       "id": "guardian",
       "name": "たて",
       "kind": "ally",
-      "role": "サポーター",
+      "role": "ファイター",
       "archetype": "shield",
       "weapon": "たて",
       "note": "盾で守る。味方をかばう",
@@ -146,13 +158,15 @@
         "jump": "Jump",
         "attack": "Attack",
         "down": "Death"
-      }
+      },
+      "skill": "バリア",
+      "break_power": 3.0
     },
     {
       "id": "summoner",
       "name": "よびだし",
       "kind": "ally",
-      "role": "サポーター",
+      "role": "キャスター",
       "archetype": "summon",
       "weapon": "よびだし",
       "note": "Xボタンで、味方をもう1人出す（操作系）",
@@ -166,13 +180,15 @@
         "jump": "Jump",
         "attack": "Attack",
         "down": "Death"
-      }
+      },
+      "skill": "しょうかん",
+      "break_power": 1.0
     },
     {
       "id": "healer",
       "name": "いやし",
       "kind": "ally",
-      "role": "リカバリー",
+      "role": "シューター",
       "archetype": "heal",
       "weapon": "つえ",
       "note": "味方を回復する",
@@ -186,7 +202,9 @@
         "jump": "Jump",
         "attack": "Attack",
         "down": "Death"
-      }
+      },
+      "skill": "かいふく",
+      "break_power": 1.0
     }
   ],
   "budgets": {
@@ -195,10 +213,16 @@
     "boss": 30000
   },
   "role_colors": {
-    "アタッカー": "#d94a3d",
-    "クイック": "#e0b030",
-    "サポーター": "#3d7fd9",
-    "リカバリー": "#3dbf6a"
+    "ファイター": "#d94a3d",
+    "ラッシャー": "#e0b030",
+    "シューター": "#3d7fd9",
+    "キャスター": "#3dbf6a"
   },
-  "role_colors_note": "仮。4つの役職＝4色。色は、あとで決める"
+  "role_colors_note": "仮。4つの役職＝4色。役職は『攻撃のしかた』で分ける。色は、あとで決める",
+  "roles_note": {
+    "ファイター": "近接・正面で戦う（体力高め）",
+    "ラッシャー": "近接・速い・手数が多い",
+    "シューター": "遠距離・ねらって撃つ（単体）",
+    "キャスター": "遠距離・範囲や設置・溜めがある"
+  }
 }
