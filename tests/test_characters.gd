@@ -91,6 +91,33 @@ func _initialize() -> void:
 		b._ready()
 	check(is_equal_approx(b.role_value("hp"), 160.0) and b.role().get("name") == "ガーディアン" and b.role().get("character_name") == "たて", "選んだキャラ（たて）の性能・役職名で動く")
 	check(b.role_name_of("p1") == "ガーディアン", "通信なしなら、自分の役職名が出る")
+	# 通信：ほかの人のキャラが共有されたら、そのキャラの役職名が出る
+	b.net_active = true
+	b.net_state = {"slot": "p1", "members": ["p1", "p2", "p3"], "chars": {"p2": "healer"}}
+	check(b.role_name_of("p1") == "ガーディアン", "通信中も、自分は自分の役職名")
+	check(b.role_name_of("p2") == "サポート", "ほかの人のキャラが共有されていれば、その役職名（いやし＝サポート）")
+	check(b.role_name_of("p3") == "なかま", "まだ共有されていない人は「なかま」")
+	check(str(b.char_def_of("p2").get("id", "")) == "healer" and b.char_def_of("p3").is_empty(), "枠のキャラの定義を引ける（未共有は空）")
+	check(str(b.char_def_of("p1").get("id", "")) == "guardian", "自分の枠は、選んだキャラ")
+	b.net_state["chars"] = {"p2": "no_such_character"}
+	check(b.char_def_of("p2").is_empty(), "知らないキャラの id でも、壊れない（空）")
+	# 自分のキャラを部屋に知らせる
+	var sent: Array = []
+	b.bridge.js_eval = func(code: String) -> Variant:
+		sent.append(code)
+		return null
+	b.last_char_sent_ms = -100000
+	b.net_state = {"slot": "p1", "members": ["p1"], "chars": {}}
+	b._share_my_character(100000)
+	check(sent.size() == 1 and str(sent[0]).contains("sendChar(\"guardian\")"), "まだ知らせていなければ、自分のキャラを送る")
+	b._share_my_character(100500)
+	check(sent.size() == 1, "2秒以内には、もう一度送らない")
+	b._share_my_character(103000)
+	check(sent.size() == 2, "2秒たっても部屋の記録がなければ、もう一度送る")
+	b.net_state["chars"] = {"p1": "guardian"}
+	b._share_my_character(110000)
+	check(sent.size() == 2, "部屋の記録が同じなら、送らない")
+	b.net_active = false
 	root.remove_child(b)
 	b.free()
 	var bad := {"actions": ["idle"], "budgets": {"ally": 100}, "player_character": "nobody", "characters": [

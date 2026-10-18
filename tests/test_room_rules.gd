@@ -89,6 +89,25 @@ func _initialize() -> void:
 	check(str(hp_rules.get("hp", {}).get(".validate", "")).contains("<= 1000") and str(hp_rules.get("hp", {}).get(".validate", "")).contains(">= 0"), "体力は0〜1000の数")
 	check(str(hp_rules.get("round", {}).get(".validate", "")) == "newData.isNumber()" and hp_rules.get("$other", {}).get(".validate", true) == false, "どの戦いかは数。ほかの項目は書けない")
 
+	# キャラ（chars）：自分の枠にだけ、半角の英数字とアンダーバーの名前（32字まで）を書ける
+	var chars_rules: Dictionary = code.get("chars", {}).get("$slot", {})
+	check(str(chars_rules.get(".write", "")) == own_slot_write, "キャラを書けるのは、自分の枠の人だけ")
+	check(str(chars_rules.get(".validate", "")).contains("isString()") and str(chars_rules.get(".validate", "")).contains("{1,32}"), "キャラの名前は、32字までの文字")
+	check(_first_group("\\^p\\[1-(\\d)\\]", str(chars_rules.get(".validate", ""))) == str(int(cfg["max_players"])), "キャラの枠の数も network.json と一致")
+
+	# 投票（votes）：{v: rematch か lobby, round}
+	var votes_rules: Dictionary = code.get("votes", {}).get("$slot", {})
+	check(str(votes_rules.get(".write", "")) == own_slot_write, "投票を書けるのは、自分の枠の人だけ")
+	check(str(votes_rules.get(".validate", "")).contains("hasChildren(['v', 'round'])"), "投票の記録は {v, round}")
+	check(str(votes_rules.get("v", {}).get(".validate", "")).contains("'rematch'") and str(votes_rules.get("v", {}).get(".validate", "")).contains("'lobby'"), "投票は rematch か lobby だけ")
+	check(votes_rules.get("round", {}).get(".validate", "") == "newData.isNumber()" and votes_rules.get("$other", {}).get(".validate", true) == false, "どの戦いのあとかは数。ほかの項目は書けない")
+
+	# 効果（effects）：味方に効く技の記録 {type, t, value, round}
+	var fx_rules: Dictionary = code.get("effects", {}).get("$slot", {})
+	check(str(fx_rules.get(".write", "")) == own_slot_write, "効果を書けるのは、自分の枠の人だけ")
+	check(str(fx_rules.get(".validate", "")).contains("hasChildren(['type', 't', 'value', 'round'])"), "効果の記録は {type, t, value, round}")
+	check(str(fx_rules.get("value", {}).get(".validate", "")).contains("<= 1000") and fx_rules.get("$other", {}).get(".validate", true) == false, "効果の数値は上限つき。ほかの項目は書けない")
+
 	# 使っている場所の名前が、関数の組み立てと同じ
 	check(code.has("players") and RoomCode.room_path("1234", int(cfg["code_digits"])) == "rooms/1234" and rooms.has("$code"), "rooms/{合言葉} の形が、関数と一致")
 

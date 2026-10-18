@@ -525,3 +525,71 @@ test('退出すると、体力と開始の時刻の状態が消える', async ()
   assert.equal(bb.state.round, 0);
   assert.equal(Object.keys(bb.state.hp).length, 0);
 });
+
+test('入っていなければ、キャラ・投票・効果は書かない', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  assert.equal(bb.sendChar('hero_swordsman'), false);
+  assert.equal(bb.sendVote('rematch', 1), false);
+  assert.equal(bb.sendEffect('heal', 1, 30, 1), false);
+});
+
+test('選んだキャラを自分の枠に書く。ほかの人のキャラも受け取る', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  assert.equal(bb.sendChar('guardian'), true);
+  assert.equal(sdk.store.get('rooms/1234/chars/p1'), 'guardian');
+  await sdk.db.set({ path: 'rooms/1234/chars/p2' }, 'healer');
+  assert.equal(bb.state.chars.p2, 'healer');
+  assert.equal(bb.state.chars.p1, 'guardian');
+});
+
+test('さいせん／ロビーの投票を書く（どの戦いのあとかも一緒に）。ほかの人の投票も届く', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  assert.equal(bb.sendVote('rematch', 777), true);
+  const v1 = sdk.store.get('rooms/1234/votes/p1');
+  assert.equal(v1.v, 'rematch');
+  assert.equal(v1.round, 777);
+  await sdk.db.set({ path: 'rooms/1234/votes/p2' }, { v: 'lobby', round: 777 });
+  assert.equal(bb.state.votes.p2.v, 'lobby');
+  assert.equal(bb.state.votes.p1.round, 777);
+});
+
+test('味方に効く技の記録を書く。ほかの人の記録も届く', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  assert.equal(bb.sendEffect('heal', 5000, 30, 777), true);
+  const e1 = sdk.store.get('rooms/1234/effects/p1');
+  assert.equal(e1.type, 'heal');
+  assert.equal(e1.t, 5000);
+  assert.equal(e1.value, 30);
+  assert.equal(e1.round, 777);
+  await sdk.db.set({ path: 'rooms/1234/effects/p2' }, { type: 'barrier', t: 6000, value: 0.2, round: 777 });
+  assert.equal(bb.state.effects.p2.type, 'barrier');
+});
+
+test('退出すると、キャラ・投票・効果も消える', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  bb.sendChar('guardian');
+  bb.sendVote('lobby', 1);
+  bb.sendEffect('heal', 1, 10, 1);
+  await bb.leaveRoom();
+  assert.equal(sdk.store.has('rooms/1234/chars/p1'), false);
+  assert.equal(sdk.store.has('rooms/1234/votes/p1'), false);
+  assert.equal(sdk.store.has('rooms/1234/effects/p1'), false);
+  assert.equal(Object.keys(bb.state.chars).length, 0);
+});
+
+test('ルールが未更新で、キャラが書けなくても、入室は失敗しない', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc', deny: (path) => path.includes('/chars/') });
+  const bb = load(sdk);
+  assert.equal(await bb.joinRoom(CFG, '1234'), 'p1');
+  bb.sendChar('guardian');
+  assert.equal(bb.state.status, 'in_room');
+});

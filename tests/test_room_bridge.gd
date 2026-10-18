@@ -43,6 +43,20 @@ func _initialize() -> void:
 	check(str(log[0]).begins_with("window.bbFirebase.joinRoom(") and str(log[0]).contains(', "1234", '), "入室の呼び出しに、合言葉が入る（%s）" % str(log[0]))
 	check(str(log[0]).contains("hold_ms") and str(log[0]).contains("heartbeat_ms"), "入室の呼び出しに、枠の保持時間と書き直す間隔が入る")
 	check(str(log[0]).contains("bigbusters-new"), "入室の呼び出しに、設定（JSON）が渡る")
+	# キャラ・投票・効果の送り方
+	check(Bridge.build_send_char_call("guardian") == 'window.bbFirebase.sendChar("guardian")', "キャラの送り方")
+	check(Bridge.build_send_vote_call("rematch", 123.0) == 'window.bbFirebase.sendVote("rematch", 123.0)', "投票の送り方")
+	check(Bridge.build_send_effect_call("heal", 5000.0, 30.0, 123.0) == 'window.bbFirebase.sendEffect("heal", 5000.0, 30.0, 123.0)', "効果の送り方")
+	var log2: Array = []
+	var b2 := Bridge.new()
+	b2.js_eval = func(code: String) -> Variant:
+		log2.append(code)
+		return null
+	b2.send_char("healer")
+	b2.send_vote("lobby", 9.0)
+	b2.send_effect("barrier", 1.0, 0.2, 9.0)
+	check(log2.size() == 3 and str(log2[0]).contains("sendChar") and str(log2[1]).contains("sendVote") and str(log2[2]).contains("sendEffect"), "send_char / send_vote / send_effect が、それぞれのJSを呼ぶ")
+	check(Bridge.build_send_char_call('a"b').contains('\\"'), "文字は、引用符を壊さずに渡す")
 	bridge.leave()
 	check(log[1] == "window.bbFirebase.leaveRoom()", "退出の呼び出し")
 	var state := bridge.read_state()

@@ -99,6 +99,7 @@ var clock_ms: Callable = func() -> float: return Time.get_unix_time_from_system(
 var js_eval: Callable = func(text: String) -> Variant: return JavaScriptBridge.eval(text, true)
 var use_network: bool = OS.has_feature("web")
 var net_active := false
+var last_char_sent_ms := -100000
 var bridge := Bridge.new()
 var room_code := ""
 var net_state: Dictionary = {}
@@ -485,13 +486,42 @@ func ranking_entries() -> Array:
 	return entries
 
 
-## 役割の名前（枠から）
+## その枠のキャラの定義。自分は選んだキャラ（なければ主人公）。ほかの人は、部屋で共有されたキャラ（まだなら {}）
+func char_def_of(slot: String) -> Dictionary:
+	if characters_cfg.is_empty():
+		characters_cfg = CharacterData.load_config()
+	if slot == str(net_state.get("slot", "p1")) or not net_active:
+		return selected_def() if selected_character != "" else CharacterData.find(characters_cfg, str(characters_cfg.get("player_character", "")))
+	var chars: Variant = net_state.get("chars", {})
+	if chars is Dictionary and chars.has(slot):
+		return CharacterData.find(characters_cfg, str(chars[slot]))
+	return {}
+
+
+## 役割の名前（枠から）。選んだキャラがあれば、そのキャラの役割（ほかの人は、共有されたキャラ。まだなら「なかま」）
 func role_name_of(slot: String) -> String:
 	if selected_character != "":
-		# 選んだキャラの共有は、まだ（通信は今後）。ほかの人は「なかま」と出す
-		return str(role().get("name", "")) if slot == str(net_state.get("slot", "p1")) or not net_active else str(config.get("others_label", "なかま"))
+		if slot == str(net_state.get("slot", "p1")) or not net_active:
+			return str(role().get("name", ""))
+		var def := char_def_of(slot)
+		return str(def.get("role", "")) if not def.is_empty() else str(config.get("others_label", "なかま"))
 	var roles: Dictionary = config["roles"]
 	return str(roles.get(slot if roles.has(slot) else "p1", {}).get("name", ""))
+
+
+## 自分のキャラを、部屋に知らせる。まだ知らせていないか、部屋の記録と違うときだけ送る（2秒以上あける）
+func _share_my_character(now_ms: int) -> void:
+	var me := str(net_state.get("slot", ""))
+	var def := char_def_of(me)
+	if me == "" or def.is_empty():
+		return
+	var mine := str(def.get("id", ""))
+	var chars: Variant = net_state.get("chars", {})
+	var shared := str(chars.get(me, "")) if chars is Dictionary else ""
+	if shared == mine or now_ms - last_char_sent_ms < int(config.get("char_resend_ms", 2000)):
+		return
+	last_char_sent_ms = now_ms
+	bridge.send_char(mine)
 
 
 ## 戦いの最中か（始まっていて、まだ終わっていない）
@@ -573,8 +603,7 @@ func highlight_data() -> Dictionary:
 	best["bounds"] = float(config["bounds"])
 	best["color"] = _slot_color(str(best["slot"]))
 	best["config"] = config
-	var cfg_chars := CharacterData.load_config()
-	best["character"] = selected_def() if selected_character != "" else CharacterData.find(cfg_chars, str(cfg_chars.get("player_character", "")))
+	best["character"] = char_def_of(str(best["slot"]))
 	return best
 
 
@@ -965,6 +994,7 @@ func net_update(delta: float, now_ms: int) -> void:
 		var state := bridge.read_state()
 		if not state.is_empty():
 			apply_net_state(state)
+	_share_my_character(now_ms)
 	var me := str(net_state.get("slot", ""))
 	if me != "" and Sync.should_send(now_ms, last_sent_ms, int(config["send_interval_ms"])):
 		last_sent_ms = now_ms

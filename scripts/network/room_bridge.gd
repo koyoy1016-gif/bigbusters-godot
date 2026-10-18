@@ -38,6 +38,21 @@ static func build_send_hp_call(hp: float, round_ms: float) -> String:
 	return "window.bbFirebase.sendHp(%s, %s)" % [str(hp), str(round_ms)]
 
 
+## 自分が選んだキャラの id を送る（なかまの表示と、ハイライトのキャラに使う）
+static func build_send_char_call(id: String) -> String:
+	return "window.bbFirebase.sendChar(%s)" % JSON.stringify(id)
+
+
+## 「さいせん」か「ロビー」の投票を送る。round は、どの戦いのあとの投票か
+static func build_send_vote_call(vote: String, round_ms: float) -> String:
+	return "window.bbFirebase.sendVote(%s, %s)" % [JSON.stringify(vote), str(round_ms)]
+
+
+## 味方に効く技の記録を送る（種類、サーバー時刻、数値、どの戦いか）
+static func build_send_effect_call(type: String, t_ms: float, value: float, round_ms: float) -> String:
+	return "window.bbFirebase.sendEffect(%s, %s, %s, %s)" % [JSON.stringify(type), str(t_ms), str(value), str(round_ms)]
+
+
 ## 戦いを始める（開始の時刻を、部屋に書く）
 static func build_start_round_call() -> String:
 	return "window.bbFirebase.startRound()"
@@ -77,6 +92,18 @@ func send_hits(total: float) -> void:
 
 func send_hp(hp: float, round_ms: float) -> void:
 	js_eval.call(build_send_hp_call(hp, round_ms))
+
+
+func send_char(id: String) -> void:
+	js_eval.call(build_send_char_call(id))
+
+
+func send_vote(vote: String, round_ms: float) -> void:
+	js_eval.call(build_send_vote_call(vote, round_ms))
+
+
+func send_effect(type: String, t_ms: float, value: float, round_ms: float) -> void:
+	js_eval.call(build_send_effect_call(type, t_ms, value, round_ms))
 
 
 func start_round() -> void:

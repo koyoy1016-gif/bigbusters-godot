@@ -66,6 +66,48 @@
               ".validate": false
             }
           }
+        },
+        "chars": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || (newData.isString() && newData.val().matches(/^[a-z0-9_]{1,32}$/)))"
+          }
+        },
+        "votes": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || newData.hasChildren(['v', 'round']))",
+            "v": {
+              ".validate": "newData.isString() && (newData.val() === 'rematch' || newData.val() === 'lobby')"
+            },
+            "round": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        },
+        "effects": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || newData.hasChildren(['type', 't', 'value', 'round']))",
+            "type": {
+              ".validate": "newData.isString() && newData.val().matches(/^[a-z_]{1,16}$/)"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "value": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000"
+            },
+            "round": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
         }
       }
     }
