@@ -55,7 +55,7 @@ func _initialize() -> void:
 	for k in roles:
 		most = maxi(most, int(count.get(k, 0)))
 		least = mini(least, int(count.get(k, 0)))
-	check(least >= 2 and most - least <= 1, "役職ごとの人数が、かたよらない（最少 " + str(least) + "・最多 " + str(most) + "）")
+	check(least >= 1 and most <= 3, "どの役職にも1人以上いて、多すぎない（最少 " + str(least) + "・最多 " + str(most) + "）")
 	var skills_ok := true
 	for c in cfg["characters"]:
 		if str(c.get("skill", "")) == "" or not c.has("break_power"):
