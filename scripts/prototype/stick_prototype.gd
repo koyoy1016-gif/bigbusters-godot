@@ -44,6 +44,9 @@ var facing := Vector2(0.0, -1.0)
 var dash_left := 0.0
 var dash_dir := Vector2.ZERO
 var guard_left := 0.0
+## 味方の技を受けとった（技の時刻の記録、見た目の点滅）
+var effect_seen := {}
+var ally_effect_flash := 0.0
 var bomb: Dictionary = {}
 var summon_left := 0.0
 var summon_timer := 0.0
@@ -448,6 +451,7 @@ func _process(delta: float) -> void:
 	velocity_y = r.y
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	hit_flash = maxf(0.0, hit_flash - delta)
+	ally_effect_flash = maxf(0.0, ally_effect_flash - delta)
 	jump_flash = maxf(0.0, jump_flash - delta)
 	attack_flash = maxf(0.0, attack_flash - delta)
 	var boss_base := Color(str(config["enrage_color"])) if is_enraged() else Color(str(config["boss_color"]))
@@ -657,6 +661,7 @@ func _begin_round(start_ms: float) -> void:
 	bomb = {}
 	summon_left = 0.0
 	summon_timer = 0.0
+	effect_seen = {}
 	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
 	touch_timer = 0.0
 	boss_hp = float(config["boss_hp"])
@@ -819,6 +824,7 @@ func use_skill() -> bool:
 			bomb = {"pos": target, "left": float(sc["delay_sec"]), "damage": dmg}
 		"guard":
 			guard_left = float(sc["duration_sec"])
+			_send_ally_effect("guard", float(sc["duration_sec"]))
 			var disc := CylinderMesh.new()
 			disc.top_radius = 1.4
 			disc.bottom_radius = 1.4
@@ -828,6 +834,7 @@ func use_skill() -> bool:
 			my_hp = minf(role_value("hp"), my_hp + float(sc["heal"]))
 			if net_active:
 				bridge.send_hp(my_hp, round_start_ms)
+			_send_ally_effect("heal", float(sc["heal"]))
 			var disc2 := CylinderMesh.new()
 			disc2.top_radius = 1.2
 			disc2.bottom_radius = 1.2
@@ -838,6 +845,45 @@ func use_skill() -> bool:
 			summon_timer = 0.0
 	skill_cooldown = float(sc["cooldown_sec"])
 	return true
+
+
+## 味方に効く技（回復・バリア）を、部屋に知らせる。近くにいる味方の画面で、効く
+func _send_ally_effect(type: String, value: float) -> void:
+	if net_active and str(net_state.get("slot", "")) != "":
+		bridge.send_effect(type, server_now_ms(), value, round_start_ms)
+
+
+## 味方の技が届いたら、近くにいる自分に効かせる（回復・バリア）。同じ技は1回だけ。古い技は無視
+func _apply_ally_effects() -> void:
+	var me := str(net_state.get("slot", ""))
+	var effects: Variant = net_state.get("effects", {})
+	if not (effects is Dictionary) or not round_active():
+		return
+	var radii: Dictionary = config.get("ally_effect_radius", {})
+	var max_age := float(config.get("ally_effect_max_age_sec", 3.0)) * 1000.0
+	for slot in effects:
+		var e: Variant = effects[slot]
+		if str(slot) == me or not (e is Dictionary):
+			continue
+		var t := float(e.get("t", 0.0))
+		if t <= float(effect_seen.get(str(slot), 0.0)) or not is_equal_approx(float(e.get("round", 0.0)), round_start_ms):
+			continue
+		effect_seen[str(slot)] = t
+		if server_now_ms() - t > max_age:
+			continue
+		var type := str(e.get("type", ""))
+		var caster: Vector2 = other_pos.get(str(slot), Vector2(INF, INF))
+		var mine := Vector2(player.position.x, player.position.z)
+		if not radii.has(type) or mine.distance_to(caster) > float(radii[type]):
+			continue
+		var value := float(e.get("value", 0.0))
+		if type == "heal" and not downed:
+			my_hp = minf(role_value("hp"), my_hp + value)
+			bridge.send_hp(my_hp, round_start_ms)
+			ally_effect_flash = float(config.get("hit_flash_sec", 0.15)) * 2.0
+		elif type == "guard":
+			guard_left = maxf(guard_left, value)
+			ally_effect_flash = float(config.get("hit_flash_sec", 0.15)) * 2.0
 
 
 ## 技の見た目（床に、半透明の形を少しのあいだ出す）
@@ -1114,6 +1160,7 @@ func apply_net_state(state: Dictionary) -> void:
 			_begin_round(r)
 	_recompute_boss_hp()
 	_check_wipe()
+	_apply_ally_effects()
 	var positions := Sync.parse_positions(state.get("positions", {}))
 	positions.erase(me)
 	# いま部屋にいる人（members）の位置だけ出す。前の人の古い位置が残っていても、箱は出さない
@@ -1161,6 +1208,8 @@ func _player_color() -> Color:
 		return Color(str(config["player_down_color"]))
 	if player_hit_flash > 0.0:
 		return Color(str(config["player_hit_color"]))
+	if ally_effect_flash > 0.0:
+		return Color(str(config.get("ally_effect_color", "#60ff90")))
 	return _slot_color(str(net_state.get("slot", "")))
 
 

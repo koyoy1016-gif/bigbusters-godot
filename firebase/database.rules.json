@@ -117,7 +117,7 @@
         "owners": {
           ".read": "auth != null && root.child('saves/' + $sid + '/owners/' + auth.uid).exists()",
           "$uid": {
-            ".write": "auth != null && (root.child('saves/' + $sid + '/owners/' + auth.uid).exists() || (!root.child('saves/' + $sid + '/owners').exists() && $uid === auth.uid))",
+            ".write": "auth != null && ((!root.child('saves/' + $sid + '/owners').exists() && $uid === auth.uid) || auth.uid === root.child('saves/' + $sid + '/recovery').val() || (root.child('saves/' + $sid + '/owners/' + auth.uid).exists() && (newData.exists() || $uid !== root.child('saves/' + $sid + '/recovery').val())))",
             ".validate": "newData.val() === true"
           }
         },
@@ -138,7 +138,7 @@
             ".validate": "newData.isString() && newData.val().length <= 16"
           },
           "t": {
-            ".validate": "newData.isNumber()"
+            ".validate": "newData.isNumber() && newData.val() <= now + 60000"
           },
           "$other": {
             ".validate": false
@@ -153,7 +153,7 @@
               ".validate": "newData.isString() && newData.val().length <= 12"
             },
             "t": {
-              ".validate": "newData.isNumber()"
+              ".validate": "newData.isNumber() && newData.val() <= now + 60000"
             },
             "$other": {
               ".validate": false
@@ -162,6 +162,10 @@
         },
         "$other": {
           ".validate": false
+        },
+        "recovery": {
+          ".write": "auth != null && !data.exists() && root.child('saves/' + $sid + '/owners/' + auth.uid).exists()",
+          ".validate": "newData.isString()"
         }
       }
     },
@@ -175,13 +179,13 @@
     "ids": {
       "$id": {
         ".read": "auth != null",
-        ".validate": "$id.matches(/^[A-Z2-9]{10}$/)",
-        ".write": "auth != null && ((!data.exists() && root.child('saves/' + newData.child('sid').val() + '/owners/' + auth.uid).exists()) || (data.exists() && root.child('saves/' + data.child('sid').val() + '/owners/' + auth.uid).exists()))",
+        ".validate": "$id.matches(/^[A-Z2-9]{10}$/) && newData.hasChildren(['sid', 'gen'])",
+        ".write": "auth != null && newData.exists() && ((!data.exists() && root.child('saves/' + newData.child('sid').val() + '/owners/' + auth.uid).exists()) || (data.exists() && root.child('saves/' + data.child('sid').val() + '/owners/' + auth.uid).exists()))",
         "sid": {
           ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{12}$/) && (!data.exists() || newData.val() === data.val())"
         },
         "gen": {
-          ".validate": "newData.isString() && newData.val().matches(/^[0-9]{1,6}$/)"
+          ".validate": "newData.isString() && newData.val().matches(/^[0-9]{1,6}$/) && (!data.exists() || newData.val() === data.val() || root.child('saves/' + newData.parent().child('sid').val() + '/recovery').val() === auth.uid)"
         },
         "$other": {
           ".validate": false
@@ -197,7 +201,7 @@
           ".validate": "newData.isString() && newData.val().length <= 12"
         },
         "friendCode": {
-          ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{8}$/) && (!data.exists() || newData.val() === data.val())"
+          ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{8}$/) && (!data.exists() || newData.val() === data.val()) && root.child('friendCodes/' + newData.val()).val() === $sid"
         },
         "$other": {
           ".validate": false
@@ -216,12 +220,12 @@
         ".read": "auth != null && root.child('saves/' + $target + '/owners/' + auth.uid).exists()",
         "$from": {
           ".write": "auth != null && (root.child('saves/' + $from + '/owners/' + auth.uid).exists() || (root.child('saves/' + $target + '/owners/' + auth.uid).exists() && !newData.exists()))",
-          ".validate": "$from.matches(/^[A-Z2-9]{12}$/) && (!newData.exists() || (newData.hasChildren(['type', 't']) && (newData.child('type').val() === 'friend' || (newData.child('type').val() === 'friend_ok' && root.child('inbox/' + $from + '/' + $target).exists()) || (newData.child('type').val() === 'invite' && root.child('saves/' + $target + '/friends/' + $from).exists() && newData.child('room').isString() && newData.child('room').val().matches(/^[0-9]{4}$/)))))",
+          ".validate": "$from.matches(/^[A-Z2-9]{12}$/) && (!newData.exists() || (newData.hasChildren(['type', 't']) && root.child('profiles/' + $from).exists() && newData.child('nickname').val() === root.child('profiles/' + $from + '/nickname').val() && (newData.child('type').val() === 'friend' || (newData.child('type').val() === 'friend_ok' && root.child('inbox/' + $from + '/' + $target + '/type').val() === 'friend') || (newData.child('type').val() === 'invite' && root.child('saves/' + $target + '/friends/' + $from).exists() && newData.child('room').isString() && newData.child('room').val().matches(/^[0-9]{4}$/)))))",
           "type": {
             ".validate": "newData.isString()"
           },
           "t": {
-            ".validate": "newData.isNumber()"
+            ".validate": "newData.isNumber() && newData.val() <= now + 60000"
           },
           "nickname": {
             ".validate": "newData.isString() && newData.val().length <= 12"
@@ -232,7 +236,8 @@
           "$other": {
             ".validate": false
           }
-        }
+        },
+        ".validate": "$target.matches(/^[A-Z2-9]{12}$/)"
       }
     }
   }

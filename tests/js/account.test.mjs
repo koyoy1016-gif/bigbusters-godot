@@ -124,6 +124,7 @@ test('ログインを作る：記録の持ち主・ID・復旧コード・フレ
   assert.match(sid, /^[A-Z2-9]{12}$/);
   const owners = [...world.store.keys()].filter((k) => k.startsWith('saves/' + sid + '/owners/'));
   assert.equal(owners.length, 2, '持ち主は、本人と復旧用の2つ');
+  assert.ok(world.store.get('saves/' + sid + '/recovery'), '復旧用アカウントの uid を、書きかえできない形で記録');
   same({ sid, gen: '1' }, world.store.get('ids/' + r.loginId), 'IDの台帳');
   assert.equal(world.store.get('saves/' + sid + '/data').coins, 260, '記録を保存');
   assert.equal(world.store.get('friendCodes/' + a.acc.state.friendCode), sid, 'フレンドコードの台帳');

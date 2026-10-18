@@ -4,6 +4,8 @@
   "ground_size": 40.0,
   "ground_color": "#4a6b4a",
   "bounds": 15.0,
+  "ally_effect_radius": {"heal": 6.0, "guard": 5.0},
+  "ally_effect_max_age_sec": 3.0,
   "spawn_points": {"p1": [-3.0, 6.0], "p2": [3.0, 6.0], "p3": [-6.0, 4.0], "p4": [6.0, 4.0]},
   "move_speed": 6.0,
   "gravity": 20.0,
