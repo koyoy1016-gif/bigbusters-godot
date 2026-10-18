@@ -1138,11 +1138,19 @@ func _draw_centered(center: Vector2, text: String, color: Color, scale: float = 
 
 
 ## なかまの体力の一覧（この戦いに出ている、自分以外）
+## なかまの名前のあとに付ける、キャラの印（共有されていれば「サポート（いやし）」の形。まだなら空）
+func _char_tag(slot: String) -> String:
+	var def := char_def_of(slot)
+	if def.is_empty():
+		return ""
+	return " " + str(def.get("role", "")) + "（" + str(def.get("name", "")) + "）"
+
+
 func build_team_text() -> String:
 	var fighters := BossSync.others_hp(net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms)
 	var text := ""
 	for slot in fighters:
-		text += "  " + str(slot) + " " + str(ceili(float(fighters[slot])))
+		text += "  " + str(slot) + _char_tag(str(slot)) + " " + str(ceili(float(fighters[slot])))
 	if text == "":
 		return ""
 	return str(config["team_label"]) + text
