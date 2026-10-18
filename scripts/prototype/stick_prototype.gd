@@ -54,6 +54,7 @@ var round_start_ms := 0.0
 var known_round := 0.0
 var round_count := 0
 var last_strike := 0
+var round_end_ms := 0.0
 ## 現在の時刻（ミリ秒）。テストでは差し替える
 var clock_ms: Callable = func() -> float: return Time.get_unix_time_from_system() * 1000.0
 
@@ -263,7 +264,8 @@ func _process(delta: float) -> void:
 	velocity_y = r.y
 	attack_cooldown = maxf(0.0, attack_cooldown - delta)
 	hit_flash = maxf(0.0, hit_flash - delta)
-	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else Color(str(config["boss_color"]))
+	var boss_base := Color(str(config["enrage_color"])) if is_enraged() else Color(str(config["boss_color"]))
+	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else boss_base
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
 	player_material.albedo_color = _player_color()
@@ -356,12 +358,13 @@ func _begin_round(start_ms: float) -> void:
 	round_count += 1
 	won = false
 	lost = false
+	round_end_ms = 0.0
 	downed = false
 	my_hits = 0.0
 	my_hp = role_value("hp")
 	boss.visible = true
 	boss_hp = float(config["boss_hp"])
-	last_strike = Pattern.strike_index((server_now_ms() - start_ms) / 1000.0, float(config["slam_first_delay_sec"]), float(config["slam_interval_sec"]))
+	last_strike = _strike_count((server_now_ms() - start_ms) / 1000.0)
 	if net_active:
 		bridge.send_hits(0.0)
 		bridge.send_hp(my_hp, round_start_ms)
@@ -402,10 +405,41 @@ func _recompute_boss_hp() -> void:
 	boss_hp = new_hp
 	if round_start_ms > 0.0 and boss_hp <= 0.0 and not won and not lost:
 		won = true
+		round_end_ms = server_now_ms()
 		boss.visible = false
 
 
 ## 戦いの進み：ボスの範囲攻撃（予告の輪、一撃）。時刻だけで決まるので、全員の画面で同じになる
+## 戦いが始まってから t 秒までの、一撃の回数（いかりの切り替えを含む）
+func _strike_count(t: float) -> int:
+	return Pattern.strike_index_phased(t, float(config["slam_first_delay_sec"]), float(config["slam_interval_sec"]), float(config["enrage_after_sec"]), float(config["slam_interval_enraged_sec"]))
+
+
+## ボスが、いかりの状態か（戦いの最中で、いかりの時刻を過ぎている）
+func is_enraged() -> bool:
+	return round_active() and (server_now_ms() - round_start_ms) / 1000.0 >= float(config["enrage_after_sec"])
+
+
+## 結果の画面に出す行（かかった時間、自分と、ほかの人が与えたダメージ）
+func build_result_lines() -> Array:
+	var secs := int(maxf(0.0, round_end_ms - round_start_ms) / 1000.0)
+	var lines: Array = [str(config["result_time_label"]) + "：" + str(secs / 60) + "：" + ("%02d" % (secs % 60))]
+	lines.append(str(config["result_mine_label"]) + "：" + str(int(my_hits)))
+	var me := str(net_state.get("slot", ""))
+	var hits: Variant = net_state.get("hits", {})
+	var text := ""
+	if hits is Dictionary:
+		for slot in net_state.get("members", []):
+			if str(slot) == me:
+				continue
+			var v: Variant = hits.get(str(slot), null)
+			if v is float or v is int:
+				text += "  " + str(slot) + " " + str(int(v))
+	if text != "":
+		lines.append(str(config["result_team_label"]) + text)
+	return lines
+
+
 func combat_update(delta: float) -> void:
 	player_hit_flash = maxf(0.0, player_hit_flash - delta)
 	if not round_active():
@@ -415,11 +449,11 @@ func combat_update(delta: float) -> void:
 	var t := (server_now_ms() - round_start_ms) / 1000.0
 	var first := float(config["slam_first_delay_sec"])
 	var interval := float(config["slam_interval_sec"])
-	var index := Pattern.strike_index(t, first, interval)
+	var index := _strike_count(t)
 	while last_strike < index and round_active():
 		last_strike += 1
 		_resolve_strike(last_strike)
-	var progress := Pattern.telegraph_progress(t, first, interval, float(config["slam_telegraph_sec"]))
+	var progress := Pattern.telegraph_progress_phased(t, first, interval, float(config["slam_telegraph_sec"]), float(config["enrage_after_sec"]), float(config["slam_interval_enraged_sec"]))
 	var upcoming := Pattern.attack_kind(index + 1, config["attack_cycle"])
 	var alpha := lerpf(float(config["slam_min_alpha"]), float(config["slam_max_alpha"]), maxf(progress, 0.0))
 	slam_ring.visible = progress >= 0.0 and round_active() and upcoming == "slam"
@@ -471,6 +505,7 @@ func _check_wipe() -> void:
 	if downed and not lost and round_start_ms > 0.0:
 		if BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms):
 			lost = true
+			round_end_ms = server_now_ms()
 
 
 ## 通信：一定の間隔でブラウザ側の状態を読み、自分の位置を送り、ほかの人の箱をなめらかに動かす
@@ -644,4 +679,9 @@ func _draw_overlay() -> void:
 		_draw_centered(sc, str(config["restart_label"]) if round_count > 0 else str(config["start_label"]), button_text)
 	if won or lost:
 		var result := str(config["win_text"]) if won else str(config["lose_text"])
-		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), result, text_color, 2.0)
+		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.22), result, text_color, 2.0)
+		var lines := build_result_lines()
+		for i in lines.size():
+			_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.22 + fs * (2.2 + 1.5 * i)), str(lines[i]), text_color)
+	if is_enraged() and int(Time.get_ticks_msec() / 400) % 2 == 0:
+		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.12), str(config["enrage_text"]), Color(str(config["enrage_color"])), 1.4)

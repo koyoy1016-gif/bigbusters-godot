@@ -39,3 +39,28 @@ static func lane_x(n: int, lanes: Array) -> float:
 static func in_lane(x: float, z: float, center_x: float, half_width: float, from_z: float, to_z: float) -> bool:
 	return absf(x - center_x) <= half_width and z >= from_z and z <= to_z
 
+
+## いかり付きの一撃の回数。phase_t 秒より前は、いつもの間隔。phase_t 秒からは、phase_t + 間隔2 × j 秒に一撃（j は 1 から）。
+## 「秒数」だけで決まるので、全員の画面で同じになる（ボスの体力で決めると、画面ごとにずれる）
+static func strike_index_phased(t: float, first_delay: float, interval: float, phase_t: float, interval2: float) -> int:
+	if interval2 <= 0.0 or t < phase_t:
+		return strike_index(t, first_delay, interval)
+	return strike_index(phase_t, first_delay, interval) + int(floor((t - phase_t) / interval2))
+
+
+## いかり付きの、予告の進み具合（0〜1）。予告の最中でなければ -1
+static func telegraph_progress_phased(t: float, first_delay: float, interval: float, telegraph: float, phase_t: float, interval2: float) -> float:
+	if interval2 <= 0.0 or t < 0.0 or telegraph <= 0.0:
+		return telegraph_progress(t, first_delay, interval, telegraph)
+	var next_strike: float
+	if t < phase_t:
+		next_strike = first_delay + float(strike_index(t, first_delay, interval)) * interval
+		if next_strike > phase_t:
+			next_strike = phase_t + interval2
+	else:
+		next_strike = phase_t + (floor((t - phase_t) / interval2) + 1.0) * interval2
+	var remaining: float = next_strike - t
+	if remaining > telegraph:
+		return -1.0
+	return clampf(1.0 - remaining / telegraph, 0.0, 1.0)
+

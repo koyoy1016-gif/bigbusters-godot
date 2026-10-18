@@ -56,6 +56,17 @@ func _initialize() -> void:
 	check(is_equal_approx(Pattern.telegraph_progress(6.4, 3.0, 4.0, 1.2), 0.5), "2回目の予告の途中も 0.5")
 	check(Pattern.telegraph_progress(-1.0, 3.0, 4.0, 1.2) == -1.0, "時刻がマイナスなら -1")
 
+	# いかり：45秒から、間隔が 2.6 秒になる（秒数だけで決まる）
+	check(Pattern.strike_index_phased(10.0, 3.0, 4.0, 45.0, 2.6) == Pattern.strike_index(10.0, 3.0, 4.0), "いかりの前は、いつもと同じ回数")
+	check(Pattern.strike_index_phased(45.0, 3.0, 4.0, 45.0, 2.6) == Pattern.strike_index(45.0, 3.0, 4.0), "いかりの瞬間は、回数が飛ばない")
+	var c45 := Pattern.strike_index(45.0, 3.0, 4.0)
+	check(Pattern.strike_index_phased(47.5, 3.0, 4.0, 45.0, 2.6) == c45 and Pattern.strike_index_phased(47.6, 3.0, 4.0, 45.0, 2.6) == c45 + 1, "いかりのあとは、2.6秒ごとに増える")
+	check(Pattern.strike_index_phased(60.0, 3.0, 4.0, 45.0, 0.0) == Pattern.strike_index(60.0, 3.0, 4.0), "間隔2が0なら、いかりなし")
+	check(is_equal_approx(Pattern.telegraph_progress_phased(47.0, 3.0, 4.0, 1.2, 45.0, 2.6), 0.5), "いかりのあとの予告の途中は 0.5（次の一撃は 47.6 秒）")
+	check(Pattern.telegraph_progress_phased(45.5, 3.0, 4.0, 1.2, 45.0, 2.6) == -1.0, "いかりのあと、次の予告までは -1")
+	check(is_equal_approx(Pattern.telegraph_progress_phased(2.4, 3.0, 4.0, 1.2, 45.0, 2.6), 0.5), "いかりの前の予告は、いつもと同じ")
+	check(is_equal_approx(Pattern.telegraph_progress_phased(46.0, 3.0, 4.0, 1.2, 45.0, 2.6), 0.0) or Pattern.telegraph_progress_phased(46.0, 3.0, 4.0, 1.2, 45.0, 2.6) == -1.0, "いかりの切り替わりでも、予告が壊れない")
+
 	# 攻撃の種類と、突進の通り道
 	var cyc := ["slam", "charge"]
 	check(Pattern.attack_kind(1, cyc) == "slam" and Pattern.attack_kind(2, cyc) == "charge" and Pattern.attack_kind(3, cyc) == "slam", "一撃の種類は、輪→突進→輪…の順")

@@ -100,7 +100,7 @@ func _initialize() -> void:
 		check(float(d["stick_zone_max_x_frac"]) <= float(d["button_zone_min_x_frac"]), "スティックとボタンの領域が重ならない")
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
+		var text := str(d["hint"]) + str(d["button_label"]) + str(d["attack_label"]) + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["enrage_text"]) + str(d["result_time_label"]) + str(d["result_mine_label"]) + str(d["result_team_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -256,6 +256,35 @@ func _initialize() -> void:
 		check(s5.others.has("p2") and (s5.others["p2"] as Node).get_node_or_null("Marker") != null, "ほかの人の箱にも、印がある")
 		root.remove_child(s5)
 		s5.free()
+
+	# いかりと、結果の画面
+	var packed6 := load(SCENE) as PackedScene
+	if packed6 != null:
+		var s6: Node = packed6.instantiate()
+		root.add_child(s6)
+		if s6.get_node_or_null("Boss") == null:
+			s6._ready()
+		var now6 := [2000000.0]
+		s6.clock_ms = func() -> float: return now6[0]
+		s6.start_round()
+		check(not s6.is_enraged(), "始まった直後は、いかりではない")
+		now6[0] += float(s6.config["enrage_after_sec"]) * 1000.0 + 100.0
+		check(s6.is_enraged(), "いかりの時刻を過ぎると、いかり")
+		s6.combat_update(0.016)
+		check(s6.last_strike == s6._strike_count(float(s6.config["enrage_after_sec"]) + 0.1), "いかりの間も、一撃の回数が数えられる")
+		s6.player.position = Vector3(0.0, s6.ground_y, float(s6.config["boss_position"][1]) + 2.0)
+		s6.my_hits = 123.0
+		s6.net_state = {"slot": "p1", "members": ["p1", "p2"], "hits": {"p1": 123, "p2": 77}}
+		s6.round_start_ms = now6[0] - 83000.0
+		s6.won = true
+		s6.round_end_ms = now6[0]
+		var lines: Array = s6.build_result_lines()
+		check(lines.size() == 3 and str(lines[0]).ends_with("1：23"), "結果：かかった時間（83秒＝1：23）：" + str(lines))
+		check(str(lines[1]).ends_with("123") and str(lines[2]).contains("p2 77"), "結果：自分とほかの人のダメージ")
+		s6.won = false
+		s6.round_start_ms = 0.0
+		root.remove_child(s6)
+		s6.free()
 
 	# 役割（仮）：枠ごとに強さが違う
 	var packed4 := load(SCENE) as PackedScene
