@@ -72,7 +72,9 @@ func _initialize() -> void:
 	# 測定の計算
 	check(Bench.average([]) == 0.0 and is_equal_approx(Bench.average([30.0, 60.0]), 45.0), "FPSの平均")
 	var steps := Bench.build_sweep_steps([4, 16], [2000, 8000])
-	check(steps.size() == 4 and steps[0] == {"count": 4, "tris": 2000} and steps[3] == {"count": 16, "tris": 8000}, "測る組み合わせの一覧")
+	check(steps.size() == 4 and steps[0] == {"count": 4, "tris": 2000, "shadow": false} and steps[3] == {"count": 16, "tris": 8000, "shadow": false}, "測る組み合わせの一覧（影の指定なしは、影なし）")
+	var steps2 := Bench.build_sweep_steps([4, 16], [2000, 8000], [false, true])
+	check(steps2.size() == 8 and not steps2[0]["shadow"] and steps2[4]["shadow"] and steps2[7] == {"count": 16, "tris": 8000, "shadow": true}, "影なし・影ありの両方を測る（8通り）")
 
 	# 画面
 	var cfg: Dictionary = Bench.load_config()
@@ -118,16 +120,16 @@ func _initialize() -> void:
 		# 自動測定：偽のFPS（30）で、全組み合わせを回す
 		b.fps_source = func() -> float: return 30.0
 		b.start_sweep()
-		check(b.sweeping and b.sweep_steps.size() == 9, "自動測定が始まる（3×3=9組み合わせ）")
+		check(b.sweeping and b.sweep_steps.size() == 18, "自動測定が始まる（3×3×影2=18組み合わせ）")
 		var guard := 0
 		while b.sweeping and guard < 5000:
 			guard += 1
 			b.sweep_update(0.1)
-		check(not b.sweeping and b.sweep_results.size() == 9, "すべて測り終わる")
-		check(int(b.sweep_results[0]["count"]) == 4 and int(b.sweep_results[8]["count"]) == 24 and int(b.sweep_results[8]["tris"]) == 20000, "測った組み合わせが、指定どおり（4体2k … 24体20k）")
-		check(b.current_count() == 24 and b.current_tris() == 20000, "最後の組み合わせの画面になっている")
+		check(not b.sweeping and b.sweep_results.size() == 18, "すべて測り終わる")
+		check(int(b.sweep_results[0]["count"]) == 4 and int(b.sweep_results[8]["count"]) == 24 and int(b.sweep_results[8]["tris"]) == 20000 and not b.sweep_results[8]["shadow"] and b.sweep_results[17]["shadow"], "測った組み合わせが、指定どおり（影なし4体2k … 影あり24体20k）")
+		check(b.current_count() == 24 and b.current_tris() == 20000 and b.shadow_on, "最後の組み合わせの画面になっている")
 		check(is_equal_approx(float(b.sweep_results[0]["fps"]), 30.0), "平均のFPSが記録される")
-		check(str(b.build_result_text()).split("\n").size() == 9 and str(b.build_result_text()).contains("FPS"), "結果の文字は9行")
+		check(str(b.build_result_text()).split("\n").size() == 18 and str(b.build_result_text()).contains("FPS") and str(b.build_result_text()).contains("かげなし") and str(b.build_result_text()).contains("かげあり"), "結果の文字は18行（影の有無つき）")
 		root.remove_child(b)
 		b.free()
 

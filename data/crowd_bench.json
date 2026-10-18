@@ -44,7 +44,7 @@
   "ground_size": 40.0,
   "ground_color": "#4a6a4a",
   "character_color": "#d8d8e8",
-  "sweep_warmup_sec": 1.0,
+  "sweep_warmup_sec": 2.0,
   "sweep_measure_sec": 3.0,
   "sweep_counts": [
     4,
@@ -88,5 +88,9 @@
   "minus_label": "−",
   "plus_label": "＋",
   "unit_mb": "MB",
-  "unit_k": "k"
+  "unit_k": "k",
+  "sweep_shadows": [
+    false,
+    true
+  ]
 }

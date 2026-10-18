@@ -44,11 +44,12 @@ static func load_config(path: String = CONFIG_PATH) -> Dictionary:
 
 
 ## 測る組み合わせ（体の数 × 面の数）の一覧
-static func build_sweep_steps(counts: Array, tris: Array) -> Array:
+static func build_sweep_steps(counts: Array, tris: Array, shadows: Array = [false]) -> Array:
 	var steps: Array = []
-	for c in counts:
-		for t in tris:
-			steps.append({"count": int(c), "tris": int(t)})
+	for s in shadows:
+		for c in counts:
+			for t in tris:
+				steps.append({"count": int(c), "tris": int(t), "shadow": bool(s)})
 	return steps
 
 
@@ -249,7 +250,7 @@ func start_sweep() -> void:
 	if sweeping:
 		return
 	sweeping = true
-	sweep_steps = build_sweep_steps(config["sweep_counts"], config["sweep_triangles"])
+	sweep_steps = build_sweep_steps(config["sweep_counts"], config["sweep_triangles"], config["sweep_shadows"])
 	sweep_index = 0
 	sweep_results.clear()
 	_begin_sweep_step()
@@ -259,6 +260,8 @@ func _begin_sweep_step() -> void:
 	var step: Dictionary = sweep_steps[sweep_index]
 	count_index = maxi(0, index_of(config["counts"], int(step["count"])))
 	tris_index = maxi(0, index_of(config["triangles"], int(step["tris"])))
+	shadow_on = bool(step.get("shadow", false))
+	light.shadow_enabled = shadow_on
 	_rebuild_characters()
 	_refresh_ui()
 	sweep_elapsed = 0.0
@@ -275,7 +278,7 @@ func sweep_update(delta: float) -> void:
 		sweep_samples.append(float(fps_source.call()))
 	if sweep_elapsed >= warm + float(config["sweep_measure_sec"]):
 		var step: Dictionary = sweep_steps[sweep_index]
-		sweep_results.append({"count": step["count"], "tris": step["tris"], "fps": average(sweep_samples)})
+		sweep_results.append({"count": step["count"], "tris": step["tris"], "shadow": step.get("shadow", false), "fps": average(sweep_samples)})
 		sweep_index += 1
 		if sweep_index >= sweep_steps.size():
 			sweeping = false
@@ -288,7 +291,8 @@ func sweep_update(delta: float) -> void:
 func build_result_text() -> String:
 	var lines: Array = []
 	for r in sweep_results:
-		lines.append(str(r["count"]) + str(config["count_label"]) + " " + str(int(r["tris"]) / 1000) + str(config["unit_k"]) + " : " + str(int(round(float(r["fps"])))) + " " + str(config["fps_label"]))
+		var shadow_text: String = str(config["shadow_label"]) + (str(config["on_text"]) if bool(r.get("shadow", false)) else str(config["off_text"]))
+		lines.append(str(r["count"]) + str(config["count_label"]) + " " + str(int(r["tris"]) / 1000) + str(config["unit_k"]) + " " + shadow_text + " : " + str(int(round(float(r["fps"])))) + " " + str(config["fps_label"]))
 	return "\n".join(lines)
 
 
