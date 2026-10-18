@@ -21,6 +21,7 @@ const Sync := preload("res://scripts/network/position_sync.gd")
 const BossSync := preload("res://scripts/network/boss_sync.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 const Recorder := preload("res://scripts/combat/highlight_recorder.gd")
+const CrowdState := preload("res://scripts/combat/crowd_state.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 
 var config: Dictionary = {}
@@ -29,6 +30,8 @@ var player_material: StandardMaterial3D
 var boss: MeshInstance3D
 var sub_crowd: Node3D
 var recorder := Recorder.new()
+var crowd_state := CrowdState.new()
+var touch_timer := 0.0
 var since_sample := 0.0
 var boss_material: StandardMaterial3D
 var slam_ring: MeshInstance3D
@@ -185,6 +188,7 @@ func _build_world() -> void:
 	sub_crowd.name = "SubCrowd"
 	add_child(sub_crowd)
 	sub_crowd.setup(config, Vector2(bp[0], bp[1]))
+	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
 
 	# 範囲攻撃の予告の輪（床の上の、薄い円盤）
 	slam_ring = MeshInstance3D.new()
@@ -297,7 +301,10 @@ func _process(delta: float) -> void:
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
 	_record_highlight(delta)
-	sub_crowd.update_at(maxf(0.0, (server_now_ms() - round_start_ms) / 1000.0) if round_active() else 0.0)
+	var crowd_t := maxf(0.0, (server_now_ms() - round_start_ms) / 1000.0) if round_active() else 0.0
+	crowd_state.refresh(crowd_t)
+	sub_crowd.update_at(crowd_t, crowd_state)
+	_touch_update(delta)
 	player_material.albedo_color = _player_color()
 	player_marker_material.albedo_color = _slot_color(str(net_state.get("slot", "")))
 	apply_orientation(Vector2(get_window().size) if get_window() != null else Vector2(16, 9))
@@ -425,6 +432,8 @@ func _begin_round(start_ms: float) -> void:
 	boss.visible = true
 	recorder.clear()
 	since_sample = 0.0
+	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
+	touch_timer = 0.0
 	boss_hp = float(config["boss_hp"])
 	last_strike = _strike_count((server_now_ms() - start_ms) / 1000.0)
 	if net_active:
@@ -472,13 +481,42 @@ func attack() -> bool:
 		return false
 	var reach := float(config["attack_reach"]) + float(config["boss_size"]) * 0.5
 	if not Damage.in_reach(player.position, boss.position, reach):
-		return false
+		return _attack_sub_enemy()
 	attack_cooldown = role_value("attack_cooldown_sec")
 	my_hits += Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]))
 	_recompute_boss_hp()
 	if net_active:
 		bridge.send_hits(my_hits)
 	return true
+
+
+## サブ敵への攻撃。届く距離のいちばん近い敵に当たる。ボスの体力には数えない（自分の画面の中だけ）
+func _attack_sub_enemy() -> bool:
+	var reach := float(config["attack_reach"]) + float((config["sub_enemy_size"] as Array)[0]) * 0.5
+	var i := crowd_state.nearest_alive(sub_crowd.last_positions, player.position, reach)
+	if i < 0:
+		return false
+	attack_cooldown = role_value("attack_cooldown_sec")
+	var t := (server_now_ms() - round_start_ms) / 1000.0
+	crowd_state.hit(i, Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"])), t, float(config["sub_enemy_respawn_sec"]))
+	return true
+
+
+## サブ敵にふれていると、一定の間隔でダメージを受ける（ジャンプ中・ダウン中は受けない）
+func _touch_update(delta: float) -> void:
+	if not round_active() or downed:
+		touch_timer = 0.0
+		return
+	var airborne := player.position.y > ground_y + float(config["dodge_height"])
+	var near := not airborne and crowd_state.nearest_alive(sub_crowd.last_positions, player.position, float(config["sub_enemy_touch_range"])) >= 0
+	if not near:
+		touch_timer = 0.0
+		return
+	touch_timer -= delta
+	if touch_timer <= 0.0:
+		touch_timer = float(config["sub_enemy_touch_interval_sec"])
+		player_hit_flash = float(config["hit_flash_sec"])
+		_set_my_hp(Damage.apply_damage(my_hp, Damage.damage_amount(float(config["sub_enemy_touch_power"]), float(config["sub_enemy_touch_multiplier"]))))
 
 
 ## 戦いの始まりの直後は、ほかの人の古いダメージ（前の戦いの分）が残っているので、少しのあいだ数えない

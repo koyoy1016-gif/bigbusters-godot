@@ -34,7 +34,7 @@ func setup(config: Dictionary, boss_center: Vector2) -> void:
 
 
 ## 戦いが始まってから t 秒の位置に並べ直す
-func update_at(t: float) -> void:
+func update_at(t: float, state: RefCounted = null) -> void:
 	var count := multi.instance_count
 	last_positions.resize(count)
 	var h := float((cfg["sub_enemy_size"] as Array)[1]) * 0.5
@@ -42,4 +42,7 @@ func update_at(t: float) -> void:
 		var p := CrowdPattern.position_at(i, count, t, center, float(cfg["sub_enemy_radius"]), float(cfg["sub_enemy_speed"]), float(cfg["sub_enemy_wobble"]))
 		var basis := Basis(Vector3.UP, CrowdPattern.heading_at(i, count, t, float(cfg["sub_enemy_speed"])))
 		last_positions[i] = Vector3(p.x, h, p.y)
+		# 倒れている敵は、大きさ0にして見えなくする
+		if state != null and not state.is_alive(i):
+			basis = basis.scaled(Vector3.ZERO)
 		multi.set_instance_transform(i, Transform3D(basis, last_positions[i]))
