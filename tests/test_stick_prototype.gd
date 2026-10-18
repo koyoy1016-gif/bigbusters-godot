@@ -218,7 +218,7 @@ func _initialize() -> void:
 			if text.begins_with("new URLSearchParams"):
 				return "2222"
 			if text.begins_with("JSON.stringify"):
-				return JSON.stringify({"status": "in_room", "slot": "p1", "members": ["p1", "p2"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}}, "hits": {"p2": 30}, "hp": {"p2": 100}, "round": 5000000})
+				return JSON.stringify({"status": "in_room", "slot": "p1", "members": ["p1", "p2"], "positions": {"p2": {"x": 0.5, "y": 0.5, "t": 1}}, "hits": {"p2": 30}, "hp": {"p2": {"hp": 100, "round": 5000000}}, "round": 5000000})
 			return null
 		var s3: Node = packed3.instantiate()
 		s3.use_network = false
@@ -258,11 +258,14 @@ func _initialize() -> void:
 		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2"], "hits": {"p2": 20}, "round": 5020000})
 		check(is_equal_approx(s3.boss_hp, float(s3.config["boss_hp"]) - 20.0), "少したつと、ほかの人のダメージを数える")
 		s3.player.position = Vector3(0.0, s3.ground_y, float(s3.config["boss_position"][1]) + 2.0)
+		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2"], "hits": {"p2": 20}, "hp": {"p2": {"hp": 60, "round": 5020000}}, "round": 5020000})
 		s3._set_my_hp(0.0)
 		check(s3.downed and not s3.lost, "自分だけダウンでも、仲間が生きていれば全滅ではない")
-		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2"], "hits": {"p2": 20}, "hp": {"p2": 0}, "round": 5020000})
+		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2"], "hits": {"p2": 20}, "hp": {"p2": {"hp": 0, "round": 5020000}}, "round": 5020000})
 		check(s3.lost, "仲間もダウンすれば、全滅")
 		check(s3.build_team_text().contains("p2"), "なかまの体力が画面に出る")
+		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2", "p3"], "hits": {"p2": 20}, "hp": {"p2": {"hp": 0, "round": 5020000}, "p3": {"hp": 90, "round": 1}}, "round": 5020000})
+		check(s3.lost, "古い記録の幽霊（p3）がいても、全滅のまま")
 		var count_now: int = s3.round_count
 		s3.apply_net_state({"slot": "p1", "members": ["p1"], "round": 4000000000000})
 		check(s3.round_count == count_now, "遠い未来の開始の時刻は、始めない")

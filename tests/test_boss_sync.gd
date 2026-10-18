@@ -31,14 +31,18 @@ func _initialize() -> void:
 	check(is_equal_approx(BossSync.others_total(hits, "p1", ["p1", "p2"]), 20.0), "いる人（p2）だけ数える。抜けた人（p3）は数えない")
 	check(is_equal_approx(BossSync.others_total(hits, "p1", []), 25.0), "いる人の一覧が空なら、全員分を数える")
 
-	# 全員ダウン
-	check(not BossSync.all_down(10.0, {"p2": 0.0}, "p1", ["p1", "p2"]), "自分が生きていれば、全滅ではない")
-	check(BossSync.all_down(0.0, {"p2": 0.0}, "p1", ["p1", "p2"]), "自分もほかの人もダウンなら、全滅")
-	check(not BossSync.all_down(0.0, {"p2": 30.0}, "p1", ["p1", "p2"]), "ほかの人が生きていれば、全滅ではない")
-	check(not BossSync.all_down(0.0, {}, "p1", ["p1", "p2"]), "ほかの人の体力が届いていなければ、元気として扱う")
-	check(BossSync.all_down(0.0, {}, "p1", ["p1"]), "1人だけなら、自分がダウンで全滅")
-	check(BossSync.all_down(0.0, {"p3": 50.0}, "p1", ["p1"]), "抜けた人（p3）の体力は見ない")
-	check(BossSync.all_down(0.0, null, "p1", ["p1"]), "体力の一覧が壊れていても、1人なら全滅")
+	# 全員ダウン（体力の記録は {hp, round}。今の戦い R のものだけ数える）
+	var R := 5000.0
+	var m2 := ["p1", "p2"]
+	check(not BossSync.all_down(10.0, {"p2": {"hp": 0.0, "round": R}}, "p1", m2, R), "自分が生きていれば、全滅ではない")
+	check(BossSync.all_down(0.0, {"p2": {"hp": 0.0, "round": R}}, "p1", m2, R), "自分もほかの人もダウンなら、全滅")
+	check(not BossSync.all_down(0.0, {"p2": {"hp": 30.0, "round": R}}, "p1", m2, R), "ほかの人が生きていれば、全滅ではない")
+	check(BossSync.all_down(0.0, {}, "p1", m2, R), "この戦いの体力が届いていない人（出ていない人）は、数えない")
+	check(BossSync.all_down(0.0, {"p2": {"hp": 50.0, "round": 4000.0}}, "p1", m2, R), "前の戦いの古い記録は、数えない")
+	check(BossSync.all_down(0.0, {"p2": {"hp": 0.0, "round": R}, "p3": {"hp": 80.0, "round": 1.0}}, "p1", ["p1", "p2", "p3"], R), "古い記録を残した幽霊（p3）がいても、全滅になる")
+	check(BossSync.all_down(0.0, {"p3": {"hp": 50.0, "round": R}}, "p1", ["p1"], R), "抜けた人（p3）の体力は見ない")
+	check(BossSync.all_down(0.0, null, "p1", ["p1"], R), "体力の一覧が壊れていても、1人なら全滅")
+	check(BossSync.others_hp({"p2": {"hp": 40, "round": R}, "p3": 20.0}, "p1", ["p1", "p2", "p3"], R) == {"p2": 40.0}, "古い形（数だけ）の記録は、数えない")
 
 	# ボスの攻撃の予定
 	check(Pattern.strike_index(0.0, 3.0, 4.0) == 0 and Pattern.strike_index(2.9, 3.0, 4.0) == 0, "最初の一撃の前は、0回")
@@ -59,7 +63,7 @@ func _initialize() -> void:
 
 	# 橋渡し
 	check(Bridge.build_send_hits_call(30.0) == "window.bbFirebase.sendHits(30.0)", "ダメージを送る呼び出し：%s" % Bridge.build_send_hits_call(30.0))
-	check(Bridge.build_send_hp_call(75.0) == "window.bbFirebase.sendHp(75.0)", "体力を送る呼び出し")
+	check(Bridge.build_send_hp_call(75.0, 5000.0) == "window.bbFirebase.sendHp(75.0, 5000.0)", "体力を送る呼び出し")
 	check(Bridge.build_start_round_call() == "window.bbFirebase.startRound()", "戦いを始める呼び出し")
 	var log: Array = []
 	var bridge := Bridge.new()
@@ -68,7 +72,7 @@ func _initialize() -> void:
 		return null
 	bridge.send_hits(12.5)
 	check(log.size() == 1 and str(log[0]).begins_with("window.bbFirebase.sendHits(12.5"), "send_hits が、JSを呼ぶ")
-	bridge.send_hp(60.0)
+	bridge.send_hp(60.0, 5000.0)
 	bridge.start_round()
 	check(log.size() == 3 and str(log[1]).begins_with("window.bbFirebase.sendHp(60") and str(log[2]) == "window.bbFirebase.startRound()", "send_hp と start_round が、JSを呼ぶ")
 

@@ -304,7 +304,7 @@ func _begin_round(start_ms: float) -> void:
 	last_strike = Pattern.strike_index((server_now_ms() - start_ms) / 1000.0, float(config["slam_first_delay_sec"]), float(config["slam_interval_sec"]))
 	if net_active:
 		bridge.send_hits(0.0)
-		bridge.send_hp(my_hp)
+		bridge.send_hp(my_hp, round_start_ms)
 	_recompute_boss_hp()
 
 
@@ -381,14 +381,14 @@ func _set_my_hp(value: float) -> void:
 	if my_hp <= 0.0:
 		downed = true
 	if net_active:
-		bridge.send_hp(my_hp)
+		bridge.send_hp(my_hp, round_start_ms)
 	_check_wipe()
 
 
 ## 部屋にいる全員がダウンしたら、全滅
 func _check_wipe() -> void:
 	if downed and not lost and round_start_ms > 0.0:
-		if BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", [])):
+		if BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms):
 			lost = true
 
 
@@ -503,17 +503,12 @@ func _draw_centered(center: Vector2, text: String, color: Color, scale: float = 
 	overlay.draw_string(font, center + Vector2(-w * 0.5, fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
 
 
-## なかまの体力の一覧（部屋にいる、自分以外）。体力がまだ届いていない人は、満タンとして出す
+## なかまの体力の一覧（この戦いに出ている、自分以外）
 func build_team_text() -> String:
-	var me := str(net_state.get("slot", ""))
-	var hp_map: Variant = net_state.get("hp", {})
+	var fighters := BossSync.others_hp(net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms)
 	var text := ""
-	for slot in net_state.get("members", []):
-		if str(slot) == me:
-			continue
-		var value: Variant = hp_map.get(str(slot), null) if hp_map is Dictionary else null
-		var hp := float(value) if (value is float or value is int) else float(config["player_hp"])
-		text += "  " + str(slot) + " " + str(ceili(hp))
+	for slot in fighters:
+		text += "  " + str(slot) + " " + str(ceili(float(fighters[slot])))
 	if text == "":
 		return ""
 	return str(config["team_label"]) + text

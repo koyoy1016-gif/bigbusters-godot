@@ -473,7 +473,7 @@ test('ルールが未更新で、ダメージが書けなくても、入室は�
 test('入っていなければ、体力も、戦いの開始も書かない', async () => {
   const sdk = makeFakeSdk({ uid: 'abc' });
   const bb = load(sdk);
-  assert.equal(bb.sendHp(50), false);
+  assert.equal(bb.sendHp(50, 1), false);
   assert.equal(bb.startRound(), false);
 });
 
@@ -481,11 +481,14 @@ test('体力を自分の枠に書く。ほかの人の体力も受け取る', as
   const sdk = makeFakeSdk({ uid: 'abc' });
   const bb = load(sdk);
   await bb.joinRoom(CFG, '1234');
-  assert.equal(bb.sendHp(75), true);
-  assert.equal(sdk.store.get('rooms/1234/hp/p1'), 75);
-  await sdk.db.set({ path: 'rooms/1234/hp/p2' }, 40);
-  assert.equal(bb.state.hp.p2, 40);
-  assert.equal(bb.state.hp.p1, 75);
+  assert.equal(bb.sendHp(75, 999), true);
+  const rec = sdk.store.get('rooms/1234/hp/p1');
+  assert.equal(rec.hp, 75);
+  assert.equal(rec.round, 999);
+  await sdk.db.set({ path: 'rooms/1234/hp/p2' }, { hp: 40, round: 999 });
+  assert.equal(bb.state.hp.p2.hp, 40);
+  assert.equal(bb.state.hp.p1.hp, 75);
+  assert.equal(bb.state.hp.p1.round, 999);
 });
 
 test('戦いを始めると、開始の時刻（サーバー時刻）が部屋に書かれ、全員の状態に届く', async () => {
@@ -515,7 +518,7 @@ test('退出すると、体力と開始の時刻の状態が消える', async ()
   const sdk = makeFakeSdk({ uid: 'abc' });
   const bb = load(sdk);
   await bb.joinRoom(CFG, '1234');
-  bb.sendHp(50);
+  bb.sendHp(50, 1);
   bb.startRound();
   await bb.leaveRoom();
   assert.equal(sdk.store.has('rooms/1234/hp/p1'), false);

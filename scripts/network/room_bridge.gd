@@ -34,8 +34,8 @@ static func build_send_hits_call(total: float) -> String:
 
 
 ## 自分の体力を送る（なかまの体力の表示と、全滅の判定に使う）
-static func build_send_hp_call(hp: float) -> String:
-	return "window.bbFirebase.sendHp(%s)" % str(hp)
+static func build_send_hp_call(hp: float, round_ms: float) -> String:
+	return "window.bbFirebase.sendHp(%s, %s)" % [str(hp), str(round_ms)]
 
 
 ## 戦いを始める（開始の時刻を、部屋に書く）
@@ -75,8 +75,8 @@ func send_hits(total: float) -> void:
 	js_eval.call(build_send_hits_call(total))
 
 
-func send_hp(hp: float) -> void:
-	js_eval.call(build_send_hp_call(hp))
+func send_hp(hp: float, round_ms: float) -> void:
+	js_eval.call(build_send_hp_call(hp, round_ms))
 
 
 func start_round() -> void:

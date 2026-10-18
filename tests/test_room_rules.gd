@@ -85,7 +85,9 @@ func _initialize() -> void:
 	# 体力（hp）：自分の枠にだけ、0〜1000の数を書ける
 	var hp_rules: Dictionary = code.get("hp", {}).get("$slot", {})
 	check(str(hp_rules.get(".write", "")) == own_slot_write, "体力を書けるのは、自分の枠の人だけ")
-	check(str(hp_rules.get(".validate", "")).contains("<= 1000") and str(hp_rules.get(".validate", "")).contains(">= 0"), "体力は0〜1000の数")
+	check(str(hp_rules.get(".validate", "")).contains("hasChildren(['hp', 'round'])"), "体力の記録は {hp, round}")
+	check(str(hp_rules.get("hp", {}).get(".validate", "")).contains("<= 1000") and str(hp_rules.get("hp", {}).get(".validate", "")).contains(">= 0"), "体力は0〜1000の数")
+	check(str(hp_rules.get("round", {}).get(".validate", "")) == "newData.isNumber()" and hp_rules.get("$other", {}).get(".validate", true) == false, "どの戦いかは数。ほかの項目は書けない")
 
 	# 使っている場所の名前が、関数の組み立てと同じ
 	check(code.has("players") and RoomCode.room_path("1234", int(cfg["code_digits"])) == "rooms/1234" and rooms.has("$code"), "rooms/{合言葉} の形が、関数と一致")

@@ -26,19 +26,31 @@ static func boss_hp(max_hp: float, my_hits: float, others: float) -> float:
 	return maxf(0.0, max_hp - my_hits - others)
 
 
-## 全員がダウンしたか。自分の体力が0以下で、部屋にいるほかの全員も0以下なら true。
-## 体力がまだ届いていない人は、元気（ダウンしていない）として扱う
-static func all_down(my_hp: float, hp_map: Variant, my_slot: String, members: Array) -> bool:
-	if my_hp > 0.0:
-		return false
+## この戦い（round）に参加している、ほかの人の体力。{枠: 体力}。
+## 体力の記録は {hp, round}。round が今の戦いと同じものだけ数える（前の戦いの古い記録や、戦いに出ていない人は数えない）
+static func others_hp(hp_map: Variant, my_slot: String, members: Array, round_ms: float) -> Dictionary:
+	var result := {}
 	if not (hp_map is Dictionary):
-		return true
+		return result
 	for slot in members:
 		if str(slot) == my_slot:
 			continue
-		var value: Variant = hp_map.get(str(slot), null)
-		if not (value is float or value is int):
-			return false
-		if float(value) > 0.0:
+		var entry: Variant = hp_map.get(str(slot), null)
+		if not (entry is Dictionary):
+			continue
+		var value: Variant = entry.get("hp", null)
+		var r: Variant = entry.get("round", null)
+		if (value is float or value is int) and (r is float or r is int) and is_equal_approx(float(r), round_ms):
+			result[str(slot)] = float(value)
+	return result
+
+
+## 全員がダウンしたか。自分の体力が0以下で、この戦いに出ているほかの全員も0以下なら true。
+## この戦いの体力がまだ届いていない人（出ていない人・入ったばかりの人）は、数えない
+static func all_down(my_hp: float, hp_map: Variant, my_slot: String, members: Array, round_ms: float) -> bool:
+	if my_hp > 0.0:
+		return false
+	for slot in others_hp(hp_map, my_slot, members, round_ms):
+		if float(others_hp(hp_map, my_slot, members, round_ms)[slot]) > 0.0:
 			return false
 	return true
