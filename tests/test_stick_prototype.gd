@@ -429,7 +429,7 @@ func _initialize() -> void:
 		check(not s3.other_target.has("p2") and not s3.others.has("p2"), "部屋にいない人の箱は、消える")
 		s3.apply_net_state({"slot": "p1", "positions": {}, "hits": {"p2": 30}})
 		check(not s3.others.has("p2"), "ほかの人が抜けたら、箱を消す")
-		s3.apply_net_state({"slot": "p1", "hits": {"p2": 395}, "round": 5000000})
+		s3.apply_net_state({"slot": "p1", "hits": {"p2": float(s3.config["boss_hp"]) + 5.0}, "round": 5000000})
 		check(s3.won and not s3.boss.visible, "ほかの人のダメージで、ボスが倒れたとき、自分の画面でも倒れる")
 		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHp(")), "体力を送る")
 		var count_before: int = s3.round_count
