@@ -74,6 +74,7 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 	a["kb_guard"] = maxf(0.0, float(a.get("kb_guard", 0.0)) - delta)
 	a["events"] = []
 	a["banner"] = ""
+	a["hit_events"] = []  # 版75：このコマでボスに当たった一撃ずつ [{dmg, action}]（ダメージの数字に使う）
 	var cfg: Dictionary = ctx["cfg"]
 	var st: Dictionary = a["stats"]
 	var actions := act(a)
@@ -376,6 +377,8 @@ static func _resolve_hit(a: Dictionary, ev: Dictionary, ctx: Dictionary) -> floa
 	var ult_scale := float(st.get("ultimate_scale", 1.0)) if str(ev.get("action", "")) == "ultimate" else 1.0  # 版74：剣士の必殺技は0.7倍
 	var dmg := Damage.damage_amount(float(st.get("attack_power", 10.0)), float(ctx["attack_multiplier"]) * float(ev["multiplier"]) * float(cfg["damage_scale"]) * ult_scale)
 	a["hits"] = float(a["hits"]) + dmg
+	if a.has("hit_events"):
+		(a["hit_events"] as Array).append({"dmg": dmg, "action": str(ev.get("action", ""))})
 	a["hit_n"] = int(a.get("hit_n", 0)) + 1  # 版69：当たった回数（ボスの怒りを数える）
 	(a["gauge"] as Gauge).charge(dmg * float(st.get("gauge_rate", 1.0)))  # 版74：剣士だけ30%速くたまる
 	return dmg

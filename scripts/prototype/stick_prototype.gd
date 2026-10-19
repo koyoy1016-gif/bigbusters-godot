@@ -41,6 +41,7 @@ const BossPhase := preload("res://scripts/combat/boss_phase.gd")
 const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const BossRage := preload("res://scripts/combat/boss_rage.gd")
 const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
+const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
 const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
 const BottleMesh := preload("res://scripts/boss/sake_bottle_mesh.gd")
 const SakeField := preload("res://scripts/combat/sake_field.gd")
@@ -469,6 +470,7 @@ func _process(delta: float) -> void:
 	var move := Vector2.ZERO if (downed or stun_left > 0.0) else stick_vec * actions.move_scale()
 	player.position = StickMath.step_position(player.position, move, role_value("move_speed"), delta, float(config["bounds"]))
 	hit_flash = maxf(0.0, hit_flash - delta)
+	damage_numbers().update(delta)
 	banner["left"] = maxf(0.0, float(banner["left"]) - delta)
 	for id in button_flash.keys():
 		button_flash[id] = maxf(0.0, float(button_flash[id]) - delta)
@@ -701,6 +703,7 @@ func _begin_round(start_ms: float) -> void:
 	rage.enabled = not net_active or rage.online  # 通信中は、画面ごとに数がちがうので、ふだんは怒らない
 	ai_forecast = []
 	ai_forecast_t = -999.0
+	damage_numbers().items.clear()
 	ult_dash_from = Vector3.INF
 	puddle_seen = {}
 	field.clear()
@@ -883,6 +886,7 @@ func _resolve_hit(ev: Dictionary) -> void:
 		_play_sfx("hit")
 		hit_flash = float(config["hit_flash_sec"])
 		_damage_boss(dmg)
+		_show_damage(dmg, str(ev.get("action", "")), Vector2(player.position.x, player.position.z))  # 版75：減らした量をそのまま出す
 		rage.add_hit(_round_t(), _dist_to_boss_surface(Vector2(player.position.x, player.position.z)))  # 版69：近くからなら、怒りに数える
 	var sub_r := float((config["sub_enemy_size"] as Array)[0]) * 0.5
 	var respawn := float(config["sub_enemy_respawn_sec"])
@@ -1026,6 +1030,68 @@ func boss_next_attack_in() -> float:
 	if not nxt.is_empty():
 		return maxf(0.0, float(nxt["start"]) - t)
 	return maxf(0.0, ai.next_start - t)
+
+
+## ---- 版75：与えたダメージの数字 ----
+var _dmg_nums: RefCounted = null
+var _dmg_font: FontVariation = null
+
+
+func damage_numbers() -> RefCounted:
+	if _dmg_nums == null:
+		_dmg_nums = DamageNumbers.new(config.get("damage_numbers", {}))
+	return _dmg_nums
+
+
+## 実際に与えたダメージ amount を、ボスの体の、当てた人（from：床の上の x, z）の側に出す。action：技の名前（強い技は大きく）
+func _show_damage(amount: float, action: String, from: Vector2) -> void:
+	var dc: Dictionary = config.get("damage_numbers", {})
+	var kind := "strong" if (dc.get("strong_actions", []) as Array).has(action) else "normal"
+	var bxz := Vector2(boss.position.x, boss.position.z)
+	var to := from - bxz
+	var side := to.normalized() * float(config["boss_size"]) * 0.5 * float(dc.get("toward", 0.6)) if to.length() > 0.01 else Vector2.ZERO
+	damage_numbers().add(amount, Vector3(bxz.x + side.x, float(dc.get("height_m", 4.0)), bxz.y + side.y), kind)
+
+
+func _draw_damage_numbers(screen: Vector2) -> void:
+	var dn: RefCounted = damage_numbers()
+	if dn.items.is_empty() or camera == null or font == null:
+		return
+	var dc: Dictionary = config.get("damage_numbers", {})
+	if _dmg_font == null:
+		_dmg_font = FontVariation.new()
+		_dmg_font.base_font = font
+		_dmg_font.variation_embolden = float(dc.get("embolden", 0.9))  # 太い文字（いまの文字の形を太らせる）
+	var base := float(config["ui_font_size"]) * float(dc.get("size_scale", 1.4))
+	for it in dn.items:
+		var w: Vector3 = it["world"]
+		if camera.is_position_behind(w):
+			continue
+		var kc: Dictionary = dn.kind_cfg(str(it["kind"]))
+		var lk: Dictionary = dn.look(it)
+		var px := maxi(int(dc.get("min_px", 18)), int(base * float(kc.get("size", 1.0)) * float(lk["scale"])))
+		var text := str(it["text"])
+		var sz := _dmg_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px)
+		var p := camera.unproject_position(w) + Vector2(float(it["dx"]) + float(lk["shake"]), float(it["dy"]) - float(lk["rise"]))
+		p = DamageNumbers.keep_on_screen(p, screen, sz * 0.5, float(dc.get("margin_px", 12.0)))
+		var a := float(lk["alpha"])
+		# 強い攻撃：出た瞬間の、短い衝撃線
+		if float(lk["burst"]) > 0.0:
+			var bcol := Color(str(kc.get("burst_color", "#fff3b0")))
+			bcol.a = a * float(lk["burst"])
+			for i in 8:
+				var ang := TAU * i / 8.0 + 0.2
+				var dir := Vector2(cos(ang), sin(ang))
+				var r0 := sz.x * 0.45 + 6.0
+				var r1 := r0 + 26.0 * (1.2 - float(lk["burst"]))
+				overlay.draw_line(p + dir * r0, p + dir * r1, bcol, 4.0)
+		var at := p + Vector2(-sz.x * 0.5, sz.y * 0.32)
+		var oc := Color(str(kc.get("outline", "#2b1606")))
+		oc.a = a
+		var fc := Color(str(kc.get("color", "#fff6c8")))
+		fc.a = a
+		overlay.draw_string_outline(_dmg_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, int(dc.get("outline_px", 9)), oc)
+		overlay.draw_string(_dmg_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, fc)
 
 
 ## 版69：p（x, z）から、ボスの体の表面までの距離（m。体の中なら 0 以下）
@@ -1572,6 +1638,8 @@ func _ai_update(delta: float) -> void:
 			for _i in int(a.get("hit_n", 0)) - hit_n0:
 				rage.add_hit(_round_t(), _dist_to_boss_surface(a["pos"]))
 			_ai_show_action(str(slot), a)
+			for he in a.get("hit_events", []):
+				_show_damage(float(he["dmg"]), str(he["action"]), a["pos"])  # 版75：AIの一撃ずつ
 			if dealt > 0.0:
 				ai_hits[slot] = float(ai_hits[slot]) + dealt
 				dealt_total += dealt
@@ -2745,6 +2813,7 @@ func _draw_overlay() -> void:
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.12), str(config["enrage_text"]), Color(str(config["enrage_color"])), 1.4)
 	if float(phase_text["left"]) > 0.0 and str(phase_text["text"]) != "":
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(phase_text["text"]), Color(str(config.get("bossbar_color_awake", "#ffffff"))), 1.8)
+	_draw_damage_numbers(screen)
 	_draw_banner(screen)
 
 

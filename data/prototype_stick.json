@@ -167,7 +167,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "74",
+  "build_id": "75",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -312,5 +312,62 @@
   "boss_hp_refill_sec": 1.2,
   "bossbar_color_awake": "#c43aff",
   "boss_down_text": "ボスが たおれた！",
-  "boss_awake_text": "覚醒！"
+  "boss_awake_text": "覚醒！",
+  "damage_numbers": {
+    "_note": "版75：与えたダメージの数字（scripts/ui/damage_numbers.gd、描くのは stick_prototype.gd の _draw_damage_numbers）。数は四捨五入した整数。format の {n} が数。kinds ごとに、色・縁取り・大きさ（ui_font_size×size_scale×size）・出た瞬間の大きさ pop・弾む秒 pop_sec・消えるまでの秒 life・衝撃線 burst・ゆれ shake_px。strong_actions：強い攻撃として出す技。critical：いまのゲームにクリティカルはないので、使う所はない（見た目だけ用意）。出す場所：ボスの体の、当てた人の側（boss_size の半分×toward）、高さ height_m",
+    "size_scale": 1.4,
+    "embolden": 0.9,
+    "outline_px": 9,
+    "min_px": 18,
+    "life": 0.65,
+    "rise_px": 56.0,
+    "fade_from": 0.55,
+    "stack_window": 0.3,
+    "stack_dx": 30.0,
+    "stack_dy": 18.0,
+    "max_items": 24,
+    "margin_px": 12.0,
+    "height_m": 4.0,
+    "toward": 0.6,
+    "strong_actions": [
+      "sub",
+      "ultimate"
+    ],
+    "kinds": {
+      "normal": {
+        "format": "{n}",
+        "color": "#fff6c8",
+        "outline": "#2b1606",
+        "size": 1.0,
+        "pop": 1.6,
+        "pop_sec": 0.14,
+        "life": 0.62
+      },
+      "strong": {
+        "format": "{n}",
+        "color": "#ffd23a",
+        "outline": "#3a1000",
+        "size": 1.5,
+        "pop": 2.2,
+        "pop_sec": 0.18,
+        "life": 0.8,
+        "burst": true,
+        "burst_sec": 0.16,
+        "burst_color": "#fff3b0"
+      },
+      "critical": {
+        "format": "{n}",
+        "color": "#ff6a4d",
+        "outline": "#2a0000",
+        "size": 1.6,
+        "pop": 2.4,
+        "pop_sec": 0.2,
+        "life": 0.85,
+        "shake_px": 5.0,
+        "burst": true,
+        "burst_sec": 0.2,
+        "burst_color": "#ffd0c0"
+      }
+    }
+  }
 }
