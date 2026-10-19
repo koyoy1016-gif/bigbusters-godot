@@ -1,6 +1,7 @@
 extends RefCounted
 ## ボスの攻撃の選び方（重み付きランダム）。画面を持たない（テストしやすい）。
-## 決まった順番はやめ、使える攻撃の中から、重みでくじ引きする。重みは data/boss_attacks.json の各攻撃の "ai"：
+## 決まった順番はやめ、使える攻撃の中から、重みでくじ引きする。
+## 版67：形態ごとに、この戦いでまだ出していない攻撃があり、いま出せる（待ち時間・必殺技の間かくを守る）なら、その中から選ぶ（全部の攻撃が最低1回は出る）。重みは data/boss_attacks.json の各攻撃の "ai"：
 ##   forms：{normal: 重み, awake: 重み}（0 や書いていない形態では使わない）
 ##   range：[近い, 遠い]（ねらう人までの距離 m がこの間なら、重みに near_mult をかける（書いていなければ1）。外なら far_mult 倍）
 ##   cooldown_sec：一度使ったら、この秒は使わない
@@ -25,6 +26,7 @@ var last_end := {}  ## 攻撃の種類 → 最後に終わった時刻
 var last_ult_end := -999.0
 var awake_since := -1.0  ## 覚醒した時刻（第2形態の始まり）
 var forced: Array = []  ## 必ず次に出す攻撃（版64：覚醒の体力が4分の1減るたびの巨大酒瓶ライド）
+var used := {"normal": {}, "awake": {}}  ## 版67：形態ごとの、この戦いで出した攻撃（まだの攻撃を先に出す）
 
 
 func reset(config: Dictionary, start_ms: float) -> void:
@@ -39,6 +41,7 @@ func reset(config: Dictionary, start_ms: float) -> void:
 	last_ult_end = -999.0
 	awake_since = -1.0
 	forced = []
+	used = {"normal": {}, "awake": {}}
 
 
 ## kind を、いまの攻撃が終わったら必ず出す（必殺技の待ち時間は無視する）。
@@ -79,7 +82,13 @@ func update(t: float, form: String, dist_of: Callable) -> void:
 		else:
 			nxt = choose(maxf(next_start, 0.0), form, dist_of)
 	if cur.is_empty() and not nxt.is_empty() and t >= float(nxt["start"]):
+		# 版67：消した攻撃・知らない攻撃が来たら、出さずに、使える別の攻撃に切りかえる
+		if not is_valid(str(nxt["kind"])):
+			var again := choose(float(nxt["start"]), form, dist_of)
+			nxt["kind"] = str(again["kind"]) if is_valid(str(again["kind"])) else str(((cfg.get("ai", {}) as Dictionary).get("fallback", {}) as Dictionary).get(form, "bat_h"))
+			nxt["feint"] = float(again.get("feint", 0.0))
 		var k: Dictionary = cfg["kinds"][str(nxt["kind"])]
+		(used[form] as Dictionary)[str(nxt["kind"])] = true
 		cur = nxt.duplicate()
 		cur["end"] = float(nxt["start"]) + Attacks.attack_duration(str(nxt["kind"]), k, int(nxt["n"]), round_start_ms) + float(nxt.get("feint", 0.0))
 		nxt = {}
@@ -103,6 +112,22 @@ func _finish(a: Dictionary) -> void:
 	if bool(_ai_of(kind).get("ultimate", false)):
 		last_ult_end = float(a["end"])
 	next_start = float(a["end"]) + float(cfg.get("gap_sec", 0.6))
+
+
+## 出してよい攻撃か（データにあり、消した印がない）
+func is_valid(kind: String) -> bool:
+	var kinds: Dictionary = cfg.get("kinds", {})
+	return kinds.has(kind) and not bool(_ai_of(kind).get("removed", false))
+
+
+## form で使える攻撃（形態の重みが 0 より大きい物）のうち、まだ出していない物
+func unused_in(form: String) -> Array:
+	var out: Array = []
+	for kind in cfg["kinds"]:
+		var forms: Dictionary = _ai_of(str(kind)).get("forms", {})
+		if float(forms.get(form, 0.0)) > 0.0 and is_valid(str(kind)) and not (used.get(form, {}) as Dictionary).has(kind):
+			out.append(str(kind))
+	return out
 
 
 func _ai_of(kind: String) -> Dictionary:
@@ -140,7 +165,7 @@ func candidate_weights(start: float, form: String, dist: float) -> Dictionary:
 		var ai := _ai_of(str(kind))
 		var forms: Dictionary = ai.get("forms", {})
 		var w := float(forms.get(form, 0.0))
-		if w <= 0.0:
+		if w <= 0.0 or bool(ai.get("removed", false)):
 			continue
 		if last_end.has(kind) and start - float(last_end[kind]) < float(ai.get("cooldown_sec", 0.0)):
 			continue
@@ -160,6 +185,14 @@ func candidate_weights(start: float, form: String, dist: float) -> Dictionary:
 			w *= float(g.get("strong_streak_mult", 0.25))
 		if w > 0.0:
 			out[kind] = w
+	# 版67：この形態でまだ出していない攻撃が、いま出せるなら、その中からだけ選ぶ（全部出したら、ふつうのくじにもどる）
+	var fresh := {}
+	var done: Dictionary = used.get(form, {})
+	for kind in out:
+		if not done.has(kind):
+			fresh[kind] = out[kind]
+	if not fresh.is_empty():
+		return fresh
 	return out
 
 

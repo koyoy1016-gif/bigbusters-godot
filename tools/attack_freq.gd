@@ -61,6 +61,10 @@ func _init() -> void:
 		fight_times.append(t)
 		awake_times.append(t - awake_at if awake_at >= 0.0 else 0.0)
 		forced_rides += int(s.awake_rides_done)
+		# この戦いで、形態ごとに出なかった攻撃（版67：全部の攻撃を1回は出す、の確認）
+		for f in ["normal", "awake"]:
+			var miss: Array = s.ai.unused_in(f)
+			print("MISS %d %s：%s" % [r, f, str(miss) if not miss.is_empty() else "なし（全部出た）"])
 		print("RUN %d：%.0f 秒（覚醒 %.0f 秒）%s" % [r, t, t - awake_at if awake_at >= 0.0 else 0.0, "勝ち" if s.won else "終わらず"])
 		root.remove_child(s)
 		s.free()

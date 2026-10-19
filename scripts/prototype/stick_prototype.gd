@@ -696,6 +696,7 @@ func _begin_round(start_ms: float) -> void:
 	puddle_seen = {}
 	field.clear()
 	_landed = {}
+	throw_fly = {}
 	_ignited = {}
 	motion.reset(motion.home)
 	boss.position = Vector3(motion.pos.x, 0.0, motion.pos.y)
@@ -1155,6 +1156,7 @@ func _start_hold(slot: String, from: Vector2) -> void:
 func _release_hold(freed: bool) -> void:
 	var k: Dictionary = attacks_cfg["kinds"]["grab"]
 	var slot := str(grab_state["slot"])
+	var decided: Variant = grab_state.get("throw_dir", null)
 	grab_state = {}
 	if freed:
 		_play_sfx("free")
@@ -1164,8 +1166,9 @@ func _release_hold(freed: bool) -> void:
 			player.position.y = ground_y
 		else:
 			# 逃げられなかった：放り投げられる（着地のダメージと、転んで起き上がるまでは、player_actions の「thrown」）
-			# ボスが前へ投げる：ボスの向きへ飛んでいく
-			var away := Attacks.fwd_of(boss.rotation.y)
+			# 版67：ボスからいちばん遠い人のほうへ投げる（だれもいなければ、ボスの向き）
+			var away: Vector2 = decided if decided is Vector2 else throw_dir(slot)
+			_begin_throw_fly(slot, away)
 			actions.start("thrown", away, 0.0, true)
 			if char_view != null:
 				char_view.face_now(-away)
@@ -1176,11 +1179,149 @@ func _release_hold(freed: bool) -> void:
 		a["held"] = false
 		other_lift[slot] = 0.0
 		if not freed:
-			# 投げられる（着地のダメージは、AiAlly.step が「landed」の印で受ける）
-			var away := Attacks.fwd_of(boss.rotation.y)
+			# 投げられる（着地のダメージは、AiAlly.step が「landed」の印で受ける）。向きは、いちばん遠い人のほう（版67）
+			var away: Vector2 = decided if decided is Vector2 else throw_dir(slot)
+			_begin_throw_fly(slot, away)
 			(AiAlly.act(a) as Actions).start("thrown", away, 0.0, true)
 		else:
 			a["stun"] = float(k["free_stun_sec"])
+
+
+## ---- 版67：つかみ投げの、投げる向きと、ぶつかり ----
+var throw_fly := {}  ## 投げられて飛んでいる人 {slot, t, dir, hit: {枠: true}, self_hit: bool}
+
+
+## 位置のわかる人（倒れていない）：枠 → 床の上の位置。自分・AIの味方・通信のほかの人
+func _people_positions() -> Dictionary:
+	var out := {}
+	var me := _my_slot()
+	if not downed:
+		out[me] = Vector2(player.position.x, player.position.z)
+	var half := float(config["bounds"])
+	for slot in other_pos:
+		if ai_allies.has(slot) and bool(ai_allies[slot]["downed"]):
+			continue
+		var np: Vector2 = other_pos[slot]
+		out[str(slot)] = (ai_allies[slot]["pos"] as Vector2) if ai_allies.has(slot) else Vector2(np.x * 2.0 * half - half, np.y * 2.0 * half - half)
+	return out
+
+
+## 投げる向き：投げられる人（slot）を除いて、ボスからいちばん遠い人のほう。同じ距離（0.01m 以内）なら、枠の名前の順で先の人。
+## だれもいない・ボスと同じ所にいるときは、ボスの正面
+func throw_dir(slot: String) -> Vector2:
+	var bp := Vector2(boss.position.x, boss.position.z)
+	var best := ""
+	var best_d := -1.0
+	var people := _people_positions()
+	var names: Array = people.keys()
+	names.sort()
+	for name in names:
+		if str(name) == slot:
+			continue
+		var d := (people[name] as Vector2).distance_to(bp)
+		if d > best_d + 0.01:
+			best_d = d
+			best = str(name)
+	if best != "" and best_d > 0.3:
+		return ((people[best] as Vector2) - bp).normalized()
+	return Attacks.fwd_of(boss.rotation.y)
+
+
+func _begin_throw_fly(slot: String, dir: Vector2) -> void:
+	throw_fly = {"slot": slot, "t": 0.0, "dir": dir, "hit": {}, "self_hit": false}
+
+
+## 投げられた人の、いまの床の上の位置と高さ。わからなければ {}
+func _thrown_body(slot: String) -> Dictionary:
+	if slot == _my_slot():
+		return {"pos": Vector2(player.position.x, player.position.z), "h": player.position.y - ground_y}
+	if ai_allies.has(slot):
+		return {"pos": ai_allies[slot]["pos"], "h": float(ai_allies[slot]["height"])}
+	return {}
+
+
+## 飛んでいる間と着地で、ほかの人にぶつかったか。ぶつかった人と投げられた人の両方にダメージ、ぶつかった人は転ぶ。
+## 1回の投げで、1人には1回だけ（hit に記録）。投げられた人へのぶつかりダメージも1回だけ（self_hit）
+func _throw_fly_update(delta: float) -> void:
+	if throw_fly.is_empty():
+		return
+	var k: Dictionary = attacks_cfg["kinds"]["grab"]
+	throw_fly["t"] = float(throw_fly["t"]) + delta
+	var slot := str(throw_fly["slot"])
+	var land_t := 0.85
+	var thrown_def: Dictionary = actions.def("thrown") if actions.has_action("thrown") else {}
+	for m in thrown_def.get("marks", []):
+		if str((m as Dictionary).get("name", "")) == "landed":
+			land_t = float((m as Dictionary)["t"])
+	if float(throw_fly["t"]) > land_t + 0.15:
+		throw_fly = {}
+		return
+	var body := _thrown_body(slot)
+	if body.is_empty():
+		throw_fly = {}
+		return
+	if float(body["h"]) > float(k.get("collide_height", 3.0)):
+		return  # 頭の上を飛びこしている
+	var bpos: Vector2 = body["pos"]
+	var dir: Vector2 = throw_fly["dir"]
+	var dmg := Damage.damage_amount(float(k.get("collide_power", k["drop_power"])), float(attacks_cfg["damage_multiplier"]))
+	var hit: Dictionary = throw_fly["hit"]
+	var me := _my_slot()
+	var people := _people_positions()
+	var names: Array = people.keys()
+	names.sort()
+	for name in names:
+		var victim := str(name)
+		if victim == slot or hit.has(victim):
+			continue
+		if not ai_allies.has(victim) and victim != me:
+			continue  # 通信のほかの人：ダメージは、その人の画面が決める（ここでは調べない）
+		if (people[name] as Vector2).distance_to(bpos) > float(k.get("collide_radius", 1.6)):
+			continue
+		hit[victim] = true
+		_hit_by_thrown(victim, dmg, dir)
+		if not bool(throw_fly["self_hit"]):
+			throw_fly["self_hit"] = true
+			_thrown_self_damage(slot, dmg)
+
+
+## ぶつかられた人：ダメージと、転ぶ（kb_heavy。投げの向きへ）。いまダメージを受けない状態（転んでいる・起き上がった直後・つかまれている）なら、何もしない
+func _hit_by_thrown(victim: String, dmg: float, dir: Vector2) -> void:
+	if victim == _my_slot():
+		if downed or _me_held() or actions.invulnerable() or kb_guard_left > 0.0:
+			return
+		_take_damage(dmg)
+		player_hit_flash = float(config["hit_flash_sec"])
+		_knockback("kb_heavy", dir)
+		return
+	var a: Dictionary = ai_allies[victim]
+	var acts := AiAlly.act(a)
+	if bool(a["downed"]) or bool(a.get("held", false)) or acts.invulnerable() or float(a.get("kb_guard", 0.0)) > 0.0:
+		return
+	a["hp"] = maxf(0.0, float(a["hp"]) - dmg)
+	a["flash"] = 0.15
+	if float(a["hp"]) <= 0.0:
+		a["downed"] = true
+		return
+	if acts.has_action("kb_heavy"):
+		acts.start("kb_heavy", dir, 0.0, true)
+		a["face"] = -dir
+		a["kb_guard"] = float(acts.def("kb_heavy").get("duration_sec", 0.5)) + float(acts.cfg.get("kb_guard_sec", 0.6))
+
+
+## 投げられた人が、ぶつかったときのダメージ（投げられている間は無敵なので、それを越えて1回だけ）。転ぶのは、投げられた動きのまま
+func _thrown_self_damage(slot: String, dmg: float) -> void:
+	if slot == _my_slot():
+		if not downed:
+			_take_damage(dmg, true)
+			player_hit_flash = float(config["hit_flash_sec"])
+	elif ai_allies.has(slot):
+		var a: Dictionary = ai_allies[slot]
+		if not bool(a["downed"]):
+			a["hp"] = maxf(0.0, float(a["hp"]) - dmg)
+			a["flash"] = 0.15
+			if float(a["hp"]) <= 0.0:
+				a["downed"] = true
 
 
 func _grab_update(delta: float) -> void:
@@ -1213,6 +1354,12 @@ func _grab_update(delta: float) -> void:
 		grab_state["phase"] = "throw"
 		grab_state["throw_t"] = 0.0
 		throwing = true
+		# 版67：投げる向きは、投げる動きに入った時点で決める（いちばん遠い人のほう）。ボスもそちらを向いて投げる
+		var tdir := throw_dir(slot)
+		grab_state["throw_dir"] = tdir
+		var gn := int(current_attack.get("n", -1))
+		if motion.locks.has(gn):
+			motion.locks[gn]["yaw"] = atan2(tdir.x, tdir.y)
 	if throwing:
 		grab_state["throw_t"] = float(grab_state["throw_t"]) + delta
 		if float(grab_state["throw_t"]) >= float(k["release_sec"]):
@@ -1476,6 +1623,7 @@ func combat_update(delta: float) -> void:
 	_apply_hazards(current_hazards)
 	_ai_update(delta)
 	_grab_update(delta)
+	_throw_fly_update(delta)
 	_show_hazards(current_hazards)
 	_update_puddles(delta)
 	_sake_spray_update()

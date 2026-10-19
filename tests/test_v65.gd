@@ -30,7 +30,7 @@ func _initialize() -> void:
 	var hit: Array = Attacks.hazards(a, float(b0["land"]) + 0.01, cfg, ctx).filter(func(h: Dictionary) -> bool: return str(h["id"]) == str(b0["id"]))
 	check(tele.size() == 1 and hit.size() == 1 and is_equal_approx(float(tele[0]["r"]), 2.5) and is_equal_approx(float(hit[0]["r"]), 2.5), "酒瓶落とし：予告の円と、当たる円の半径が同じ（2.5）")
 	var rb: Dictionary = kinds["bottle_ride"]
-	check(is_equal_approx(float(rb["throw_radius"]), 2.5) and is_equal_approx(float(rb["throw_power"]), 12.0), "ライドで投げる瓶も、落ちる範囲は半径2.5（1.25倍）、ダメージ12のまま")
+	check(is_equal_approx(float(rb["throw_radius"]), 3.125) and is_equal_approx(float(rb["throw_power"]), 12.0), "ライドで投げる瓶の落ちる範囲は半径3.125（版67でさらに1.25倍）、ダメージ12のまま")
 
 	# 戦いの画面：落ちる所の中心から 2.3m なら当たり、2.7m なら当たらない（見た目の円＝当たり）
 	var s: Node = (load(SCENE) as PackedScene).instantiate()

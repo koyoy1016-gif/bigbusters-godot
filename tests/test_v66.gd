@@ -1,6 +1,6 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_v66.gd
-## 版66の変更：剣士の体力1.75倍・覚醒のボスの体力9000（平常4000）・回転バット移動の削除・巨大酒瓶ライドの瓶18本。
+## 版66の変更：剣士の体力1.75倍・覚醒のボスの体力9000（平常4000）・回転バット移動の削除。巨大酒瓶ライドの瓶は版67で12本にもどした。
 
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const Attacks := preload("res://scripts/combat/boss_attacks.gd")
@@ -88,19 +88,19 @@ func _initialize() -> void:
 					seen.append(k)
 	check(seen.is_empty(), "平常・覚醒のどちらでも、回転バット移動は1回も選ばれない（4つの乱数×300秒）")
 
-	# ---- 4. 巨大酒瓶ライド：突入ごとに18本。突入の回数・長さは変わらない ----
+	# ---- 4. 巨大酒瓶ライド：突入ごとに12本（版67）。本数を変えても、突入の回数・長さは変わらない ----
 	var rk: Dictionary = acfg["kinds"]["bottle_ride"]
-	check(int(rk["bottles_per_pass"]) == 18, "突入1回に酒瓶18本")
+	check(int(rk["bottles_per_pass"]) == 12, "突入1回に酒瓶12本")
 	var rk12 := rk.duplicate()
-	rk12["bottles_per_pass"] = 12
+	rk12["bottles_per_pass"] = 18
 	var all18 := true
 	var same_len := true
 	for n in [1, 4, 9, 22]:
 		var ctx := {"n": n, "round_start_ms": 123.0, "bounds": 15.0, "boss": Vector2.ZERO, "area": 13.0}
 		for ps in Attacks.ride_plan(rk, ctx):
-			all18 = all18 and Attacks.ride_throws(ps, rk, ctx).size() == 18
+			all18 = all18 and Attacks.ride_throws(ps, rk, ctx).size() == 12
 		same_len = same_len and Attacks.ride_plan(rk, ctx).size() == Attacks.ride_plan(rk12, ctx).size() and is_equal_approx(Attacks.ride_total_for(rk, ctx), Attacks.ride_total_for(rk12, ctx))
-	check(all18, "どの突入でも、酒瓶を18本投げる")
-	check(same_len, "瓶を18本にしても、突入の回数と全体の長さは変わらない")
+	check(all18, "どの突入でも、酒瓶を12本投げる")
+	check(same_len, "瓶の本数（12本／18本）で、突入の回数と全体の長さは変わらない")
 	print("失敗: ", failures)
 	quit(1 if failures > 0 else 0)

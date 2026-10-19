@@ -69,7 +69,12 @@
         "_note": "版61：ねらう人が range の中（近い）なら重み1.5倍（near_mult）。遠いときは今までどおり（far_mult）"
       },
       "knockback": "none",
-      "kb_mode": "radial"
+      "kb_mode": "radial",
+      "collide_radius": 1.6,
+      "collide_height": 4.0,
+      "collide_power": 8.0,
+      "collide_note": "版67：投げられた人が、ほかの人にぶつかる判定。体の中心どうしが collide_radius m 以内、投げられた人の高さが collide_height m 以下（キャラの背の高さ。頭の上を飛びこすときは当たらない）。ぶつかった人と投げられた人の両方に collide_power（＝着地のダメージ drop_power と同じ）。ぶつかった人は kb_heavy で転ぶ。1回の投げで、1人には1回だけ",
+      "throw_far_note": "版67：投げる向きは、投げる時点でボスからいちばん遠い人（投げられる人は除く。同じ距離なら枠の名前の順で先の人）のほう。だれもいなければ、ボスの正面"
     },
     "typhoon": {
       "duration": 5.5,
@@ -595,19 +600,19 @@
       "seat_butt": 0.45,
       "seat_back": 1.4,
       "seat_note": "座る高さ：ボスの腰（足もとから seat_hip m。tools/measure_seat.gd で測った）が、瓶の上の面＋seat_butt に来る。ボスは瓶の中心より seat_back m うしろに座る",
-      "bottles_per_pass": 18,
+      "bottles_per_pass": 12,
       "throw_flight": 1.1,
       "throw_hit_sec": 0.15,
-      "throw_radius": 2.5,
+      "throw_radius": 3.125,
       "throw_power": 12.0,
       "throw_arc": 6.0,
       "throw_min_side": 4.0,
       "throw_max_side": 11.0,
-      "throw_min_gap": 4.5,
+      "throw_min_gap": 5.625,
       "throw_hand_up": 2.5,
       "neck_color": "#2f6a3c",
       "bottle_note": "版63：瓶の大きさ。胴の半径 bottle_radius、長さ half_len×2（実物の一升瓶の比率：長さ≒胴の半径×7.6）。当たりの帯の幅は half_width",
-      "throw_note": "版66：突入1回に18本（版65は12本）。投げる時刻は突入の始めから終わりまで等しい間（約0.07〜0.13秒ごと）。落ちる所はステージの中の、道からはなれた所、おたがい throw_min_gap m 以上（足りないときは、いちばん離れた所）。落ちる範囲の半径 2.5"
+      "throw_note": "版67：突入1回に12本（版66の18本から戻した）。投げる時刻は突入の始めから終わりまで等しい間（約0.1〜0.2秒ごと）。落ちる範囲の半径 3.125（版65の2.5の1.25倍。予告の円と当たりは同じ値）。瓶どうしの間 throw_min_gap も同じ割合で 4.5→5.625 に広げた（予告が重なりすぎないように）。足りないときは、いちばん離れた所"
     }
   },
   "damage_multiplier": 1.0,
