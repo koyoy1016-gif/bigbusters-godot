@@ -60,6 +60,7 @@ static func evade_dir(pos: Vector2, hazards: Array, margin: float, me: String) -
 static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 	a["flash"] = maxf(0.0, float(a["flash"]) - delta)
 	a["stun"] = maxf(0.0, float(a["stun"]) - delta)
+	a["kb_guard"] = maxf(0.0, float(a.get("kb_guard", 0.0)) - delta)
 	a["events"] = []
 	a["banner"] = ""
 	var cfg: Dictionary = ctx["cfg"]
@@ -210,7 +211,7 @@ static func _resolve_hit(a: Dictionary, ev: Dictionary, ctx: Dictionary) -> floa
 
 ## ボスの当たりを受ける。受けたダメージの合計を返す。done：すでに当たった印（キー → true）
 static func take_hazards(a: Dictionary, slot: String, hazards: Array, done: Dictionary, multiplier: float) -> float:
-	if bool(a["downed"]) or bool(a.get("held", false)) or act(a).invulnerable():
+	if bool(a["downed"]) or bool(a.get("held", false)) or act(a).invulnerable() or float(a.get("kb_guard", 0.0)) > 0.0:
 		return 0.0
 	var total := 0.0
 	var pos: Vector2 = a["pos"]
@@ -235,6 +236,14 @@ static func take_hazards(a: Dictionary, slot: String, hazards: Array, done: Dict
 			a["stun"] = maxf(float(a["stun"]), float(h["stun"]))
 		if bool(h.get("grab", false)):
 			a["held"] = true
+		elif str(h.get("kb", "none")) != "none" and act(a).has_action(str(h["kb"])):
+			# ふっ飛ぶ（転んで起き上がるまで、と少しの間は当たらない）
+			var acts := act(a)
+			var dir := Attacks.knock_dir(h, pos.x, pos.y)
+			acts.start(str(h["kb"]), dir, 0.0, true)
+			a["face"] = -dir
+			a["kb_guard"] = float(acts.def(str(h["kb"])).get("duration_sec", 0.5)) + float(acts.cfg.get("kb_guard_sec", 0.6))
+			break
 	if total > 0.0:
 		a["hp"] = maxf(0.0, float(a["hp"]) - total)
 		if float(a["hp"]) <= 0.0:

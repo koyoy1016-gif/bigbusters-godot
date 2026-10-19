@@ -87,6 +87,38 @@ static func grab_target(n: int, members: Array) -> String:
 ## ctx：{boss: Vector2, members: Array, positions: {枠: Vector2}（いま見えている位置）, locked: Vector2 か null（つかみの、決まった位置）, round_start_ms, bounds}
 static func hazards(a: Dictionary, u: float, cfg: Dictionary, ctx: Dictionary) -> Array:
 	var k: Dictionary = cfg["kinds"][str(a["kind"])]
+	var out := _hazards_raw(a, u, k, cfg, ctx)
+	# ふっ飛び：当たり場所が自分で決めていなければ、攻撃の設定（knockback・kb_mode）を付ける
+	for h in out:
+		if not (h as Dictionary).has("kb"):
+			h["kb"] = str(k.get("knockback", "kb_light"))
+		if not (h as Dictionary).has("kb_mode"):
+			h["kb_mode"] = str(k.get("kb_mode", "radial"))
+		if not (h as Dictionary).has("kb_yaw"):
+			h["kb_yaw"] = float(ctx.get("yaw", 0.0))
+	return out
+
+
+## ふっ飛ぶ向き（x, z）。h の kb_mode：radial（当たり場所の中心から外へ）／forward（ボスの前へ）／
+## travel（動いている向き：kb_x, kb_z）／sweep（振りの進む向き＋少し外へ）
+static func knock_dir(h: Dictionary, x: float, z: float) -> Vector2:
+	var c := Vector2(float(h.get("x", 0.0)), float(h.get("z", 0.0)))
+	var radial := Vector2(x, z) - c
+	radial = radial.normalized() if radial.length() > 0.05 else fwd_of(float(h.get("kb_yaw", 0.0)))
+	match str(h.get("kb_mode", "radial")):
+		"forward":
+			return fwd_of(float(h.get("kb_yaw", 0.0)))
+		"travel":
+			var d := Vector2(float(h.get("kb_x", 0.0)), float(h.get("kb_z", 0.0)))
+			return d.normalized() if d.length() > 0.01 else radial
+		"sweep":
+			# 振りの向き：角度が増える向き（右から左）。sweep_sign が -1 なら逆
+			var tangent := Vector2(radial.y, -radial.x) * float(h.get("sweep_sign", 1.0))
+			return (tangent * 0.75 + radial * 0.6).normalized()
+	return radial
+
+
+static func _hazards_raw(a: Dictionary, u: float, k: Dictionary, cfg: Dictionary, ctx: Dictionary) -> Array:
 	match str(a["kind"]):
 		GRAB:
 			return _grab(a, u, k, ctx)

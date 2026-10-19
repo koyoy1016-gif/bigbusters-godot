@@ -260,6 +260,8 @@ func _initialize() -> void:
 		s2.hazard_done = {}
 		s2.boss_model.reset_form()
 		s2.phase.phase = "normal"
+		s2.kb_guard_left = 0.0  # 酒に当たってふっ飛んだあとの、当たらない時間を終わらせる
+		s2.actions.reset()
 		now[0] = t0 + 40000.0
 		var gt: Dictionary = s2.force_attack("grab")
 		s2.player.position = Vector3(s2.boss.position.x, s2.ground_y, s2.boss.position.z + 3.0)

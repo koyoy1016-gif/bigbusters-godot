@@ -279,6 +279,221 @@
         }
       ],
       "note": "必殺技。ゲージがたまったときだけ。力をためて、一瞬で駆け抜けて、一撃で斬り捨てる。使うと、画面に技名が出る（CPUが使ったときも）"
+    },
+    "kb_light": {
+      "label": "",
+      "forced": true,
+      "cooldown_sec": 0.0,
+      "move_scale": 0.0,
+      "aim_boss": false,
+      "cleave": false,
+      "radius_scale": 1.0,
+      "i_frames": true,
+      "hits": [],
+      "duration_sec": 0.45,
+      "path": [
+        {
+          "t": 0.0,
+          "fwd": 0.0,
+          "h": 0.0
+        },
+        {
+          "t": 0.25,
+          "fwd": 2.2,
+          "h": 0.25
+        },
+        {
+          "t": 0.45,
+          "fwd": 2.6,
+          "h": 0.0
+        }
+      ],
+      "steps": [
+        {
+          "t": 0.0,
+          "anim": "hit",
+          "speed": 1.2
+        }
+      ],
+      "marks": [
+        {
+          "t": 0.25,
+          "name": "kb_landed"
+        }
+      ],
+      "note": "ボスの攻撃で、少し押しもどされる（転ばない）"
+    },
+    "kb_heavy": {
+      "label": "",
+      "forced": true,
+      "cooldown_sec": 0.0,
+      "move_scale": 0.0,
+      "aim_boss": false,
+      "cleave": false,
+      "radius_scale": 1.0,
+      "i_frames": true,
+      "hits": [],
+      "duration_sec": 1.9,
+      "path": [
+        {
+          "t": 0.0,
+          "fwd": 0.0,
+          "h": 0.0
+        },
+        {
+          "t": 0.22,
+          "fwd": 3.6,
+          "h": 1.8
+        },
+        {
+          "t": 0.48,
+          "fwd": 6.5,
+          "h": 0.0
+        },
+        {
+          "t": 1.9,
+          "fwd": 7.0,
+          "h": 0.0
+        }
+      ],
+      "steps": [
+        {
+          "t": 0.0,
+          "anim": "hit",
+          "speed": 1.0
+        },
+        {
+          "t": 0.2,
+          "anim": "down",
+          "speed": 2.4
+        },
+        {
+          "t": 1.0,
+          "anim": "down",
+          "speed": -2.6,
+          "from_end": true
+        }
+      ],
+      "marks": [
+        {
+          "t": 0.48,
+          "name": "kb_landed"
+        }
+      ],
+      "note": "バットで大きくふっ飛ばされ、転んで、起き上がる"
+    },
+    "kb_slam": {
+      "label": "",
+      "forced": true,
+      "cooldown_sec": 0.0,
+      "move_scale": 0.0,
+      "aim_boss": false,
+      "cleave": false,
+      "radius_scale": 1.0,
+      "i_frames": true,
+      "hits": [],
+      "duration_sec": 1.7,
+      "path": [
+        {
+          "t": 0.0,
+          "fwd": 0.0,
+          "h": 0.0
+        },
+        {
+          "t": 0.12,
+          "fwd": 0.6,
+          "h": 0.5
+        },
+        {
+          "t": 0.3,
+          "fwd": 1.0,
+          "h": 0.0
+        },
+        {
+          "t": 1.7,
+          "fwd": 1.0,
+          "h": 0.0
+        }
+      ],
+      "steps": [
+        {
+          "t": 0.0,
+          "anim": "down",
+          "speed": 3.0
+        },
+        {
+          "t": 0.95,
+          "anim": "down",
+          "speed": -2.6,
+          "from_end": true
+        }
+      ],
+      "marks": [
+        {
+          "t": 0.3,
+          "name": "kb_landed"
+        }
+      ],
+      "note": "上からたたきつけられて、その場に倒れ、起き上がる"
+    },
+    "kb_launch": {
+      "label": "",
+      "forced": true,
+      "cooldown_sec": 0.0,
+      "move_scale": 0.0,
+      "aim_boss": false,
+      "cleave": false,
+      "radius_scale": 1.0,
+      "i_frames": true,
+      "hits": [],
+      "duration_sec": 2.4,
+      "path": [
+        {
+          "t": 0.0,
+          "fwd": 0.0,
+          "h": 0.0
+        },
+        {
+          "t": 0.35,
+          "fwd": 5.5,
+          "h": 3.6
+        },
+        {
+          "t": 0.75,
+          "fwd": 11.0,
+          "h": 0.0
+        },
+        {
+          "t": 2.4,
+          "fwd": 11.5,
+          "h": 0.0
+        }
+      ],
+      "steps": [
+        {
+          "t": 0.0,
+          "anim": "roll",
+          "speed": 1.3
+        },
+        {
+          "t": 0.78,
+          "anim": "down",
+          "speed": 2.2
+        },
+        {
+          "t": 1.5,
+          "anim": "down",
+          "speed": -2.4,
+          "from_end": true
+        }
+      ],
+      "marks": [
+        {
+          "t": 0.75,
+          "name": "kb_landed"
+        }
+      ],
+      "note": "体当たり・大技で、遠くへはね飛ばされ、転んで、起き上がる"
     }
   },
   "ultimate_gauge": {
@@ -287,5 +502,7 @@
     "note": "ボスに与えたダメージで、ゲージがたまる。いっぱいで必殺技が使える"
   },
   "stop_margin": 0.9,
-  "stop_margin_note": "ボスに向かって進む攻撃が、ボスの中心から（ボスの半径＋この値）より近くには入らない"
+  "stop_margin_note": "ボスに向かって進む攻撃が、ボスの中心から（ボスの半径＋この値）より近くには入らない",
+  "knockback_note": "ボスの攻撃に当たったときの、ふっ飛び（kb_light / kb_heavy / kb_slam / kb_launch）。どの攻撃がどれを使うかは data/boss_attacks.json の各攻撃の knockback と kb_mode。ふっ飛んでいる間と、起き上がったあと kb_guard_sec 秒は、ボスの攻撃が当たらない（連続で当たって動けなくならないように）",
+  "kb_guard_sec": 0.6
 }

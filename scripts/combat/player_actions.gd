@@ -36,6 +36,11 @@ func ids() -> Array:
 	return cfg.get("order", [])
 
 
+## その動きがあるか
+func has_action(id: String) -> bool:
+	return (cfg.get("actions", {}) as Dictionary).has(id)
+
+
 func def(id: String) -> Dictionary:
 	var d: Variant = (cfg.get("actions", {}) as Dictionary).get(id, {})
 	return d if d is Dictionary else {}

@@ -349,6 +349,13 @@ func camera_update(delta: float) -> void:
 	var goal := Vector3(player.position.x, 0.0, player.position.z) * float(config["camera_follow"])
 	camera_target = camera_target.lerp(goal, Sync.smooth_weight(delta, float(config["camera_follow_per_sec"])))
 	var pos := camera_target + camera_offset
+	# 画面のゆれ（強い攻撃に当たったとき）
+	if shake_left > 0.0:
+		shake_left = maxf(0.0, shake_left - delta)
+		var k := shake_left / 0.3
+		pos += Vector3(randf_range(-1.0, 1.0), randf_range(-0.5, 0.5), randf_range(-1.0, 1.0)) * shake_amp * k
+		if shake_left <= 0.0:
+			shake_amp = 0.0
 	camera.transform = Transform3D(Basis.looking_at(camera_target - pos, Vector3.UP), pos)
 
 
@@ -431,12 +438,15 @@ func rematch_votes() -> Dictionary:
 
 
 func _exit_tree() -> void:
+	Engine.time_scale = 1.0
 	# 部屋から抜ける（枠を空ける）
 	if net_active and shared_bridge == null:
 		bridge.leave()
 
 
 func _process(delta: float) -> void:
+	_hitstop_update()
+	kb_guard_left = maxf(0.0, kb_guard_left - delta)
 	if dormant:
 		_dormant_update(delta)
 		return
@@ -1424,9 +1434,44 @@ func _sake_spray_update() -> void:
 			boss_model.spray_sake()
 
 
+## ---- ふっ飛び・ヒットストップ・画面のゆれ ----
+var kb_guard_left := 0.0  ## ふっ飛んでいる間と、起き上がったあとしばらくは、ボスの攻撃が当たらない
+var hitstop_until_ms := 0
+var shake_amp := 0.0
+var shake_left := 0.0
+
+
+## ボスの攻撃でふっ飛ぶ（kind：data/actions.json の kb_light / kb_heavy / kb_slam / kb_launch）。dir：飛ぶ向き (x, z)
+func _knockback(kind: String, dir: Vector2) -> void:
+	if not actions.has_action(kind):
+		return
+	actions.start(kind, dir, 0.0, true)
+	if char_view != null:
+		char_view.face_now(-dir)
+	_handle_action_events(actions.update(0.0))
+	kb_guard_left = float(actions.def(kind).get("duration_sec", 0.5)) + float(actions.cfg.get("kb_guard_sec", 0.6))
+	var hs: Array = (attacks_cfg.get("hitstop", {}) as Dictionary).get(kind, [0.05, 0.15])
+	_hitstop(float(hs[0]), float(hs[1]))
+	_play_sfx("thud" if kind != "kb_light" else "hurt")
+
+
+## 一瞬止める（当たった重さ）と、画面をゆらす
+func _hitstop(sec: float, shake: float) -> void:
+	shake_amp = maxf(shake_amp, shake)
+	shake_left = 0.3
+	if sec > 0.0 and is_inside_tree():
+		hitstop_until_ms = Time.get_ticks_msec() + int(sec * 1000.0)
+		Engine.time_scale = float(config.get("hitstop_time_scale", 0.06))
+
+
+func _hitstop_update() -> void:
+	if Engine.time_scale < 1.0 and Time.get_ticks_msec() >= hitstop_until_ms:
+		Engine.time_scale = 1.0
+
+
 ## 当たり場所の中にいれば、ダメージ（自分の分だけ調べる）。同じ当たりは1回だけ
 func _apply_hazards(hz: Array) -> void:
-	if downed or _me_held() or actions.invulnerable():
+	if downed or _me_held() or actions.invulnerable() or kb_guard_left > 0.0:
 		return
 	var me := _my_slot()
 	var airborne := player.position.y > ground_y + float(attacks_cfg["dodge_height"])
@@ -1450,6 +1495,9 @@ func _apply_hazards(hz: Array) -> void:
 			stun_left = maxf(stun_left, float(h["stun"]))
 		if bool(h.get("grab", false)) and not downed:
 			_start_hold(me, Vector2(float(h["x"]), float(h["z"])))
+		elif str(h.get("kb", "none")) != "none" and not downed:
+			_knockback(str(h["kb"]), Attacks.knock_dir(h, player.position.x, player.position.z))
+			return
 		if downed:
 			return
 

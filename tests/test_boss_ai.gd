@@ -46,7 +46,8 @@ func _initialize() -> void:
 	for i in a.size():
 		seen[str(a[i]["kind"])] = true
 		if i > 0:
-			check(float(a[i]["start"]) >= float(a[i - 1]["end"]) - 0.001, "攻撃が重ならない（%d）" % i) if float(a[i]["start"]) < float(a[i - 1]["end"]) - 0.001 else null
+			if float(a[i]["start"]) < float(a[i - 1]["end"]) - 0.001:
+				check(false, "攻撃が重ならない（%d）" % i)
 			if str(a[i]["kind"]) == str(a[i - 1]["kind"]):
 				repeats += 1
 	check(seen.size() >= 5, "いろいろな攻撃が出る（%d種類）" % seen.size())

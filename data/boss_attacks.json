@@ -48,7 +48,9 @@
           6.0
         ],
         "cooldown_sec": 6.0
-      }
+      },
+      "knockback": "none",
+      "kb_mode": "radial"
     },
     "typhoon": {
       "duration": 5.5,
@@ -74,7 +76,9 @@
         ],
         "cooldown_sec": 5.0,
         "strong": true
-      }
+      },
+      "knockback": "kb_light",
+      "kb_mode": "radial"
     },
     "flyers": {
       "duration": 6.0,
@@ -90,7 +94,9 @@
       "tele_alpha": 0.22,
       "ai": {
         "forms": {}
-      }
+      },
+      "knockback": "kb_light",
+      "kb_mode": "radial"
     },
     "flyer_storm": {
       "duration": 10.0,
@@ -117,7 +123,9 @@
           "awake": 0.8
         },
         "ultimate": true
-      }
+      },
+      "knockback": "kb_light",
+      "kb_mode": "radial"
     },
     "hand_sweep": {
       "duration": 10.0,
@@ -140,7 +148,9 @@
           "awake": 0.8
         },
         "ultimate": true
-      }
+      },
+      "knockback": "kb_launch",
+      "kb_mode": "travel"
     },
     "bat_h": {
       "_memo": "バットの横振り：右うしろから左前へ、腰の高さでなぎはらう（ジャンプでよけられる）。sweep_from_deg〜sweep_to_deg はバットの先が通る角度（tools/trace_tip.gd で測った値）。振っている間は、通りすぎた所までが当たる",
@@ -167,7 +177,9 @@
         "cooldown_sec": 0.0,
         "feint_chance": 0.3,
         "feint_sec": 0.45
-      }
+      },
+      "knockback": "kb_heavy",
+      "kb_mode": "sweep"
     },
     "bat_v": {
       "_memo": "バットの縦振り：頭の上から、前へまっすぐたたきつける。細長い帯。ジャンプではよけられない",
@@ -193,7 +205,9 @@
         ],
         "cooldown_sec": 0.0,
         "strong": true
-      }
+      },
+      "knockback": "kb_slam",
+      "kb_mode": "forward"
     },
     "bat_spin": {
       "_memo": "バットの回転斬り：バットを横にのばして、体ごと何回も回る。まわりの輪の中に、続けてダメージ",
@@ -218,7 +232,9 @@
         ],
         "cooldown_sec": 5.0,
         "strong": true
-      }
+      },
+      "knockback": "kb_heavy",
+      "kb_mode": "sweep"
     },
     "tail_spin": {
       "_memo": "しっぽ回し：しっぽをのばして、体ごと1回まわる。体のすぐそば（r_in より内側）は安全",
@@ -241,7 +257,9 @@
           6.0
         ],
         "cooldown_sec": 2.0
-      }
+      },
+      "knockback": "kb_heavy",
+      "kb_mode": "radial"
     },
     "walk_swing": {
       "_memo": "歩きながら振る：前へ歩きながら、バットを左右交互に swings 回振る。振る前に、当たる扇が出る",
@@ -268,7 +286,9 @@
           14.0
         ],
         "cooldown_sec": 4.0
-      }
+      },
+      "knockback": "kb_heavy",
+      "kb_mode": "sweep"
     },
     "sake_rain": {
       "_memo": "酒の雨（覚醒）：一升瓶をふり上げて、酒を空へばらまく（throws 回、1回に per_throw 粒）。fall_sec 後に、ボスの前の扇（angle_deg、min_dist〜max_dist m）へ降ってくる。落ちる所に先に輪が出る。落ちた所は、しばらくぬれる（見た目だけ）",
@@ -296,7 +316,9 @@
           14.0
         ],
         "cooldown_sec": 3.0
-      }
+      },
+      "knockback": "kb_light",
+      "kb_mode": "radial"
     }
   },
   "damage_multiplier": 1.0,
@@ -337,5 +359,24 @@
       "normal": "bat_h",
       "awake": "tail_spin"
     }
+  },
+  "hitstop": {
+    "_memo": "当たったときの、ヒットストップ（秒・止まる強さ）と画面のゆれ（m）。ふっ飛びの種類ごと",
+    "kb_light": [
+      0.04,
+      0.12
+    ],
+    "kb_heavy": [
+      0.08,
+      0.32
+    ],
+    "kb_slam": [
+      0.09,
+      0.38
+    ],
+    "kb_launch": [
+      0.1,
+      0.45
+    ]
   }
 }
