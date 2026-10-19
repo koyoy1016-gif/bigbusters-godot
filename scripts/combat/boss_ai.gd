@@ -24,6 +24,7 @@ var history: Array = []  ## 使った攻撃の種類（新しい順）
 var last_end := {}  ## 攻撃の種類 → 最後に終わった時刻
 var last_ult_end := -999.0
 var awake_since := -1.0  ## 覚醒した時刻（第2形態の始まり）
+var forced: Array = []  ## 必ず次に出す攻撃（版64：覚醒の体力が4分の1減るたびの巨大酒瓶ライド）
 
 
 func reset(config: Dictionary, start_ms: float) -> void:
@@ -37,6 +38,20 @@ func reset(config: Dictionary, start_ms: float) -> void:
 	last_end = {}
 	last_ult_end = -999.0
 	awake_since = -1.0
+	forced = []
+
+
+## kind を、いまの攻撃が終わったら必ず出す（必殺技の待ち時間は無視する）。
+## いまその攻撃の最中なら、それで足りたことにする（続けて2回出さない）。もう決まっている次の攻撃は、入れかえる
+func request(kind: String) -> void:
+	if not cur.is_empty() and str(cur["kind"]) == kind:
+		return
+	if forced.has(kind):
+		return
+	forced.append(kind)
+	if not nxt.is_empty():
+		nxt["kind"] = forced.pop_front()
+		nxt["feint"] = 0.0
 
 
 ## いまの攻撃をやめ、次の攻撃を delay 秒後からにする（ボスが倒れたとき・覚醒したとき）
@@ -58,7 +73,11 @@ func update(t: float, form: String, dist_of: Callable) -> void:
 		_finish(cur)
 		cur = {}
 	if cur.is_empty() and nxt.is_empty():
-		nxt = choose(maxf(next_start, 0.0), form, dist_of)
+		if not forced.is_empty():
+			n += 1
+			nxt = {"n": n, "kind": str(forced.pop_front()), "start": maxf(next_start, 0.0), "feint": 0.0}
+		else:
+			nxt = choose(maxf(next_start, 0.0), form, dist_of)
 	if cur.is_empty() and not nxt.is_empty() and t >= float(nxt["start"]):
 		var k: Dictionary = cfg["kinds"][str(nxt["kind"])]
 		cur = nxt.duplicate()

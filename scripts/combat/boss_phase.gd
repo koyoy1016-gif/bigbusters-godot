@@ -66,6 +66,15 @@ func hp(total: float) -> float:
 	return 0.0
 
 
+## 第2形態の体力が、every（割合。0.25 なら4分の1）ずつ何回減ったか（0〜。0 になった分＝倒した分は数えない）。第2形態でなければ 0
+func awake_steps(total: float, every: float) -> int:
+	if phase != AWAKE or every <= 0.0:
+		return 0
+	var lost := clampf((total - awake_base) / maxf(max2, 1.0), 0.0, 1.0)
+	var last := int(ceil(1.0 / every)) - 1  # 最後の区切り（0 になる所）は数えない
+	return mini(int(floor(lost / every + 0.000001)), last)
+
+
 ## いまの形態の最大体力（表示用）
 func max_hp() -> float:
 	return max1 if phase == NORMAL else max2

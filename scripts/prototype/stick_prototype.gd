@@ -686,6 +686,7 @@ func _begin_round(start_ms: float) -> void:
 	touch_timer = 0.0
 	boss_hp = float(config["boss_hp"])
 	phase.reset(float(config["boss_hp"]), float(config.get("boss_hp_awake", config["boss_hp"])), _trans_sec(), float(config.get("boss_hp_refill_sec", 1.2)))
+	awake_rides_done = 0
 	phase_text = {"text": "", "left": 0.0}
 	if boss_model != null:
 		boss_model.reset_form()
@@ -934,6 +935,9 @@ func _effective_others_hits() -> float:
 	return others_hits + _ai_hits_total()
 
 
+var awake_rides_done := 0  ## 覚醒の体力の区切りで入れた巨大酒瓶ライドの数（版64）
+
+
 ## ボスの体力 = 最大 − 自分の合計 − ほかの人の合計。0になったら倒した（戦いの最中だけ）
 func _recompute_boss_hp() -> void:
 	var total := _total_boss_damage_counted()
@@ -942,6 +946,11 @@ func _recompute_boss_hp() -> void:
 	if new_hp < boss_hp - 0.001 and phase.phase != BossPhase.FALL:
 		hit_flash = float(config["hit_flash_sec"])
 	boss_hp = new_hp
+	# 版64：覚醒の体力が4分の1減るたびに、必ず巨大酒瓶ライドを入れる（次の攻撃として）
+	var steps := phase.awake_steps(total, float(config.get("awake_ride_every", 0.0)))
+	if steps > awake_rides_done and not won and not lost:
+		awake_rides_done = steps
+		ai.request(Attacks.BOTTLE_RIDE)
 	if ev == BossPhase.FALL:
 		_on_boss_fall()
 	if round_start_ms > 0.0 and ev == BossPhase.DEAD and not won and not lost:

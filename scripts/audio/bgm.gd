@@ -7,6 +7,7 @@ const CONFIG_PATH := "res://data/bgm.json"
 var cfg: Dictionary = {}
 var muted := false
 var player: AudioStreamPlayer = null
+var active := false  ## 流すように指示したか（start で true、stop で false）
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -40,13 +41,18 @@ func start() -> bool:
 		return false
 	if not player.playing:
 		player.play()
+	active = true
 	return true
 
 
 func stop() -> void:
+	active = false
 	if player != null:
 		player.stop()
 
 
+## 流している状態か（流すように指示して、止めていない）。
+## 音の再生そのもの（player.playing）は、音の処理の都合で、play() の直後に一瞬 false のことがある（画面なしのテストで、まれに落ちていた原因）。
+## そのため、ゲームが決めた状態を返す
 func is_playing() -> bool:
-	return player != null and player.playing
+	return player != null and active

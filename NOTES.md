@@ -4,6 +4,7 @@
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-19 版64】ユーザー：覚醒の体力を1.5倍、体力が4分の1減るごとに必ず「酒瓶ライド」（ユーザーの文は音声入力で「小便ライド」）、それ以外でもランダム。→ `prototype_stick.json` の boss_hp_awake 6000・awake_ride_every 0.25。`boss_phase.gd` の awake_steps、`boss_ai.gd` の request／forced（次の攻撃を入れかえる。ライド中なら足りたことにする）、`stick_prototype.gd` の awake_rides_done。ランダムの出方は今までどおり（必殺技の重み2.0・待ち24秒）。あわせて `test_bgm` がまれに落ちる件を直した（`bgm.gd` の is_playing を「流すように指示したか」に。前は15回中3回失敗 → 30回すべて合格）。テスト `tests/test_awake_rides.gd` 新規、Godot全46本 合格。sim_fight 3戦3勝（82〜104秒）。**未確認**：通信中、区切りを越える時刻が画面ごとに少しずれると、ライドの始まりもずれるかもしれない
 - 【2026-10-19 版61〜63】ユーザーの「ボス戦の追加修正指示書（最終版）」を3段で実装（docs/boss-attacks.md に一覧と表）。
   - 版61：大きな手・台風・火祭りを AI から外す（`ai.forms` を空・`removed`）。酒だまりを残さない（`boss_attacks.json` の puddles_enabled: false）。つかみは近いときだけ重み1.5倍（`near_mult`。boss_ai.gd）。覚醒のオーラを消して色だけ（`boss_model.json` aura.enabled: false）
   - 版62：新しい攻撃 jump_move（移動ジャンプ落下：4〜10m移動・着地点を毎回ずらす・直撃18だけ）と spin_bat（回転バット移動：予告なし・体ごと回って前進・9×最大3回・当たりの丸 7.6m＝tools/measure_reach.gd で測ったバットの先）。テスト tests/test_new_attacks.gd
