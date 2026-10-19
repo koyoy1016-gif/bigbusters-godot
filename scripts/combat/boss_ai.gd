@@ -9,6 +9,8 @@ extends RefCounted
 ##   ultimate：必殺技（覚醒のときだけ。ultimate_first_sec・ultimate_cooldown_sec を守る）
 ##   not_after：この攻撃のすぐあとには出さない攻撃
 ##   feint_chance：フェイント（ためを長くして、一度ふりかけてやめる）を入れる確率
+## 版69：怒り（angry。近くからの攻撃が多い間。数えるのは boss_rage.gd）。怒っている間に決める攻撃は、つかみ投げの重みが ai.rage.grab_mult 倍。
+##   怒っている間に始まる攻撃は ai.rage.speed 倍の速さ（cur["speed"]。攻撃の長さを speed で割る。必殺技は速くしない）
 ## 共通の設定は data/boss_attacks.json の "ai"（history、repeat_mult、strong_streak_mult、fallback など）。
 ## くじの乱数は、戦いの開始の時刻と攻撃の番号から作る（同じ戦い・同じ状況なら同じ選び方）。
 ## 距離は、それぞれの画面で見えている位置を使う（通信中は、画面ごとに選び方がずれることがある：未確認）
@@ -27,6 +29,7 @@ var last_ult_end := -999.0
 var awake_since := -1.0  ## 覚醒した時刻（第2形態の始まり）
 var forced: Array = []  ## 必ず次に出す攻撃（版64：覚醒の体力が4分の1減るたびの巨大酒瓶ライド）
 var used := {"normal": {}, "awake": {}}  ## 版67：形態ごとの、この戦いで出した攻撃（まだの攻撃を先に出す）
+var angry := false  ## 版69：ボスが怒っているか（毎コマ、外から入れる）
 
 
 func reset(config: Dictionary, start_ms: float) -> void:
@@ -42,6 +45,19 @@ func reset(config: Dictionary, start_ms: float) -> void:
 	awake_since = -1.0
 	forced = []
 	used = {"normal": {}, "awake": {}}
+	angry = false
+
+
+## 版69：ai.rage の設定（なければ空）
+func _rage() -> Dictionary:
+	return (cfg.get("ai", {}) as Dictionary).get("rage", {})
+
+
+## 版69：攻撃 kind を、いま始めるときの速さ（怒っていれば rage.speed 倍。必殺技は1倍）
+func speed_for(kind: String) -> float:
+	if not angry or bool(_ai_of(kind).get("ultimate", false)):
+		return 1.0
+	return maxf(float(_rage().get("speed", 1.0)), 0.01)
 
 
 ## kind を、いまの攻撃が終わったら必ず出す（必殺技の待ち時間は無視する）。
@@ -105,7 +121,10 @@ func update(t: float, form: String, dist_of: Callable) -> void:
 		var k: Dictionary = cfg["kinds"][str(nxt["kind"])]
 		(used[form] as Dictionary)[str(nxt["kind"])] = true
 		cur = nxt.duplicate()
-		cur["end"] = float(nxt["start"]) + Attacks.attack_duration(str(nxt["kind"]), k, int(nxt["n"]), round_start_ms) + float(nxt.get("feint", 0.0))
+		# 版69：怒っている間に始まる攻撃は速くする（攻撃の中の秒 u を speed 倍で進めるので、長さは speed で割る）
+		var sp := speed_for(str(nxt["kind"]))
+		cur["speed"] = sp
+		cur["end"] = float(nxt["start"]) + (Attacks.attack_duration(str(nxt["kind"]), k, int(nxt["n"]), round_start_ms) + float(nxt.get("feint", 0.0))) / sp
 		nxt = {}
 
 
@@ -199,6 +218,8 @@ func candidate_weights(start: float, form: String, dist: float) -> Dictionary:
 			w *= lerpf(nm, float(ai.get("near_mult_max", nm)), close)
 		if kind == last:
 			w *= float(g.get("repeat_mult", 0.4))
+		if angry and kind == Attacks.GRAB:
+			w *= float(_rage().get("grab_mult", 1.0))  # 版69：怒っている間は、つかみ投げが選ばれやすい
 		if bool(ai.get("strong", false)) and strong_streak >= int(g.get("strong_streak", 2)):
 			w *= float(g.get("strong_streak_mult", 0.25))
 		if w > 0.0:

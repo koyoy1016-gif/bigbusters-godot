@@ -207,6 +207,7 @@ static func _resolve_hit(a: Dictionary, ev: Dictionary, ctx: Dictionary) -> floa
 		return 0.0
 	var dmg := Damage.damage_amount(float(st.get("attack_power", 10.0)), float(ctx["attack_multiplier"]) * float(ev["multiplier"]) * float(cfg["damage_scale"]))
 	a["hits"] = float(a["hits"]) + dmg
+	a["hit_n"] = int(a.get("hit_n", 0)) + 1  # 版69：当たった回数（ボスの怒りを数える）
 	(a["gauge"] as Gauge).charge(dmg)
 	return dmg
 

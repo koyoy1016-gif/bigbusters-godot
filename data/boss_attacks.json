@@ -667,6 +667,15 @@
     "fallback": {
       "normal": "bat_h",
       "awake": "tail_spin"
+    },
+    "rage": {
+      "near_m": 3.0,
+      "window_sec": 5.0,
+      "hits": 20,
+      "speed": 1.25,
+      "grab_mult": 2.0,
+      "online": false,
+      "_note": "版69：ボスの怒り。ボスの体から near_m m 以内で、味方の攻撃がボスに当たった回数を、直前の window_sec 秒で数える。hits 回以上ある間は怒る。怒っている間に始まる攻撃は speed 倍の速さ（必殺技は除く。つかまれて「にげる」を押す時間は変えない）、つかみ投げの重みは grab_mult 倍。online が false なら、通信中は怒らない（画面ごとに数がちがい、ボスの攻撃がずれるため）"
     }
   },
   "hitstop": {

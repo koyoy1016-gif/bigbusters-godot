@@ -39,6 +39,7 @@ const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 const BossMotion := preload("res://scripts/combat/boss_motion.gd")
 const BossPhase := preload("res://scripts/combat/boss_phase.gd")
 const BossAI := preload("res://scripts/combat/boss_ai.gd")
+const BossRage := preload("res://scripts/combat/boss_rage.gd")
 const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
 const BottleMesh := preload("res://scripts/boss/sake_bottle_mesh.gd")
 const SakeField := preload("res://scripts/combat/sake_field.gd")
@@ -70,6 +71,7 @@ var attacks_cfg: Dictionary = {}
 var ai := BossAI.new()  ## ボスの攻撃の選び方（重み付きランダム）
 var motion := BossMotion.new()  ## ボスの歩き（位置と向き）
 var phase := BossPhase.new()  ## ボスの体力の2段階（第1形態 → 倒れて覚醒 → 第2形態）
+var rage := BossRage.new()  ## 版69：近くからの攻撃が多い間、ボスが怒る（攻撃が速く、つかみ投げが多くなる）
 var phase_text := {"text": "", "left": 0.0}  ## 形態が変わったときに、画面に出す文字
 var hazard_nodes: Array = []
 var hazard_done := {}
@@ -697,6 +699,8 @@ func _begin_round(start_ms: float) -> void:
 	hazard_done = {}
 	grab_locked = {}
 	ai.reset(attacks_cfg, start_ms)
+	rage.setup((attacks_cfg.get("ai", {}) as Dictionary).get("rage", {}))
+	rage.enabled = not net_active or rage.online  # 通信中は、画面ごとに数がちがうので、ふだんは怒らない
 	puddle_seen = {}
 	field.clear()
 	_landed = {}
@@ -871,6 +875,7 @@ func _resolve_hit(ev: Dictionary) -> void:
 		_play_sfx("hit")
 		hit_flash = float(config["hit_flash_sec"])
 		_damage_boss(dmg)
+		rage.add_hit(_round_t(), _dist_to_boss_surface(Vector2(player.position.x, player.position.z)))  # 版69：近くからなら、怒りに数える
 	var sub_r := float((config["sub_enemy_size"] as Array)[0]) * 0.5
 	var respawn := float(config["sub_enemy_respawn_sec"])
 	if bool(ev["cleave"]):
@@ -912,6 +917,16 @@ func _damage_boss(amount: float) -> void:
 
 func _round_t() -> float:
 	return (server_now_ms() - round_start_ms) / 1000.0
+
+
+## 版69：p（x, z）から、ボスの体の表面までの距離（m。体の中なら 0 以下）
+func _dist_to_boss_surface(p: Vector2) -> float:
+	return p.distance_to(Vector2(boss.position.x, boss.position.z)) - float(config["boss_size"]) * 0.5
+
+
+## 版69：いまボスが怒っているか（近くからの攻撃が多い間）
+func boss_angry() -> bool:
+	return round_active() and rage.is_angry(_round_t())
 
 
 ## サブ敵にふれていると、一定の間隔でダメージを受ける（ジャンプ中・ダウン中は受けない）
@@ -1548,7 +1563,11 @@ func _ai_update(delta: float) -> void:
 		for slot in ai_allies:
 			var a: Dictionary = ai_allies[slot]
 			ctx["slot"] = slot
+			var hit_n0 := int(a.get("hit_n", 0))
 			var dealt := AiAlly.step(a, delta, ctx)
+			# 版69：AIの攻撃がボスに当たった回数。近くからなら、怒りに数える
+			for _i in int(a.get("hit_n", 0)) - hit_n0:
+				rage.add_hit(_round_t(), _dist_to_boss_surface(a["pos"]))
 			_ai_show_action(str(slot), a)
 			if dealt > 0.0:
 				ai_hits[slot] = float(ai_hits[slot]) + dealt
@@ -1645,10 +1664,12 @@ func combat_update(delta: float) -> void:
 	var cur: Dictionary = {}
 	_quick_grab_check(t)
 	if not staggering:
+		ai.angry = rage.is_angry(t)  # 版69：怒っている間に決める・始める攻撃は、つかみ投げが多く、速い
 		ai.update(t, "awake" if phase.is_awake() else "normal", _target_dist)
 		cur = ai.current()
 	var idx := 0 if not cur.is_empty() else -1
-	var cur_u := t - float(cur["start"]) if idx >= 0 else 0.0
+	# 攻撃の中の秒 u。版69：怒っている間に始まった攻撃は speed 倍で進む（予告・当たり・動きが、まとめて速くなる）
+	var cur_u := (t - float(cur["start"])) * float(cur.get("speed", 1.0)) if idx >= 0 else 0.0
 	var mctx := _attack_ctx({}, 0.0)
 	motion.update(delta, cur, cur_u, ai.next_attack() if not staggering else {}, attacks_cfg, mctx, staggering)
 	boss.position = Vector3(motion.pos.x, motion.height, motion.pos.y)
