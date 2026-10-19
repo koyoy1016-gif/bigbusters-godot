@@ -77,6 +77,17 @@ func _initialize() -> void:
 	check(s._me_held(), "つかむ時間の終わりまでは、まだ持ち上げられている")
 	s.grab_state["t"] = hold + 0.1
 	s._grab_update(0.016)
+	check(s._me_held() and str(s.grab_state["phase"]) == "throw", "逃げられないと、ボスが投げる動きに入る（まだ手の中）")
+	s._mash_escape()
+	for i in need:
+		s._mash_escape()
+	s._grab_update(0.016)
+	check(s._me_held() or s.actions.active == "thrown", "投げる動きに入ったら、連打では逃げられない")
+	var guard2 := 0
+	while s._me_held() and guard2 < 100:
+		s._grab_update(0.016)
+		guard2 += 1
+	check(guard2 * 0.016 >= float(k["release_sec"]) - 0.1, "手をはなすのは、投げる動きの途中（%.2f秒後）" % (guard2 * 0.016))
 	check(not s._me_held() and s.actions.active == "thrown", "逃げられないと、投げられる")
 	check(s.player.position.y > s.ground_y + 2.0 or s.actions.height > 2.0, "投げられた直後は、高い所にいる")
 	var hp1: float = s.my_hp

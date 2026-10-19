@@ -240,6 +240,11 @@ static func _grab(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Ar
 	var pos: Vector2 = ctx["positions"].get(target, (ctx["boss"] as Vector2) + fwd_of(float(ctx.get("yaw", 0.0))) * 6.0)
 	if u >= follow and ctx.get("locked") is Vector2:
 		pos = ctx["locked"]
+	# ボスの手が届く所まで（それより遠くの人は、つかめない）
+	var bp: Vector2 = ctx["boss"]
+	var reach := float(k.get("reach", 99.0))
+	if (pos - bp).length() > reach:
+		pos = bp + (pos - bp).normalized() * reach
 	var active := u >= hit_from
 	return [{"id": "gr%d" % int(a["n"]), "shape": "circle", "x": pos.x, "z": pos.y, "r": float(k["hit_radius"]), "active": active,
 		"tele": clampf(u / hit_from, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": target, "tick": -1, "style": "zone", "stun": float(k["stun_sec"]), "grab": true}]

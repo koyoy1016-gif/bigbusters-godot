@@ -2042,6 +2042,1902 @@
           "roughness": 0.3
         }
       ]
+    },
+    "oni_horns": {
+      "bone": "head",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0.075,
+            1.93,
+            0.05
+          ],
+          "to": [
+            0.11,
+            2.03,
+            0.0
+          ],
+          "r0": 0.028,
+          "r1": 0.02,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#d2bc8e",
+          "metallic": 0.0,
+          "roughness": 0.5
+        },
+        {
+          "shape": "rod",
+          "from": [
+            -0.075,
+            1.93,
+            0.05
+          ],
+          "to": [
+            -0.11,
+            2.03,
+            0.0
+          ],
+          "r0": 0.028,
+          "r1": 0.02,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#d2bc8e",
+          "metallic": 0.0,
+          "roughness": 0.5
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.11,
+            2.03,
+            0.0
+          ],
+          "to": [
+            0.12,
+            2.1,
+            -0.08
+          ],
+          "r0": 0.02,
+          "r1": 0.004,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#d2bc8e",
+          "metallic": 0.0,
+          "roughness": 0.5
+        },
+        {
+          "shape": "rod",
+          "from": [
+            -0.11,
+            2.03,
+            0.0
+          ],
+          "to": [
+            -0.12,
+            2.1,
+            -0.08
+          ],
+          "r0": 0.02,
+          "r1": 0.004,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#d2bc8e",
+          "metallic": 0.0,
+          "roughness": 0.5
+        }
+      ]
+    },
+    "oni_hair": {
+      "bone": "head",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "sphere",
+          "center": [
+            0.0,
+            1.955,
+            -0.01
+          ],
+          "r": 0.112,
+          "squash": [
+            1.0,
+            0.75,
+            1.05
+          ],
+          "color": "#2a1626",
+          "metallic": 0.0,
+          "roughness": 0.8
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.0,
+            1.99,
+            0.05
+          ],
+          "r": 0.085,
+          "squash": [
+            0.85,
+            0.85,
+            1.5
+          ],
+          "color": "#cc2230",
+          "metallic": 0.0,
+          "roughness": 0.8
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.0,
+            2.02,
+            0.13
+          ],
+          "r": 0.06,
+          "squash": [
+            0.9,
+            0.85,
+            1.25
+          ],
+          "color": "#cc2230",
+          "metallic": 0.0,
+          "roughness": 0.8
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.0,
+            2.02,
+            0.17
+          ],
+          "to": [
+            0.0,
+            1.99,
+            0.24
+          ],
+          "r0": 0.045,
+          "r1": 0.012,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#cc2230",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.0,
+            1.97,
+            -0.08
+          ],
+          "r": 0.075,
+          "squash": [
+            1.0,
+            1.0,
+            0.9
+          ],
+          "color": "#cc2230",
+          "metallic": 0.0,
+          "roughness": 0.8
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.1,
+            1.88,
+            -0.02
+          ],
+          "to": [
+            0.11,
+            1.8,
+            -0.05
+          ],
+          "r0": 0.03,
+          "r1": 0.01,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#2a1626",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "rod",
+          "from": [
+            -0.1,
+            1.88,
+            -0.02
+          ],
+          "to": [
+            -0.11,
+            1.8,
+            -0.05
+          ],
+          "r0": 0.03,
+          "r1": 0.01,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#2a1626",
+          "metallic": 0.0,
+          "roughness": 0.85
+        }
+      ]
+    },
+    "oni_fangs": {
+      "bone": "jaw",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0.024,
+            1.765,
+            0.118
+          ],
+          "to": [
+            0.022,
+            1.733,
+            0.126
+          ],
+          "r0": 0.009,
+          "r1": 0.001,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#f6f2e6",
+          "metallic": 0.0,
+          "roughness": 0.4
+        },
+        {
+          "shape": "rod",
+          "from": [
+            -0.024,
+            1.765,
+            0.118
+          ],
+          "to": [
+            -0.022,
+            1.733,
+            0.126
+          ],
+          "r0": 0.009,
+          "r1": 0.001,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#f6f2e6",
+          "metallic": 0.0,
+          "roughness": 0.4
+        }
+      ]
+    },
+    "oni_necklace": {
+      "bone": "spine01",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "sphere",
+          "center": [
+            -0.1,
+            1.6,
+            0.075
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.12,
+            1.55,
+            0.095
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.07500000000000001,
+            1.5606250000000002,
+            0.10124999999999999
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.09000000000000001,
+            1.493125,
+            0.12125
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.05,
+            1.5325000000000002,
+            0.12
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.06,
+            1.4525000000000001,
+            0.13999999999999999
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.024999999999999994,
+            1.515625,
+            0.13124999999999998
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.029999999999999992,
+            1.4281249999999999,
+            0.15124999999999997
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.0,
+            1.51,
+            0.135
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.0,
+            1.42,
+            0.155
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.024999999999999994,
+            1.515625,
+            0.13124999999999998
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.029999999999999992,
+            1.4281249999999999,
+            0.15124999999999997
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.05000000000000002,
+            1.5325000000000002,
+            0.12
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.06000000000000002,
+            1.4525000000000001,
+            0.13999999999999999
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.07500000000000001,
+            1.5606250000000002,
+            0.10124999999999999
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.09000000000000001,
+            1.493125,
+            0.12125
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.1,
+            1.6,
+            0.075
+          ],
+          "r": 0.013,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.12,
+            1.55,
+            0.095
+          ],
+          "r": 0.011,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "box",
+          "center": [
+            0.0,
+            1.43,
+            0.165
+          ],
+          "size": [
+            0.05,
+            0.055,
+            0.02
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "oni_sleeve_up_L": {
+      "bone": "upperarm01.L",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0.205,
+            1.6,
+            0.012
+          ],
+          "to": [
+            0.42,
+            1.35,
+            0.018
+          ],
+          "r0": 0.066,
+          "r1": 0.058,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#e8dcc0",
+          "metallic": 0.0,
+          "roughness": 0.85
+        }
+      ]
+    },
+    "oni_sleeve_up_R": {
+      "bone": "upperarm01.R",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            -0.205,
+            1.6,
+            0.012
+          ],
+          "to": [
+            -0.42,
+            1.35,
+            0.018
+          ],
+          "r0": 0.066,
+          "r1": 0.058,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#e8dcc0",
+          "metallic": 0.0,
+          "roughness": 0.85
+        }
+      ]
+    },
+    "oni_sleeve_lo_L": {
+      "bone": "lowerarm01.L",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0.41,
+            1.36,
+            0.018
+          ],
+          "to": [
+            0.53,
+            1.25,
+            0.17
+          ],
+          "r0": 0.056,
+          "r1": 0.048,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#e8dcc0",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.52,
+            1.26,
+            0.155
+          ],
+          "to": [
+            0.545,
+            1.24,
+            0.19
+          ],
+          "r0": 0.052,
+          "r1": 0.052,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#c42e3a",
+          "metallic": 0.0,
+          "roughness": 0.85
+        }
+      ]
+    },
+    "oni_sleeve_lo_R": {
+      "bone": "lowerarm01.R",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            -0.41,
+            1.36,
+            0.018
+          ],
+          "to": [
+            -0.53,
+            1.25,
+            0.17
+          ],
+          "r0": 0.056,
+          "r1": 0.048,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#e8dcc0",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "rod",
+          "from": [
+            -0.52,
+            1.26,
+            0.155
+          ],
+          "to": [
+            -0.545,
+            1.24,
+            0.19
+          ],
+          "r0": 0.052,
+          "r1": 0.052,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#c42e3a",
+          "metallic": 0.0,
+          "roughness": 0.85
+        }
+      ]
+    },
+    "oni_shoulder": {
+      "bone": "spine01",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "sphere",
+          "center": [
+            0.17,
+            1.6,
+            0.0
+          ],
+          "r": 0.072,
+          "squash": [
+            1.0,
+            0.8,
+            1.0
+          ],
+          "color": "#e8dcc0",
+          "metallic": 0.0,
+          "roughness": 0.8
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.17,
+            1.6,
+            0.0
+          ],
+          "r": 0.072,
+          "squash": [
+            1.0,
+            0.8,
+            1.0
+          ],
+          "color": "#e8dcc0",
+          "metallic": 0.0,
+          "roughness": 0.8
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.0,
+            1.66,
+            -0.07
+          ],
+          "to": [
+            0.0,
+            1.66,
+            0.04
+          ],
+          "r0": 0.13,
+          "r1": 0.13,
+          "squash": [
+            1.05,
+            0.6
+          ],
+          "color": "#c42e3a",
+          "metallic": 0.0,
+          "roughness": 0.85
+        }
+      ]
+    },
+    "oni_belt": {
+      "bone": "spine05",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0,
+            1.0,
+            0.0
+          ],
+          "to": [
+            0,
+            1.06,
+            0.0
+          ],
+          "r0": 0.185,
+          "r1": 0.185,
+          "squash": [
+            1.0,
+            0.75
+          ],
+          "color": "#1d1a24",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.14491547828108442,
+            1.03,
+            0.09202539555789303
+          ],
+          "r": 0.014,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.10445885757808156,
+            1.03,
+            0.12054698608735497
+          ],
+          "r": 0.014,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -0.054671238232347825,
+            1.03,
+            0.13874710847758484
+          ],
+          "r": 0.014,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            -2.0539125955565396e-17,
+            1.03,
+            0.14500000000000002
+          ],
+          "r": 0.014,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.054671238232347805,
+            1.03,
+            0.13874710847758487
+          ],
+          "r": 0.014,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.10445885757808154,
+            1.03,
+            0.12054698608735498
+          ],
+          "r": 0.014,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.14491547828108442,
+            1.03,
+            0.09202539555789306
+          ],
+          "r": 0.014,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.12,
+            0.98,
+            0.13
+          ],
+          "r": 0.012,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.13166666666666665,
+            0.92,
+            0.12666666666666668
+          ],
+          "r": 0.012,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.14333333333333334,
+            0.8760769515458674,
+            0.12333333333333334
+          ],
+          "r": 0.012,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.155,
+            0.86,
+            0.12000000000000001
+          ],
+          "r": 0.012,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.16666666666666666,
+            0.8760769515458673,
+            0.11666666666666667
+          ],
+          "r": 0.012,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.17833333333333334,
+            0.92,
+            0.11333333333333334
+          ],
+          "r": 0.012,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.19,
+            0.98,
+            0.11
+          ],
+          "r": 0.012,
+          "squash": [
+            1,
+            1,
+            1
+          ],
+          "color": "#c8c8d2",
+          "metallic": 0.6,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "oni_bat": {
+      "bone": "wrist.R",
+      "parts": [
+        {
+          "shape": "cylinder",
+          "size": [
+            0.026,
+            0.26,
+            0.026
+          ],
+          "offset": [
+            0,
+            -0.02,
+            0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#ebe7dc",
+          "metallic": 0.0,
+          "roughness": 0.9
+        },
+        {
+          "shape": "cylinder",
+          "size": [
+            0.04,
+            0.04,
+            0.04
+          ],
+          "offset": [
+            0,
+            0.12,
+            0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#e2b23a",
+          "metallic": 0.7,
+          "roughness": 0.3
+        },
+        {
+          "shape": "cylinder",
+          "size": [
+            0.042,
+            0.3,
+            0.042
+          ],
+          "offset": [
+            0,
+            0.28,
+            0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#8e92a4",
+          "metallic": 0.6,
+          "roughness": 0.35
+        },
+        {
+          "shape": "cylinder",
+          "size": [
+            0.058,
+            0.34,
+            0.058
+          ],
+          "offset": [
+            0,
+            0.58,
+            0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#8e92a4",
+          "metallic": 0.6,
+          "roughness": 0.35
+        },
+        {
+          "shape": "sphere",
+          "size": [
+            0.058,
+            0,
+            0
+          ],
+          "offset": [
+            0,
+            0.75,
+            0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#8e92a4",
+          "metallic": 0.6,
+          "roughness": 0.35
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.07,
+            0.47,
+            0.0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            4.286263797015737e-18,
+            0.47,
+            0.07
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.07,
+            0.47,
+            8.572527594031473e-18
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -1.285879139104721e-17,
+            0.47,
+            -0.07
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.04949747468305833,
+            0.52,
+            0.049497474683058325
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.049497474683058325,
+            0.52,
+            0.04949747468305833
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.049497474683058346,
+            0.52,
+            -0.049497474683058325
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.04949747468305832,
+            0.52,
+            -0.049497474683058346
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.07,
+            0.57,
+            0.0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            4.286263797015737e-18,
+            0.57,
+            0.07
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.07,
+            0.57,
+            8.572527594031473e-18
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -1.285879139104721e-17,
+            0.57,
+            -0.07
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.04949747468305833,
+            0.62,
+            0.049497474683058325
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.049497474683058325,
+            0.62,
+            0.04949747468305833
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.049497474683058346,
+            0.62,
+            -0.049497474683058325
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.04949747468305832,
+            0.62,
+            -0.049497474683058346
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.07,
+            0.6699999999999999,
+            0.0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            4.286263797015737e-18,
+            0.6699999999999999,
+            0.07
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.07,
+            0.6699999999999999,
+            8.572527594031473e-18
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -1.285879139104721e-17,
+            0.6699999999999999,
+            -0.07
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.04949747468305833,
+            0.72,
+            0.049497474683058325
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.049497474683058325,
+            0.72,
+            0.04949747468305833
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            -0.049497474683058346,
+            0.72,
+            -0.049497474683058325
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            90
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.016,
+            0.07,
+            0.016
+          ],
+          "offset": [
+            0.04949747468305832,
+            0.72,
+            -0.049497474683058346
+          ],
+          "rotation_deg": [
+            90,
+            0,
+            0
+          ],
+          "color": "#d4d7e0",
+          "metallic": 0.5,
+          "roughness": 0.4
+        }
+      ],
+      "offset": [
+        0.0,
+        0.08,
+        0.0
+      ],
+      "aim": [
+        0.4,
+        0.235,
+        0.874
+      ]
+    },
+    "oni_band": {
+      "bone": "head",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0,
+            1.885,
+            0.0
+          ],
+          "to": [
+            0,
+            1.925,
+            0.0
+          ],
+          "r0": 0.122,
+          "r1": 0.122,
+          "squash": [
+            1.0,
+            1.08
+          ],
+          "color": "#f4f1ea",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "box",
+          "center": [
+            0,
+            1.905,
+            0.132
+          ],
+          "size": [
+            0.055,
+            0.04,
+            0.01
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#c42e3a",
+          "metallic": 0.0,
+          "roughness": 0.8
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.0,
+            1.905,
+            -0.125
+          ],
+          "to": [
+            0.05,
+            1.85,
+            -0.22
+          ],
+          "r0": 0.018,
+          "r1": 0.012,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#f4f1ea",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.0,
+            1.905,
+            -0.125
+          ],
+          "to": [
+            -0.04,
+            1.84,
+            -0.21
+          ],
+          "r0": 0.018,
+          "r1": 0.012,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#f4f1ea",
+          "metallic": 0.0,
+          "roughness": 0.85
+        }
+      ]
+    },
+    "oni_bottle": {
+      "bone": "wrist.L",
+      "parts": [
+        {
+          "shape": "cylinder",
+          "size": [
+            0.055,
+            0.26,
+            0.055
+          ],
+          "offset": [
+            0,
+            0.1,
+            0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#3f7a44",
+          "metallic": 0.1,
+          "roughness": 0.3
+        },
+        {
+          "shape": "cylinder",
+          "size": [
+            0.058,
+            0.09,
+            0.058
+          ],
+          "offset": [
+            0,
+            0.1,
+            0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#f4f1ea",
+          "metallic": 0.0,
+          "roughness": 0.8
+        },
+        {
+          "shape": "cylinder",
+          "size": [
+            0.022,
+            0.12,
+            0.022
+          ],
+          "offset": [
+            0,
+            0.28,
+            0
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#3f7a44",
+          "metallic": 0.1,
+          "roughness": 0.3
+        }
+      ],
+      "offset": [
+        0.0,
+        0.06,
+        0.03
+      ],
+      "aim": [
+        0.0,
+        -0.3,
+        1.0
+      ]
     }
   }
 }

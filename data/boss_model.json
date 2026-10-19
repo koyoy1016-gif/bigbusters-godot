@@ -1,169 +1,86 @@
 {
- "_memo": "ボスの3Dモデル（コードで組む）。参考画像：docs/ref/boss_oni_reference.jpg（紫の鬼・スカジャン・とげバット）。長さの単位はメートル（model_scale をかけて大きくする）。原点は足もとの床。前は +Z。左（L）は +X",
- "arm_radius": 0.155,
- "arm_length": 8.0,
- "arm_bow": 0.35,
- "arm_sag": 0.45,
- "hand_radius": 0.3,
- "hand_follow_rate": 12.0,
- "lean_rate": 8.0,
- "flinch": 0.09,
- "flinch_recover": 0.5,
- "breath_speed": 1.8,
- "bob": 0.07,
- "breath_scale": 0.014,
- "sway": 0.025,
- "lean_by_attack": {
-  "grab": [
-   0.22,
-   0.0
+ "_memo": "ボスの3Dモデル。体と動きは剣士と同じ人型（MPFBの骨＋Quaterniusの動き素材）を model_scale 倍にしたもの。鬼の小物は tools/make_oni.py（data/attachments.json の oni_*）。長さの単位は、大きくする前のモデルの単位（身長およそ2）",
+ "model": "res://assets/models/hero_swordsman.glb",
+ "anim_library": "res://assets/anims/hero_ual.res",
+ "model_scale": 2.6,
+ "outline_width": 0.022,
+ "hide_meshes": [
+  "short04",
+  "eyebrow",
+  "eyelashes"
+ ],
+ "mesh_tint": {
+  "casualsuit": "#2b3168",
+  "shoes": "#26252d"
+ },
+ "tint_drop_texture": false,
+ "item_groups": {
+  "common": [
+   "oni_horns",
+   "oni_hair",
+   "oni_fangs",
+   "oni_necklace",
+   "oni_sleeve_up_L",
+   "oni_sleeve_up_R",
+   "oni_sleeve_lo_L",
+   "oni_sleeve_lo_R",
+   "oni_shoulder",
+   "oni_belt"
   ],
-  "typhoon": [
-   0.0,
-   0.18
+  "normal": [
+   "oni_bat"
   ],
-  "flyers": [
-   -0.08,
-   0.0
-  ],
-  "flyer_storm": [
-   -0.22,
-   0.0
-  ],
-  "hand_sweep": [
-   0.12,
-   0.2
+  "awake": [
+   "oni_band",
+   "oni_bottle"
   ]
  },
- "windup_sec": 0.35,
- "windup_ratio": -0.8,
- "model_scale": 1.3,
- "skin_normal": "#5e4a9c",
- "skin_awake": "#7e3474",
- "small_arm_radius": 0.115,
- "small_arm_length": 2.4,
+ "skin_normal": "#8a6fd6",
+ "skin_awake": "#e0506a",
  "stagger_at": 0.6,
  "awake_at": 0.5,
  "stagger_sec": 3.4,
  "stagger_swap_sec": 2.2,
- "awake_lean": 0.22,
- "awake_crouch": 0.8,
- "crouch_drop": 0.5,
- "torso_normal": "#9a3a5e",
- "torso_awake": "#c63a4c",
- "colors": {
-  "pants": "#2b3168",
-  "pants_dark": "#2a3270",
-  "jacket": "#232b58",
-  "jacket_back": "#1b1b25",
-  "sleeve": "#e8dcc0",
-  "rib_red": "#c42e3a",
-  "rib_white": "#f2efe8",
-  "shoe": "#26252d",
-  "shoe_white": "#f3f2ee",
-  "hair": "#cc2230",
-  "hair_dark": "#2a1626",
-  "horn": "#d2bc8e",
-  "tuft": "#b02a3a",
-  "spine": "#3e2f70",
-  "bat": "#8e92a4",
-  "spike": "#d4d7e0",
-  "grip": "#ebe7dc",
-  "gold": "#e2b23a",
-  "belt": "#1d1a24",
-  "stud": "#c8c8d2",
-  "claw": "#2e2240",
-  "eye": "#ffd84a",
-  "pupil": "#1a0f14",
-  "tooth": "#f6f2e6",
-  "mouth": "#3a0f1c",
-  "cuff": "#1a1820",
-  "bottle": "#3f7a44",
-  "jug": "#c8955a",
-  "rope": "#5a3a22",
-  "band": "#f4f1ea"
- },
- "arm_shoulder": [
-  0.74,
-  3.24,
-  0.0
- ],
- "small_arm_shoulders": [
-  [
-   0.36,
-   2.66,
-   -0.26
-  ],
-  [
-   0.34,
-   2.42,
-   -0.28
-  ],
-  [
-   0.32,
-   2.18,
-   -0.28
-  ]
- ],
- "head_pos": [
-  0.0,
-  3.95,
-  0.04
- ],
+ "flash_energy": 0.25,
  "tail_base": [
   0.0,
-  1.98,
-  -0.3
+  1.0,
+  -0.14
  ],
  "tail_radius": [
-  0.13,
-  0.05
+  0.06,
+  0.022
  ],
- "hip_y": 2.08,
- "_memo_crouch": "crouch_drop：いちばんしゃがんだとき、脚を何割縮めるか。hip_y：腰の高さ（しゃがむと、そのぶん上半身が下がる）",
- "head_scale": 0.9,
+ "tail_len": 1.15,
+ "tail_whip_len": 1.5,
+ "colors": {
+  "spine": "#3e2f70",
+  "tuft": "#b02a3a"
+ },
  "aura": {
-  "_memo": "覚醒のオーラ。amount：粒の数（多いほど重い）、radius：体からの距離（モデルの座標）",
-  "amount": 34,
+  "_memo": "覚醒のオーラ（世界の長さ。m）",
+  "amount": 30,
   "lifetime": 1.1,
-  "radius": 1.5,
+  "radius": 1.6,
+  "height": 3.5,
   "color_start": "#ff5a3c",
   "color_mid": "#c83cff",
   "color_end": "#5a1e8c",
   "ground_color": "#ff3c6e"
  },
- "flash_energy": 0.45,
- "_memo_legs": "leg_joints：脚の骨の位置（左。右は x を逆に）。walk_stride：1歩の前後の幅、walk_lift：足を上げる高さ、walk_bob：歩くときの腰の上下、crouch_splay：覚醒でしゃがむとき足を外へ開く幅、awake_small_lift：覚醒の小さな腕3組の高さ、tail_whip_len：しっぽ回しで伸ばす長さ",
- "leg_joints": {
-  "hip": [
-   0.3,
-   2.08,
-   0.0
-  ],
-  "knee": [
-   0.43,
-   1.18,
-   0.05
-  ],
-  "ankle": [
-   0.5,
-   0.46,
-   -0.04
-  ]
- },
- "walk_stride": 0.42,
- "walk_lift": 0.28,
- "walk_bob": 0.07,
- "crouch_splay": 0.32,
- "awake_small_lift": [
-  0.55,
-  -0.15,
-  -0.7
- ],
- "tail_whip_len": 3.4,
- "upper_arm_len": 1.35,
- "fore_arm_len": 1.45,
- "small_upper_len": 0.75,
- "small_fore_len": 0.85,
- "_memo_arms": "腕は関節のある2本の骨（上腕 upper_arm_len＋前腕 fore_arm_len、小さな腕は small_*）。届かない目標のときだけ、まっすぐのまま伸びる"
+ "moves": {
+  "_memo": "動きの数値。sword_hit：Sword_Attack で刃が前を通る秒。sword_arm_out：腕を横にのばした秒。punch_reach：Punch で左手がいちばんのびた秒。crouch_t：Jump_Start でしゃがんだ秒。death_fall：Death で倒れきる秒。walk_cycle_m：歩きの動き1回ぶんで進む長さ（m。足がすべらないように合わせる）。walk_full_speed：この速さ（m/秒）以上で、歩きの動きを全部出す",
+  "idle_speed": 0.9,
+  "walk_cycle_m": 3.6,
+  "walk_full_speed": 1.6,
+  "sword_hit": 0.47,
+  "sword_arm_out": 0.4,
+  "punch_reach": 0.3,
+  "crouch_t": 0.3,
+  "death_fall": 1.25,
+  "grab_bend_deg": 42.0,
+  "grab_lift_sec": 0.35,
+  "awake_lean": 14.0,
+  "flinch_deg": 9.0
+ }
 }

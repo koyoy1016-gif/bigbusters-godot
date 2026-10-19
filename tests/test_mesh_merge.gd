@@ -98,22 +98,23 @@ func _initialize() -> void:
 	boss.build(BM.load_config(), bskin)
 	await process_frame
 	var bn := _draw_items(boss)
+	print("boss draw ", bn)
 	check(bn.y <= int(budget.get("boss", 0)), "ボス（平常）を描く回数が上限以内：" + str(bn.y) + " / " + str(budget.get("boss", 0)))
 	boss._apply_form("awake")
 	await process_frame
 	var ba := _draw_items(boss)
+	print("boss awake draw ", ba)
 	check(ba.y <= int(budget.get("boss_awake", 0)), "ボス（覚醒）を描く回数が上限以内：" + str(ba.y) + " / " + str(budget.get("boss_awake", 0)))
-	var segs: int = BM.BigArmSegments * 2 + BM.SmallArmSegments * 6
-	check(boss.arm_mm != null and boss.arm_mm.multimesh.instance_count == segs, "腕の節は、まとめて描く（" + str(segs) + "節で1回）")
-	boss.set_curl("L", 1.0)
-	check(boss.hand_fist["L"].visible and not boss.hand_open["L"].visible, "にぎると、にぎった手に切り替わる")
-	boss.set_curl("L", 0.0)
-	check(boss.hand_open["L"].visible and not boss.hand_fist["L"].visible, "ひらくと、開いた手にもどる")
+	check(boss.tail_mm != null and boss.tail_mm.multimesh.instance_count == BM.TailSegments, "しっぽの節は、まとめて描く（1回）")
+	var oni := boss.model.find_child("OniCommon", true, false) as MeshInstance3D
+	check(oni != null and oni.skin != null, "鬼の小物（角・髪・袖など）は、骨についていく1つの形（スキン）になる")
+	check(boss.normal_items != null and boss.awake_items != null and boss.awake_items.visible and not boss.normal_items.visible, "覚醒では、バットを消して、はちまき・一升瓶を出す")
+	boss._apply_form("normal")
 	boss.set_flash(true)
 	var all_flash := true
 	for m in boss.mats:
 		all_flash = all_flash and (m as StandardMaterial3D).emission_enabled and (m as StandardMaterial3D).emission_energy_multiplier > 0.0
-	check(all_flash and boss.mats.has(bskin), "点滅は、まとめた形にも、肌にも出る")
+	check(all_flash and boss.mats.has(boss.skin), "点滅は、まとめた形にも、肌にも出る")
 	boss.set_flash(false)
 	boss.queue_free()
 

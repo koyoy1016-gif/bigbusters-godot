@@ -35,8 +35,8 @@
  "_memo": "画質のプリセット。target_3d_pixels：3Dを描く画素数の目安（スマホは画面の画素がとても多いので、3Dだけ小さく描いて広げる。文字やボタンはくっきりのまま）。scale_3d：3Dの細かさの上限（1.0＝画面と同じ）。min_scale_3d：下限。max_fps：0＝画面の更新に合わせる（30などに制限すると、ブラウザでは間隔がそろわず、かくかくして見える）。shadow_size：影の画像の大きさ。shadow_splits：影を何段に分けて描くか（1が一番軽い）。shadow_distance：影を出す距離（メートル）",
  "draw_budget": {
   "_memo": "1体を描く回数（面の数）の上限。増えすぎるとスマホで重くなる。tests/test_mesh_merge.gd が確かめる",
-  "boss": 24,
-  "boss_awake": 50,
+  "boss": 14,
+  "boss_awake": 16,
   "hero": 14
  }
 }

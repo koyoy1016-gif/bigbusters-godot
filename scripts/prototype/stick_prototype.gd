@@ -926,273 +926,59 @@ func build_result_lines() -> Array:
 	return lines
 
 
-## ボスの動き：腕（攻撃ごと）と体（息づかい・予備動作のかたむき・よろけ）。delta は1コマの秒
+## ボスの動き：剣士と同じ動き素材で、待ち・歩き・攻撃・よろけを動かす（scripts/boss/boss_moves.gd）。
+## 攻撃の動きは、攻撃が始まってからの秒で決まるので、予告と当たりの時刻に、振る瞬間が合う。delta は1コマの秒
 func _pose_boss(delta: float = 0.0) -> void:
-	boss_model.begin_frame(delta)
-	if boss_model.is_staggering():
-		boss_model.pose_stagger_arms(boss_clock)
-	else:
-		_pose_boss_arms()
 	var hit_now := hit_flash > 0.0 and not boss_was_hit
 	boss_was_hit = hit_flash > 0.0
 	boss_model.update_form(boss_hp_ratio(), delta)
-	boss_model.update_body(delta, boss_clock, _boss_lean_goal(), hit_now)
-
-
-## 攻撃に合わせた、体のかたむきの目標。攻撃の始めは、いったん逆にそらす（予備動作）
-func _boss_lean_goal() -> Vector2:
 	var kind := str(current_attack.get("kind", ""))
-	var table: Dictionary = boss_model.cfg.get("lean_by_attack", {})
-	if kind == "" or not table.has(kind):
-		return Vector2.ZERO
-	var v := Vector2(float(table[kind][0]), float(table[kind][1]))
-	if current_attack_u < float(boss_model.cfg.get("windup_sec", 0.35)):
-		return v * float(boss_model.cfg.get("windup_ratio", -0.8))
-	return v
+	var kinds: Dictionary = attacks_cfg.get("kinds", {})
+	var st := {"clock": boss_clock, "walk_dist": motion.walk_dist, "walk_speed": motion.speed_now, "kind": kind, "u": current_attack_u,
+		"k": kinds.get(kind, {}), "hit_now": hit_now, "grab": _grab_anim_state(), "aim_yaw": _grab_aim_yaw()}
+	var res: Dictionary = boss_model.animate(delta, boss_clock, st)
+	boss.rotation.y = motion.yaw + float(res.get("spin", 0.0))
+	_pose_sweep_hands()
 
 
-## ボスの腕：攻撃ごとの動き（ふだんは、ゆらゆら）。向きは歩き（motion.yaw）。回る技は、その上に回転を足す
-func _pose_boss_arms() -> void:
-	var kind := str(current_attack.get("kind", ""))
-	for side in ["L", "R"]:
-		boss_model.set_hand_scale(side, 1.0)
-		boss_model.set_curl(side, 0.0)
-	boss_model.tail_whip = 0.0
-	boss_model.follow_boost = 3.0 if kind in [Attacks.BAT_H, Attacks.BAT_V, Attacks.WALK_SWING, Attacks.BAT_SPIN] else 1.0
-	boss.rotation.y = motion.yaw
-	# 歩き：歩いた道のりで足を運ぶ（すべらないように、1歩の長さに合わせる）
-	var stride := float(boss_model.cfg.get("walk_stride", 0.42)) * float(boss_model.cfg["model_scale"])
-	boss_model.set_walk(motion.walk_dist * PI / maxf(2.0 * stride, 0.01), clampf(motion.speed_now / 1.6, 0.0, 1.0))
-	if kind == "":
-		boss_model.pose_idle(boss_clock)
-		return
-	var u := current_attack_u
-	var k: Dictionary = attacks_cfg["kinds"][kind]
-	var bp := Vector3(boss.position.x, 0.0, boss.position.z)
-	match kind:
-		Attacks.GRAB:
-			_pose_grab(u, k, bp)
-		Attacks.TYPHOON:
-			_pose_typhoon(u, k)
-		Attacks.FLYERS:
-			var pulse := sin(u * 9.0)
-			# 左手（L＝ボスの左、+X）は左側、右手は右側で、交互に投げる（腕が交差しないように）
-			boss_model.set_hand("L", boss_model.to_local(_bw(Vector3(2.5, 1.8, 3.5 + 2.0 * maxf(pulse, 0.0)))))
-			boss_model.set_hand("R", boss_model.to_local(_bw(Vector3(-2.5, 1.8, 3.5 + 2.0 * maxf(-pulse, 0.0)))))
-			boss_model.set_curl("L", 0.5 + 0.5 * pulse)
-			boss_model.set_curl("R", 0.5 - 0.5 * pulse)
-			boss_model.pose_small_arms(boss_clock)
-		Attacks.FLYER_STORM:
-			var shake := sin(u * 14.0) * 0.6
-			boss_model.set_hand("L", boss_model.to_local(_bw(Vector3(2.5 + shake, 7.0, 0.5))))
-			boss_model.set_hand("R", boss_model.to_local(_bw(Vector3(-2.5 - shake, 7.0, 0.5))))
-			boss_model.set_curl("L", 0.6)
-			boss_model.set_curl("R", 0.6)
-			boss_model.pose_small_arms(boss_clock)
-		Attacks.HAND_SWEEP:
-			_pose_sweep(u, k, bp)
-			boss_model.pose_small_arms(boss_clock)
-		Attacks.BAT_H:
-			var w := float(k["windup_sec"])
-			var sw := float(k["swing_sec"])
-			_pose_bat_swing(_swing_angle(u, w, sw, false), u < w + sw * 0.5)
-		Attacks.BAT_V:
-			_pose_bat_overhead(u, k)
-		Attacks.BAT_SPIN:
-			_pose_bat_spin(u, k)
-		Attacks.TAIL_SPIN:
-			_pose_tail_spin(u, k)
-		Attacks.WALK_SWING:
-			_pose_walk_swing(u, k)
+## つかんでいる最中の、ボスの動きに渡す状態（つかんでいなければ {}）
+func _grab_anim_state() -> Dictionary:
+	if grab_state.is_empty():
+		return {}
+	var k: Dictionary = attacks_cfg["kinds"]["grab"]
+	return {"phase": str(grab_state.get("phase", "hold")), "t": float(grab_state["t"]), "throw_t": float(grab_state.get("throw_t", 0.0)),
+		"throw_sec": float(k["throw_sec"]), "release_sec": float(k["release_sec"])}
 
 
-## ボスの前の向きにそって、ボスの足もとからの位置（ボスの右・上・前）を、世界の位置にする
-func _bw(off: Vector3) -> Vector3:
-	return Vector3(boss.position.x, 0.0, boss.position.z) + Basis(Vector3.UP, motion.yaw) * off
-
-
-## 横振りの、腕の角度（ボスの前が0。+が左＝バットを持つ側、-が右）。
-## 予備動作：うしろへ大きく引く（ゆっくり、ため）→ 振る：一気に反対側まで → 余韻：ゆっくり戻る
-static func _swing_angle(u: float, windup: float, swing: float, backhand: bool) -> float:
-	var back := deg_to_rad(125.0)
-	var through := deg_to_rad(-115.0)
-	if backhand:
-		var tmp := back
-		back = through
-		through = tmp
-	if u < windup:
-		var k := smoothstep(0.0, 1.0, u / windup)
-		return lerpf(deg_to_rad(40.0) * signf(back), back, k)
-	if u < windup + swing:
-		var k2 := (u - windup) / swing
-		return lerpf(back, through, k2 * k2 * (3.0 - 2.0 * k2))
-	var k3 := smoothstep(0.0, 1.0, clampf((u - windup - swing) / 0.6, 0.0, 1.0))
-	return lerpf(through, through * 0.7, k3)
-
-
-## バットを持つ左手を、体のまわりの角度 ang（前が0）へ。low：低く（足もとをなぎはらう高さ）
-func _pose_bat_swing(ang: float, winding: bool) -> void:
-	var sh: Vector3 = boss_model.shoulder["L"]
-	var reach := 3.2
-	var y := sh.y - (0.9 if not winding else 0.2)
-	var hand := Vector3(sh.x * 0.3 + sin(ang) * reach, y, cos(ang) * reach)
-	boss_model.set_hand("L", hand, Vector3(0.0, 0.6, 0.0))
-	boss_model.set_curl("L", 1.0)
-	# 反対の手：体のバランスをとる（振りと逆へ）
-	var sr: Vector3 = boss_model.shoulder["R"]
-	boss_model.set_hand("R", sr + Vector3(-1.2 - 0.6 * cos(ang), -1.6, -0.8 * sin(ang) + 0.4))
-	boss_model.pose_small_arms(boss_clock)
-
-
-## 縦振り：頭の上へ高く振りかぶって（ため）→ 前の地面へたたきつける → 少し止まって持ち上げる
-func _pose_bat_overhead(u: float, k: Dictionary) -> void:
-	var w := float(k["windup_sec"])
-	var sh: Vector3 = boss_model.shoulder["L"]
-	var up := sh + Vector3(-0.5, 2.6, -1.2)
-	var down := Vector3(0.2, 0.7, 4.0)
-	var hand: Vector3
-	if u < w:
-		hand = sh.lerp(up, smoothstep(0.0, 1.0, u / w))
-	elif u < w + 0.12:
-		var f := (u - w) / 0.12
-		hand = up.lerp(down, f * f)
-	else:
-		var f2 := smoothstep(0.0, 1.0, clampf((u - w - 0.35) / 0.7, 0.0, 1.0))
-		hand = down.lerp(sh + Vector3(0.6, -0.8, 1.6), f2)
-	boss_model.set_hand("L", hand, Vector3(0.0, 0.8, -0.4))
-	boss_model.set_curl("L", 1.0)
-	var sr: Vector3 = boss_model.shoulder["R"]
-	boss_model.set_hand("R", sr + Vector3(-1.4, -1.2 if u < w else -2.0, 0.6))
-	boss_model.pose_small_arms(boss_clock)
-
-
-## 回転斬り：バットを横へのばして、体ごと何回も回る（はじめはゆっくり、だんだん速く、最後はゆるめる）
-func _pose_bat_spin(u: float, k: Dictionary) -> void:
-	var wind := float(k["windup_sec"])
-	var active_end := float(k["duration"]) - float(k["recover_sec"])
-	var spin_t := active_end - wind
-	var turns := maxf(1.0, roundf(float(k["spin_deg_per_sec"]) * spin_t / 360.0))
-	var p := clampf((u - wind) / spin_t, 0.0, 1.0)
-	boss.rotation.y = motion.yaw + turns * TAU * smoothstep(0.0, 1.0, p)
-	var open := smoothstep(0.0, wind, u)
-	if u > active_end:
-		open = 1.0 - smoothstep(active_end, float(k["duration"]), u)
-	var sh: Vector3 = boss_model.shoulder["L"]
-	var ang := lerpf(deg_to_rad(30.0), deg_to_rad(95.0), open) + (0.4 * sin(u * 3.0) if u < wind else 0.0)
-	boss_model.set_hand("L", Vector3(sh.x * 0.3 + sin(ang) * 3.4, sh.y - 0.9, cos(ang) * 3.4), Vector3(0.0, 0.0, -1.2 * open))
-	boss_model.set_curl("L", 1.0)
-	var sr: Vector3 = boss_model.shoulder["R"]
-	boss_model.set_hand("R", sr + Vector3(-2.2 * open - 0.5, -0.8, 0.3), Vector3(0.0, 0.0, 1.0 * open))
-	boss_model.pose_small_arms(boss_clock)
-
-
-## しっぽ回し：体をかがめて、しっぽを長くのばし、1回くるりと回る
-func _pose_tail_spin(u: float, k: Dictionary) -> void:
-	var w := float(k["windup_sec"])
-	var sweep := float(k["sweep_sec"])
-	var p := clampf((u - w) / sweep, 0.0, 1.0)
-	# 予備動作：少し反対へひねる → 一気に1回転
-	var twist := -0.6 * smoothstep(0.0, w, u) * (1.0 - p)
-	boss.rotation.y = motion.yaw + twist + TAU * (p * p * (3.0 - 2.0 * p))
-	boss_model.tail_whip = smoothstep(0.0, w * 0.8, u) * (1.0 - smoothstep(w + sweep, float(k["duration"]), u))
-	boss_model.pose_idle(boss_clock)
-
-
-## 歩きながら振る：歩く足の上で、バットを左右交互に振る
-func _pose_walk_swing(u: float, k: Dictionary) -> void:
-	var n := int(k["swings"])
-	var i := 0
-	for j in n:
-		if u >= Attacks.swing_time(j, k) - float(k["tele_sec"]):
-			i = j
-	var hit_t := Attacks.swing_time(i, k)
-	var tele := float(k["tele_sec"])
-	var local_u := u - (hit_t - tele)
-	_pose_bat_swing(_swing_angle(local_u, tele, float(k["hit_sec"]) + 0.08, i % 2 == 1), local_u < tele)
-
-
-## つかみ：目標の上でねらう → 下ろす → つかんで持ち上げる（つかめなければ、地面をたたいて開く）
-func _pose_grab(u: float, k: Dictionary, bp: Vector3) -> void:
-	var follow := float(k["follow_sec"])
-	var lock := float(k["lock_sec"])
-	var hit_from := follow + lock
-	var target := _bw(Vector3(0.0, 0.0, 6.0))
-	if not current_hazards.is_empty():
-		var h: Dictionary = current_hazards[0]
-		target = Vector3(float(h["x"]), 0.0, float(h["z"]))
-		grab_last_target = target
-	elif u >= hit_from:
-		target = grab_last_target
-	var hand := target
-	var curl := 0.0
-	if not grab_state.is_empty():
-		hand = grab_hand
-		curl = 1.0
-	elif u < follow:
-		hand.y = 3.2 + 0.25 * sin(u * 7.0)
-	elif u < hit_from:
-		hand.y = lerpf(3.2, 1.6, (u - follow) / lock)
-		curl = 0.25
-	elif u < hit_from + 0.4:
-		hand.y = 0.9
-		curl = 0.0
-	else:
-		var back := clampf((u - hit_from - 0.4) / 1.0, 0.0, 1.0)
-		hand = hand.lerp(_bw(Vector3(-2.5, 1.5, 3.5)), back)
-		hand.y = lerpf(0.9, 1.5, back)
-	boss_model.set_hand("R", boss_model.to_local(hand))
-	boss_model.set_curl("R", curl)
-	if boss_model.is_awake():
-		boss_model.set_hand("L", boss_model.to_local(_bw(Vector3(2.5, 1.2, 3.0))))
-	else:
-		_pose_bat_rest_left()
-	boss_model.pose_small_arms(boss_clock)
-
-
-## バットを肩にかついだままの左手（攻撃に使わないとき）
-func _pose_bat_rest_left() -> void:
-	var sh: Vector3 = boss_model.shoulder["L"]
-	boss_model.set_hand("L", sh + Vector3(0.1, 0.32, 0.3), Vector3(0.75, -1.0, 0.15))
-
-
-## 台風：両腕をまっすぐ横にのばして、体ごと回る（回りおわりは、正面にもどる）
-func _pose_typhoon(u: float, k: Dictionary) -> void:
-	var wind := float(k["windup_sec"])
-	var active_end := float(k["duration"]) - float(k["recover_sec"])
-	var reach := float(k["arm_reach"])
-	var rad := lerpf(2.2, reach, smoothstep(0.0, wind, u))
-	if u > active_end:
-		rad = lerpf(reach, 2.2, smoothstep(active_end, float(k["duration"]), u))
-	var spin_t := active_end - wind
-	var turns := roundf(float(k["spin_deg_per_sec"]) * spin_t / 360.0)
-	var p := clampf((u - wind) / spin_t, 0.0, 1.0)
-	boss.rotation.y = motion.yaw + turns * TAU * smoothstep(0.0, 1.0, p)
-	var speed := sin(PI * p) if p > 0.0 and p < 1.0 else 0.0
-	var trail := 2.2 * speed
-	var y := float(k["arm_height"])
-	boss_model.set_hand("L", Vector3(rad, y, 0.0), Vector3(0.0, 0.0, trail))
-	boss_model.set_hand("R", Vector3(-rad, y, 0.0), Vector3(0.0, 0.0, -trail))
-	boss_model.set_curl("L", 0.15)
-	boss_model.set_curl("R", 0.15)
-	boss_model.pose_small_arms(boss_clock)
-
-
-## 手のなぎはらい：ほんものの手（大きくして、ひらいたまま）が、画面のはしからはしへ走る。腕はのびる
-func _pose_sweep(u: float, k: Dictionary, bp: Vector3) -> void:
-	var sc := float(k["hand_scale"])
-	var used := {"L": false, "R": false}
+## つかみの手を向ける角度（ボスの正面から、ねらう場所までの角度。ラジアン）
+func _grab_aim_yaw() -> float:
+	if str(current_attack.get("kind", "")) != Attacks.GRAB:
+		return 0.0
 	for h in current_hazards:
-		if str(h["style"]) != "hand":
+		if bool(h.get("grab", false)):
+			var d := Vector2(float(h["x"]) - boss.position.x, float(h["z"]) - boss.position.z)
+			if d.length() > 0.3:
+				return clampf(wrapf(atan2(d.x, d.y) - motion.yaw, -PI, PI), -0.9, 0.9)
+	return 0.0
+
+
+## 必殺技の大きな手：当たり場所（手の形）の位置に置く。動いていないときは隠す
+func _pose_sweep_hands() -> void:
+	var used := {"L": false, "R": false}
+	var sc := float(attacks_cfg["kinds"]["hand_sweep"]["hand_scale"]) if attacks_cfg["kinds"].has("hand_sweep") else 2.4
+	for h in current_hazards:
+		if str(h["style"]) != "hand" or not bool(h["active"]):
 			continue
 		var side := "R" if float(h["dir"]) > 0.0 else "L"
 		used[side] = true
-		boss_model.set_hand_scale(side, sc)
-		boss_model.set_hand(side, boss_model.to_local(Vector3(float(h["x"]), 1.1, float(h["z"]))), Vector3(0.0, 0.0, 1.5))
+		var hand: Node3D = boss_model.sweep_hands[side]
+		hand.visible = true
+		hand.global_position = Vector3(float(h["x"]), 0.9, float(h["z"]))
+		hand.global_rotation = Vector3(0.0, PI * 0.5 * float(h["dir"]), 0.0)
+		hand.scale = Vector3.ONE * sc
 	for side in ["L", "R"]:
 		if not used[side]:
-			var out := 1.0 if side == "L" else -1.0
-			boss_model.set_hand(side, boss_model.to_local(_bw(Vector3(out * 2.8, 5.0, 1.0))))
-			boss_model.set_curl(side, 0.3)
+			(boss_model.sweep_hands[side] as Node3D).visible = false
 
 
 ## ---- つかみ：持ち上げる・動けない・助ける ----
@@ -1221,6 +1007,8 @@ func _start_hold(slot: String, from: Vector2) -> void:
 	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0, "mash": 0.0, "ai_rate": rate, "hold": hold}
 	if slot == _my_slot():
 		stun_left = maxf(stun_left, 0.1)
+	grab_state["phase"] = "hold"
+	grab_state["throw_t"] = 0.0
 	grab_hand = Vector3(from.x, 0.9, from.y)
 
 
@@ -1236,7 +1024,8 @@ func _release_hold(freed: bool) -> void:
 			player.position.y = ground_y
 		else:
 			# 逃げられなかった：放り投げられる（着地のダメージと、転んで起き上がるまでは、player_actions の「thrown」）
-			var away := Vector2(player.position.x - boss.position.x, player.position.z - boss.position.z)
+			# ボスが前へ投げる：ボスの向きへ飛んでいく
+			var away := Attacks.fwd_of(boss.rotation.y)
 			actions.start("thrown", away, 0.0, true)
 			if char_view != null:
 				char_view.face_now(-away)
@@ -1248,8 +1037,7 @@ func _release_hold(freed: bool) -> void:
 		other_lift[slot] = 0.0
 		if not freed:
 			# 投げられる（着地のダメージは、AiAlly.step が「landed」の印で受ける）
-			var pa: Vector2 = a["pos"]
-			var away := Vector2(pa.x - boss.position.x, pa.y - boss.position.z)
+			var away := Attacks.fwd_of(boss.rotation.y)
 			(AiAlly.act(a) as Actions).start("thrown", away, 0.0, true)
 		else:
 			a["stun"] = float(k["free_stun_sec"])
@@ -1276,19 +1064,31 @@ func _grab_update(delta: float) -> void:
 	# 自分で逃げる：「にげる」ボタンの連打（AIは、決まった速さで連打したことにする）
 	if not is_me:
 		grab_state["mash"] = float(grab_state["mash"]) + float(grab_state["ai_rate"]) * delta
-	if float(grab_state["mash"]) >= float(k["mash_needed"]):
+	var throwing := str(grab_state.get("phase", "hold")) == "throw"
+	if not throwing and float(grab_state["mash"]) >= float(k["mash_needed"]):
 		_release_hold(true)
 		return
-	if t >= float(grab_state["hold"]):
-		_release_hold(false)
-		return
-	# 手の位置：つかんだ場所から、持ち上げた位置へ
+	if not throwing and t >= float(grab_state["hold"]):
+		# 逃げられなかった：ボスが、うしろへ引いて前へ投げる動きに入る（手をはなす瞬間に、飛んでいく）
+		grab_state["phase"] = "throw"
+		grab_state["throw_t"] = 0.0
+		throwing = true
+	if throwing:
+		grab_state["throw_t"] = float(grab_state["throw_t"]) + delta
+		if float(grab_state["throw_t"]) >= float(k["release_sec"]):
+			_release_hold(false)
+			return
+	# 手の位置：ボスの左手（手のひらの少し下に、体がぶら下がる）。つかんだ直後は、つかんだ場所から手へ寄せる
+	var hand: Vector3 = boss_model.hand_world("L") if boss_model != null else Vector3(boss.position.x, float(k["hold_height"]), boss.position.z)
+	hand.y -= float(k.get("hang_below", 1.0))
 	var lift := clampf(t / float(k["lift_sec"]), 0.0, 1.0)
 	var from: Vector2 = grab_state["from"]
-	var hold_xz := Vector2(boss.position.x, boss.position.z) + Attacks.fwd_of(motion.yaw) * 3.2
-	var xz := from.lerp(hold_xz, lift)
-	var y := lerpf(0.9, float(k["hold_height"]), lift)
-	grab_hand = Vector3(xz.x, y, xz.y)
+	var start := Vector3(from.x, ground_y, from.y)
+	var held := start.lerp(hand, smoothstep(0.0, 1.0, lift))
+	held.y = maxf(held.y, ground_y)
+	var xz := Vector2(held.x, held.z)
+	var y := held.y - ground_y
+	grab_hand = held
 	# しめつけのダメージ
 	grab_state["squeeze"] = float(grab_state["squeeze"]) + delta
 	if float(grab_state["squeeze"]) >= float(k["squeeze_tick_sec"]):
@@ -1305,7 +1105,7 @@ func _grab_update(delta: float) -> void:
 				a2["downed"] = true
 	if is_me:
 		stun_left = maxf(stun_left, 0.1)
-		player.position = Vector3(xz.x, y, xz.y)
+		player.position = Vector3(xz.x, ground_y + y, xz.y)
 	elif ai_allies.has(slot):
 		var a3: Dictionary = ai_allies[slot]
 		a3["pos"] = xz

@@ -41,12 +41,15 @@ func setup(def: Dictionary) -> bool:
 
 ## 骨に付けた小物（Item_*）を、骨の動きについていく1つの形（スキン）にまとめて、描く回数を減らす。
 ## 小物ごとの部品（数十こ）が、材質の種類の数（2〜3回）で描ける。まとめた形を返す（小物がなければ null）
-static func bake_items(model: Node) -> MeshInstance3D:
+## only：まとめる小物の名前（空なら全部）。mesh_name：まとめた形の名前
+static func bake_items(model: Node, only: Array = [], mesh_name: String = "Items") -> MeshInstance3D:
 	var found := model.find_children("*", "Skeleton3D", true, false)
 	if found.is_empty():
 		return null
 	var sk := found[0] as Skeleton3D
 	var holders := sk.find_children("Item_*", "BoneAttachment3D", false, false)
+	if not only.is_empty():
+		holders = holders.filter(func(h: Node) -> bool: return only.has(str(h.name).trim_prefix("Item_")))
 	if holders.is_empty():
 		return null
 	var skin := Skin.new()
@@ -70,7 +73,7 @@ static func bake_items(model: Node) -> MeshInstance3D:
 		sk.remove_child(h)
 		h.free()
 	var mi := MeshInstance3D.new()
-	mi.name = "Items"
+	mi.name = mesh_name
 	mi.mesh = mesh
 	sk.add_child(mi)
 	mi.skin = skin

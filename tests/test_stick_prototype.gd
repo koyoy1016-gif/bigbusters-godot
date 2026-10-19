@@ -186,7 +186,9 @@ func _initialize() -> void:
 		check(not grab_a.is_empty(), "平常時の予定表に、つかみがある")
 		var first_ms: float = float(grab_a["start"]) * 1000.0
 		var lock_ms: float = (float(gk["follow_sec"]) + float(gk["lock_sec"])) * 1000.0
-		s2.player.position = Vector3(0.0, s2.ground_y, 6.0)
+		# ボスの手が届く所にいる
+		var grab_spot: Vector3 = s2.boss.position + Vector3(0.0, 0.0, 3.0)
+		s2.player.position = Vector3(grab_spot.x, s2.ground_y, grab_spot.z)
 		now[0] = t0 + first_ms + 500.0
 		s2.combat_update(0.016)
 		check(s2.my_hp == hp_full and (s2.hazard_nodes[0] as Node3D).visible, "予告の最中は、輪が見えて、まだダメージは受けない")
@@ -197,10 +199,11 @@ func _initialize() -> void:
 		s2.combat_update(0.016)
 		check(is_equal_approx(s2.my_hp, hp_full - float(gk["power"])), "同じ一撃は、1回しか当たらない")
 		# 持ち上げ：ボスの前の高いところに上がる。こうげき・ジャンプはできない。しめつけでダメージ
-		for i in 20:
+		for i in 17:
 			now[0] += 50.0
 			s2.combat_update(0.05)
-		check(s2.player.position.y > float(gk["hold_height"]) - 0.5, "つかまれると、高く持ち上げられる")
+			s2._pose_boss(0.05)
+		check(s2.player.position.y > 2.5, "つかまれると、ボスの左手で高く持ち上げられる（高さ %.1f）" % s2.player.position.y)
 		check(not s2.attack() and s2.my_hp < hp_full - float(gk["power"]), "つかまれている間は、こうげきできない。しめつけでダメージ")
 		# 助ける：ボスに十分なダメージが入ると、外れる
 		s2.my_hits = float(gk["free_damage"]) + 1.0
@@ -248,7 +251,7 @@ func _initialize() -> void:
 		s2.hazard_done = {}
 		s2.boss_model.reset_form()
 		var gt: Dictionary = grab_a
-		s2.player.position = Vector3(0.0, s2.ground_y, 6.0)
+		s2.player.position = Vector3(s2.boss.position.x, s2.ground_y, s2.boss.position.z + 3.0)
 		now[0] = t0 + (float(gt["start"]) + float(gk["follow_sec"])) * 1000.0 + 10.0
 		s2.combat_update(0.016)
 		now[0] = t0 + (float(gt["start"]) + float(gk["follow_sec"]) + float(gk["lock_sec"])) * 1000.0 + 50.0

@@ -46,20 +46,26 @@
       "mash_needed": 10,
       "hold_min_sec": 1.0,
       "hold_max_sec": 3.0,
-      "_memo": "つかむ時間は、毎回 hold_min_sec〜hold_max_sec のどれか（全員の画面で同じ）。その間に「にげる」を mash_needed 回押せなければ、遠くへ投げられる"
+      "_memo": "つかむ時間は、毎回 hold_min_sec〜hold_max_sec のどれか（全員の画面で同じ）。その間に「にげる」を mash_needed 回押せなければ、ボスがうしろへ引いて前へ投げる（throw_sec、手をはなすのは release_sec）。reach：ボスの手が届く距離（つかむ輪は、これより遠くへ出ない）。stop_dist：つかむ前に、ねらう人のこの距離まで近づく",
+      "throw_sec": 0.8,
+      "release_sec": 0.48,
+      "hang_below": 1.1,
+      "reach": 3.4,
+      "stop_dist": 3.0
     },
     "typhoon": {
       "duration": 5.5,
       "windup_sec": 1.3,
       "recover_sec": 0.6,
-      "radius": 7.5,
+      "radius": 4.2,
       "tick_sec": 0.5,
       "power": 10.0,
       "jumpable": true,
       "spin_deg_per_sec": 520.0,
       "hand_height": 0.8,
       "arm_height": 0.1,
-      "arm_reach": 7.0
+      "arm_reach": 3.8,
+      "stop_dist": 3.0
     },
     "flyers": {
       "duration": 6.0,
@@ -116,44 +122,48 @@
       "duration": 2.4,
       "windup_sec": 1.0,
       "swing_sec": 0.28,
-      "radius": 7.2,
-      "arc_deg": 160.0,
+      "radius": 5.2,
+      "arc_deg": 150.0,
       "power": 14.0,
       "jumpable": true,
-      "lunge": 1.2
+      "lunge": 1.2,
+      "stop_dist": 4.0
     },
     "bat_v": {
       "_memo": "バットの縦振り：頭の上から、前へまっすぐたたきつける。細長い帯。ジャンプではよけられない",
       "duration": 2.5,
       "windup_sec": 1.1,
       "hit_sec": 0.22,
-      "start": 1.0,
-      "length": 8.5,
+      "start": 1.2,
+      "length": 5.0,
       "half_width": 1.3,
       "power": 22.0,
       "jumpable": false,
-      "lunge": 0.8
+      "lunge": 0.8,
+      "stop_dist": 4.5
     },
     "bat_spin": {
       "_memo": "バットの回転斬り：バットを横にのばして、体ごと何回も回る。まわりの輪の中に、続けてダメージ",
       "duration": 3.8,
       "windup_sec": 1.0,
       "recover_sec": 0.6,
-      "radius": 6.8,
+      "radius": 5.0,
       "tick_sec": 0.45,
       "power": 8.0,
       "jumpable": true,
-      "spin_deg_per_sec": 600.0
+      "spin_deg_per_sec": 600.0,
+      "stop_dist": 3.5
     },
     "tail_spin": {
       "_memo": "しっぽ回し：しっぽをのばして、体ごと1回まわる。体のすぐそば（r_in より内側）は安全",
       "duration": 2.2,
       "windup_sec": 0.9,
       "sweep_sec": 0.45,
-      "r_in": 2.2,
-      "radius": 6.4,
+      "r_in": 1.3,
+      "radius": 4.4,
       "power": 12.0,
-      "jumpable": true
+      "jumpable": true,
+      "stop_dist": 3.0
     },
     "walk_swing": {
       "_memo": "歩きながら振る：前へ歩きながら、バットを左右交互に swings 回振る。振る前に、当たる扇が出る",
@@ -164,10 +174,11 @@
       "tele_sec": 0.7,
       "hit_sec": 0.2,
       "walk_speed": 2.4,
-      "radius": 5.8,
+      "radius": 4.6,
       "arc_deg": 140.0,
       "power": 10.0,
-      "jumpable": true
+      "jumpable": true,
+      "stop_dist": 5.5
     }
   },
   "damage_multiplier": 1.0,
@@ -186,8 +197,8 @@
     "tail_spin"
   ],
   "walk": {
-    "_memo": "攻撃と攻撃の間に、次にねらう人のほうへ歩く。speed：m/秒、stop_dist：ねらう人の手前で止まる距離、turn_rate：向きを変える速さ",
-    "speed": 3.4,
+    "_memo": "攻撃と攻撃の間に、次にねらう人のほうへ歩く。speed：m/秒、stop_dist：ねらう人の手前で止まる距離（攻撃ごとの stop_dist があれば、そちら）、turn_rate：向きを変える速さ",
+    "speed": 3.0,
     "stop_dist": 4.5,
     "turn_rate": 7.0,
     "area": 12.0

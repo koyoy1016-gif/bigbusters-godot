@@ -43,7 +43,7 @@ func _init() -> void:
 
 	var members := ["p2", "p1", "p3"]
 	check(Attacks.grab_target(1, members) == "p1" and Attacks.grab_target(2, members) == "p2" and Attacks.grab_target(4, members) == "p1", "つかみの的は枠の順にまわる")
-	var ctx := {"boss": Vector2(0, -8), "members": members, "positions": {"p1": Vector2(3, 4), "p2": Vector2(-5, 2), "p3": Vector2(0, 0)}, "locked": null, "round_start_ms": 123456.0, "bounds": 14.0}
+	var ctx := {"boss": Vector2(2, 2), "members": members, "positions": {"p1": Vector2(3, 4), "p2": Vector2(-5, 2), "p3": Vector2(0, 0)}, "locked": null, "round_start_ms": 123456.0, "bounds": 14.0}
 
 	# つかみ
 	var g: Dictionary = {}
@@ -120,6 +120,12 @@ func _init() -> void:
 	check(xs[0] < 0.0 and xs[1] > 0.0 and xs[2] < 0.0, "手は、左右交互に走る（3回）")
 	check(Attacks.hazards(sw, 3.0 * per + 0.1, cfg, ctx).is_empty(), "3回で終わる")
 
+	# つかみの輪は、ボスの手が届く所まで
+	var far_ctx := ctx.duplicate(true)
+	far_ctx["boss"] = Vector2(0, -8)
+	var hf: Array = Attacks.hazards(g, 0.2, cfg, far_ctx)
+	check(Vector2(float(hf[0]["x"]), float(hf[0]["z"])).distance_to(Vector2(0, -8)) <= float(gk["reach"]) + 0.01, "遠くの人には、つかみの輪は届かない")
+
 	# ---- バットの技・しっぽ回し・歩きながら振る（向き yaw つき） ----
 	var bctx := {"boss": Vector2(0, 0), "yaw": 0.0, "members": members, "positions": {}, "locked": null, "round_start_ms": 1.0, "bounds": 14.0}
 	var bh := {"n": 5, "kind": "bat_h", "start": 0.0, "end": 2.0}
@@ -185,7 +191,7 @@ func _init() -> void:
 	check(mo.pos.y > -6.0 + 2.0 and mo.speed_now > 1.0, "攻撃の間は、ねらう人のほうへ歩く")
 	for i in 400:
 		mo.update(1.0 / 60.0, {}, 0.0, next, cfg, mctx)
-	check(absf(mo.pos.distance_to(Vector2(0, 8)) - float(cfg["walk"]["stop_dist"])) < 0.3, "ねらう人の手前で止まる")
+	check(absf(mo.pos.distance_to(Vector2(0, 8)) - float(cfg["kinds"]["bat_h"]["stop_dist"])) < 0.3, "ねらう人の手前（技ごとの距離）で止まる")
 	check(absf(mo.yaw) < 0.1, "ねらう人のほうを向く")
 	mctx["positions"]["p1"] = Vector2(8, mo.pos.y)
 	mo.update(1.0 / 60.0, next, 0.0, {}, cfg, mctx)

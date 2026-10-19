@@ -65,7 +65,8 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 				var to: Vector2 = (tp2 as Vector2) - pos
 				if to.length() > 0.3:
 					face = atan2(to.x, to.y)
-				var stop := float(w.get("stop_dist", 4.5))
+				var nk: Dictionary = (cfg.get("kinds", {}) as Dictionary).get(str(next_a.get("kind", "")), {})
+				var stop := float(nk.get("stop_dist", w.get("stop_dist", 4.5)))
 				if to.length() > stop:
 					goal = pos + to.normalized() * (to.length() - stop)
 		var sp := float(w.get("speed", 3.4))

@@ -122,7 +122,8 @@ func _init() -> void:
 	s._start_hold("p2", ally["pos"])
 	for i in 30:
 		s._grab_update(0.05)
-	check(float(s.other_lift.get("p2", 0.0)) > float(kk["hold_height"]) - 0.5 and float(ally["hp"]) < hp_a, "AIが持ち上がり、しめつけられる")
+		s._pose_boss(0.05)
+	check(float(s.other_lift.get("p2", 0.0)) > 2.5 and float(ally["hp"]) < hp_a, "AIが（ボスの左手で）持ち上がり、しめつけられる（高さ %.1f）" % float(s.other_lift.get("p2", 0.0)))
 	for i in 80:
 		s._grab_update(0.05)
 	check(s.grab_state.is_empty() and not bool(ally["held"]) and float(s.other_lift["p2"]) == 0.0, "時間がたつと、はなされる")

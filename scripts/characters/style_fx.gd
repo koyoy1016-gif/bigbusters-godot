@@ -86,12 +86,12 @@ static func _walk(node: Node) -> int:
 		# まとめて描く物（ボスの腕・しっぽなど）は、材質の上書きに線をつける
 		var om := (node as MultiMeshInstance3D).material_override
 		if om is StandardMaterial3D:
-			apply_outline(om, float(cfg.get("outline_width_boss", 0.05)) if _in_boss(node) else float(cfg.get("outline_width", 0.014)))
+			apply_outline(om, _width_for(node, cfg))
 			n += 1
 	if node is MeshInstance3D and _styled(node):
 		var mi := node as MeshInstance3D
 		if mi.mesh != null:
-			var w := float(cfg.get("outline_width_boss", 0.05)) if _in_boss(mi) else float(cfg.get("outline_width", 0.014))
+			var w := _width_for(mi, cfg)
 			if mi.mesh is PrimitiveMesh:
 				var pm := mi.mesh as PrimitiveMesh
 				if pm.material != null and pm.material is StandardMaterial3D:
@@ -116,6 +116,16 @@ static func _styled(node: Node) -> bool:
 			return true
 		p = p.get_parent()
 	return false
+
+
+## 輪郭線の太さ：いちばん近い親のメタ "outline_width" があれば、それ。なければ、ボスの下はボス用、ほかはふつう
+static func _width_for(node: Node, cfg: Dictionary) -> float:
+	var p := node
+	while p != null:
+		if p.has_meta("outline_width"):
+			return float(p.get_meta("outline_width"))
+		p = p.get_parent()
+	return float(cfg.get("outline_width_boss", 0.05)) if _in_boss(node) else float(cfg.get("outline_width", 0.014))
 
 
 static func _in_boss(node: Node) -> bool:
