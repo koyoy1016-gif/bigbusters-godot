@@ -231,7 +231,7 @@
       "name": "切り捨て御免",
       "banner_sec": 1.6,
       "cooldown_sec": 0.0,
-      "duration_sec": 1.15,
+      "duration_sec": 1.5,
       "move_scale": 0.0,
       "aim_boss": true,
       "cleave": true,
@@ -240,20 +240,15 @@
       "stop_at_boss": true,
       "hits": [
         {
-          "t": 0.5,
+          "t": 0.7,
           "multiplier": 22.0
         }
       ],
       "steps": [
         {
           "t": 0.0,
-          "anim": "charge",
-          "speed": 1.4
-        },
-        {
-          "t": 0.4,
-          "anim": "swing",
-          "speed": 7.0
+          "anim": "ult_slash",
+          "speed": 1.0
         }
       ],
       "path": [
@@ -263,22 +258,53 @@
           "h": 0.0
         },
         {
-          "t": 0.4,
-          "fwd": 0.0,
+          "t": 0.25,
+          "fwd": -0.15,
           "h": 0.0
         },
         {
-          "t": 0.52,
-          "fwd": 5.0,
+          "t": 0.55,
+          "fwd": -0.3,
           "h": 0.0
         },
         {
-          "t": 1.15,
-          "fwd": 5.2,
+          "t": 0.72,
+          "fwd": 5.4,
+          "h": 0.0
+        },
+        {
+          "t": 1.5,
+          "fwd": 5.4,
           "h": 0.0
         }
       ],
-      "note": "必殺技。ゲージがたまったときだけ。力をためて、一瞬で駆け抜けて、一撃で斬り捨てる。使うと、画面に技名が出る（CPUが使ったときも）"
+      "note": "必殺技（版72で作り直し）。ゲージがたまったときだけ。①0〜0.25秒：剣を上に構える（少し下がる）②0.25〜0.55秒：力をためる（剣がふるえ、足もとに金の輪）③0.55〜0.72秒：前へ一気に踏み込む（約5.7m。ボスの手前で止まる。残像）④0.70秒：剣を振り下ろして斬り捨てる（大きな斬撃と火花、一瞬止まって画面がゆれる）⑤0.72秒以降：止まって、剣を構え直す（1.5秒で終わる）。動いている間は無敵。動きは characters.json の built_anims（Sword_Attack の時間を変えて作る）。使うと、画面に技名が出る（CPUが使ったときも）",
+      "marks": [
+        {
+          "t": 0.25,
+          "name": "ult_charge"
+        },
+        {
+          "t": 0.55,
+          "name": "ult_dash"
+        }
+      ],
+      "fx": {
+        "charge_sec": 0.3,
+        "ring_r": 1.6,
+        "ring_color": "#ffd24a",
+        "trail_color": "#e8f4ff",
+        "trail_life": 0.3,
+        "slash_radius": 2.8,
+        "slash_life": 0.32,
+        "slash_color": "#fff3c4",
+        "slash_tilt_deg": -28.0,
+        "hit_spark": true,
+        "hitstop": [
+          0.09,
+          0.32
+        ]
+      }
     },
     "kb_light": {
       "label": "",

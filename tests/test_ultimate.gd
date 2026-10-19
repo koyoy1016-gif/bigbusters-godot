@@ -25,7 +25,7 @@ func _initialize() -> void:
 	var ult: Dictionary = cfg["actions"]["ultimate"]
 	check(str(ult["name"]) == "切り捨て御免" and cfg["order"].has("ultimate"), "必殺技の名前は、切り捨て御免")
 	check(str(cfg["actions"]["normal"]["name"]) == "単純斬り" and str(cfg["actions"]["sub"]["name"]) == "かわし斬り" and str(cfg["actions"]["main"]["name"]) == "五段斬り", "通常・サブ・メインの技名（仮）")
-	check(float(ult["duration_sec"]) < 1.5 and (ult["hits"] as Array).size() == 1, "必殺技は、一撃で、短い")
+	check(float(ult["duration_sec"]) <= 1.5 and (ult["hits"] as Array).size() == 1, "必殺技は、一撃で、短い（版72：構え直しまでふくめて1.5秒以内）")
 	var dash_t := 0.0
 	var path: Array = ult["path"]
 	for i in range(1, path.size()):

@@ -5,6 +5,7 @@ extends Node3D
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const StyleFx := preload("res://scripts/characters/style_fx.gd")
 const ProceduralAnims := preload("res://scripts/characters/procedural_anims.gd")
+const AnimRetime := preload("res://scripts/characters/anim_retime.gd")
 const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
 const ATTACHMENTS_PATH := "res://data/attachments.json"
 
@@ -33,6 +34,7 @@ func setup(def: Dictionary) -> bool:
 		player = build_library_player(model, str(def["anim_library"]))
 	if player == null and bool(def.get("procedural_anims", false)):
 		player = ProceduralAnims.build_player(model, ProceduralAnims.load_config())
+	build_retimed(player, def)
 	fix_materials(model, def)
 	attach_items(model, def.get("attachments", []))
 	bake_items(model)
@@ -329,6 +331,26 @@ static func build_library_player(model: Node, path: String) -> AnimationPlayer:
 	p.root_node = NodePath("..")
 	p.add_animation_library("", lib)
 	return p
+
+
+## 版72：def の built_anims（{新しい名前: {from: 元の動き, map, tremble}}）を作って、再生係に足す。足した数を返す
+## 元の動きの時間をのばしたり縮めたりして作る（scripts/characters/anim_retime.gd）。同じ名前がもうあれば作らない
+static func build_retimed(p: AnimationPlayer, def: Dictionary) -> int:
+	if p == null:
+		return 0
+	var made := 0
+	var specs: Dictionary = def.get("built_anims", {})
+	for name in specs:
+		var spec: Dictionary = specs[name]
+		if p.has_animation(str(name)) or not p.has_animation(str(spec.get("from", ""))):
+			continue
+		var anim := AnimRetime.build(p.get_animation(str(spec["from"])), spec.get("map", []), spec.get("tremble", {}))
+		var lib: AnimationLibrary = p.get_animation_library("")
+		if lib == null:
+			continue
+		lib.add_animation(StringName(str(name)), anim)
+		made += 1
+	return made
 
 
 ## 向き（床の上の x, z）に、すぐ体を向ける

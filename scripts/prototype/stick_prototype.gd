@@ -40,6 +40,7 @@ const BossMotion := preload("res://scripts/combat/boss_motion.gd")
 const BossPhase := preload("res://scripts/combat/boss_phase.gd")
 const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const BossRage := preload("res://scripts/combat/boss_rage.gd")
+const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
 const BottleMesh := preload("res://scripts/boss/sake_bottle_mesh.gd")
 const SakeField := preload("res://scripts/combat/sake_field.gd")
@@ -700,6 +701,7 @@ func _begin_round(start_ms: float) -> void:
 	rage.enabled = not net_active or rage.online  # 通信中は、画面ごとに数がちがうので、ふだんは怒らない
 	ai_forecast = []
 	ai_forecast_t = -999.0
+	ult_dash_from = Vector3.INF
 	puddle_seen = {}
 	field.clear()
 	_landed = {}
@@ -837,8 +839,14 @@ func _handle_action_events(events: Array) -> void:
 					char_view.play_step(str(ev["anim"]), float(ev["speed"]), bool(ev.get("from_end", false)))
 
 
-## 動きの途中の印（data/actions.json の marks）。いまは、投げられた着地だけ
+## 動きの途中の印（data/actions.json の marks）。投げられた着地と、版72：必殺技の「ため」「踏み込み」
 func _on_action_mark(mark: String) -> void:
+	if mark == "ult_charge":
+		ult_fx_spawn("charge", Vector3(player.position.x, ground_y, player.position.z), actions.aim)
+		return
+	if mark == "ult_dash":
+		ult_dash_from = Vector3(player.position.x, ground_y, player.position.z)
+		return
 	if mark == "landed":
 		var k: Dictionary = attacks_cfg["kinds"]["grab"]
 		_take_damage(Damage.damage_amount(float(k["drop_power"]), float(attacks_cfg["damage_multiplier"])), true)
@@ -852,6 +860,8 @@ func _resolve_hit(ev: Dictionary) -> void:
 	var reach := HitArea.reach_of(role_value("attack_reach"), float(ev["radius_scale"]))
 	_play_sfx("slash")
 	var hit_boss := boss.visible and HitArea.hits(player.position, boss.position, reach, float(config["boss_size"]) * 0.5)
+	if str(ev.get("action", "")) == "ultimate":
+		_ult_slash_fx(Vector3(player.position.x, ground_y, player.position.z), actions.aim, hit_boss and not phase.invulnerable(), true)
 	if hit_boss and phase.invulnerable():
 		_play_sfx("hit")  # 倒れて覚醒する間は、当たってもダメージは入らない
 	elif hit_boss:
@@ -869,6 +879,38 @@ func _resolve_hit(ev: Dictionary) -> void:
 		var nearest := crowd_state.nearest_alive(sub_crowd.last_positions, player.position, reach + sub_r)
 		if nearest >= 0:
 			crowd_state.hit(nearest, dmg, _round_t(), respawn)
+
+
+## ---- 版72：必殺技の見た目（構え・ため・踏み込み・斬撃・当たった演出） ----
+var ult_dash_from := Vector3.INF  ## 踏み込みを始めた場所（残像に使う）
+var ult_fx_log: Array = []  ## 出した見た目の種類（テスト用。新しい物が後ろ）
+
+
+func ult_fx_spawn(kind: String, pos: Vector3, aim: Vector2, extra: Dictionary = {}) -> void:
+	ult_fx_log.append(kind)
+	if ult_fx_log.size() > 20:
+		ult_fx_log.pop_front()
+	if is_inside_tree():
+		UltFx.spawn(self, kind, pos, aim, actions.def("ultimate").get("fx", {}), extra)
+
+
+## 斬った瞬間：三日月の斬撃（と、踏み込んだ道の残像）。当たったら、火花と、一瞬止める・画面をゆらす。mine：自分の必殺技
+func _ult_slash_fx(pos: Vector3, aim: Vector2, landed: bool, mine: bool) -> void:
+	var fx: Dictionary = actions.def("ultimate").get("fx", {})
+	if mine and ult_dash_from != Vector3.INF:
+		ult_fx_spawn("trail", ult_dash_from, aim, {"to": pos})
+		ult_dash_from = Vector3.INF
+	ult_fx_spawn("slash", pos, aim)
+	if landed:
+		var bp := Vector2(boss.position.x, boss.position.z)
+		var to := bp - Vector2(pos.x, pos.z)
+		var contact := bp - to.normalized() * float(config["boss_size"]) * 0.5 if to.length() > 0.01 else bp
+		if bool(fx.get("hit_spark", true)):
+			_burst_fx(Vector3(contact.x, 1.4, contact.y), "spark")
+		ult_fx_log.append("hit")
+		if mine:
+			var hs: Array = fx.get("hitstop", [0.08, 0.3])
+			_hitstop(float(hs[0]), float(hs[1]))
 
 
 ## 必殺技の名前を、画面の真ん中に出す。who：使った人の表示（空なら出さない）
@@ -1493,6 +1535,13 @@ func _ai_update(delta: float) -> void:
 			if dealt > 0.0:
 				ai_hits[slot] = float(ai_hits[slot]) + dealt
 				dealt_total += dealt
+			# 版72：AIの必殺技の見た目（ためと、当たった瞬間の斬撃）
+			var ua: Actions = AiAlly.act(a)
+			var apos: Vector2 = a["pos"]
+			if str(a["banner"]) != "":
+				ult_fx_spawn("charge", Vector3(apos.x, ground_y, apos.y), ua.aim)
+			if dealt > 0.0 and ua.active == "ultimate":
+				_ult_slash_fx(Vector3(apos.x, ground_y, apos.y), ua.aim, true, false)
 			var was_held := bool(a.get("held", false))
 			AiAlly.take_hazards(a, str(slot), current_hazards, ai_done, float(attacks_cfg["damage_multiplier"]))
 			if bool(a.get("held", false)) and not was_held and grab_state.is_empty():
