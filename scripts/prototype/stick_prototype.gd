@@ -996,8 +996,10 @@ func _pose_boss(delta: float = 0.0) -> void:
 	var kind := str(current_attack.get("kind", ""))
 	var kinds: Dictionary = attacks_cfg.get("kinds", {})
 	var st := {"clock": boss_clock, "walk_dist": motion.walk_dist, "walk_speed": motion.speed_now, "kind": kind, "u": current_attack_u,
-		"k": Attacks.kind_cfg(attacks_cfg, current_attack) if kind != "" else {}, "hit_now": hit_now, "airborne": motion.height, "grab": _grab_anim_state(), "aim_yaw": _grab_aim_yaw()}
+		"k": Attacks.kind_cfg(attacks_cfg, current_attack) if kind != "" else {}, "hit_now": hit_now, "airborne": motion.height, "grab": _grab_anim_state(), "aim_yaw": _grab_aim_yaw(),
+		"ride_phase": str(motion.path_info.get("phase", "")), "ride_phase_t": float(motion.path_info.get("phase_t", 0.0))}
 	var res: Dictionary = boss_model.animate(delta, boss_clock, st)
+	_update_ride_bottle(kind == Attacks.BOTTLE_RIDE and bool(motion.path_info.get("riding", false)))
 	boss.rotation.y = motion.yaw + float(res.get("spin", 0.0)) + motion.path_spin
 	_pose_sweep_hands()
 	# バット投げ：投げてから受けとるまで、手にバットはない
@@ -1032,7 +1034,11 @@ func _update_jump_shadow() -> void:
 		_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(_shadow)
 	var h := motion.height
-	_shadow.visible = h > 0.3
+	var riding := bool(motion.path_info.get("riding", false))
+	# 覚醒のオーラの床の光は、跳んでいる間・酒瓶に乗っている間は消す（空中に円盤が浮いて見えるので）
+	if boss_model != null and boss_model.aura_ground != null:
+		boss_model.aura_ground.visible = h < 0.3
+	_shadow.visible = h > 0.3 and not riding
 	if _shadow.visible:
 		_shadow.position = Vector3(motion.pos.x, 0.02, motion.pos.y)
 		_shadow.scale = Vector3.ONE * lerpf(3.0, 1.6, clampf(h / 8.0, 0.0, 1.0))
@@ -1742,6 +1748,81 @@ func _show_hazards(hz: Array) -> void:
 		(_bottle_nodes[i] as Node3D).visible = false
 	if not lighter_used and _lighter != null:
 		_lighter.visible = false
+
+
+## ---- 巨大酒瓶ライドの酒瓶：ボスがまたがる、横だおしの大きな一升瓶（単色の形の組み合わせ。素材は使わない）----
+var _ride_bottle: Node3D
+func _update_ride_bottle(on: bool) -> void:
+	if not on:
+		if _ride_bottle != null:
+			_ride_bottle.visible = false
+		return
+	if _ride_bottle == null:
+		var rk: Dictionary = attacks_cfg["kinds"]["bottle_ride"]
+		_ride_bottle = Node3D.new()
+		_ride_bottle.name = "RideBottle"
+		_ride_bottle.top_level = true
+		add_child(_ride_bottle)
+		var glass := StandardMaterial3D.new()
+		glass.albedo_color = Color(str(rk.get("bottle_color", "#3f7a4a")))
+		glass.roughness = 0.25
+		var label := StandardMaterial3D.new()
+		label.albedo_color = Color(str(rk.get("label_color", "#f1e7cf")))
+		var cap := StandardMaterial3D.new()
+		cap.albedo_color = Color(str(rk.get("cap_color", "#b8322a")))
+		var radius := float(rk.get("bottle_radius", 1.6))
+		var length := float(rk["half_len"]) * 2.0
+		# 胴（z の向きに横だおし。前＝首）
+		var parts := [
+			[radius, radius, length * 0.62, -length * 0.12, glass],
+			[radius * 1.02, radius * 1.02, length * 0.26, -length * 0.1, label],
+			[radius * 0.45, radius, length * 0.14, length * 0.26, glass],
+			[radius * 0.42, radius * 0.45, length * 0.2, length * 0.43, glass],
+			[radius * 0.5, radius * 0.5, length * 0.06, length * 0.55, cap],
+		]
+		for pr in parts:
+			var cm := CylinderMesh.new()
+			cm.top_radius = pr[0]
+			cm.bottom_radius = pr[1]
+			cm.height = pr[2]
+			cm.radial_segments = 14
+			cm.rings = 1
+			var mi := MeshInstance3D.new()
+			mi.mesh = cm
+			mi.material_override = pr[4]
+			mi.rotation = Vector3(PI * 0.5, 0.0, 0.0)
+			mi.position = Vector3(0.0, radius, float(pr[3]))
+			_ride_bottle.add_child(mi)
+		# 走ったあとに飛ぶ酒のしぶき（小さな粒。数は少なく）
+		var spray := CPUParticles3D.new()
+		spray.name = "Spray"
+		spray.amount = 16
+		spray.lifetime = 0.5
+		spray.direction = Vector3(0, 1, -1)
+		spray.spread = 35.0
+		spray.initial_velocity_min = 4.0
+		spray.initial_velocity_max = 7.0
+		spray.gravity = Vector3(0, -18, 0)
+		spray.position = Vector3(0, 0.3, -length * 0.45)
+		var sm := SphereMesh.new()
+		sm.radius = 0.18
+		sm.height = 0.36
+		sm.radial_segments = 6
+		sm.rings = 3
+		var smat := StandardMaterial3D.new()
+		smat.albedo_color = Color(str(attacks_cfg.get("sake_color", "#f2e6b8")), 0.8)
+		smat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		smat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sm.material = smat
+		spray.mesh = sm
+		spray.local_coords = false
+		_ride_bottle.add_child(spray)
+	_ride_bottle.visible = true
+	var rk2: Dictionary = attacks_cfg["kinds"]["bottle_ride"]
+	var bob := motion.height - float(rk2["ride_height"])
+	_ride_bottle.global_position = Vector3(motion.pos.x, bob, motion.pos.y)
+	_ride_bottle.rotation = Vector3(0.0, motion.yaw, sin(_round_t() * 11.0) * 0.06)
+	(_ride_bottle.get_node("Spray") as CPUParticles3D).emitting = str(motion.path_info.get("phase", "")) == "pass"
 
 
 ## 投げたバット（ボスのバットと同じ形を、大きさをそろえて作る）

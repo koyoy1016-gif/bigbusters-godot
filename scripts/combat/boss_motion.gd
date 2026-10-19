@@ -19,6 +19,7 @@ var _last_step := 0.0  ## 攻撃中に前へ出た分（直前のコマ）
 var height := 0.0  ## 地面からの高さ（跳ぶ攻撃）
 var vel := Vector2.ZERO  ## 歩く速さ（向きつき）。急に動き出したり止まったりしないよう、少しずつ変える
 var path_spin := 0.0  ## 自分で動く攻撃の、体ごとの回転
+var path_info := {}  ## 自分で動く攻撃の、いまの道の情報（巨大酒瓶ライドの phase・riding など。見た目に使う）
 
 
 func reset(start: Vector2) -> void:
@@ -42,6 +43,7 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 	var before := pos
 	height = 0.0
 	path_spin = 0.0
+	path_info = {}
 	if frozen:
 		speed_now = 0.0
 		vel = Vector2.ZERO
@@ -71,13 +73,14 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 			var curve := rng.randf_range(float(k.get("curve_min", 0.0)), float(k.get("curve_max", 0.0))) * (1.0 if rng.randf() < 0.5 else -1.0)
 			locks[n] = {"pos": p0 - Attacks.fwd_of(face) * Attacks.step_forward(kind, u, k), "yaw": face, "target": tp if tp is Vector2 else p0 + Attacks.fwd_of(face) * 6.0, "curve": curve}
 		var lk: Dictionary = locks[n]
-		var path := Attacks.boss_path(kind, u, k, path_ctx(lk, w))
+		var path := Attacks.boss_path(kind, u, k, path_ctx(lk, w, ctx, n))
 		if not path.is_empty():
 			# 自分で動く攻撃（回転突進・ジャンプ）：道の上を動く
 			pos = path["pos"]
 			yaw = _turn(yaw, float(path["yaw"]), 14.0, delta)
 			height = float(path.get("y", 0.0))
 			path_spin = float(path.get("spin", 0.0))
+			path_info = path
 		else:
 			var step := Attacks.step_forward(kind, u, k)
 			pos = _clamp_area((lk["pos"] as Vector2) + Attacks.fwd_of(float(lk["yaw"])) * step, w)
@@ -124,8 +127,10 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 
 
 ## 自分で動く攻撃に渡す情報（始めの位置・向き・ねらう場所・曲がる向き・動ける広さ）
-static func path_ctx(lk: Dictionary, w: Dictionary) -> Dictionary:
-	return {"boss": lk["pos"], "yaw": float(lk["yaw"]), "target": lk.get("target", lk["pos"]), "curve": float(lk.get("curve", 0.0)), "area": float(w.get("area", 13.0))}
+## （巨大酒瓶ライドは、攻撃の番号 n・戦いの開始の時刻・ステージの端 bounds も使う）
+static func path_ctx(lk: Dictionary, w: Dictionary, ctx: Dictionary = {}, n: int = 0) -> Dictionary:
+	return {"boss": lk["pos"], "yaw": float(lk["yaw"]), "target": lk.get("target", lk["pos"]), "curve": float(lk.get("curve", 0.0)), "area": float(w.get("area", 13.0)),
+		"n": n, "round_start_ms": float(ctx.get("round_start_ms", 0.0)), "bounds": float(ctx.get("bounds", 15.0))}
 
 
 ## 攻撃の始めに固定した位置と向き。まだ始まっていなければ、いまの位置と向き

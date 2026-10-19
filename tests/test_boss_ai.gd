@@ -95,6 +95,18 @@ func _initialize() -> void:
 			last_ult = float(x["end"])
 	check(ults >= 1 and ult_ok, "覚醒の必殺技は、覚醒してしばらくしてから・間をあけて出る（%d回）" % ults)
 	check(aw_seen.has("sake_drop") and not aw_seen.has("bat_spin") and not aw_seen.has("sake_rain"), "覚醒では、覚醒用の攻撃が出る（酒の雨は使わない）")
+	# いくつもの乱数で、覚醒の必殺技（火祭り・巨大酒瓶ライド・ほか）がどれも出るか、必殺技が続けて出ないか
+	var ult_seen := {}
+	var ult_gap_ok := true
+	for seed in [11.0, 2026.0, 31337.0, 8.8e6, 4.4e7, 123.0]:
+		var prev_ult := -999.0
+		for x in run(cfg, seed, "awake", 80):
+			if bool(((cfg["kinds"][str(x["kind"])] as Dictionary).get("ai", {}) as Dictionary).get("ultimate", false)):
+				ult_seen[str(x["kind"])] = true
+				if float(x["start"]) - prev_ult < float(g["ultimate_cooldown_sec"]):
+					ult_gap_ok = false
+				prev_ult = float(x["end"])
+	check(ult_seen.has("bottle_ride") and ult_seen.has("fire_fest") and ult_gap_ok, "6つの乱数で、必殺技がどれも出て、間をあけている（%s）" % str(ult_seen.keys()))
 	# 使える攻撃がないときは、代わりの攻撃
 	check(BossAI.pick({}, 0.5) == "", "候補がなければ空")
 	var ai := BossAI.new()

@@ -21,5 +21,5 @@
     "ultimate": {"file": "res://assets/audio/sfx/ultimate.wav", "volume_db": -1.0, "min_gap_sec": 0.5},
     "click": {"file": "res://assets/audio/sfx/click.wav", "volume_db": -8.0, "min_gap_sec": 0.05}
   },
-  "attack_sounds": {"sake_drop": "throw", "fire_fest": "storm", "thrust": "whoosh", "bat_throw": "sweep", "spin_charge": "sweep", "jump_slam": "whoosh", "sake_rain": "throw", "bat_h": "whoosh", "bat_v": "whoosh", "bat_spin": "sweep", "tail_spin": "whoosh", "walk_swing": "whoosh", "grab": "grab_warn", "typhoon": "whoosh", "flyers": "throw", "flyer_storm": "storm", "hand_sweep": "sweep"}
+  "attack_sounds": {"sake_drop": "throw", "fire_fest": "storm", "thrust": "whoosh", "bat_throw": "sweep", "spin_charge": "sweep", "jump_slam": "whoosh", "sake_rain": "throw", "bat_h": "whoosh", "bat_v": "whoosh", "bat_spin": "sweep", "tail_spin": "whoosh", "walk_swing": "whoosh", "grab": "grab_warn", "typhoon": "whoosh", "flyers": "throw", "flyer_storm": "storm", "hand_sweep": "sweep", "bottle_ride": "storm"}
 }

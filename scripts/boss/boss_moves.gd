@@ -233,6 +233,29 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 			var rec := BossAnim.remap(u, [[land, 0.3], [land + 0.6, 0.3], [dur, 0.0]])
 			var down := an.blend(an.sample("Jump_Start", rec), an.sample("Sword_Attack", float(mv.get("sword_ground", 0.45))), 1.0, an.upper)
 			return {"pose": down, "weight": _fade(u, dur), "deltas": {"spine05": BossAnim.lean(18.0 * (1.0 - smoothstep(land + 0.6, dur, u)))}}
+		Attacks.BOTTLE_RIDE:
+			# 巨大酒瓶ライド：しゃがんで空へ跳ぶ → 酒瓶にまたがる（ひざを曲げて足を開き、バットを頭の上でふり回す）→ 空から降りる → 着地でしゃがみこむ（すき）
+			var ph := str(st.get("ride_phase", "intro"))
+			var air_p := an.blend(an.sample("Jump", 0.35), an.sample("Sword_Attack", 0.25), 1.0, an.upper)
+			if ph == "intro":
+				var ci := float(k["ride_intro"])
+				if u < ci * 0.4:
+					return {"pose": an.sample("Jump_Start", float(mv.get("crouch_t", 0.3)) * smoothstep(0.0, ci * 0.4, u)), "weight": _fade(u, dur)}
+				return {"pose": air_p, "weight": 1.0}
+			if ph == "wait" or ph == "pass":
+				var wob := sin(float(st.get("clock", 0.0)) * 9.0)
+				var spread := float(mv.get("ride_leg_spread", 35.0))
+				var lift := float(mv.get("ride_leg_lift", 70.0))
+				return {"pose": an.blend(an.sample("Jump", 0.35), an.sample("Sword_Attack", 0.22), 1.0, an.upper), "weight": 1.0,
+					"deltas": {"upperleg01.L": BossAnim.raise_side("L", -spread) * BossAnim.fwd(lift), "upperleg01.R": BossAnim.raise_side("R", -spread) * BossAnim.fwd(lift),
+						"spine05": BossAnim.lean(16.0) * BossAnim.roll(6.0 * wob), "upperarm01.R": BossAnim.yaw(40.0 * wob), "head": BossAnim.lean(-12.0)}}
+			if ph == "outro":
+				return {"pose": air_p, "weight": 1.0}
+			var rt := float(st.get("ride_phase_t", 0.0))
+			var rec := float(k["ride_recover"])
+			var cr2 := BossAnim.remap(rt, [[0.0, 0.3], [rec * 0.55, 0.3], [rec, 0.0]])
+			var down2 := an.blend(an.sample("Jump_Start", cr2), an.sample("Sword_Attack", float(mv.get("sword_ground", 0.45))), 1.0, an.upper)
+			return {"pose": down2, "weight": 1.0 - smoothstep(rec * 0.6, rec, rt), "deltas": {"spine05": BossAnim.lean(20.0 * (1.0 - smoothstep(rec * 0.5, rec, rt)))}}
 		Attacks.SAKE_RAIN, Attacks.SAKE_DROP, Attacks.FIRE_FEST:
 			# 酒瓶を投げる：左手の一升瓶を、うしろ下へ引いて（ため）→ 下から上へ一気にふり上げて放る → 下ろす
 			# 火祭りは、瓶のあとにライターも同じように放る。最後はライターをしまって、構え直す

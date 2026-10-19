@@ -509,6 +509,41 @@
         },
         "ultimate": true
       }
+    },
+    "bottle_ride": {
+      "_memo": "必殺技「巨大酒瓶ライド」：空へ跳んで消え → 巨大な酒瓶にまたがって、ステージの外（bounds＋offscreen m）から反対の外まで passes 回横切る（左→右、右→左…）。横切る前に ride_tele 秒、道（帯）を予告。1回 ride_cross 秒（speed_min〜speed_max 倍で少し変わる）、切りかえ ride_switch 秒。当たると power ダメージで、走る向きにはね飛ばす。最後は空から降りてきて ride_recover 秒のすき。ride_* の時間は attack_speed で変えない",
+      "duration": 12.0,
+      "passes": 5,
+      "ride_intro": 0.9,
+      "ride_tele": 0.7,
+      "ride_cross": 1.0,
+      "speed_min": 0.9,
+      "speed_max": 1.15,
+      "ride_switch": 0.25,
+      "ride_outro": 0.9,
+      "ride_recover": 1.4,
+      "offscreen": 9.0,
+      "sky": 22.0,
+      "ride_height": 1.4,
+      "lane_jitter": 4.0,
+      "half_width": 2.2,
+      "half_len": 4.2,
+      "power": 22.0,
+      "jumpable": false,
+      "stop_dist": 8.0,
+      "chase_sec": 0.0,
+      "knockback": "kb_launch",
+      "kb_mode": "travel",
+      "ai": {
+        "forms": {
+          "awake": 2.0
+        },
+        "ultimate": true
+      },
+      "bottle_radius": 1.6,
+      "bottle_color": "#3f7a4a",
+      "label_color": "#f1e7cf",
+      "cap_color": "#b8322a"
     }
   },
   "damage_multiplier": 1.0,

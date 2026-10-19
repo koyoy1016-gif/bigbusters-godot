@@ -28,6 +28,7 @@ const SPIN_CHARGE := "spin_charge"
 const JUMP_SLAM := "jump_slam"
 const SAKE_DROP := "sake_drop"
 const FIRE_FEST := "fire_fest"
+const BOTTLE_RIDE := "bottle_ride"
 
 
 ## 前の向き（x, z）
@@ -37,7 +38,13 @@ static func fwd_of(yaw: float) -> Vector2:
 
 static func load_config(path: String = "res://data/boss_attacks.json") -> Dictionary:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-	return apply_speed(parsed) if parsed is Dictionary else {}
+	if not parsed is Dictionary:
+		return {}
+	var out := apply_speed(parsed)
+	# 巨大酒瓶ライドの時間は、横切る回数と速さから決める（攻撃の速さ attack_speed では変えない。ride_* は _sec で終わらない名前）
+	if (out["kinds"] as Dictionary).has(BOTTLE_RIDE):
+		out["kinds"][BOTTLE_RIDE]["duration"] = ride_total(out["kinds"][BOTTLE_RIDE])
+	return out
 
 
 ## attack_speed（1.5 なら1.5倍の速さ）で、攻撃の時間（*_sec と duration）を短くし、回る速さ・飛ぶ速さを上げる。
@@ -174,7 +181,94 @@ static func _hazards_raw(a: Dictionary, u: float, k: Dictionary, cfg: Dictionary
 			return _bottle_hazards(a, u, k, ctx)
 		FIRE_FEST:
 			return _fire_fest(a, u, k, ctx)
+		BOTTLE_RIDE:
+			return _bottle_ride(a, u, k, ctx)
 	return []
+
+
+## ---- 巨大酒瓶ライド（必殺技）：空へ跳び上がって消え → 巨大な酒瓶にまたがって、画面の外から反対の外まで passes 回横切る
+## （左→右、右→左…）→ 空から降りてきて、すき。横切る道（帯）は、走る前に予告する ----
+## 走る道の端：ステージの端（bounds）より offscreen m 外。横切るたびに、速さ・上下のゆれ・通る高さ（z）を少し変える
+static func ride_plan(k: Dictionary, ctx: Dictionary) -> Array:
+	var out: Array = []
+	var t := float(k["ride_intro"])
+	var half := float(ctx.get("bounds", 15.0))
+	var tgt: Vector2 = ctx.get("target", ctx["boss"])
+	for i in int(k["passes"]):
+		var rng := rng_for(float(ctx["round_start_ms"]), int(ctx.get("n", 0)) * 97 + i * 13)
+		var speed_k := rng.randf_range(float(k["speed_min"]), float(k["speed_max"]))
+		var cross := float(k["ride_cross"]) / speed_k
+		var z := clampf(tgt.y + rng.randf_range(-float(k["lane_jitter"]), float(k["lane_jitter"])), -half + 2.0, half - 2.0)
+		var dir := 1.0 if i % 2 == 0 else -1.0
+		# 次の道の予告は、いまの横切りの終わりごろから出す（切りかえ ride_switch 秒は短いまま、予告は ride_tele 秒）
+		var start := t if i > 0 else t + float(k["ride_tele"])
+		var tele_from := start - float(k["ride_tele"])
+		out.append({"i": i, "z": z, "dir": dir, "tele_from": tele_from, "start": start, "end": start + cross, "bob": rng.randf_range(0.2, 0.6), "bob_hz": rng.randf_range(2.0, 3.5)})
+		t = start + cross + float(k["ride_switch"])
+	return out
+
+
+## 横切る道の端（x）
+static func ride_edge(k: Dictionary, ctx: Dictionary) -> float:
+	return float(ctx.get("bounds", 15.0)) + float(k["offscreen"])
+
+
+## u 秒の時点の、ボス（と酒瓶）の場所。phase：intro / wait / pass / outro / recover
+static func ride_at(u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
+	var plan := ride_plan(k, ctx)
+	var edge := ride_edge(k, ctx)
+	var p0: Vector2 = ctx["boss"]
+	var intro := float(k["ride_intro"])
+	if u < intro:
+		var q := u / intro
+		return {"phase": "intro", "pos": p0, "y": float(k["sky"]) * q * q, "yaw": float(ctx.get("yaw", 0.0)), "riding": false}
+	var last: Dictionary = plan[plan.size() - 1]
+	for ps in plan:
+		if u < float(ps["start"]):
+			# 道の外で待つ（予告の帯が出ている）
+			var x0 := -edge * float(ps["dir"])
+			return {"phase": "wait", "pos": Vector2(x0, float(ps["z"])), "y": float(k["ride_height"]), "yaw": atan2(float(ps["dir"]), 0.0), "riding": true, "pass": ps}
+		if u < float(ps["end"]):
+			var f := (u - float(ps["start"])) / (float(ps["end"]) - float(ps["start"]))
+			var x := lerpf(-edge, edge, f) * float(ps["dir"])
+			var bob := absf(sin((u - float(ps["start"])) * TAU * float(ps["bob_hz"]))) * float(ps["bob"])  # はねるように上下
+			return {"phase": "pass", "pos": Vector2(x, float(ps["z"])), "y": float(k["ride_height"]) + bob, "yaw": atan2(float(ps["dir"]), 0.0), "riding": true, "pass": ps}
+	# 終わり：右（または左）の外から、空を通って、ステージの中へ降りる
+	var inner := float(ctx.get("area", 13.0)) - 3.0
+	var land := Vector2(inner * float(last["dir"]), clampf(float(last["z"]), -inner, inner))
+	var o0 := float(last["end"]) + float(k["ride_switch"])
+	var outro := float(k["ride_outro"])
+	if u < o0 + outro:
+		var q2 := clampf((u - o0) / outro, 0.0, 1.0)
+		return {"phase": "outro", "pos": land, "y": float(k["sky"]) * (1.0 - q2) * (1.0 - q2), "yaw": atan2(-float(last["dir"]), 0.0), "riding": false}
+	return {"phase": "recover", "pos": land, "y": 0.0, "yaw": atan2(-float(last["dir"]), 0.0), "riding": false, "phase_t": u - o0 - outro}
+
+
+## 巨大酒瓶ライドの全体の長さ（いちばんおそいとき。攻撃の duration に使う。速いときは、最後のすきが少し長くなる）
+static func ride_total(k: Dictionary) -> float:
+	var per := float(k["ride_cross"]) / float(k["speed_min"]) + float(k["ride_switch"])
+	return float(k["ride_intro"]) + float(k["ride_tele"]) + per * int(k["passes"]) + float(k["ride_outro"]) + float(k["ride_recover"])
+
+
+static func _bottle_ride(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
+	var out: Array = []
+	var c2 := ctx.duplicate()
+	c2["n"] = int(a["n"])
+	var edge := ride_edge(k, c2)
+	for ps in ride_plan(k, c2):
+		var dir := float(ps["dir"])
+		if u >= float(ps["tele_from"]) and u < float(ps["start"]):
+			# 予告：これから走る道（ステージの端から端までの帯）
+			out.append({"id": "rdl%d_%d" % [int(a["n"]), int(ps["i"])], "shape": "box", "x": 0.0, "z": float(ps["z"]), "hx": float(ctx.get("bounds", 15.0)), "hz": float(k["half_width"]),
+				"active": false, "tele": clampf((u - float(ps["tele_from"])) / float(k["ride_tele"]), 0.0, 1.0), "power": float(k["power"]), "jumpable": false, "target": "", "tick": -1, "style": "ride_lane",
+				"band_z": float(ps["z"]), "band_half": float(ctx.get("bounds", 15.0)), "dir": dir})
+		if u >= float(ps["start"]) and u < float(ps["end"]):
+			var st := ride_at(u, k, c2)
+			var p: Vector2 = st["pos"]
+			out.append({"id": "rd%d" % int(a["n"]), "shape": "obox", "x": p.x, "z": p.y, "hx": float(k["half_width"]), "hz": float(k["half_len"]), "yaw": atan2(dir, 0.0),
+				"active": absf(p.x) < edge - 1.0, "tele": 1.0, "power": float(k["power"]), "jumpable": false, "target": "", "tick": int(ps["i"]), "style": "ride",
+				"kb_mode": "travel", "kb_x": dir, "kb_z": 0.0})
+	return out
 
 
 ## ---- 酒瓶：ボスが下から上へ放り投げ、放物線で落ちて、地面で割れる（割れた所に酒だまり） ----
@@ -301,6 +395,9 @@ static func boss_path(kind: String, u: float, k: Dictionary, ctx: Dictionary) ->
 			return spin_charge_at(u, k, ctx)
 		JUMP_SLAM:
 			return jump_at(u, k, ctx)
+		BOTTLE_RIDE:
+			var r := ride_at(u, k, ctx)
+			return {"pos": r["pos"], "yaw": float(r["yaw"]), "y": float(r["y"]), "spin": 0.0, "riding": bool(r["riding"]), "phase": r["phase"], "phase_t": float(r.get("phase_t", 0.0))}
 	return {}
 
 
