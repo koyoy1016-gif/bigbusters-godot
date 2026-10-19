@@ -50,7 +50,7 @@ func _initialize() -> void:
 	var player := view.player
 	check(player != null, "動きの入った AnimationPlayer がある")
 	var an := CharacterData.load_config()["animations"] if false else hero["animations"] as Dictionary
-	for action in an:
+	for action in ["idle", "run", "jump", "attack", "down"]:
 		check(player.has_animation(str(an[action])), "動作 " + str(action) + " のアニメ（" + str(an[action]) + "）がある")
 	var sk := view.model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
 	check(player.get_animation("Run").loop_mode == Animation.LOOP_LINEAR, "走るは、くり返す")

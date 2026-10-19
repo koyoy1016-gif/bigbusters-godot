@@ -50,14 +50,16 @@ func _initialize() -> void:
 	check(s.attack(), "サブ敵のそばで、こうげきが当たる")
 	check(is_equal_approx(s.crowd_state.hp[0], float(s.config["sub_enemy_hp"]) - s.role_value("attack_power")), "サブ敵の体力が、攻撃力のぶん減る")
 	check(s.boss_hp == hp0 and s.my_hits == 0.0, "サブ敵へのダメージは、ボスの体力にも合計ダメージにも数えない")
-	s.attack_cooldown = 0.0
+	s.actions.reset()
 	s.attack()
-	s.attack_cooldown = 0.0
+	s.actions.reset()
 	s.attack()
 	check(not s.crowd_state.is_alive(0) and s.crowd_state.kills == 1, "何回か当てると倒れる")
 	s.player.position = Vector3(0.0, s.ground_y, 14.0)
-	s.attack_cooldown = 0.0
-	check(not s.attack(), "何もないところでは、当たらない")
+	s.actions.reset()
+	var alive_hp: float = s.crowd_state.hp[1]
+	s.attack()
+	check(s.boss_hp == hp0 and is_equal_approx(s.crowd_state.hp[1], alive_hp), "何もないところでは、振っても当たらない")
 	# ふれるとダメージ
 	var hp_before: float = s.my_hp
 	s.crowd_state.reset(int(s.config["sub_enemy_count"]), float(s.config["sub_enemy_hp"]))

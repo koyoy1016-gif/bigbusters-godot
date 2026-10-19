@@ -257,6 +257,22 @@ func play_action(action: String) -> bool:
 	return true
 
 
+## 攻撃の動きの1コマ分（steps）を、すぐ流す。key は「swing」「jump_start」など、キャラの animations の名前。
+## そのキャラに key がなければ、「attack」のアニメで代用する。流せたら true
+func play_step(key: String, speed: float) -> bool:
+	current_action = "step"
+	if player == null:
+		return false
+	var anim := CharacterData.animation_for(character, key)
+	if anim == "" or not player.has_animation(anim):
+		anim = CharacterData.animation_for(character, "attack")
+	if anim == "" or not player.has_animation(anim):
+		return false
+	player.play(anim, 0.05, speed)
+	player.seek(0.0, true)
+	return true
+
+
 ## 保存した動きの集まり（tools/retarget_ual.gd が作る .res）から、再生係を作る。読めなければ null
 static func build_library_player(model: Node, path: String) -> AnimationPlayer:
 	var lib := load(path) as AnimationLibrary
@@ -268,6 +284,14 @@ static func build_library_player(model: Node, path: String) -> AnimationPlayer:
 	p.root_node = NodePath("..")
 	p.add_animation_library("", lib)
 	return p
+
+
+## 向き（床の上の x, z）に、すぐ体を向ける
+func face_now(direction: Vector2) -> void:
+	if direction.length() < 0.05:
+		return
+	facing = atan2(direction.x, direction.y)
+	rotation.y = facing
 
 
 ## 進む向き（床の上の x, z）に、少しずつ体を向ける。止まっているときは、そのまま

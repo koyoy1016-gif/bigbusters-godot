@@ -1,0 +1,147 @@
+extends RefCounted
+## プレイヤーの3つの攻撃（通常・サブ・メイン）の「時間の進み」だけを持つ（画面もダメージも持たない）。
+## 何がいつ起きるか（当たる時刻、アニメの切り替え、体の動き）は data/actions.json。
+## この部品は「いまこれが起きた」という出来事（events）を返すだけ。実際のダメージは、呼ぶ側が
+## damage.gd（CLAUDE.md ルール4）で計算し、当たりの形は hit_area.gd で調べる。
+
+const PATH := "res://data/actions.json"
+
+var cfg: Dictionary = {}
+var active := ""
+var t := 0.0
+var duration := 0.0
+var aim := Vector2(0.0, -1.0)
+var cooldowns := {}
+## この1コマで動く量。x = 前向きに進んだ距離、y = 地面からの高さ
+var frame_move := Vector2.ZERO
+var height := 0.0
+var _hit_i := 0
+var _step_i := 0
+var _last_fwd := 0.0
+var _queue: Array = []
+
+
+func _init(config: Dictionary = {}) -> void:
+	cfg = config if not config.is_empty() else load_config()
+
+
+static func load_config(path: String = PATH) -> Dictionary:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed if parsed is Dictionary else {}
+
+
+## ボタンに出す順（通常、サブ、メイン）
+func ids() -> Array:
+	return cfg.get("order", [])
+
+
+func def(id: String) -> Dictionary:
+	var d: Variant = (cfg.get("actions", {}) as Dictionary).get(id, {})
+	return d if d is Dictionary else {}
+
+
+func busy() -> bool:
+	return active != ""
+
+
+func cooldown_left(id: String) -> float:
+	return float(cooldowns.get(id, 0.0))
+
+
+## 技の動いている間の、歩きの速さの割合（0 なら立ち止まる）。何もしていなければ 1
+func move_scale() -> float:
+	return float(def(active).get("move_scale", 1.0)) if busy() else 1.0
+
+
+func can_start(id: String) -> bool:
+	return not busy() and not def(id).is_empty() and cooldown_left(id) <= 0.0
+
+
+## 始める。始められたら true。cooldown_override が 0 より大きければ、待ち時間（と、それに合わせる長さ）をそれにする
+func start(id: String, aim_dir: Vector2, cooldown_override: float = -1.0) -> bool:
+	if not can_start(id):
+		return false
+	var d := def(id)
+	var cd := cooldown_override if cooldown_override > 0.0 else float(d.get("cooldown_sec", 1.0))
+	active = id
+	t = 0.0
+	duration = cd if bool(d.get("duration_from_cooldown", false)) else float(d.get("duration_sec", 1.0))
+	aim = aim_dir.normalized() if aim_dir.length() > 0.001 else Vector2(0.0, -1.0)
+	cooldowns[id] = cd
+	_hit_i = 0
+	_step_i = 0
+	_last_fwd = 0.0
+	frame_move = Vector2.ZERO
+	height = 0.0
+	_queue = []
+	_fire_due()
+	return true
+
+
+## 途中でやめる（ダウン、つかまれた、戦いが終わった）。待ち時間は、そのまま残る
+func cancel() -> void:
+	active = ""
+	frame_move = Vector2.ZERO
+	height = 0.0
+	_queue = []
+
+
+## 全部元に戻す（待ち時間も消す）
+func reset() -> void:
+	cancel()
+	cooldowns = {}
+
+
+## 時間を進める。この1コマで起きた出来事の一覧を返す：
+## {"type": "hit", "action", "multiplier", "radius_scale", "cleave"}、 {"type": "anim", "anim", "speed"}
+func update(delta: float) -> Array:
+	for id in cooldowns.keys():
+		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
+	frame_move = Vector2.ZERO
+	if not busy():
+		var out := _queue
+		_queue = []
+		return out
+	t += delta
+	_fire_due()
+	var d := def(active)
+	var off := offset_at(d.get("path", []), minf(t, duration))
+	frame_move.x = off.x - _last_fwd
+	_last_fwd = off.x
+	height = off.y
+	if t >= duration:
+		active = ""
+		height = 0.0
+	var events := _queue
+	_queue = []
+	return events
+
+
+func _fire_due() -> void:
+	var d := def(active)
+	var hits: Array = d.get("hits", [])
+	while _hit_i < hits.size() and float(hits[_hit_i]["t"]) <= t:
+		_queue.append({"type": "hit", "action": active, "multiplier": float(hits[_hit_i]["multiplier"]),
+			"radius_scale": float(d.get("radius_scale", 1.0)), "cleave": bool(d.get("cleave", false))})
+		_hit_i += 1
+	var steps: Array = d.get("steps", [])
+	while _step_i < steps.size() and float(steps[_step_i]["t"]) <= t:
+		_queue.append({"type": "anim", "anim": str(steps[_step_i]["anim"]), "speed": float(steps[_step_i]["speed"])})
+		_step_i += 1
+
+
+## 体の動きの道（path）の、時刻 time での (前向きの距離, 高さ)。キーとキーの間は、なめらかにつなぐ
+static func offset_at(path: Array, time: float) -> Vector2:
+	if path.is_empty():
+		return Vector2.ZERO
+	if time <= float(path[0]["t"]):
+		return Vector2(float(path[0]["fwd"]), float(path[0]["h"]))
+	for i in range(1, path.size()):
+		var b: Dictionary = path[i]
+		if time <= float(b["t"]):
+			var a: Dictionary = path[i - 1]
+			var span := maxf(0.0001, float(b["t"]) - float(a["t"]))
+			var k := smoothstep(0.0, 1.0, (time - float(a["t"])) / span)
+			return Vector2(lerpf(float(a["fwd"]), float(b["fwd"]), k), lerpf(float(a["h"]), float(b["h"]), k))
+	var last: Dictionary = path[path.size() - 1]
+	return Vector2(float(last["fwd"]), float(last["h"]))

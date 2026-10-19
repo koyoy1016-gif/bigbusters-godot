@@ -39,8 +39,9 @@ func _init() -> void:
 	sfx.played = []
 	s.player.position = Vector3(0.0, s.ground_y, s.boss.position.z + 3.0)
 	check(s.attack() and sfx.played.has("slash") and sfx.played.has("hit"), "こうげきで音が鳴る")
-	s.jump()
-	check(sfx.played.has("jump"), "ジャンプで音が鳴る")
+	s.actions.reset()
+	s.perform("sub")
+	check(sfx.played.has("jump"), "サブ（跳ぶ攻撃）で、跳ぶ音が鳴る")
 	sfx.played = []
 	var t0: float = s.round_start_ms
 	now[0] = t0 + 3200.0

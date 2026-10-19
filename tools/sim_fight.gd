@@ -30,8 +30,10 @@ func _init() -> void:
 			var bp: Vector3 = s.boss.position
 			if not s.downed:
 				s.player.position = Vector3(bp.x, s.ground_y, bp.z + float(s.config["boss_size"]) * 0.5 + 1.2)
-				s.attack()
-				s.attack_cooldown = maxf(0.0, s.attack_cooldown - dt)
+				for id in ["main", "sub", "normal"]:
+					if s.perform(id):
+						break
+				s._actions_update(dt)
 			s.combat_update(dt)
 		var won: bool = s.won
 		if won:

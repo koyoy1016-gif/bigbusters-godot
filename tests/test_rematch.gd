@@ -86,25 +86,8 @@ func _initialize() -> void:
 	b.player.position = Vector3(1.0, 0.5, 1.0)
 	b.other_pos["p2"] = Vector2(3.0, 1.0)
 	b.my_hp = 10.0
-	b.net_state["effects"] = {"p2": {"type": "heal", "t": 7900.0, "value": 30.0, "round": 7000.0}}
-	b._apply_ally_effects()
-	check(is_equal_approx(b.my_hp, 40.0), "近くの味方の回復が、自分に効く")
-	b._apply_ally_effects()
-	check(is_equal_approx(b.my_hp, 40.0), "同じ技は、1回だけ")
-	b.net_state["effects"] = {"p2": {"type": "heal", "t": 7950.0, "value": 30.0, "round": 6000.0}}
-	b._apply_ally_effects()
-	check(is_equal_approx(b.my_hp, 40.0), "ほかの戦いの技は、無視する")
-	b.net_state["effects"] = {"p2": {"type": "heal", "t": 7960.0, "value": 30.0, "round": 7000.0}}
 	b.other_pos["p2"] = Vector2(30.0, 30.0)
-	b._apply_ally_effects()
-	check(is_equal_approx(b.my_hp, 40.0), "遠い味方の回復は、効かない")
 	b.other_pos["p2"] = Vector2(3.0, 1.0)
-	b.net_state["effects"] = {"p2": {"type": "heal", "t": 1000.0, "value": 30.0, "round": 7000.0}}
-	b._apply_ally_effects()
-	check(is_equal_approx(b.my_hp, 40.0), "古い技は、無視する")
-	b.net_state["effects"] = {"p2": {"type": "guard", "t": 7990.0, "value": 3.0, "round": 7000.0}}
-	b._apply_ally_effects()
-	check(is_equal_approx(b.guard_left, 3.0), "近くの味方のバリアが、自分に効く")
 	# ロビーに戻れば、片づく
 	flow.goto("highlight")
 	flow.goto("lobby")

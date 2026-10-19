@@ -4,12 +4,25 @@
   "ground_size": 40.0,
   "ground_color": "#4a6b4a",
   "bounds": 15.0,
-  "ally_effect_radius": {"heal": 6.0, "guard": 5.0},
-  "ally_effect_max_age_sec": 3.0,
-  "spawn_points": {"p1": [-3.0, 6.0], "p2": [3.0, 6.0], "p3": [-6.0, 4.0], "p4": [6.0, 4.0]},
+  "spawn_points": {
+    "p1": [
+      -3.0,
+      6.0
+    ],
+    "p2": [
+      3.0,
+      6.0
+    ],
+    "p3": [
+      -6.0,
+      4.0
+    ],
+    "p4": [
+      6.0,
+      4.0
+    ]
+  },
   "move_speed": 6.0,
-  "gravity": 20.0,
-  "jump_speed": 8.0,
   "light_energy": 1.0,
   "light_rotation_deg": [
     -55.0,
@@ -23,38 +36,19 @@
   ],
   "camera_fov": 55.0,
   "stick_zone_max_x_frac": 0.5,
-  "button_zone_min_x_frac": 0.5,
   "stick_center_frac": [
     0.15,
     0.78
   ],
   "stick_radius_px": 90.0,
   "stick_dead_zone": 0.15,
-  "button_center_frac": [
-    0.87,
-    0.78
-  ],
-  "skill_center_frac": [
-    0.785,
-    0.56
-  ],
-  "skill_center_frac_portrait": [
-    0.74,
-    0.76
-  ],
-  "attack_center_frac": [
-    0.7,
-    0.78
-  ],
   "button_radius_px": 64.0,
-  "button_label": "ジャンプ",
-  "attack_label": "こうげき",
-  "hint": "左のスティックで動く。ジャンプで、輪をよける",
+  "hint": "左のスティックで動く。右のボタンでこうげき。サブ（跳ぶ）で輪をよけられる",
   "boss_hp_label": "ボスの体力",
   "win_text": "たおした",
   "boss_hp": 4000.0,
   "boss_size": 3.4,
-  "boss_color": "#8f2e3d",
+  "boss_color": "#8a9098",
   "boss_hit_color": "#ffffff",
   "boss_position": [
     0.0,
@@ -123,7 +117,6 @@
       "name": "ファイター",
       "hp": 100.0,
       "move_speed": 7.0,
-      "jump_speed": 8.0,
       "attack_power": 12.0,
       "attack_cooldown_sec": 0.35
     },
@@ -131,7 +124,6 @@
       "name": "ガーディアン",
       "hp": 160.0,
       "move_speed": 5.0,
-      "jump_speed": 8.0,
       "attack_power": 7.0,
       "attack_cooldown_sec": 0.5
     },
@@ -139,7 +131,6 @@
       "name": "シューター",
       "hp": 70.0,
       "move_speed": 6.0,
-      "jump_speed": 8.0,
       "attack_power": 9.0,
       "attack_cooldown_sec": 0.3,
       "attack_reach": 7.0
@@ -148,7 +139,6 @@
       "name": "サポート",
       "hp": 90.0,
       "move_speed": 6.0,
-      "jump_speed": 8.0,
       "attack_power": 6.0,
       "attack_cooldown_sec": 0.4,
       "attack_reach": 4.0
@@ -173,7 +163,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "45",
+  "build_id": "46",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "marker_size": 0.35,
@@ -218,14 +208,6 @@
     0.22,
     0.86
   ],
-  "button_center_frac_portrait": [
-    0.86,
-    0.88
-  ],
-  "attack_center_frac_portrait": [
-    0.62,
-    0.88
-  ],
   "start_center_frac_portrait": [
     0.5,
     0.66
@@ -238,9 +220,13 @@
     0.9,
     0.025
   ],
-  "hint_portrait": "ジャンプで、輪をよける",
+  "hint_portrait": "スティックで動く。右下のボタンでこうげき。サブ（跳ぶ）で輪をよける",
   "sub_enemy_count": 10,
-  "sub_enemy_size": [0.7, 1.4, 0.7],
+  "sub_enemy_size": [
+    0.7,
+    1.4,
+    0.7
+  ],
   "sub_enemy_color": "#8e44ad",
   "sub_enemy_radius": 9.0,
   "sub_enemy_speed": 0.35,
@@ -254,5 +240,29 @@
   "sub_enemy_touch_multiplier": 1.0,
   "sub_enemy_touch_interval_sec": 1.0,
   "ambient_color": "#b8c4d8",
-  "ambient_energy": 0.55
+  "ambient_energy": 0.55,
+  "normal_center_frac": [
+    0.87,
+    0.78
+  ],
+  "normal_center_frac_portrait": [
+    0.86,
+    0.88
+  ],
+  "sub_center_frac": [
+    0.7,
+    0.78
+  ],
+  "sub_center_frac_portrait": [
+    0.62,
+    0.88
+  ],
+  "main_center_frac": [
+    0.785,
+    0.56
+  ],
+  "main_center_frac_portrait": [
+    0.74,
+    0.76
+  ]
 }

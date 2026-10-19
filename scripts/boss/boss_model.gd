@@ -15,6 +15,13 @@ var hand_bend := {"L": Vector3.ZERO, "R": Vector3.ZERO}
 var shoulder := {"L": Vector3(1.35, 0.8, 0.0), "R": Vector3(-1.35, 0.8, 0.0)}
 var hand_target := {"L": Vector3.ZERO, "R": Vector3.ZERO}
 var cfg: Dictionary = {}
+## 手の先を、目標へなめらかに近づける（0 なら、すぐ動く）。毎コマ begin_frame で、1コマの長さを教える
+var frame_delta := 0.0
+var _hand_ready := {"L": false, "R": false}
+var lean := Vector2.ZERO  ## 体のかたむき（x：前へ、y：横へ。ラジアン）
+var _base_y := 0.0
+var _base_set := false
+var _flinch := 0.0
 
 
 static func load_config(path: String = "res://data/boss_model.json") -> Dictionary:
@@ -187,6 +194,10 @@ func _sphere(radius: float, mat: StandardMaterial3D, pos: Vector3) -> MeshInstan
 
 ## 手の先の位置を決めて、節を並べなおす。target は、胴体から見た座標
 func set_hand(side: String, target: Vector3, bend: Vector3 = Vector3.ZERO) -> void:
+	if frame_delta > 0.0 and bool(_hand_ready[side]):
+		var k := 1.0 - exp(-float(cfg.get("hand_follow_rate", 12.0)) * frame_delta)
+		target = (hand_target[side] as Vector3).lerp(target, k)
+	_hand_ready[side] = true
 	hand_target[side] = target
 	hand_bend[side] = bend
 	_layout_arm(side)
@@ -230,6 +241,28 @@ func pose_idle(time: float) -> void:
 		var ph := 0.0 if side == "L" else 1.7
 		var s: Vector3 = shoulder[side]
 		set_hand(side, s + Vector3(out * (1.4 + 0.25 * sin(time * 1.3 + ph)), -3.9 + 0.3 * sin(time * 1.1 + ph), 2.3 + 0.35 * cos(time * 0.9 + ph)))
+
+
+## 1コマの始まりに呼ぶ。1コマの長さ（秒）を教える。0 を渡すと、手はすぐ目標へ動く
+func begin_frame(delta: float) -> void:
+	frame_delta = delta
+
+
+## 体の動き：息づかい（上下・ふくらみ）、攻撃の予備動作でのかたむき、やられたときのよろけ。
+## goal_lean：かたむきの目標（x：前へ、y：横へ）。hit_now：ダメージをうけた、その瞬間なら true
+func update_body(delta: float, clock: float, goal_lean: Vector2, hit_now: bool) -> void:
+	if not _base_set:
+		_base_y = position.y
+		_base_set = true
+	if hit_now:
+		_flinch = float(cfg.get("flinch", 0.09))
+	_flinch = move_toward(_flinch, 0.0, delta * float(cfg.get("flinch_recover", 0.5)))
+	lean = lean.lerp(goal_lean, 1.0 - exp(-float(cfg.get("lean_rate", 8.0)) * delta))
+	var breath := sin(clock * float(cfg.get("breath_speed", 1.8)))
+	rotation.x = lean.x - _flinch
+	rotation.z = lean.y + float(cfg.get("sway", 0.025)) * sin(clock * 0.9)
+	position.y = _base_y + float(cfg.get("bob", 0.07)) * breath
+	scale = Vector3.ONE * (1.0 + float(cfg.get("breath_scale", 0.014)) * breath)
 
 
 func hand_world(side: String) -> Vector3:

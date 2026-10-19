@@ -3,7 +3,7 @@ extends RefCounted
 ## モデル（glTF）のファイルがまだないキャラは、箱の見た目で出る（has_model が false）。
 
 const PATH := "res://data/characters.json"
-const STAT_KEYS := ["hp", "move_speed", "jump_speed", "attack_power", "attack_cooldown_sec", "attack_reach"]
+const STAT_KEYS := ["hp", "move_speed", "attack_power", "attack_cooldown_sec", "attack_reach"]
 
 
 static func load_config(path: String = PATH) -> Dictionary:
