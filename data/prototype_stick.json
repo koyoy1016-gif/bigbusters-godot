@@ -47,7 +47,7 @@
   "boss_hp_label": "ボスの体力",
   "win_text": "たおした",
   "boss_hp": 4000.0,
-  "boss_size": 3.4,
+  "boss_size": 4.4,
   "boss_color": "#8a9098",
   "boss_hit_color": "#ffffff",
   "boss_position": [
@@ -163,7 +163,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "48",
+  "build_id": "49",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "marker_size": 0.35,

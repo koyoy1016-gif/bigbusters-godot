@@ -237,22 +237,13 @@ func _build_world() -> void:
 	var bcfg := BossModel.load_config()
 	boss = MeshInstance3D.new()
 	boss.name = "Boss"
-	var torso := SphereMesh.new()
-	torso.radius = float(bcfg["torso_radius"])
-	torso.height = float(bcfg["torso_height"])
-	torso.radial_segments = 24
-	torso.rings = 12
 	boss_material = StandardMaterial3D.new()
-	boss_material.albedo_color = Color(str(config["boss_color"]))
 	boss_material.roughness = 0.55
 	StyleFx.style_material(boss_material, "skin")
 	StyleFx.apply_outline(boss_material, float(StyleFx.config().get("outline_width_boss", 0.05)))
-	torso.material = boss_material
-	boss.mesh = torso
-	boss.add_to_group("styled")
 	add_child(boss)
 	var bp: Array = config["boss_position"]
-	boss.position = Vector3(bp[0], float(bcfg["torso_center_y"]), bp[1])
+	boss.position = Vector3(bp[0], 0.0, bp[1])
 	boss_model = BossModel.new()
 	boss_model.name = "BossModel"
 	boss.add_child(boss_model)
@@ -449,8 +440,8 @@ func _process(delta: float) -> void:
 	banner["left"] = maxf(0.0, float(banner["left"]) - delta)
 	for id in button_flash.keys():
 		button_flash[id] = maxf(0.0, float(button_flash[id]) - delta)
-	var boss_base := Color(str(config["enrage_color"])) if is_enraged() else Color(str(config["boss_color"]))
-	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else boss_base
+	if boss_model != null:
+		boss_model.set_flash(hit_flash > 0.0)
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
 	boss_clock += delta
@@ -654,6 +645,8 @@ func _begin_round(start_ms: float) -> void:
 	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
 	touch_timer = 0.0
 	boss_hp = float(config["boss_hp"])
+	if boss_model != null:
+		boss_model.reset_form()
 	hazard_done = {}
 	grab_locked = {}
 	stun_left = 0.0
@@ -899,6 +892,11 @@ func _recompute_boss_hp() -> void:
 		boss.visible = false
 
 
+## ボスの体力の割合（1.0 が満タン）
+func boss_hp_ratio() -> float:
+	return clampf(boss_hp / maxf(1.0, float(config["boss_hp"])), 0.0, 1.0)
+
+
 ## ボスが、いかりの状態か（戦いの最中で、いかりの時刻を過ぎている）
 func is_enraged() -> bool:
 	return round_active() and (server_now_ms() - round_start_ms) / 1000.0 >= float(config["enrage_after_sec"])
@@ -921,9 +919,13 @@ func build_result_lines() -> Array:
 ## ボスの動き：腕（攻撃ごと）と体（息づかい・予備動作のかたむき・よろけ）。delta は1コマの秒
 func _pose_boss(delta: float = 0.0) -> void:
 	boss_model.begin_frame(delta)
-	_pose_boss_arms()
+	if boss_model.is_staggering():
+		boss_model.pose_stagger_arms(boss_clock)
+	else:
+		_pose_boss_arms()
 	var hit_now := hit_flash > 0.0 and not boss_was_hit
 	boss_was_hit = hit_flash > 0.0
+	boss_model.update_form(boss_hp_ratio(), delta)
 	boss_model.update_body(delta, boss_clock, _boss_lean_goal(), hit_now)
 
 
