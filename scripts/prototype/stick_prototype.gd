@@ -976,15 +976,16 @@ func _pose_boss_arms() -> void:
 			_pose_typhoon(u, k)
 		Attacks.FLYERS:
 			var pulse := sin(u * 9.0)
-			boss_model.set_hand("L", boss_model.to_local(_bw(Vector3(-2.5, 1.8, 3.5 + 2.0 * maxf(pulse, 0.0)))))
-			boss_model.set_hand("R", boss_model.to_local(_bw(Vector3(2.5, 1.8, 3.5 + 2.0 * maxf(-pulse, 0.0)))))
+			# 左手（L＝ボスの左、+X）は左側、右手は右側で、交互に投げる（腕が交差しないように）
+			boss_model.set_hand("L", boss_model.to_local(_bw(Vector3(2.5, 1.8, 3.5 + 2.0 * maxf(pulse, 0.0)))))
+			boss_model.set_hand("R", boss_model.to_local(_bw(Vector3(-2.5, 1.8, 3.5 + 2.0 * maxf(-pulse, 0.0)))))
 			boss_model.set_curl("L", 0.5 + 0.5 * pulse)
 			boss_model.set_curl("R", 0.5 - 0.5 * pulse)
 			boss_model.pose_small_arms(boss_clock)
 		Attacks.FLYER_STORM:
 			var shake := sin(u * 14.0) * 0.6
-			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5 + shake, 7.0, 0.5)))
-			boss_model.set_hand("R", boss_model.to_local(bp + Vector3(2.5 - shake, 7.0, 0.5)))
+			boss_model.set_hand("L", boss_model.to_local(_bw(Vector3(2.5 + shake, 7.0, 0.5))))
+			boss_model.set_hand("R", boss_model.to_local(_bw(Vector3(-2.5 - shake, 7.0, 0.5))))
 			boss_model.set_curl("L", 0.6)
 			boss_model.set_curl("R", 0.6)
 			boss_model.pose_small_arms(boss_clock)

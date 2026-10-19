@@ -27,6 +27,8 @@ func _initialize() -> void:
 	s.sfx = null
 	s.start_round()
 	if awake:
+		s.my_hits = float(s.config["boss_hp"]) * 0.55
+		s._recompute_boss_hp()
 		s.boss_model._apply_form("awake")
 		s.awake_from_t = 0.0
 	var sched: Array = s.awake_schedule if awake else s.attack_schedule

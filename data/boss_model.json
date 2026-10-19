@@ -121,5 +121,44 @@
  ],
  "hip_y": 2.08,
  "_memo_crouch": "crouch_drop：いちばんしゃがんだとき、脚を何割縮めるか。hip_y：腰の高さ（しゃがむと、そのぶん上半身が下がる）",
- "head_scale": 0.9
+ "head_scale": 0.9,
+ "aura": {
+  "_memo": "覚醒のオーラ。amount：粒の数（多いほど重い）、radius：体からの距離（モデルの座標）",
+  "amount": 34,
+  "lifetime": 1.1,
+  "radius": 1.5,
+  "color_start": "#ff5a3c",
+  "color_mid": "#c83cff",
+  "color_end": "#5a1e8c",
+  "ground_color": "#ff3c6e"
+ },
+ "flash_energy": 0.45,
+ "_memo_legs": "leg_joints：脚の骨の位置（左。右は x を逆に）。walk_stride：1歩の前後の幅、walk_lift：足を上げる高さ、walk_bob：歩くときの腰の上下、crouch_splay：覚醒でしゃがむとき足を外へ開く幅、awake_small_lift：覚醒の小さな腕3組の高さ、tail_whip_len：しっぽ回しで伸ばす長さ",
+ "leg_joints": {
+  "hip": [
+   0.3,
+   2.08,
+   0.0
+  ],
+  "knee": [
+   0.43,
+   1.18,
+   0.05
+  ],
+  "ankle": [
+   0.5,
+   0.46,
+   -0.04
+  ]
+ },
+ "walk_stride": 0.42,
+ "walk_lift": 0.28,
+ "walk_bob": 0.07,
+ "crouch_splay": 0.32,
+ "awake_small_lift": [
+  0.55,
+  -0.15,
+  -0.7
+ ],
+ "tail_whip_len": 3.4
 }

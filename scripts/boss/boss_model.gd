@@ -57,6 +57,9 @@ var leg_skel: Skeleton3D  ## 脚の骨（もも・すね・足）
 var leg_rest := {}  ## "L"/"R" → [腰, ひざ, 足首]（休みの位置）
 var walk_phase := 0.0
 var tail_whip := 0.0  ## しっぽをまっすぐ長くのばす具合（0〜1。しっぽ回しで使う）
+var aura_particles: CPUParticles3D  ## 覚醒のオーラの粒
+var aura_ground: MeshInstance3D
+var aura_glow_mat: StandardMaterial3D
 var follow_boost := 1.0  ## 手が目標へ近づく速さの倍率（速い振りのときに上げる）
 var walk_amount := 0.0
 var bat: Node3D
@@ -112,6 +115,7 @@ func build(config: Dictionary, skin_material: StandardMaterial3D) -> void:
 	_build_arms()
 	_attach_props()
 	_bake()
+	_build_aura()
 	_apply_form("normal")
 	pose_idle(0.0)
 
@@ -279,6 +283,100 @@ func _build_legs() -> void:
 		for k in 4:
 			var tx: float = x + (float(k) - 1.5) * 0.1
 			_tag(_spike(feet, Vector3(tx, 0.08, 0.5), Vector3(tx + (float(k) - 1.5) * 0.04, 0.02, 0.7), 0.035, claw, 5), b)
+
+
+## 覚醒のオーラ：体のまわりから、赤紫の炎のような粒が立ちのぼる＋足もとの光の輪。粒は1回で描く（CPUParticles3D）
+func _build_aura() -> void:
+	var a: Dictionary = cfg.get("aura", {})
+	var aura := Node3D.new()
+	aura.name = "Aura"
+	add_child(aura)
+	awake_nodes.append(aura)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# 粒の形：まん中が明るく、ふちが消える、やわらかい丸（小さな画像をその場で作る）
+	var soft := Gradient.new()
+	soft.set_color(0, Color(1, 1, 1, 1))
+	soft.set_color(1, Color(1, 1, 1, 0))
+	soft.add_point(0.45, Color(1, 1, 1, 0.55))
+	var tex := GradientTexture2D.new()
+	tex.gradient = soft
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.5, 0.0)
+	tex.width = 32
+	tex.height = 32
+	mat.albedo_texture = tex
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.95, 1.5)
+	quad.material = mat
+	var p := CPUParticles3D.new()
+	p.name = "Flames"
+	p.mesh = quad
+	p.amount = int(a.get("amount", 26))
+	p.lifetime = float(a.get("lifetime", 1.1))
+	p.local_coords = false
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	p.emission_ring_axis = Vector3.UP
+	p.emission_ring_height = 2.6
+	p.emission_ring_radius = float(a.get("radius", 1.5))
+	p.emission_ring_inner_radius = float(a.get("radius", 1.5)) * 0.55
+	p.position = Vector3(0, 1.6, 0)
+	p.direction = Vector3.UP
+	p.spread = 12.0
+	p.gravity = Vector3(0, 2.5, 0)
+	p.initial_velocity_min = 1.2
+	p.initial_velocity_max = 2.6
+	p.scale_amount_min = 0.8
+	p.scale_amount_max = 1.6
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.3))
+	curve.add_point(Vector2(0.3, 1.0))
+	curve.add_point(Vector2(1.0, 0.0))
+	p.scale_amount_curve = curve
+	var grad := Gradient.new()
+	grad.set_color(0, Color(str(a.get("color_start", "#ff5a3c")), 0.0))
+	grad.add_point(0.15, Color(str(a.get("color_start", "#ff5a3c")), 1.0))
+	grad.add_point(0.6, Color(str(a.get("color_mid", "#c83cff")), 0.8))
+	grad.set_color(grad.get_point_count() - 1, Color(str(a.get("color_end", "#5a1e8c")), 0.0))
+	p.color_ramp = grad
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	aura.add_child(p)
+	aura_particles = p
+	# 足もとの光の輪
+	var gmat := StandardMaterial3D.new()
+	gmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	gmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gmat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	gmat.albedo_color = Color(str(a.get("ground_color", "#ff3c6e")), 0.35)
+	var disc := CylinderMesh.new()
+	disc.top_radius = float(a.get("radius", 1.5)) * 1.5
+	disc.bottom_radius = disc.top_radius
+	disc.height = 0.02
+	disc.radial_segments = 24
+	disc.rings = 1
+	disc.material = gmat
+	aura_ground = MeshInstance3D.new()
+	aura_ground.name = "Glow"
+	aura_ground.mesh = disc
+	aura_ground.position = Vector3(0, 0.05, 0)
+	aura_ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	aura.add_child(aura_ground)
+	aura_glow_mat = gmat
+
+
+## オーラのゆらめき（毎コマ）。足もとの輪が、脈を打つように明るくなる
+func _update_aura(clock: float) -> void:
+	if aura_glow_mat == null or form != "awake":
+		return
+	var pulse := 0.5 + 0.5 * sin(clock * 5.0)
+	aura_glow_mat.albedo_color.a = 0.22 + 0.25 * pulse
+	aura_ground.scale = Vector3.ONE * (1.0 + 0.12 * pulse)
 
 
 func _tag(mi: MeshInstance3D, bone: String) -> MeshInstance3D:
@@ -915,6 +1013,8 @@ func _apply_form(name: String) -> void:
 	skin_red.albedo_color = Color(str(cfg["torso_awake"] if awake else cfg["torso_normal"]))
 	for n in awake_nodes:
 		(n as Node3D).visible = awake
+	if aura_particles != null:
+		aura_particles.emitting = awake
 	for n in normal_nodes:
 		(n as Node3D).visible = not awake
 	for id in arm_nodes:
@@ -1183,3 +1283,4 @@ func update_body(delta: float, clock: float, goal_lean: Vector2, hit_now: bool) 
 	if head != null:
 		head.rotation.x = 0.18 * crouch + (0.5 if is_staggering() and stagger_t > 1.0 and stagger_t < float(cfg["stagger_swap_sec"]) else 0.0)
 	_update_tail(clock)
+	_update_aura(clock)
