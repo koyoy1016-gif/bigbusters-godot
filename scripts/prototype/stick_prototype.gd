@@ -43,6 +43,7 @@ const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const BossRage := preload("res://scripts/combat/boss_rage.gd")
 const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
+const BattleNet := preload("res://scripts/prototype/battle_net.gd")
 const BattleAiTeam := preload("res://scripts/prototype/battle_ai_team.gd")
 const BattleGrab := preload("res://scripts/prototype/battle_grab.gd")
 const BattleHud := preload("res://scripts/prototype/battle_hud.gd")
@@ -79,6 +80,7 @@ var ai := BossAI.new()  ## ボスの攻撃の選び方（重み付きランダ�
 var motion := BossMotion.new()  ## ボスの歩き（位置と向き）
 var phase := BossPhase.new()  ## ボスの体力の2段階（第1形態 → 倒れて覚醒 → 第2形態）
 var rage := BossRage.new()  ## 版69：近くからの攻撃が多い間、ボスが怒る（攻撃が速く、つかみ投げが多くなる）
+var net := BattleNet.new(self)  ## 通信（battle_net.gd）
 var ai_team := BattleAiTeam.new(self)  ## AIの味方・先読み（battle_ai_team.gd）
 var grab := BattleGrab.new(self)  ## つかみ・投げ（battle_grab.gd）
 var hud := BattleHud.new(self)  ## 画面の描画（battle_hud.gd）
@@ -1539,73 +1541,19 @@ func _check_wipe() -> void:
 			round_ended.emit(false)
 
 
-## 通信：一定の間隔でブラウザ側の状態を読み、自分の位置を送り、ほかの人の箱をなめらかに動かす
+## → battle_net.gd
 func net_update(delta: float, now_ms: int) -> void:
-	if not net_active:
-		return
-	since_poll += delta
-	if since_poll >= float(config["net_poll_sec"]):
-		since_poll = 0.0
-		var state := bridge.read_state()
-		if not state.is_empty():
-			apply_net_state(state)
-	_share_my_character(now_ms)
-	var me := str(net_state.get("slot", ""))
-	if me != "" and Sync.should_send(now_ms, last_sent_ms, int(config["send_interval_ms"])):
-		last_sent_ms = now_ms
-		var half := float(config["bounds"])
-		bridge.send_position((player.position.x + half) / (2.0 * half), (player.position.z + half) / (2.0 * half))
-	_update_others(delta)
+	net.net_update(delta, now_ms)
 
 
-## ブラウザ側の状態を受け取る：戦いの開始、ほかの人の位置・ダメージ・体力
+## → battle_net.gd
 func apply_net_state(state: Dictionary) -> void:
-	net_state = state
-	var me := str(state.get("slot", ""))
-	if round_start_ms <= 0.0:
-		my_hp = role_value("hp")
-	var members: Array = state.get("members", [])
-	others_hits = BossSync.others_total(state.get("hits", {}), me, members)
-	# 戦いの開始：新しい開始の時刻が来たら、始める。古すぎる時刻（前の日の戦いなど）は無視する
-	var r := float(state.get("round", 0.0))
-	if r != known_round:
-		known_round = r
-		var age_ms := server_now_ms() - r
-		if r > 0.0 and age_ms <= float(config["round_max_sec"]) * 1000.0 and age_ms >= -float(config["round_future_sec"]) * 1000.0:
-			_begin_round(r)
-	_recompute_boss_hp()
-	_check_wipe()
-	var positions := Sync.parse_positions(state.get("positions", {}))
-	positions.erase(me)
-	# いま部屋にいる人（members）の位置だけ出す。前の人の古い位置が残っていても、箱は出さない
-	if state.has("members"):
-		for slot in positions.keys():
-			if not members.has(str(slot)):
-				positions.erase(slot)
-	for slot in positions:
-		other_target[slot] = positions[slot]
-	for slot in other_target.keys():
-		if not positions.has(slot) and not ai_allies.has(slot):
-			other_target.erase(slot)
-			other_pos.erase(slot)
-			if others.has(slot):
-				(others[slot] as Node).queue_free()
-				others.erase(slot)
-				other_views.erase(slot)
+	net.apply_net_state(state)
 
 
+## → battle_net.gd
 func _update_others(delta: float) -> void:
-	var half := float(config["bounds"])
-	var weight := Sync.smooth_weight(delta, float(config["smooth_per_sec"]))
-	for slot in other_target:
-		var target: Vector2 = other_target[slot]
-		var current: Vector2 = other_pos.get(slot, target)
-		current = current.lerp(target, weight)
-		other_pos[slot] = current
-		var node := _other_node(str(slot))
-		var old_pos := node.position
-		node.position = Vector3(current.x * 2.0 * half - half, ground_y + float(other_lift.get(slot, 0.0)), current.y * 2.0 * half - half)
-		_update_other_view(str(slot), node, node.position - old_pos, delta)
+	net._update_others(delta)
 
 
 func _slot_color(slot: String) -> Color:
@@ -1625,57 +1573,14 @@ func _player_color() -> Color:
 	return _slot_color(str(net_state.get("slot", "")))
 
 
-## ほかの人のキャラの見た目。共有されたキャラにモデルがあれば、箱の代わりにモデルを出す（キャラが変われば作り直す）。
-## 動いていれば走り、止まっていれば待つ。モデルがない・まだ共有されていなければ、箱のまま
+## → battle_net.gd
 func _update_other_view(slot: String, node: MeshInstance3D, step: Vector3, delta: float) -> void:
-	var def := char_def_of(slot)
-	var want := str(def.get("id", "")) if not def.is_empty() and CharacterData.has_model(def) else ""
-	var have := ""
-	if other_views.has(slot):
-		have = str(other_views[slot].character.get("id", ""))
-	if want != have:
-		if other_views.has(slot):
-			(other_views[slot] as Node).queue_free()
-			other_views.erase(slot)
-		if want == "":
-			node.mesh = _other_box_mesh(slot)
-		else:
-			var view := CharacterView.new()
-			if view.setup(def):
-				view.position = Vector3(0.0, -ground_y, 0.0)
-				node.add_child(view)
-				node.mesh = null
-				other_views[slot] = view
-				_raise_marker(node)
-			else:
-				view.free()
-	if other_views.has(slot) and delta > 0.0:
-		var view: Node3D = other_views[slot]
-		var speed := Vector2(step.x, step.z) / delta
-		var moving := speed.length() > float(config.get("other_moving_speed", 0.5))
-		var ally_busy: bool = ai_allies.has(slot) and (AiAlly.act(ai_allies[slot]) as Actions).busy()
-		if ai_allies.has(slot) and bool(ai_allies[slot]["downed"]):
-			view.play_action("down")
-		elif not ally_busy:
-			view.play_action("run" if moving else "idle")
-			if moving:
-				view.face(speed, delta)
+	net._update_other_view(slot, node, step, delta)
 
 
-func _other_box_mesh(slot: String) -> BoxMesh:
-	var box := BoxMesh.new()
-	box.size = Vector3.ONE * float(config["player_size"])
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = _slot_color(slot)
-	box.material = mat
-	return box
-
-
+## → battle_net.gd
 func _other_node(slot: String) -> MeshInstance3D:
-	if not others.has(slot):
-		others[slot] = _make_box("Other_" + slot, float(config["player_size"]), _slot_color(slot))
-		_add_marker(others[slot], _slot_color(slot))
-	return others[slot]
+	return net._other_node(slot)
 
 
 ## → battle_hud.gd
