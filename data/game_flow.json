@@ -65,8 +65,10 @@
     560,
     560
   ],
-  "replay_cam_distance": 7.0,
-  "replay_cam_height": 4.5,
+  "replay_cam_distance": 11.0,
+  "replay_cam_height": 7.0,
+  "replay_look_height": 3.0,
+  "replay_look_height_note": "ハイライトのカメラが見る高さ。版60でボスが本物の大きなモデルになったので、頭まで入るように上げた",
   "replay_cam_follow_per_sec": 6.0,
   "replay_attack_distance": 4.0,
   "replay_attack_repeat_sec": 0.8,

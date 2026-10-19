@@ -709,6 +709,8 @@ func _record_highlight(delta: float) -> void:
 	var t := (server_now_ms() - round_start_ms) / 1000.0
 	var me := str(net_state.get("slot", "p1"))
 	recorder.record(me, t, player.position.x, player.position.z, my_hits)
+	if boss != null and boss_model != null:
+		recorder.record_boss(t, boss.position, boss.rotation.y, str(current_attack.get("kind", "")), current_attack_u, boss_model.is_awake(), motion.walk_dist, motion.speed_now, boss_model.bat_in_hand, float(current_attack.get("feint", 0.0)))
 	var hits: Variant = net_state.get("hits", {})
 	var half := float(config["bounds"])
 	for slot in other_pos:
@@ -724,6 +726,7 @@ func highlight_data() -> Dictionary:
 		return {}
 	best["points"] = recorder.path(str(best["slot"]), float(best["start"]), float(best["end"]))
 	best["boss"] = Vector2(boss.position.x, boss.position.z)
+	best["boss_track"] = recorder.boss_path(float(best["start"]), float(best["end"]))
 	best["bounds"] = float(config["bounds"])
 	best["color"] = _slot_color(str(best["slot"]))
 	best["config"] = config

@@ -6,8 +6,58 @@ extends RefCounted
 var samples: Dictionary = {}
 
 
+## ボスの記録（ハイライトで本物のボスを動かすため）。[{t, x, y, z, yaw, kind, u, awake, walk, speed, bat, feint}, ...]（時間の順）
+var boss_samples: Array = []
+
+
 func clear() -> void:
 	samples.clear()
+	boss_samples.clear()
+
+
+## ボスの位置・向き・いまの攻撃（種類と進み具合 u）・覚醒か・歩いた距離・歩く速さ・バットを持っているか
+func record_boss(t: float, pos: Vector3, yaw: float, kind: String, u: float, awake: bool, walk_dist: float, walk_speed: float, bat: bool, feint: float = 0.0) -> void:
+	if not boss_samples.is_empty() and t < float((boss_samples[boss_samples.size() - 1] as Dictionary)["t"]):
+		return
+	boss_samples.append({"t": t, "x": pos.x, "y": pos.y, "z": pos.z, "yaw": yaw, "kind": kind, "u": u, "awake": awake, "walk": walk_dist, "speed": walk_speed, "bat": bat, "feint": feint})
+
+
+## 区間のボスの記録（前後に1つずつ余分に入れて、区間の端でも間をつなげるようにする）
+func boss_path(start: float, end: float) -> Array:
+	var out: Array = []
+	for i in boss_samples.size():
+		var s: Dictionary = boss_samples[i]
+		var t := float(s["t"])
+		var next_in := i + 1 < boss_samples.size() and float((boss_samples[i + 1] as Dictionary)["t"]) >= start
+		var prev_in := i > 0 and float((boss_samples[i - 1] as Dictionary)["t"]) <= end
+		if (t >= start and t <= end) or (t < start and next_in) or (t > end and prev_in):
+			out.append(s)
+	return out
+
+
+## ボスの記録の、時間 t での姿。位置・向き・歩いた距離は前後の間をつなぐ。
+## 攻撃の進み（u）は、同じ攻撃の続きなら間をつなぎ、攻撃が変わる所では前の記録のまま。空なら {}
+static func boss_at(track: Array, t: float) -> Dictionary:
+	if track.is_empty():
+		return {}
+	var first: Dictionary = track[0]
+	if t <= float(first["t"]):
+		return first.duplicate()
+	for i in range(1, track.size()):
+		var b: Dictionary = track[i]
+		if t <= float(b["t"]):
+			var a: Dictionary = track[i - 1]
+			var span := float(b["t"]) - float(a["t"])
+			var w := 0.0 if span <= 0.0 else (t - float(a["t"])) / span
+			var out := a.duplicate()
+			out["t"] = t
+			for key in ["x", "y", "z", "walk", "speed"]:
+				out[key] = lerpf(float(a[key]), float(b[key]), w)
+			out["yaw"] = lerp_angle(float(a["yaw"]), float(b["yaw"]), w)
+			if str(a["kind"]) == str(b["kind"]) and float(b["u"]) >= float(a["u"]):
+				out["u"] = lerpf(float(a["u"]), float(b["u"]), w)
+			return out
+	return (track[track.size() - 1] as Dictionary).duplicate()
 
 
 func record(slot: String, t: float, x: float, z: float, hits: float) -> void:
