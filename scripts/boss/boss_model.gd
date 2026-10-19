@@ -456,8 +456,9 @@ func _apply_form(name: String) -> void:
 	if awake_items != null:
 		awake_items.visible = awake
 	if aura != null:
-		aura.visible = awake
-		aura_particles.emitting = awake
+		var aura_on := awake and bool((cfg.get("aura", {}) as Dictionary).get("enabled", true))  # 版61：オーラは消して、色の変化だけ
+		aura.visible = aura_on
+		aura_particles.emitting = aura_on
 	if tail_mm != null:
 		_refresh_tail_colors()
 

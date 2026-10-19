@@ -106,7 +106,25 @@ func _initialize() -> void:
 				if float(x["start"]) - prev_ult < float(g["ultimate_cooldown_sec"]):
 					ult_gap_ok = false
 				prev_ult = float(x["end"])
-	check(ult_seen.has("bottle_ride") and ult_seen.has("fire_fest") and ult_gap_ok, "6つの乱数で、必殺技がどれも出て、間をあけている（%s）" % str(ult_seen.keys()))
+	check(ult_seen.has("bottle_ride") and ult_seen.has("flyer_storm") and ult_gap_ok, "6つの乱数で、必殺技がどれも出て、間をあけている（%s）" % str(ult_seen.keys()))
+	# 版61：大きな手・台風・火祭りは、どの形態・どの乱数でも選ばれない
+	var removed_seen := []
+	for seed in [11.0, 2026.0, 31337.0, 8.8e6, 4.4e7, 123.0]:
+		for form in ["normal", "awake"]:
+			for x in run(cfg, seed, form, 80):
+				if str(x["kind"]) in ["hand_sweep", "typhoon", "fire_fest"]:
+					removed_seen.append(str(x["kind"]))
+	check(removed_seen.is_empty(), "大きな手・台風・火祭りは選ばれない（%s）" % str(removed_seen))
+	# 版61：つかみは、近いときだけ重み1.5倍。遠いときは今までどおり
+	var ga := BossAI.new()
+	ga.reset(cfg, 0.0)
+	var gai: Dictionary = cfg["kinds"]["grab"]["ai"]
+	var near_w := float(ga.candidate_weights(20.0, "normal", 2.0).get("grab", 0.0))
+	var far_w := float(ga.candidate_weights(20.0, "normal", 12.0).get("grab", 0.0))
+	check(is_equal_approx(near_w, float(gai["forms"]["normal"]) * 1.5), "近いと、つかみの重みは1.5倍（%.2f）" % near_w)
+	check(is_equal_approx(far_w, float(gai["forms"]["normal"]) * float(cfg["ai"]["far_mult"])), "遠いと、つかみの重みは今までどおり（%.2f）" % far_w)
+	var near_aw := float(ga.candidate_weights(20.0, "awake", 2.0).get("grab", 0.0))
+	check(is_equal_approx(near_aw, float(gai["forms"]["awake"]) * 1.5), "覚醒でも、近いとつかみは1.5倍")
 	# 使える攻撃がないときは、代わりの攻撃
 	check(BossAI.pick({}, 0.5) == "", "候補がなければ空")
 	var ai := BossAI.new()

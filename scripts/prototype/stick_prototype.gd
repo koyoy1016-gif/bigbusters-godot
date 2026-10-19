@@ -1900,8 +1900,15 @@ func _drop_node(i: int) -> MeshInstance3D:
 	return drop_nodes[i]
 
 
+## 床に酒だまりを残すか（版61：data の puddles_enabled。いまは残さない）
+func puddles_enabled() -> bool:
+	return bool(attacks_cfg.get("puddles_enabled", true))
+
+
 ## 床に酒だまりを作る（場所・広さは、酒の雨・大雨のしずく）
 func _add_puddle(pos: Vector3, r: float, id: String = "") -> void:
+	if not puddles_enabled():
+		return
 	var k: Dictionary = attacks_cfg["kinds"].get("flyer_storm", {})
 	var key := id if id != "" else "p%d_%d" % [int(pos.x * 10.0), int(pos.z * 10.0)]
 	field.add(key, Vector2(pos.x, pos.z), r * 1.1, _round_t(), float(k.get("puddle_life", 4.0)), 0.2)
@@ -1985,7 +1992,8 @@ func _sake_field_update() -> void:
 		if current_attack_u >= float(b["land"]) and not _landed.has(str(b["id"])):
 			_landed[str(b["id"])] = true
 			var to: Vector2 = b["to"]
-			field.add(str(b["id"]), to, float(k["puddle_r"]), start + float(b["land"]), float(k["puddle_life"]))
+			if puddles_enabled():
+				field.add(str(b["id"]), to, float(k["puddle_r"]), start + float(b["land"]), float(k["puddle_life"]))
 			_burst_fx(Vector3(to.x, 0.3, to.y), "glass")
 			_play_sfx("thud")
 	if kind == Attacks.FIRE_FEST and not _ignited.has(int(current_attack["n"])):

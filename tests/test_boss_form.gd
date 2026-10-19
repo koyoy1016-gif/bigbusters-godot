@@ -24,6 +24,7 @@ func _init() -> void:
 	check("第1形態の体力が0になると、よろけて倒れる", m.is_staggering() and not m.is_awake())
 	for i in 40: m.update_form(0.1)
 	check("起き上がると覚醒（赤い肌）", m.is_awake() and not m.is_staggering() and m.skin_color().is_equal_approx(Color(str(cfg["skin_awake"]))))
+	check("版61：覚醒のオーラ（炎の粒・床の光）は出さない。色の変化だけ", m.aura == null or (not m.aura.visible and not m.aura_particles.emitting))
 	m.stagger_t = 1.2
 	var p_down: Dictionary = m.animate(0.016, 0.0, {})["pose"]
 	check("よろけると、倒れる（頭が低くなる）", m.anim.bone_model_pos(p_down, "head").y < 1.2)

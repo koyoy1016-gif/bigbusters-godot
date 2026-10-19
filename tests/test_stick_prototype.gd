@@ -248,7 +248,7 @@ func _initialize() -> void:
 			if hit_found:
 				break
 		check(saw_drop, "酒の雨：しずくが上から落ちてくるのが見える")
-		check(not s2.puddles.is_empty(), "酒の雨：落ちた所の床がぬれる")
+		check(s2.puddles.all(func(w: Node3D) -> bool: return not w.visible) and s2.field.alive(float(fl["start"]) + 6.0).is_empty(), "酒の雨：落ちた所の床に酒だまりは残らない（版61）")
 		check(hit_found, "酒のしずくに当たると、ダメージを受ける")
 		s2.hazard_done = {}
 		s2.my_hp = hp_full

@@ -59,6 +59,8 @@
  },
  "aura": {
   "_memo": "覚醒のオーラ（世界の長さ。m）",
+  "enabled": false,
+  "enabled_note": "版61：覚醒のオーラ（炎の粒・床の光）を出すか。ユーザーの指示で、色の変化だけにした（false）",
   "amount": 30,
   "lifetime": 1.1,
   "radius": 2.4,

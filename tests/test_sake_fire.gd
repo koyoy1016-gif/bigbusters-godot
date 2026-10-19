@@ -80,6 +80,8 @@ func _initialize() -> void:
 	s.phase.phase = "awake"
 	s.boss_model._apply_form("awake")
 	now[0] += 10000.0
+	# 版61：火祭りはAIから外し、酒だまりも残さない設定にした。ここでは、しくみ自体が動くかを、設定を戻して確かめる
+	s.attacks_cfg["puddles_enabled"] = true
 	var fa: Dictionary = s.force_attack("fire_fest")
 	var fk: Dictionary = s.attacks_cfg["kinds"]["fire_fest"]
 	# 安全な所（ボスのうしろ）に立つ
@@ -133,6 +135,35 @@ func _initialize() -> void:
 	s.phase.awake_base = 0.0
 	s._recompute_boss_hp()
 	check(s.won and s.field.alive(t).is_empty(), "倒したら、火・酒だまりは消える")
+	# 版61：いまのデータでは、酒瓶落としで酒だまりが残らない
+	var s2: Node = (load(SCENE) as PackedScene).instantiate()
+	root.add_child(s2)
+	if s2.get_node_or_null("Boss") == null:
+		s2._ready()
+	var now2 := [9000000.0]
+	s2.clock_ms = func() -> float: return now2[0]
+	s2.sfx = null
+	s2.ai_enabled = false
+	s2.start_round()
+	s2.phase.phase = "awake"
+	s2.boss_model._apply_form("awake")
+	now2[0] += 10000.0
+	check(not s2.puddles_enabled(), "いまのデータでは、酒だまりを残さない")
+	var da: Dictionary = s2.force_attack("sake_drop")
+	var t2 := float(da["start"])
+	var puddle_max := 0
+	var wet_seen := false
+	while t2 < float(da["end"]) + 0.5:
+		t2 += 0.05
+		now2[0] = s2.round_start_ms + t2 * 1000.0
+		s2.player.position = Vector3(40, s2.ground_y, 40)
+		s2.combat_update(0.05)
+		puddle_max = maxi(puddle_max, s2.field.alive(t2).size())
+		for w in s2.puddles:
+			if (w as Node3D).visible:
+				wet_seen = true
+	check(puddle_max == 0 and not wet_seen, "酒瓶落としのあと、床に酒だまりが残らない")
+	s2._exit_tree()
 	s._exit_tree()
 	print("失敗: ", failures)
 	quit(1 if failures > 0 else 0)

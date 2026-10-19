@@ -2,7 +2,7 @@ extends RefCounted
 ## ボスの攻撃の選び方（重み付きランダム）。画面を持たない（テストしやすい）。
 ## 決まった順番はやめ、使える攻撃の中から、重みでくじ引きする。重みは data/boss_attacks.json の各攻撃の "ai"：
 ##   forms：{normal: 重み, awake: 重み}（0 や書いていない形態では使わない）
-##   range：[近い, 遠い]（ねらう人までの距離 m がこの間なら、重みそのまま。外なら far_mult 倍）
+##   range：[近い, 遠い]（ねらう人までの距離 m がこの間なら、重みに near_mult をかける（書いていなければ1）。外なら far_mult 倍）
 ##   cooldown_sec：一度使ったら、この秒は使わない
 ##   strong：強い攻撃（続くと重みを下げる）
 ##   ultimate：必殺技（覚醒のときだけ。ultimate_first_sec・ultimate_cooldown_sec を守る）
@@ -133,6 +133,8 @@ func candidate_weights(start: float, form: String, dist: float) -> Dictionary:
 		var r: Array = ai.get("range", [0.0, 99.0])
 		if dist >= 0.0 and (dist < float(r[0]) or dist > float(r[1])):
 			w *= float(ai.get("far_mult", g.get("far_mult", 0.3)))
+		elif dist >= 0.0:
+			w *= float(ai.get("near_mult", 1.0))
 		if kind == last:
 			w *= float(g.get("repeat_mult", 0.4))
 		if bool(ai.get("strong", false)) and strong_streak >= int(g.get("strong_streak", 2)):

@@ -19,6 +19,8 @@
     "arrow_spacing": 3.2,
     "arrow_speed": 1.4
   },
+  "puddles_enabled": false,
+  "puddles_enabled_note": "版61：床に酒だまりを残すか。ユーザーの指示で、どの攻撃でも残さない（false）",
   "zone_min_alpha": 0.12,
   "zone_max_alpha": 0.6,
   "paper_color": "#f4f1e6",
@@ -62,7 +64,9 @@
           0.0,
           6.0
         ],
-        "cooldown_sec": 6.0
+        "cooldown_sec": 6.0,
+        "near_mult": 1.5,
+        "_note": "版61：ねらう人が range の中（近い）なら重み1.5倍（near_mult）。遠いときは今までどおり（far_mult）"
       },
       "knockback": "none",
       "kb_mode": "radial"
@@ -82,15 +86,9 @@
       "stop_dist": 3.5,
       "chase_sec": 0.6,
       "ai": {
-        "forms": {
-          "awake": 1.5
-        },
-        "range": [
-          0.0,
-          6.0
-        ],
-        "cooldown_sec": 5.0,
-        "strong": true
+        "forms": {},
+        "removed": true,
+        "_note": "版61：ユーザーの指示で削除（AIは選ばない）。定義は残している"
       },
       "knockback": "kb_light",
       "kb_mode": "radial"
@@ -161,10 +159,9 @@
       ],
       "hand_scale": 2.4,
       "ai": {
-        "forms": {
-          "awake": 0.8
-        },
-        "ultimate": true
+        "forms": {},
+        "removed": true,
+        "_note": "版61：ユーザーの指示で削除（AIは選ばない）。定義は残している"
       },
       "knockback": "kb_launch",
       "kb_mode": "travel"
@@ -519,10 +516,9 @@
       "knockback": "kb_light",
       "kb_mode": "radial",
       "ai": {
-        "forms": {
-          "awake": 2.5
-        },
-        "ultimate": true
+        "forms": {},
+        "removed": true,
+        "_note": "版61：ユーザーの指示で削除（AIは選ばない）。定義は残している"
       }
     },
     "bottle_ride": {
