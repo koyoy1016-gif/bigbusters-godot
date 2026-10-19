@@ -41,6 +41,8 @@ func _initialize() -> void:
 	check((rest["rot"]["wrist.R"] as Basis).is_equal_approx(Basis.IDENTITY), "こうげきの前は、手首はそのまま")
 	var cfg := CharacterData.load_config()
 	var hero := CharacterData.find(cfg, str(cfg["player_character"]))
+	hero = hero.duplicate()
+	hero.erase("anim_library")  # このテストは、コードで作る動き（つなぎ）を確かめる
 	check(bool(hero.get("procedural_anims", false)), "剣士は、コードの動きを使う設定")
 	var view := CharacterView.new()
 	root.add_child(view)

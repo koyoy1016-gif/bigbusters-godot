@@ -70,7 +70,15 @@
         "attack_power": 12.0,
         "attack_cooldown_sec": 0.35,
         "attack_reach": 2.0
-      }
+      },
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "anim_speeds": {
+        "attack": 2.2,
+        "run": 1.1
+      },
+      "anim_oneshot": [
+        "attack"
+      ]
     },
     {
       "id": "sprinter",

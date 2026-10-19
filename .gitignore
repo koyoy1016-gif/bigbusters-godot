@@ -9,3 +9,5 @@ web/*
 *serviceAccount*.json
 .env
 .env.*
+assets/anims/_ual_src.glb
+assets/anims/_ual_src.glb.import

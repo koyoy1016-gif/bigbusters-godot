@@ -28,6 +28,8 @@ func setup(def: Dictionary) -> bool:
 	var s := float(def.get("model_scale", 1.0))
 	scale = Vector3.ONE * s
 	player = _find_player(model)
+	if player == null and str(def.get("anim_library", "")) != "":
+		player = build_library_player(model, str(def["anim_library"]))
 	if player == null and bool(def.get("procedural_anims", false)):
 		player = ProceduralAnims.build_player(model, ProceduralAnims.load_config())
 	fix_materials(model, def)
@@ -238,14 +240,34 @@ func _find_player(node: Node) -> AnimationPlayer:
 func play_action(action: String) -> bool:
 	if action == current_action:
 		return false
+	# 一度始めたら最後まで見せる動き（こうげき）。たおれる（down）だけは割りこめる
+	var oneshot: Array = character.get("anim_oneshot", [])
+	if oneshot.has(current_action) and action != "down" and player != null and player.is_playing() \
+			and player.current_animation == CharacterData.animation_for(character, current_action):
+		return false
 	current_action = action
 	if player == null:
 		return false
 	var anim := CharacterData.animation_for(character, action)
 	if anim == "" or not player.has_animation(anim):
 		return false
-	player.play(anim)
+	var speeds: Variant = character.get("anim_speeds", {})
+	var speed := float(speeds.get(action, 1.0)) if speeds is Dictionary else 1.0
+	player.play(anim, 0.08, speed)
 	return true
+
+
+## 保存した動きの集まり（tools/retarget_ual.gd が作る .res）から、再生係を作る。読めなければ null
+static func build_library_player(model: Node, path: String) -> AnimationPlayer:
+	var lib := load(path) as AnimationLibrary
+	if lib == null:
+		return null
+	var p := AnimationPlayer.new()
+	p.name = "LibraryAnimationPlayer"
+	model.add_child(p)
+	p.root_node = NodePath("..")
+	p.add_animation_library("", lib)
+	return p
 
 
 ## 進む向き（床の上の x, z）に、少しずつ体を向ける。止まっているときは、そのまま
