@@ -1,0 +1,22 @@
+{
+  "_memo": "効果音。自作（tools/make_sfx.py）。volume_db は音の大きさ、min_gap_sec は同じ音を続けて鳴らさない最短の間隔",
+  "pool_size": 8,
+  "sounds": {
+    "slash": {"file": "res://assets/audio/sfx/slash.wav", "volume_db": -6.0, "min_gap_sec": 0.08},
+    "hit": {"file": "res://assets/audio/sfx/hit.wav", "volume_db": -4.0, "min_gap_sec": 0.08},
+    "hurt": {"file": "res://assets/audio/sfx/hurt.wav", "volume_db": -3.0, "min_gap_sec": 0.2},
+    "jump": {"file": "res://assets/audio/sfx/jump.wav", "volume_db": -9.0, "min_gap_sec": 0.2},
+    "skill": {"file": "res://assets/audio/sfx/skill.wav", "volume_db": -6.0, "min_gap_sec": 0.2},
+    "grab_warn": {"file": "res://assets/audio/sfx/grab_warn.wav", "volume_db": -4.0, "min_gap_sec": 0.5},
+    "grab": {"file": "res://assets/audio/sfx/grab.wav", "volume_db": -2.0, "min_gap_sec": 0.3},
+    "free": {"file": "res://assets/audio/sfx/free.wav", "volume_db": -4.0, "min_gap_sec": 0.3},
+    "whoosh": {"file": "res://assets/audio/sfx/whoosh.wav", "volume_db": -5.0, "min_gap_sec": 0.5},
+    "throw": {"file": "res://assets/audio/sfx/throw.wav", "volume_db": -8.0, "min_gap_sec": 0.3},
+    "storm": {"file": "res://assets/audio/sfx/storm.wav", "volume_db": -5.0, "min_gap_sec": 0.5},
+    "sweep": {"file": "res://assets/audio/sfx/sweep.wav", "volume_db": -5.0, "min_gap_sec": 0.5},
+    "win": {"file": "res://assets/audio/sfx/win.wav", "volume_db": -4.0, "min_gap_sec": 1.0},
+    "lose": {"file": "res://assets/audio/sfx/lose.wav", "volume_db": -4.0, "min_gap_sec": 1.0},
+    "click": {"file": "res://assets/audio/sfx/click.wav", "volume_db": -8.0, "min_gap_sec": 0.05}
+  },
+  "attack_sounds": {"grab": "grab_warn", "typhoon": "whoosh", "flyers": "throw", "flyer_storm": "storm", "hand_sweep": "sweep"}
+}

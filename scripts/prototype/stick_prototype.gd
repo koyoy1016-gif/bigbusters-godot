@@ -19,6 +19,7 @@ const Damage := preload("res://scripts/combat/damage.gd")
 const Pattern := preload("res://scripts/combat/boss_pattern.gd")
 const Attacks := preload("res://scripts/combat/boss_attacks.gd")
 const AiAlly := preload("res://scripts/combat/ai_ally.gd")
+const SfxPlayer := preload("res://scripts/audio/sfx.gd")
 const RoomCode := preload("res://scripts/network/room_code.gd")
 const Bridge := preload("res://scripts/network/room_bridge.gd")
 const Sync := preload("res://scripts/network/position_sync.gd")
@@ -73,6 +74,8 @@ var hazard_done := {}
 var grab_locked := {}
 var stun_left := 0.0
 var grab_state := {}
+var sfx: Node = null
+var last_attack_n := -1
 var grab_hand := Vector3.ZERO
 var grab_last_target := Vector3.ZERO
 var other_lift := {}
@@ -192,6 +195,9 @@ func _ready() -> void:
 	boss_hp = float(config["boss_hp"])
 	my_hp = role_value("hp")
 	_build_world()
+	sfx = SfxPlayer.new()
+	sfx.name = "Sfx"
+	add_child(sfx)
 	_build_ui()
 	if use_network or shared_bridge != null:
 		_setup_network()
@@ -541,6 +547,7 @@ func jump() -> void:
 	if downed or _me_held():
 		return
 	if is_equal_approx(player.position.y, ground_y):
+		_play_sfx("jump")
 		velocity_y = role_value("jump_speed")
 
 
@@ -694,6 +701,7 @@ func _begin_round(start_ms: float) -> void:
 	grab_locked = {}
 	stun_left = 0.0
 	grab_state = {}
+	last_attack_n = -1
 	_ai_reset()
 	if net_active:
 		bridge.send_hits(0.0)
@@ -744,6 +752,8 @@ func attack() -> bool:
 	if not Damage.in_reach(player.position, boss.position, reach):
 		return _attack_sub_enemy()
 	attack_cooldown = role_value("attack_cooldown_sec")
+	_play_sfx("slash")
+	_play_sfx("hit")
 	my_hits += Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]))
 	_recompute_boss_hp()
 	if net_active:
@@ -757,6 +767,8 @@ func _take_damage(amount: float) -> void:
 		return
 	if guard_left > 0.0:
 		amount *= float(_skill_def().get("damage_taken_multiplier", 1.0))
+	if amount > 0.0:
+		_play_sfx("hurt")
 	_set_my_hp(Damage.apply_damage(my_hp, amount))
 
 
@@ -873,6 +885,7 @@ func use_skill() -> bool:
 			summon_left = float(sc["duration_sec"])
 			summon_timer = 0.0
 	skill_cooldown = float(sc["cooldown_sec"])
+	_play_sfx("skill")
 	return true
 
 
@@ -1053,6 +1066,7 @@ func _recompute_boss_hp() -> void:
 	if round_start_ms > 0.0 and boss_hp <= 0.0 and not won and not lost:
 		won = true
 		round_end_ms = server_now_ms()
+		_play_sfx("win")
 		round_ended.emit(true)
 		boss.visible = false
 
@@ -1186,6 +1200,11 @@ func _pose_sweep(u: float, k: Dictionary, bp: Vector3) -> void:
 
 ## ---- つかみ：持ち上げる・動けない・助ける ----
 
+func _play_sfx(sound: String) -> void:
+	if sfx != null and sound != "":
+		sfx.play(sound)
+
+
 func _me_held() -> bool:
 	return not grab_state.is_empty() and str(grab_state["slot"]) == _my_slot()
 
@@ -1198,6 +1217,7 @@ func _total_boss_damage() -> float:
 func _start_hold(slot: String, from: Vector2) -> void:
 	if not grab_state.is_empty():
 		return
+	_play_sfx("grab")
 	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0}
 	if slot == _my_slot():
 		stun_left = maxf(stun_left, 0.1)
@@ -1208,6 +1228,8 @@ func _release_hold(freed: bool) -> void:
 	var k: Dictionary = attacks_cfg["kinds"]["grab"]
 	var slot := str(grab_state["slot"])
 	grab_state = {}
+	if freed:
+		_play_sfx("free")
 	if slot == _my_slot():
 		if freed:
 			stun_left = maxf(stun_left, float(k["free_stun_sec"]))
@@ -1456,6 +1478,9 @@ func combat_update(delta: float) -> void:
 		var u := t - float(a["start"])
 		current_attack = a
 		current_attack_u = u
+		if int(a["n"]) != last_attack_n:
+			last_attack_n = int(a["n"])
+			_play_sfx(str((sfx.cfg if sfx != null and not sfx.cfg.is_empty() else {}).get("attack_sounds", {}).get(str(a["kind"]), "")))
 		current_hazards = Attacks.hazards(a, u, attacks_cfg, _attack_ctx(a, u))
 		_apply_hazards(current_hazards)
 	else:
@@ -1576,10 +1601,12 @@ func _check_wipe() -> void:
 			if _ai_all_down():
 				lost = true
 				round_end_ms = server_now_ms()
+				_play_sfx("lose")
 				round_ended.emit(false)
 		elif BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms):
 			lost = true
 			round_end_ms = server_now_ms()
+			_play_sfx("lose")
 			round_ended.emit(false)
 
 

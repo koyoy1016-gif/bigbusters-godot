@@ -26,3 +26,6 @@
 
 ## 自作の質感（assets/textures/）
 - cloth.png / steel.png / skin.png / leather.png：`tools/make_textures.py` が計算で作った画像（他の作品は使っていない）。CC0として扱う。
+
+## 自作の効果音（assets/audio/sfx/）
+- 15個の .wav：`tools/make_sfx.py` が、計算（ノイズと音程の変化）で作った。他の作品の音は使っていない。CC0として扱う。
