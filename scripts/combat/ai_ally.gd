@@ -338,6 +338,7 @@ static func _start(a: Dictionary, id: String, ctx: Dictionary) -> bool:
 	if id == "ultimate":
 		if not (a["gauge"] as Gauge).consume():
 			return false
+		a["ult_from"] = a["pos"]  # 版72b：駆けぬけた道で当たりを調べる
 		a["banner"] = str(actions.def(id).get("name", ""))
 	var boss: Vector2 = ctx["boss"]
 	var to := boss - (a["pos"] as Vector2)
@@ -366,7 +367,11 @@ static func _resolve_hit(a: Dictionary, ev: Dictionary, ctx: Dictionary) -> floa
 	var st: Dictionary = a["stats"]
 	var pos: Vector2 = a["pos"]
 	var reach := HitArea.reach_of(float(st.get("attack_reach", 2.0)), float(ev["radius_scale"])) + float(ctx["boss_radius"])
-	if (ctx["boss"] as Vector2).distance_to(pos) > reach:
+	if bool(act(a).def(str(ev.get("action", ""))).get("sweep_hit", false)):
+		# 版72b：駆けぬけながら斬る：始めた所から今の所までの道の、どこかから届けば当たる
+		if not HitArea.hits_sweep(a.get("ult_from", pos), pos, ctx["boss"], reach, 0.0):
+			return 0.0
+	elif (ctx["boss"] as Vector2).distance_to(pos) > reach:
 		return 0.0
 	var dmg := Damage.damage_amount(float(st.get("attack_power", 10.0)), float(ctx["attack_multiplier"]) * float(ev["multiplier"]) * float(cfg["damage_scale"]))
 	a["hits"] = float(a["hits"]) + dmg

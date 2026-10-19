@@ -2,6 +2,7 @@ extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_v72.gd
 ## 版72：剣士の必殺技「切り捨て御免」を作り直した：構え → ため → 前へ踏み込み → 斬り捨て（斬撃・火花・一瞬止まる）→ 止まって構え直し。
 ## 動き（Sword_Ultimate）は Sword_Attack の時間を変えて作る（anim_retime.gd）。動く向き・斬撃の向き・当たりが同じ。
+## 版72b：約10m 駆けぬける（ボスがいても、すりぬける）。通った道で当たりを調べる。剣士の形の残像。
 
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const Actions := preload("res://scripts/combat/player_actions.gd")
@@ -87,9 +88,9 @@ func _initialize() -> void:
 			if str(ev["type"]) == "mark":
 				marks[str(ev["name"])] = t
 	check(max_before_dash <= 0.001, "構えとためでは、前へ出ない（少し下がる）")
-	check(at_dash_end > 5.0, "0.55〜0.72秒で、前へ一気に踏み込む（%.1f m）" % at_dash_end)
+	check(at_dash_end > 9.5 and at_dash_end < 10.5, "0.55〜0.72秒で、前へ一気に約10m踏み込む（%.1f m）" % at_dash_end)
 	check(absf(fwd - at_dash_end) < 0.1, "斬ったあとは止まる（そのあと %.2f m）" % (fwd - at_dash_end))
-	check(absf(hit_t - 0.70) < 0.02 and fwd_at_hit > 4.5, "踏み込みのおわり（0.70秒・%.1f m 進んだ所）で斬る" % fwd_at_hit)
+	check(absf(hit_t - 0.70) < 0.02 and fwd_at_hit > 9.0, "踏み込みのおわり（0.70秒・%.1f m 進んだ所）で斬る" % fwd_at_hit)
 	check(absf(float(marks.get("ult_charge", -1.0)) - 0.25) < 0.02 and absf(float(marks.get("ult_dash", -1.0)) - 0.55) < 0.02, "ため（0.25秒）・踏み込み（0.55秒）の印")
 	check(inv, "動いている間は、ずっと無敵")
 
@@ -135,18 +136,29 @@ func _initialize() -> void:
 			before_hit_dmg += got
 	check(before_hit_dmg == 0.0, "構え・ための間は、ダメージは入らない")
 	check(is_equal_approx(hit_dmg, 22.5 * 22.0), "斬り捨てで、一撃 495 ダメージ（%.1f）" % hit_dmg)
-	check(dist_at_hit > boss_r and dist_at_hit < boss_r + 2.0, "ボスの手前まで踏み込んで斬る（ボスの中心から %.1f m）" % dist_at_hit)
-	check(angle_at_hit < 10.0, "斬る向き（体の前）に、ボスがいる（ずれ %.0f 度）" % angle_at_hit)
+	var end_p := Vector2(s.player.position.x, s.player.position.z)
+	var start_p := Vector2(bp.x, bp.z + 9.0)
+	check(start_p.distance_to(end_p) > 9.0, "ボスがいても止まらず、約10m 駆けぬける（%.1f m）" % start_p.distance_to(end_p))
+	check((end_p - Vector2(bp.x, bp.z)).dot(aim0) > 0.0, "ボスをすりぬけて、向こう側まで出る")
+	var sweep_pt: Vector2 = s.HitArea.closest_on(start_p, end_p, Vector2(bp.x, bp.z))
+	check(sweep_pt.distance_to(Vector2(bp.x, bp.z)) < 0.5 and (sweep_pt - start_p).normalized().dot(aim0) > 0.99, "当たり：踏み込んだ道（体の前の向き）が、ボスを通る")
 	check(is_equal_approx(s.my_hits - hits0, hit_dmg), "当たりは1回だけ")
 	var log: Array = s.ult_fx_log
-	check(log.has("charge") and log.has("trail") and log.has("slash") and log.has("hit"), "見た目：ための輪・踏み込みの残像・斬撃・当たった火花（%s）" % str(log))
+	var ghosts := 0
+	for x in log:
+		if str(x) == "ghost":
+			ghosts += 1
+	check(log.has("charge") and ghosts >= 4 and log.has("slash") and log.has("hit"), "見た目：ための輪・剣士の形の残像 %d 体・斬撃・当たった火花（%s）" % [ghosts, str(log)])
 	check(float(s.shake_amp) > 0.2, "当たると、画面がゆれる（一瞬止まる）")
 	# 見た目そのもの：それぞれ形があり、時間とともに消える（画面なしでは戦いの中に出ないので、ここで直接作る）
 	var fxcfg: Dictionary = acfg["actions"]["ultimate"]["fx"]
 	var holder := Node3D.new()
-	for kind in ["charge", "trail", "slash"]:
-		var n: Node3D = UltFx.spawn(holder, kind, Vector3(0, 0, 0), Vector2(0, 1), fxcfg, {"to": Vector3(0, 0, 5)})
-		var mi: MeshInstance3D = n.get_child(0)
+	for kind in ["charge", "ghost", "slash"]:
+		var n: Node3D = UltFx.spawn(holder, kind, Vector3(0, 0, 0), Vector2(0, 1), fxcfg, {"parts": [[BoxMesh.new(), Transform3D()]], "xform": Transform3D()})
+		var mi: MeshInstance3D = null
+		for c in n.get_children():
+			if c is MeshInstance3D and not c.is_queued_for_deletion():
+				mi = c
 		var a0: float = n.mat.albedo_color.a
 		n._process(float(n.life) * 0.9)
 		var a1: float = n.mat.albedo_color.a
@@ -158,6 +170,16 @@ func _initialize() -> void:
 	var fwdv: Vector3 = sl.global_transform.basis.z if sl.is_inside_tree() else sl.transform.basis.z
 	check(sl.position.z > 0.3 and absf(fwdv.normalized().x) < 0.5, "斬撃は、体の前（向いている方）に出る")
 	holder.free()
+	# ボスがすぐそば（体にふれるくらい）でも、すりぬけながら当たる
+	s.actions.reset()
+	s.player.position = Vector3(bp.x, s.ground_y, bp.z + boss_r + 0.5)
+	s.gauge.charge(99999.0)
+	var h0: float = s.my_hits
+	s.perform("ultimate")
+	while s.actions.busy():
+		s._actions_update(0.02)
+		Engine.time_scale = 1.0
+	check(is_equal_approx(s.my_hits - h0, 495.0), "ボスがすぐそばでも、駆けぬけながら当たる")
 	# 遠すぎると当たらない（斬撃は出る）
 	s.actions.reset()
 	s.ult_fx_log.clear()

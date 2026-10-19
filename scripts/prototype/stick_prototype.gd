@@ -785,6 +785,8 @@ func perform(id: String) -> bool:
 		return false
 	if id == "ultimate":
 		gauge.consume()
+		ult_start_pos = Vector2(player.position.x, player.position.z)  # 版72b：駆けぬけた道で当たりを調べる
+		ult_last_ghost = Vector3.INF
 		_show_banner(str(actions.def(id).get("name", "")), role_name_of(_my_slot()), float(actions.def(id).get("banner_sec", 1.6)))
 		_play_sfx("ultimate")
 	facing = actions.aim
@@ -821,6 +823,7 @@ func _actions_update(delta: float) -> void:
 		player.position.x = clampf(player.position.x + actions.aim.x * dfwd, -half, half)
 		player.position.z = clampf(player.position.z + actions.aim.y * dfwd, -half, half)
 		player.position.y = ground_y + actions.height
+		_ult_ghost_update()
 	if facing.length() < 0.001:
 		facing = Vector2(0.0, -1.0)
 	if stick_vec.length() > 0.1 and not downed and not actions.busy():
@@ -846,6 +849,9 @@ func _on_action_mark(mark: String) -> void:
 		return
 	if mark == "ult_dash":
 		ult_dash_from = Vector3(player.position.x, ground_y, player.position.z)
+		# 版72b：踏み込みの始めのポーズ（剣を構えた形）を1回だけ写し取り、通った道に同じ形の残像を並べる
+		ult_ghost_parts = UltFx.bake_ghost(char_view) if char_view != null else []
+		_spawn_ghost()
 		return
 	if mark == "landed":
 		var k: Dictionary = attacks_cfg["kinds"]["grab"]
@@ -860,8 +866,15 @@ func _resolve_hit(ev: Dictionary) -> void:
 	var reach := HitArea.reach_of(role_value("attack_reach"), float(ev["radius_scale"]))
 	_play_sfx("slash")
 	var hit_boss := boss.visible and HitArea.hits(player.position, boss.position, reach, float(config["boss_size"]) * 0.5)
+	var slash_at := Vector2(player.position.x, player.position.z)
+	if bool(actions.def(str(ev.get("action", ""))).get("sweep_hit", false)):
+		# 版72b：駆けぬけながら斬る：始めた所から今の所までの道の、どこかから届けば当たる。斬撃は、ボスにいちばん近い所に出す
+		var bxz := Vector2(boss.position.x, boss.position.z)
+		hit_boss = boss.visible and HitArea.hits_sweep(ult_start_pos, slash_at, bxz, reach, float(config["boss_size"]) * 0.5)
+		if hit_boss:
+			slash_at = HitArea.closest_on(ult_start_pos, slash_at, bxz)
 	if str(ev.get("action", "")) == "ultimate":
-		_ult_slash_fx(Vector3(player.position.x, ground_y, player.position.z), actions.aim, hit_boss and not phase.invulnerable(), true)
+		_ult_slash_fx(Vector3(slash_at.x, ground_y, slash_at.y), actions.aim, hit_boss and not phase.invulnerable(), true)
 	if hit_boss and phase.invulnerable():
 		_play_sfx("hit")  # 倒れて覚醒する間は、当たってもダメージは入らない
 	elif hit_boss:
@@ -884,6 +897,32 @@ func _resolve_hit(ev: Dictionary) -> void:
 ## ---- 版72：必殺技の見た目（構え・ため・踏み込み・斬撃・当たった演出） ----
 var ult_dash_from := Vector3.INF  ## 踏み込みを始めた場所（残像に使う）
 var ult_fx_log: Array = []  ## 出した見た目の種類（テスト用。新しい物が後ろ）
+var ult_start_pos := Vector2.ZERO  ## 版72b：必殺技を始めた所（駆けぬけた道の当たりに使う）
+var ult_ghost_parts: Array = []  ## 版72b：残像の形（踏み込みの始めに写す）
+var ult_last_ghost := Vector3.INF  ## 版72b：最後に残像を置いた所
+
+
+## 版72b：踏み込みの間、ghost_spacing m 進むごとに、剣士の形の残像を置く
+func _ult_ghost_update() -> void:
+	if actions.active != "ultimate" or ult_last_ghost == Vector3.INF:
+		return
+	var fx: Dictionary = actions.def("ultimate").get("fx", {})
+	var here := Vector3(player.position.x, ground_y, player.position.z)
+	var spacing := maxf(0.5, float(fx.get("ghost_spacing", 2.2)))
+	# 1コマで長く進んでも、通った道の上に、決めた間かくで並べる（画面が遅くても数が減らない）
+	var guard := 0
+	while here.distance_to(ult_last_ghost) >= spacing and guard < 10:
+		_spawn_ghost(ult_last_ghost + (here - ult_last_ghost).normalized() * spacing)
+		guard += 1
+
+
+## p（床の上）に残像を1体置く。見た目の向き・大きさは、いまの剣士と同じ
+func _spawn_ghost(p: Vector3 = Vector3.INF) -> void:
+	var here := Vector3(player.position.x, ground_y, player.position.z)
+	ult_last_ghost = here if p == Vector3.INF else p
+	var xf: Transform3D = char_view.global_transform if char_view != null and char_view.is_inside_tree() else Transform3D(Basis(), here)
+	xf.origin += ult_last_ghost - here
+	ult_fx_spawn("ghost", ult_last_ghost, actions.aim, {"parts": ult_ghost_parts, "xform": xf})
 
 
 func ult_fx_spawn(kind: String, pos: Vector3, aim: Vector2, extra: Dictionary = {}) -> void:
@@ -897,8 +936,7 @@ func ult_fx_spawn(kind: String, pos: Vector3, aim: Vector2, extra: Dictionary = 
 ## 斬った瞬間：三日月の斬撃（と、踏み込んだ道の残像）。当たったら、火花と、一瞬止める・画面をゆらす。mine：自分の必殺技
 func _ult_slash_fx(pos: Vector3, aim: Vector2, landed: bool, mine: bool) -> void:
 	var fx: Dictionary = actions.def("ultimate").get("fx", {})
-	if mine and ult_dash_from != Vector3.INF:
-		ult_fx_spawn("trail", ult_dash_from, aim, {"to": pos})
+	if mine:
 		ult_dash_from = Vector3.INF
 	ult_fx_spawn("slash", pos, aim)
 	if landed:
@@ -1541,7 +1579,8 @@ func _ai_update(delta: float) -> void:
 			if str(a["banner"]) != "":
 				ult_fx_spawn("charge", Vector3(apos.x, ground_y, apos.y), ua.aim)
 			if dealt > 0.0 and ua.active == "ultimate":
-				_ult_slash_fx(Vector3(apos.x, ground_y, apos.y), ua.aim, true, false)
+				var at := HitArea.closest_on(a.get("ult_from", apos), apos, Vector2(boss.position.x, boss.position.z))
+				_ult_slash_fx(Vector3(at.x, ground_y, at.y), ua.aim, true, false)
 			var was_held := bool(a.get("held", false))
 			AiAlly.take_hazards(a, str(slot), current_hazards, ai_done, float(attacks_cfg["damage_multiplier"]))
 			if bool(a.get("held", false)) and not was_held and grab_state.is_empty():

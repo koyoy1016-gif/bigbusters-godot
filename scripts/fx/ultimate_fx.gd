@@ -1,7 +1,7 @@
 extends Node3D
 ## 版72：剣士の必殺技の見た目（1つずつ出して、時間がたつと消える）。
-## kind："charge"（足もとの金の輪が、ちぢみながら明るくなる＝力をためる）／"trail"（踏み込んだ道の残像）／"slash"（大きな三日月の斬撃）。
-## 数値は data/actions.json の ultimate の fx。描く物は1つだけ（重くしない）。
+## kind："charge"（足もとの金の輪が、ちぢみながら明るくなる＝力をためる）／"ghost"（剣士の形の残像。版72b）／"slash"（大きな三日月の斬撃）。
+## 数値は data/actions.json の ultimate の fx。残像の形は、踏み込みの始めに1回だけ写し取り、同じ形を何体も使う（重くしない）。
 
 var kind := ""
 var life := 0.3
@@ -48,25 +48,47 @@ func _build(pos: Vector3, aim: Vector2, fx: Dictionary, extra: Dictionary) -> vo
 			mi.mesh = tm
 			mat = _make_mat(Color(str(fx.get("ring_color", "#ffd24a"))))
 			position = Vector3(pos.x, pos.y + 0.06, pos.z)
-		"trail":
-			life = float(fx.get("trail_life", 0.3))
-			var to: Vector3 = extra.get("to", pos)
-			var d := Vector3(to.x - pos.x, 0.0, to.z - pos.z)
-			var bm := BoxMesh.new()
-			bm.size = Vector3(0.55, 1.5, maxf(0.2, d.length()))
-			mi.mesh = bm
-			mat = _make_mat(Color(str(fx.get("trail_color", "#e8f4ff"))))
-			base_alpha = 0.55
-			position = Vector3((pos.x + to.x) * 0.5, pos.y + 0.9, (pos.z + to.z) * 0.5)
-			rotation.y = atan2(d.x, d.z) if d.length() > 0.01 else yaw
+		"ghost":
+			# 剣士の形（bake_ghost で写した形）を、半透明の光る色で出す
+			life = float(fx.get("ghost_life", 0.45))
+			base_alpha = float(fx.get("ghost_alpha", 0.55))
+			mat = _make_mat(Color(str(fx.get("ghost_color", "#9fd8ff"))))
+			mi.queue_free()
+			mi = null
+			transform = extra.get("xform", Transform3D(Basis(Vector3.UP, yaw), pos))
+			for part in extra.get("parts", []):
+				var pm := MeshInstance3D.new()
+				pm.mesh = part[0]
+				pm.transform = part[1]
+				pm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				pm.material_override = mat
+				add_child(pm)
 		"slash":
 			life = float(fx.get("slash_life", 0.32))
 			mi.mesh = arc_mesh(float(fx.get("slash_radius", 2.8)))
 			mat = _make_mat(Color(str(fx.get("slash_color", "#fff3c4"))))
 			position = Vector3(pos.x, pos.y + 1.2, pos.z) + Vector3(a.x, 0.0, a.y) * 0.6
 			rotation = Vector3(0.0, yaw, deg_to_rad(float(fx.get("slash_tilt_deg", -28.0))))
-	mi.material_override = mat
+	if mi != null:
+		mi.material_override = mat
 	_apply(0.0)
+
+
+## 版72b：view（剣士の見た目）の、いまのポーズの形を写し取る。[[形, view から見た位置], ...]。写せなければ []
+static func bake_ghost(view: Node3D) -> Array:
+	var out: Array = []
+	if view == null or not view.is_inside_tree():
+		return out
+	var inv := view.global_transform.affine_inverse()
+	for n in view.find_children("*", "MeshInstance3D", true, false):
+		var m: MeshInstance3D = n
+		if not m.visible or m.mesh == null:
+			continue
+		var baked: Mesh = m.bake_mesh_from_current_skeleton_pose() if m.skin != null or m.skeleton != NodePath("") else m.mesh
+		if baked == null:
+			continue
+		out.append([baked, inv * m.global_transform])
+	return out
 
 
 ## 三日月の形（前 +Z を中心に、左右へ広がる。両はしは細くなる）
@@ -103,7 +125,7 @@ func _apply(k: float) -> void:
 			# ちぢみながら、明るくなる（力が集まる）
 			scale = Vector3.ONE * lerpf(1.0, 0.35, k)
 			mat.albedo_color.a = lerpf(0.25, 0.95, k)
-		"trail":
+		"ghost":
 			mat.albedo_color.a = base_alpha * (1.0 - k)
 		"slash":
 			# すぐ出て、少し広がりながら消える
