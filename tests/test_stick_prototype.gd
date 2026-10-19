@@ -177,8 +177,14 @@ func _initialize() -> void:
 		var hp_full: float = s2.role_value("hp")
 		var t0: float = s2.round_start_ms
 		var acfg: Dictionary = s2.attacks_cfg
-		var first_ms: float = float(acfg["first_delay_sec"]) * 1000.0
 		var gk: Dictionary = acfg["kinds"]["grab"]
+		var grab_a: Dictionary = {}
+		for a0 in s2.attack_schedule:
+			if str(a0["kind"]) == "grab":
+				grab_a = a0
+				break
+		check(not grab_a.is_empty(), "平常時の予定表に、つかみがある")
+		var first_ms: float = float(grab_a["start"]) * 1000.0
 		var lock_ms: float = (float(gk["follow_sec"]) + float(gk["lock_sec"])) * 1000.0
 		s2.player.position = Vector3(0.0, s2.ground_y, 6.0)
 		now[0] = t0 + first_ms + 500.0
@@ -211,9 +217,11 @@ func _initialize() -> void:
 		s2.stun_left = 0.0
 		s2.grab_state = {}
 		s2.player.position.y = s2.ground_y
-		var sched: Array = s2.attack_schedule
-		var fl: Dictionary = sched[1]
-		check(str(fl["kind"]) == "flyers", "予定表の2番めは、チラシ")
+		var sched: Array = s2.awake_schedule
+		var fl: Dictionary = sched[0]
+		check(str(fl["kind"]) == "flyers", "覚醒の予定表の1番めは、チラシ")
+		s2.boss_model._apply_form("awake")
+		s2.awake_from_t = 0.0
 		var ctx: Dictionary = s2._attack_ctx(fl, 3.0)
 		var fk: Dictionary = acfg["kinds"]["flyers"]
 		var hit_found := false
@@ -238,7 +246,8 @@ func _initialize() -> void:
 		s2.grab_state = {}
 		s2.my_hits = 0.0
 		s2.hazard_done = {}
-		var gt: Dictionary = sched[0]
+		s2.boss_model.reset_form()
+		var gt: Dictionary = grab_a
 		s2.player.position = Vector3(0.0, s2.ground_y, 6.0)
 		now[0] = t0 + (float(gt["start"]) + float(gk["follow_sec"])) * 1000.0 + 10.0
 		s2.combat_update(0.016)

@@ -44,9 +44,17 @@ func _init() -> void:
 	check(sfx.played.has("jump"), "サブ（跳ぶ攻撃）で、跳ぶ音が鳴る")
 	sfx.played = []
 	var t0: float = s.round_start_ms
-	now[0] = t0 + 3200.0
+	var first: Dictionary = s.attack_schedule[0]
+	now[0] = t0 + float(first["start"]) * 1000.0 + 200.0
 	s.combat_update(0.016)
-	check(sfx.played.has("grab_warn"), "つかみの始まりで、予告の音が鳴る")
+	check(sfx.played.has(str(cfg["attack_sounds"][str(first["kind"])])), "攻撃の始まりで、予告の音が鳴る（" + str(first["kind"]) + "）")
+	for a in s.attack_schedule:
+		if str(a["kind"]) == "grab":
+			sfx.played = []
+			now[0] = t0 + float(a["start"]) * 1000.0 + 50.0
+			s.combat_update(0.016)
+			check(sfx.played.has("grab_warn"), "つかみの始まりで、予告の音が鳴る")
+			break
 	sfx.muted = true
 	check(not sfx.play("hit"), "ミュートにすると鳴らない")
 	print("失敗: ", failures)

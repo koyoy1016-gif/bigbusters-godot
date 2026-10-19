@@ -56,6 +56,8 @@ var feet: Node3D
 var leg_skel: Skeleton3D  ## 脚の骨（もも・すね・足）
 var leg_rest := {}  ## "L"/"R" → [腰, ひざ, 足首]（休みの位置）
 var walk_phase := 0.0
+var tail_whip := 0.0  ## しっぽをまっすぐ長くのばす具合（0〜1。しっぽ回しで使う）
+var follow_boost := 1.0  ## 手が目標へ近づく速さの倍率（速い振りのときに上げる）
 var walk_amount := 0.0
 var bat: Node3D
 var awake_nodes: Array = []  ## 覚醒のときだけ出す物
@@ -648,7 +650,12 @@ func _tail_point(k: float, clock: float) -> Vector3:
 	var b: Array = cfg["tail_base"]
 	var base := Vector3(float(b[0]), float(b[1]) - float(cfg.get("hip_y", 2.08)) * float(cfg["crouch_drop"]) * crouch, float(b[2]))
 	var sway := sin(clock * 1.6 - k * 2.4) * 0.35 * k
-	return base + Vector3(1.5 * k * k + sway, -2.3 * k + 1.4 * k * k + 0.3 * crouch * k, -0.95 * sin(k * PI * 0.8))
+	var rest := base + Vector3(1.5 * k * k + sway, -2.3 * k + 1.4 * k * k + 0.3 * crouch * k, -0.95 * sin(k * PI * 0.8))
+	if tail_whip <= 0.0:
+		return rest
+	# しっぽ回し：うしろへ、ひざくらいの高さで、まっすぐ長くのばす
+	var whip := base + Vector3(0.25 * k * sin(clock * 9.0), -1.1 * k + 0.25 * k * k, -float(cfg.get("tail_whip_len", 3.4)) * k)
+	return rest.lerp(whip, tail_whip)
 
 
 func _update_tail(clock: float) -> void:
@@ -998,7 +1005,7 @@ func set_hand_scale(side: String, s: float) -> void:
 ## 手の先の位置を決めて、節を並べなおす。target は、モデルの座標。frame_delta があれば、目標へなめらかに近づく
 func set_hand(side: String, target: Vector3, bend: Vector3 = Vector3.ZERO) -> void:
 	if frame_delta > 0.0 and bool(_hand_ready[side]):
-		var k := 1.0 - exp(-float(cfg.get("hand_follow_rate", 12.0)) * frame_delta)
+		var k := 1.0 - exp(-float(cfg.get("hand_follow_rate", 12.0)) * follow_boost * frame_delta)
 		target = (hand_target[side] as Vector3).lerp(target, k)
 	_hand_ready[side] = true
 	hand_target[side] = target
@@ -1127,7 +1134,7 @@ func set_flash(on: bool) -> void:
 		if not sm.emission_enabled:
 			sm.emission_enabled = true
 			sm.emission = Color(1, 1, 1)
-		sm.emission_energy_multiplier = 0.9 if on else 0.0
+		sm.emission_energy_multiplier = float(cfg.get("flash_energy", 0.45)) if on else 0.0
 
 
 func is_flashing() -> bool:

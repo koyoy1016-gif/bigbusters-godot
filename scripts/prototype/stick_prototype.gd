@@ -36,6 +36,7 @@ const Actions := preload("res://scripts/combat/player_actions.gd")
 const HitArea := preload("res://scripts/combat/hit_area.gd")
 const Gauge := preload("res://scripts/combat/ultimate_gauge.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
+const BossMotion := preload("res://scripts/combat/boss_motion.gd")
 
 var config: Dictionary = {}
 var player: MeshInstance3D
@@ -61,7 +62,10 @@ var touch_timer := 0.0
 var since_sample := 0.0
 var boss_material: StandardMaterial3D
 var attacks_cfg: Dictionary = {}
-var attack_schedule: Array = []
+var attack_schedule: Array = []  ## 平常時の攻撃の予定表
+var awake_schedule: Array = []  ## 覚醒時の攻撃の予定表（必殺技あり）
+var awake_from_t := -1.0  ## 覚醒して攻撃を変えた時刻（戦いの秒）。まだなら -1
+var motion := BossMotion.new()  ## ボスの歩き（位置と向き）
 var hazard_nodes: Array = []
 var hazard_done := {}
 var grab_locked := {}
@@ -259,6 +263,8 @@ func _build_world() -> void:
 	# ボスの攻撃の見た目（予告の輪、帯、チラシ、手）は、使うときに作って使いまわす
 	attacks_cfg = Attacks.load_config()
 	attack_schedule = Attacks.build_schedule(attacks_cfg)
+	awake_schedule = Attacks.build_schedule(attacks_cfg, "awake_cycle")
+	motion.reset(Vector2(float(bp[0]), float(bp[1])))
 
 
 	camera = Camera3D.new()
@@ -649,6 +655,10 @@ func _begin_round(start_ms: float) -> void:
 		boss_model.reset_form()
 	hazard_done = {}
 	grab_locked = {}
+	awake_from_t = -1.0
+	motion.reset(motion.home)
+	boss.position = Vector3(motion.pos.x, 0.0, motion.pos.y)
+	boss.rotation.y = 0.0
 	stun_left = 0.0
 	grab_state = {}
 	last_attack_n = -1
@@ -941,14 +951,18 @@ func _boss_lean_goal() -> Vector2:
 	return v
 
 
-## ボスの腕：攻撃ごとの動き（ふだんは、ゆらゆら）
+## ボスの腕：攻撃ごとの動き（ふだんは、ゆらゆら）。向きは歩き（motion.yaw）。回る技は、その上に回転を足す
 func _pose_boss_arms() -> void:
 	var kind := str(current_attack.get("kind", ""))
 	for side in ["L", "R"]:
 		boss_model.set_hand_scale(side, 1.0)
 		boss_model.set_curl(side, 0.0)
-	if kind != Attacks.TYPHOON:
-		boss.rotation.y = 0.0
+	boss_model.tail_whip = 0.0
+	boss_model.follow_boost = 3.0 if kind in [Attacks.BAT_H, Attacks.BAT_V, Attacks.WALK_SWING, Attacks.BAT_SPIN] else 1.0
+	boss.rotation.y = motion.yaw
+	# 歩き：歩いた道のりで足を運ぶ（すべらないように、1歩の長さに合わせる）
+	var stride := float(boss_model.cfg.get("walk_stride", 0.42)) * float(boss_model.cfg["model_scale"])
+	boss_model.set_walk(motion.walk_dist * PI / maxf(2.0 * stride, 0.01), clampf(motion.speed_now / 1.6, 0.0, 1.0))
 	if kind == "":
 		boss_model.pose_idle(boss_clock)
 		return
@@ -962,18 +976,138 @@ func _pose_boss_arms() -> void:
 			_pose_typhoon(u, k)
 		Attacks.FLYERS:
 			var pulse := sin(u * 9.0)
-			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 1.8, 3.5 + 2.0 * maxf(pulse, 0.0))))
-			boss_model.set_hand("R", boss_model.to_local(bp + Vector3(2.5, 1.8, 3.5 + 2.0 * maxf(-pulse, 0.0))))
+			boss_model.set_hand("L", boss_model.to_local(_bw(Vector3(-2.5, 1.8, 3.5 + 2.0 * maxf(pulse, 0.0)))))
+			boss_model.set_hand("R", boss_model.to_local(_bw(Vector3(2.5, 1.8, 3.5 + 2.0 * maxf(-pulse, 0.0)))))
 			boss_model.set_curl("L", 0.5 + 0.5 * pulse)
 			boss_model.set_curl("R", 0.5 - 0.5 * pulse)
+			boss_model.pose_small_arms(boss_clock)
 		Attacks.FLYER_STORM:
 			var shake := sin(u * 14.0) * 0.6
 			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5 + shake, 7.0, 0.5)))
 			boss_model.set_hand("R", boss_model.to_local(bp + Vector3(2.5 - shake, 7.0, 0.5)))
 			boss_model.set_curl("L", 0.6)
 			boss_model.set_curl("R", 0.6)
+			boss_model.pose_small_arms(boss_clock)
 		Attacks.HAND_SWEEP:
 			_pose_sweep(u, k, bp)
+			boss_model.pose_small_arms(boss_clock)
+		Attacks.BAT_H:
+			var w := float(k["windup_sec"])
+			var sw := float(k["swing_sec"])
+			_pose_bat_swing(_swing_angle(u, w, sw, false), u < w + sw * 0.5)
+		Attacks.BAT_V:
+			_pose_bat_overhead(u, k)
+		Attacks.BAT_SPIN:
+			_pose_bat_spin(u, k)
+		Attacks.TAIL_SPIN:
+			_pose_tail_spin(u, k)
+		Attacks.WALK_SWING:
+			_pose_walk_swing(u, k)
+
+
+## ボスの前の向きにそって、ボスの足もとからの位置（ボスの右・上・前）を、世界の位置にする
+func _bw(off: Vector3) -> Vector3:
+	return Vector3(boss.position.x, 0.0, boss.position.z) + Basis(Vector3.UP, motion.yaw) * off
+
+
+## 横振りの、腕の角度（ボスの前が0。+が左＝バットを持つ側、-が右）。
+## 予備動作：うしろへ大きく引く（ゆっくり、ため）→ 振る：一気に反対側まで → 余韻：ゆっくり戻る
+static func _swing_angle(u: float, windup: float, swing: float, backhand: bool) -> float:
+	var back := deg_to_rad(125.0)
+	var through := deg_to_rad(-115.0)
+	if backhand:
+		var tmp := back
+		back = through
+		through = tmp
+	if u < windup:
+		var k := smoothstep(0.0, 1.0, u / windup)
+		return lerpf(deg_to_rad(40.0) * signf(back), back, k)
+	if u < windup + swing:
+		var k2 := (u - windup) / swing
+		return lerpf(back, through, k2 * k2 * (3.0 - 2.0 * k2))
+	var k3 := smoothstep(0.0, 1.0, clampf((u - windup - swing) / 0.6, 0.0, 1.0))
+	return lerpf(through, through * 0.7, k3)
+
+
+## バットを持つ左手を、体のまわりの角度 ang（前が0）へ。low：低く（足もとをなぎはらう高さ）
+func _pose_bat_swing(ang: float, winding: bool) -> void:
+	var sh: Vector3 = boss_model.shoulder["L"]
+	var reach := 3.2
+	var y := sh.y - (0.9 if not winding else 0.2)
+	var hand := Vector3(sh.x * 0.3 + sin(ang) * reach, y, cos(ang) * reach)
+	boss_model.set_hand("L", hand, Vector3(0.0, 0.6, 0.0))
+	boss_model.set_curl("L", 1.0)
+	# 反対の手：体のバランスをとる（振りと逆へ）
+	var sr: Vector3 = boss_model.shoulder["R"]
+	boss_model.set_hand("R", sr + Vector3(-1.2 - 0.6 * cos(ang), -1.6, -0.8 * sin(ang) + 0.4))
+	boss_model.pose_small_arms(boss_clock)
+
+
+## 縦振り：頭の上へ高く振りかぶって（ため）→ 前の地面へたたきつける → 少し止まって持ち上げる
+func _pose_bat_overhead(u: float, k: Dictionary) -> void:
+	var w := float(k["windup_sec"])
+	var sh: Vector3 = boss_model.shoulder["L"]
+	var up := sh + Vector3(-0.5, 2.6, -1.2)
+	var down := Vector3(0.2, 0.7, 4.0)
+	var hand: Vector3
+	if u < w:
+		hand = sh.lerp(up, smoothstep(0.0, 1.0, u / w))
+	elif u < w + 0.12:
+		var f := (u - w) / 0.12
+		hand = up.lerp(down, f * f)
+	else:
+		var f2 := smoothstep(0.0, 1.0, clampf((u - w - 0.35) / 0.7, 0.0, 1.0))
+		hand = down.lerp(sh + Vector3(0.6, -0.8, 1.6), f2)
+	boss_model.set_hand("L", hand, Vector3(0.0, 0.8, -0.4))
+	boss_model.set_curl("L", 1.0)
+	var sr: Vector3 = boss_model.shoulder["R"]
+	boss_model.set_hand("R", sr + Vector3(-1.4, -1.2 if u < w else -2.0, 0.6))
+	boss_model.pose_small_arms(boss_clock)
+
+
+## 回転斬り：バットを横へのばして、体ごと何回も回る（はじめはゆっくり、だんだん速く、最後はゆるめる）
+func _pose_bat_spin(u: float, k: Dictionary) -> void:
+	var wind := float(k["windup_sec"])
+	var active_end := float(k["duration"]) - float(k["recover_sec"])
+	var spin_t := active_end - wind
+	var turns := maxf(1.0, roundf(float(k["spin_deg_per_sec"]) * spin_t / 360.0))
+	var p := clampf((u - wind) / spin_t, 0.0, 1.0)
+	boss.rotation.y = motion.yaw + turns * TAU * smoothstep(0.0, 1.0, p)
+	var open := smoothstep(0.0, wind, u)
+	if u > active_end:
+		open = 1.0 - smoothstep(active_end, float(k["duration"]), u)
+	var sh: Vector3 = boss_model.shoulder["L"]
+	var ang := lerpf(deg_to_rad(30.0), deg_to_rad(95.0), open) + (0.4 * sin(u * 3.0) if u < wind else 0.0)
+	boss_model.set_hand("L", Vector3(sh.x * 0.3 + sin(ang) * 3.4, sh.y - 0.9, cos(ang) * 3.4), Vector3(0.0, 0.0, -1.2 * open))
+	boss_model.set_curl("L", 1.0)
+	var sr: Vector3 = boss_model.shoulder["R"]
+	boss_model.set_hand("R", sr + Vector3(-2.2 * open - 0.5, -0.8, 0.3), Vector3(0.0, 0.0, 1.0 * open))
+	boss_model.pose_small_arms(boss_clock)
+
+
+## しっぽ回し：体をかがめて、しっぽを長くのばし、1回くるりと回る
+func _pose_tail_spin(u: float, k: Dictionary) -> void:
+	var w := float(k["windup_sec"])
+	var sweep := float(k["sweep_sec"])
+	var p := clampf((u - w) / sweep, 0.0, 1.0)
+	# 予備動作：少し反対へひねる → 一気に1回転
+	var twist := -0.6 * smoothstep(0.0, w, u) * (1.0 - p)
+	boss.rotation.y = motion.yaw + twist + TAU * (p * p * (3.0 - 2.0 * p))
+	boss_model.tail_whip = smoothstep(0.0, w * 0.8, u) * (1.0 - smoothstep(w + sweep, float(k["duration"]), u))
+	boss_model.pose_idle(boss_clock)
+
+
+## 歩きながら振る：歩く足の上で、バットを左右交互に振る
+func _pose_walk_swing(u: float, k: Dictionary) -> void:
+	var n := int(k["swings"])
+	var i := 0
+	for j in n:
+		if u >= Attacks.swing_time(j, k) - float(k["tele_sec"]):
+			i = j
+	var hit_t := Attacks.swing_time(i, k)
+	var tele := float(k["tele_sec"])
+	var local_u := u - (hit_t - tele)
+	_pose_bat_swing(_swing_angle(local_u, tele, float(k["hit_sec"]) + 0.08, i % 2 == 1), local_u < tele)
 
 
 ## つかみ：目標の上でねらう → 下ろす → つかんで持ち上げる（つかめなければ、地面をたたいて開く）
@@ -981,7 +1115,7 @@ func _pose_grab(u: float, k: Dictionary, bp: Vector3) -> void:
 	var follow := float(k["follow_sec"])
 	var lock := float(k["lock_sec"])
 	var hit_from := follow + lock
-	var target := Vector3(boss.position.x, 0.0, boss.position.z + 6.0)
+	var target := _bw(Vector3(0.0, 0.0, 6.0))
 	if not current_hazards.is_empty():
 		var h: Dictionary = current_hazards[0]
 		target = Vector3(float(h["x"]), 0.0, float(h["z"]))
@@ -1003,11 +1137,21 @@ func _pose_grab(u: float, k: Dictionary, bp: Vector3) -> void:
 		curl = 0.0
 	else:
 		var back := clampf((u - hit_from - 0.4) / 1.0, 0.0, 1.0)
-		hand = hand.lerp(bp + Vector3(2.5, 1.5, 3.5), back)
+		hand = hand.lerp(_bw(Vector3(-2.5, 1.5, 3.5)), back)
 		hand.y = lerpf(0.9, 1.5, back)
 	boss_model.set_hand("R", boss_model.to_local(hand))
 	boss_model.set_curl("R", curl)
-	boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 1.2, 3.0)))
+	if boss_model.is_awake():
+		boss_model.set_hand("L", boss_model.to_local(_bw(Vector3(2.5, 1.2, 3.0))))
+	else:
+		_pose_bat_rest_left()
+	boss_model.pose_small_arms(boss_clock)
+
+
+## バットを肩にかついだままの左手（攻撃に使わないとき）
+func _pose_bat_rest_left() -> void:
+	var sh: Vector3 = boss_model.shoulder["L"]
+	boss_model.set_hand("L", sh + Vector3(0.1, 0.32, 0.3), Vector3(0.75, -1.0, 0.15))
 
 
 ## 台風：両腕をまっすぐ横にのばして、体ごと回る（回りおわりは、正面にもどる）
@@ -1021,7 +1165,7 @@ func _pose_typhoon(u: float, k: Dictionary) -> void:
 	var spin_t := active_end - wind
 	var turns := roundf(float(k["spin_deg_per_sec"]) * spin_t / 360.0)
 	var p := clampf((u - wind) / spin_t, 0.0, 1.0)
-	boss.rotation.y = turns * TAU * smoothstep(0.0, 1.0, p)
+	boss.rotation.y = motion.yaw + turns * TAU * smoothstep(0.0, 1.0, p)
 	var speed := sin(PI * p) if p > 0.0 and p < 1.0 else 0.0
 	var trail := 2.2 * speed
 	var y := float(k["arm_height"])
@@ -1029,6 +1173,7 @@ func _pose_typhoon(u: float, k: Dictionary) -> void:
 	boss_model.set_hand("R", Vector3(-rad, y, 0.0), Vector3(0.0, 0.0, -trail))
 	boss_model.set_curl("L", 0.15)
 	boss_model.set_curl("R", 0.15)
+	boss_model.pose_small_arms(boss_clock)
 
 
 ## 手のなぎはらい：ほんものの手（大きくして、ひらいたまま）が、画面のはしからはしへ走る。腕はのびる
@@ -1045,7 +1190,7 @@ func _pose_sweep(u: float, k: Dictionary, bp: Vector3) -> void:
 	for side in ["L", "R"]:
 		if not used[side]:
 			var out := 1.0 if side == "L" else -1.0
-			boss_model.set_hand(side, boss_model.to_local(bp + Vector3(out * 2.8, 5.0, 1.0)))
+			boss_model.set_hand(side, boss_model.to_local(_bw(Vector3(out * 2.8, 5.0, 1.0))))
 			boss_model.set_curl(side, 0.3)
 
 
@@ -1070,7 +1215,9 @@ func _start_hold(slot: String, from: Vector2) -> void:
 		return
 	_play_sfx("grab")
 	var rate := ai_rng.randf_range(float(ai_cfg.get("escape_taps_min", 2.5)), float(ai_cfg.get("escape_taps_max", 4.5))) if slot != _my_slot() else 0.0
-	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0, "mash": 0.0, "ai_rate": rate}
+	var n := int(current_attack.get("n", 0))
+	var hold := Attacks.grab_hold_sec(attacks_cfg, round_start_ms, n)
+	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0, "mash": 0.0, "ai_rate": rate, "hold": hold}
 	if slot == _my_slot():
 		stun_left = maxf(stun_left, 0.1)
 	grab_hand = Vector3(from.x, 0.9, from.y)
@@ -1131,13 +1278,13 @@ func _grab_update(delta: float) -> void:
 	if float(grab_state["mash"]) >= float(k["mash_needed"]):
 		_release_hold(true)
 		return
-	if t >= float(k["hold_sec"]):
+	if t >= float(grab_state["hold"]):
 		_release_hold(false)
 		return
 	# 手の位置：つかんだ場所から、持ち上げた位置へ
 	var lift := clampf(t / float(k["lift_sec"]), 0.0, 1.0)
 	var from: Vector2 = grab_state["from"]
-	var hold_xz := Vector2(boss.position.x, boss.position.z + 3.2)
+	var hold_xz := Vector2(boss.position.x, boss.position.z) + Attacks.fwd_of(motion.yaw) * 3.2
 	var xz := from.lerp(hold_xz, lift)
 	var y := lerpf(0.9, float(k["hold_height"]), lift)
 	grab_hand = Vector3(xz.x, y, xz.y)
@@ -1330,13 +1477,14 @@ func _attack_ctx(a: Dictionary, u: float) -> Dictionary:
 	for slot in other_pos:
 		var np: Vector2 = other_pos[slot]
 		positions[slot] = Vector2(np.x * 2.0 * half - half, np.y * 2.0 * half - half)
-	var ctx := {"boss": Vector2(boss.position.x, boss.position.z), "members": members, "positions": positions,
+	var lk := motion.lock_of(int(a["n"])) if not a.is_empty() else {"pos": motion.pos, "yaw": motion.yaw}
+	var ctx := {"boss": lk["pos"], "yaw": float(lk["yaw"]), "members": members, "positions": positions,
 		"locked": null, "round_start_ms": round_start_ms, "bounds": half}
-	if str(a["kind"]) == Attacks.GRAB and u >= float(attacks_cfg["kinds"]["grab"]["follow_sec"]):
+	if not a.is_empty() and str(a["kind"]) == Attacks.GRAB and u >= float(attacks_cfg["kinds"]["grab"]["follow_sec"]):
 		var n := int(a["n"])
 		if not grab_locked.has(n):
 			var target := Attacks.grab_target(n, members)
-			grab_locked[n] = positions.get(target, ctx["boss"] + Vector2(0.0, 6.0))
+			grab_locked[n] = positions.get(target, (ctx["boss"] as Vector2) + Attacks.fwd_of(float(ctx["yaw"])) * 6.0)
 		ctx["locked"] = grab_locked[n]
 	return ctx
 
@@ -1351,10 +1499,21 @@ func combat_update(delta: float) -> void:
 		grab_state = {}
 		return
 	var t := (server_now_ms() - round_start_ms) / 1000.0
-	var idx := Attacks.active_index(attack_schedule, t)
+	var sched := _schedule_now(t)
+	var idx := Attacks.active_index(sched, t)
+	if idx >= 0 and awake_from_t >= 0.0 and float(sched[idx]["start"]) < awake_from_t:
+		idx = -1  # 覚醒した時点で、もう始まっていた攻撃は出さない
+	var staggering: bool = boss_model != null and boss_model.is_staggering()
+	if staggering:
+		idx = -1  # よろけて倒れている間は、攻撃しない
+	var cur: Dictionary = sched[idx] if idx >= 0 else {}
+	var cur_u := t - float(cur["start"]) if idx >= 0 else 0.0
+	var mctx := _attack_ctx({}, 0.0)
+	motion.update(delta, cur, cur_u, _next_attack(sched, t), attacks_cfg, mctx, staggering)
+	boss.position = Vector3(motion.pos.x, 0.0, motion.pos.y)
 	if idx >= 0:
-		var a: Dictionary = attack_schedule[idx]
-		var u := t - float(a["start"])
+		var a: Dictionary = cur
+		var u := cur_u
 		current_attack = a
 		current_attack_u = u
 		if int(a["n"]) != last_attack_n:
@@ -1367,6 +1526,24 @@ func combat_update(delta: float) -> void:
 	_ai_update(delta)
 	_grab_update(delta)
 	_show_hazards(current_hazards)
+
+
+## いまの姿の予定表。覚醒したら、覚醒の予定表に切りかえる（切りかえた時刻を控える）
+func _schedule_now(t: float) -> Array:
+	if boss_model != null and boss_model.is_awake():
+		if awake_from_t < 0.0:
+			awake_from_t = t
+		return awake_schedule
+	awake_from_t = -1.0
+	return attack_schedule
+
+
+## t 秒より後に始まる、次の攻撃（なければ {}）
+func _next_attack(sched: Array, t: float) -> Dictionary:
+	for a in sched:
+		if float(a["start"]) > t and (awake_from_t < 0.0 or float(a["start"]) >= awake_from_t):
+			return a
+	return {}
 
 
 ## 当たり場所の中にいれば、ダメージ（自分の分だけ調べる）。同じ当たりは1回だけ
@@ -1399,69 +1576,152 @@ func _apply_hazards(hz: Array) -> void:
 			return
 
 
-func _hazard_node(i: int) -> MeshInstance3D:
-	while hazard_nodes.size() <= i:
+func _hazard_node(i: int, pool: Array = hazard_nodes, prefix: String = "Hazard") -> MeshInstance3D:
+	while pool.size() <= i:
 		var n := MeshInstance3D.new()
-		n.name = "Hazard%d" % hazard_nodes.size()
+		n.name = prefix + str(pool.size())
 		var m := StandardMaterial3D.new()
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		n.set_meta("mat", m)
 		n.visible = false
+		n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(n)
-		hazard_nodes.append(n)
-	return hazard_nodes[i]
+		pool.append(n)
+	return pool[i]
 
 
+## 床に置く、扇・輪の形（半径1。種類と角度ごとに1回だけ作る）
+var _floor_meshes := {}
+func _floor_mesh(key: String, half: float, inner: float) -> ArrayMesh:
+	if _floor_meshes.has(key):
+		return _floor_meshes[key]
+	var segs := maxi(8, int(ceil(half * 2.0 / TAU * 40.0)))
+	var v := PackedVector3Array()
+	for i in segs:
+		var a0 := -half + 2.0 * half * float(i) / float(segs)
+		var a1 := -half + 2.0 * half * float(i + 1) / float(segs)
+		var o0 := Vector3(sin(a0), 0.0, cos(a0))
+		var o1 := Vector3(sin(a1), 0.0, cos(a1))
+		if inner <= 0.0:
+			v.append_array([Vector3.ZERO, o0, o1])
+		else:
+			v.append_array([o0 * inner, o0, o1, o0 * inner, o1, o1 * inner])
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = v
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	_floor_meshes[key] = m
+	return m
+
+
+## 当たり場所の形の見た目（予告の面）を、node に置く。grow：予告の進み（0〜1。広がりの割合。1 で全体）
+func _place_zone(n: MeshInstance3D, h: Dictionary, grow: float, y: float) -> void:
+	var m: StandardMaterial3D = n.get_meta("mat")
+	var shape := str(h["shape"])
+	var key := shape
+	var g := maxf(grow, 0.02)
+	n.rotation = Vector3.ZERO
+	match shape:
+		"sector":
+			key = "sector:%.3f" % float(h["half"])
+			n.mesh = _floor_mesh(key, float(h["half"]), 0.0)
+			n.position = Vector3(float(h["x"]), y, float(h["z"]))
+			n.rotation.y = float(h["yaw"])
+			n.scale = Vector3.ONE * float(h["r"]) * g
+		"ring":
+			# 輪：内側（安全な所）から外へ広がる。外の半径が変わるので、形は段階ごとに作る（20段）
+			var r_in := float(h["r_in"])
+			var outer := r_in + (float(h["r"]) - r_in) * (roundf(g * 20.0) / 20.0 if grow < 1.0 else 1.0)
+			var ratio := r_in / maxf(outer, r_in + 0.01)
+			key = "ring:%.3f" % ratio
+			n.mesh = _floor_mesh(key, PI, ratio)
+			n.position = Vector3(float(h["x"]), y, float(h["z"]))
+			n.scale = Vector3.ONE * maxf(outer, r_in + 0.01)
+		"obox", "box":
+			key = "box"
+			if not _floor_meshes.has("box"):
+				var bm := BoxMesh.new()
+				bm.size = Vector3.ONE
+				_floor_meshes["box"] = bm
+			n.mesh = _floor_meshes["box"]
+			if shape == "obox":
+				# 向きのある帯：ボスの側から、前へのびる
+				var yaw := float(h["yaw"])
+				var f := Attacks.fwd_of(yaw)
+				var hz := float(h["hz"])
+				var c := Vector2(float(h["x"]), float(h["z"])) - f * hz * (1.0 - g)
+				n.position = Vector3(c.x, y, c.y)
+				n.rotation.y = yaw
+				n.scale = Vector3(float(h["hx"]) * 2.0, 0.04, hz * 2.0 * g)
+			else:
+				n.position = Vector3(0.0, y, float(h["band_z"]))
+				n.scale = Vector3(float(h["band_half"]) * 2.0, 0.04, float(h["hz"]) * 2.0 * g)
+		_:
+			key = "disc"
+			if not _floor_meshes.has("disc"):
+				_floor_meshes["disc"] = _floor_mesh("disc_f", PI, 0.0)
+			n.mesh = _floor_meshes["disc"]
+			n.position = Vector3(float(h["x"]), y, float(h["z"]))
+			n.scale = Vector3.ONE * float(h["r"]) * g
+	n.material_override = m
+
+
+var hazard_fill_nodes: Array = []
+
+
+## 当たり場所の見た目：予告は、うすい全体の面＋中から広がる濃い面（広がりきったら当たる）。当たる瞬間は、明るい色
 func _show_hazards(hz: Array) -> void:
 	var zc := Color(str(attacks_cfg["zone_color"]))
+	var fill_used := 0
 	for i in hz.size():
 		var h: Dictionary = hz[i]
 		var n := _hazard_node(i)
 		var m: StandardMaterial3D = n.get_meta("mat")
 		var style := str(h["style"])
-		var kind := "box" if str(h["shape"]) == "box" else ("paper" if style == "paper" else "disc")
-		if n.get_meta("kind", "") != kind:
-			n.set_meta("kind", kind)
-			var mesh: PrimitiveMesh
-			if kind == "disc":
-				var c := CylinderMesh.new()
-				c.top_radius = 1.0
-				c.bottom_radius = 1.0
-				c.height = 0.04
-				c.radial_segments = 24
-				c.rings = 1
-				mesh = c
-			else:
+		var active := bool(h["active"])
+		if style == "paper":
+			if n.get_meta("kind", "") != "paper":
+				n.set_meta("kind", "paper")
 				var b := BoxMesh.new()
 				b.size = Vector3.ONE
-				mesh = b
-			mesh.material = m
-			n.mesh = mesh
-		var alpha := lerpf(float(attacks_cfg["zone_min_alpha"]), float(attacks_cfg["zone_max_alpha"]), float(h["tele"]))
-		var active := bool(h["active"])
-		n.rotation = Vector3.ZERO
-		if kind == "disc":
-			n.position = Vector3(float(h["x"]), 0.03, float(h["z"]))
-			n.scale = Vector3(float(h["r"]), 1.0, float(h["r"]))
-			m.albedo_color = Color(1.0, 0.55, 0.2, 0.75) if active else Color(zc.r, zc.g, zc.b, alpha)
-		elif kind == "paper":
+				n.mesh = b
+				n.material_override = m
 			n.position = Vector3(float(h["x"]), 0.9, float(h["z"]))
 			n.scale = Vector3(0.9, 0.08, 1.2)
 			n.rotation = Vector3(0.3, float(h["age"]) * 9.0, 0.2)
 			m.albedo_color = Color(str(attacks_cfg["paper_color"]))
+			n.visible = true
+			continue
+		n.set_meta("kind", "zone")
+		if style == "hand" and active:
+			n.visible = false
+			continue
+		var tele := float(h["tele"])
+		_place_zone(n, h, 1.0, 0.03)
+		if active:
+			m.albedo_color = Color(1.0, 0.55, 0.2, 0.75)
 		else:
-			# 手（動いているあいだ）と、予告の帯
-			if active:
-				n.visible = false
-				continue
-			else:
-				n.position = Vector3(0.0, 0.03, float(h["band_z"]))
-				n.scale = Vector3(float(h["band_half"]) * 2.0, 0.04, float(h["hz"]) * 2.0)
-				m.albedo_color = Color(zc.r, zc.g, zc.b, alpha)
+			# うすい全体の面（どこまで当たるか）
+			var base_a := float(attacks_cfg["zone_min_alpha"]) + 0.1
+			if float(h.get("power", 1.0)) <= 0.0:
+				base_a = float(attacks_cfg["kinds"]["flyers"].get("tele_alpha", 0.3)) * (0.5 + 0.5 * tele)
+			m.albedo_color = Color(zc.r, zc.g, zc.b, base_a)
+			# 中から広がる濃い面（いつ当たるか）
+			if float(h.get("power", 1.0)) > 0.0:
+				var f := _hazard_node(fill_used, hazard_fill_nodes, "HazardFill")
+				fill_used += 1
+				var fm: StandardMaterial3D = f.get_meta("mat")
+				_place_zone(f, h, tele, 0.045)
+				fm.albedo_color = Color(zc.r, zc.g, zc.b, lerpf(0.35, float(attacks_cfg["zone_max_alpha"]), tele))
+				f.visible = true
 		n.visible = true
 	for i in range(hz.size(), hazard_nodes.size()):
 		(hazard_nodes[i] as Node3D).visible = false
+	for i in range(fill_used, hazard_fill_nodes.size()):
+		(hazard_fill_nodes[i] as Node3D).visible = false
 
 
 func _set_my_hp(value: float) -> void:

@@ -1,11 +1,14 @@
 {
-  "_memo": "ボスの攻撃5つ（つかみ・台風・チラシ・必殺技A チラシの大量ばらまき・必殺技B 端から端への手）。数字は仮。時間は「戦いが始まってからの秒」で決まるので、全員の画面で同じ攻撃が同じときに出る",
+  "_memo": "ボスの攻撃。平常時はバット中心（横振り・縦振り・回転斬り・しっぽ回し・歩きながら振る）＋つかみ。覚醒時はチラシ・台風・つかみ・しっぽ回し＋必殺技2つ。数字は仮。時間は「戦いが始まってからの秒」で決まるので、全員の画面で同じ攻撃が同じときに出る。attack_speed で、攻撃の時間（*_sec と duration）をまとめて速くする（speed_exempt にある物は変えない）",
   "first_delay_sec": 3.0,
-  "gap_sec": 1.6,
+  "gap_sec": 1.8,
   "cycle": [
+    "bat_h",
     "grab",
-    "flyers",
-    "typhoon"
+    "bat_v",
+    "tail_spin",
+    "walk_swing",
+    "bat_spin"
   ],
   "ultimates": [
     "flyer_storm",
@@ -31,7 +34,6 @@
       "stun_sec": 0.0,
       "jumpable": true,
       "hand_height": 0.6,
-      "hold_sec": 3.0,
       "lift_sec": 0.35,
       "hold_height": 4.2,
       "squeeze_power": 6.0,
@@ -41,7 +43,10 @@
       "drop_stun_sec": 0.8,
       "free_stun_sec": 0.4,
       "grab": true,
-      "mash_needed": 10
+      "mash_needed": 10,
+      "hold_min_sec": 1.0,
+      "hold_max_sec": 3.0,
+      "_memo": "つかむ時間は、毎回 hold_min_sec〜hold_max_sec のどれか（全員の画面で同じ）。その間に「にげる」を mash_needed 回押せなければ、遠くへ投げられる"
     },
     "typhoon": {
       "duration": 5.5,
@@ -66,7 +71,8 @@
       "power": 12.0,
       "life_sec": 2.2,
       "angle_deg": 60.0,
-      "jumpable": false
+      "jumpable": false,
+      "tele_alpha": 0.35
     },
     "flyer_storm": {
       "duration": 10.0,
@@ -104,7 +110,86 @@
         6.0
       ],
       "hand_scale": 2.4
+    },
+    "bat_h": {
+      "_memo": "バットの横振り：前の扇の中を、横になぎはらう。低いのでジャンプでよけられる",
+      "duration": 2.4,
+      "windup_sec": 1.0,
+      "swing_sec": 0.28,
+      "radius": 7.2,
+      "arc_deg": 160.0,
+      "power": 14.0,
+      "jumpable": true,
+      "lunge": 1.2
+    },
+    "bat_v": {
+      "_memo": "バットの縦振り：頭の上から、前へまっすぐたたきつける。細長い帯。ジャンプではよけられない",
+      "duration": 2.5,
+      "windup_sec": 1.1,
+      "hit_sec": 0.22,
+      "start": 1.0,
+      "length": 8.5,
+      "half_width": 1.3,
+      "power": 22.0,
+      "jumpable": false,
+      "lunge": 0.8
+    },
+    "bat_spin": {
+      "_memo": "バットの回転斬り：バットを横にのばして、体ごと何回も回る。まわりの輪の中に、続けてダメージ",
+      "duration": 3.8,
+      "windup_sec": 1.0,
+      "recover_sec": 0.6,
+      "radius": 6.8,
+      "tick_sec": 0.45,
+      "power": 8.0,
+      "jumpable": true,
+      "spin_deg_per_sec": 600.0
+    },
+    "tail_spin": {
+      "_memo": "しっぽ回し：しっぽをのばして、体ごと1回まわる。体のすぐそば（r_in より内側）は安全",
+      "duration": 2.2,
+      "windup_sec": 0.9,
+      "sweep_sec": 0.45,
+      "r_in": 2.2,
+      "radius": 6.4,
+      "power": 12.0,
+      "jumpable": true
+    },
+    "walk_swing": {
+      "_memo": "歩きながら振る：前へ歩きながら、バットを左右交互に swings 回振る。振る前に、当たる扇が出る",
+      "duration": 4.4,
+      "swings": 3,
+      "first_sec": 1.0,
+      "every_sec": 1.0,
+      "tele_sec": 0.7,
+      "hit_sec": 0.2,
+      "walk_speed": 2.4,
+      "radius": 5.8,
+      "arc_deg": 140.0,
+      "power": 10.0,
+      "jumpable": true
     }
   },
-  "damage_multiplier": 1.0
+  "damage_multiplier": 1.0,
+  "attack_speed": 1.5,
+  "speed_exempt": [
+    "hold_min_sec",
+    "hold_max_sec",
+    "free_stun_sec",
+    "drop_stun_sec",
+    "squeeze_tick_sec"
+  ],
+  "awake_cycle": [
+    "flyers",
+    "grab",
+    "typhoon",
+    "tail_spin"
+  ],
+  "walk": {
+    "_memo": "攻撃と攻撃の間に、次にねらう人のほうへ歩く。speed：m/秒、stop_dist：ねらう人の手前で止まる距離、turn_rate：向きを変える速さ",
+    "speed": 3.4,
+    "stop_dist": 4.5,
+    "turn_rate": 7.0,
+    "area": 12.0
+  }
 }

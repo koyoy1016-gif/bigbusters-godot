@@ -70,7 +70,12 @@ func _initialize() -> void:
 	s.my_hp = s.role_value("hp")
 	s.player.position = Vector3(0.0, s.ground_y, bz + 6.0)
 	s._start_hold(s._my_slot(), Vector2(0.0, bz + 6.0))
-	s.grab_state["t"] = float(k["hold_sec"]) + 0.1
+	var hold: float = s.grab_state["hold"]
+	check(hold >= float(k["hold_min_sec"]) - 0.001 and hold <= float(k["hold_max_sec"]) + 0.001, "つかむ時間は、%.1f〜%.1f秒の間（いま %.2f秒）" % [float(k["hold_min_sec"]), float(k["hold_max_sec"]), hold])
+	s.grab_state["t"] = hold - 0.05
+	s._grab_update(0.016)
+	check(s._me_held(), "つかむ時間の終わりまでは、まだ持ち上げられている")
+	s.grab_state["t"] = hold + 0.1
 	s._grab_update(0.016)
 	check(not s._me_held() and s.actions.active == "thrown", "逃げられないと、投げられる")
 	check(s.player.position.y > s.ground_y + 2.0 or s.actions.height > 2.0, "投げられた直後は、高い所にいる")
@@ -91,6 +96,7 @@ func _initialize() -> void:
 	check(not s.actions.busy() and is_equal_approx(s.player.position.y, s.ground_y), "起き上がって、地面で動ける")
 	check(s.my_hp < hp1, "着地で、ダメージを受ける（%.1f → %.1f）" % [hp1, s.my_hp])
 	check(s.player.position.z > z0 + 3.0, "ボスから離れた所に、投げ出される（z %.1f → %.1f）" % [z0, s.player.position.z])
+	check(s.player.position.z > z0 + 10.0, "遠くへ投げられる（10m以上）")
 	check(s.perform("normal"), "起き上がったあとは、また戦える")
 
 	# ボタンの見た目の元：つかまれ中は、にげる
@@ -105,3 +111,4 @@ func _initialize() -> void:
 	print("")
 	print("失敗: ", failures)
 	quit(1 if failures > 0 else 0)
+

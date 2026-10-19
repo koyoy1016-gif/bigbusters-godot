@@ -45,20 +45,9 @@ static func evade_dir(pos: Vector2, hazards: Array, margin: float, me: String) -
 		var target := str(h["target"])
 		if target != "" and target != me:
 			continue
-		var depth := 0.0
-		var dir := Vector2.ZERO
-		if str(h["shape"]) == "box":
-			var hz := float(h["hz"]) + margin
-			var dz := pos.y - float(h["z"])
-			if absf(dz) < hz:
-				depth = hz - absf(dz)
-				dir = Vector2(0.0, 1.0 if dz >= 0.0 else -1.0)
-		else:
-			var r := float(h["r"]) + margin
-			var d := pos - Vector2(float(h["x"]), float(h["z"]))
-			if d.length() < r:
-				depth = r - d.length()
-				dir = d.normalized() if d.length() > 0.01 else Vector2(1, 0)
+		var e := Attacks.escape_of(h, pos.x, pos.y, margin)
+		var depth := float(e["depth"])
+		var dir: Vector2 = e["dir"]
 		if depth > best_depth:
 			best_depth = depth
 			best = dir
