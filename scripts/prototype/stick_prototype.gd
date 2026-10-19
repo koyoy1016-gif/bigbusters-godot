@@ -43,6 +43,7 @@ const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const BossRage := preload("res://scripts/combat/boss_rage.gd")
 const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
+const BattleAiTeam := preload("res://scripts/prototype/battle_ai_team.gd")
 const BattleGrab := preload("res://scripts/prototype/battle_grab.gd")
 const BattleHud := preload("res://scripts/prototype/battle_hud.gd")
 const BattleAttackFx := preload("res://scripts/prototype/battle_attack_fx.gd")
@@ -78,6 +79,7 @@ var ai := BossAI.new()  ## ボスの攻撃の選び方（重み付きランダ�
 var motion := BossMotion.new()  ## ボスの歩き（位置と向き）
 var phase := BossPhase.new()  ## ボスの体力の2段階（第1形態 → 倒れて覚醒 → 第2形態）
 var rage := BossRage.new()  ## 版69：近くからの攻撃が多い間、ボスが怒る（攻撃が速く、つかみ投げが多くなる）
+var ai_team := BattleAiTeam.new(self)  ## AIの味方・先読み（battle_ai_team.gd）
 var grab := BattleGrab.new(self)  ## つかみ・投げ（battle_grab.gd）
 var hud := BattleHud.new(self)  ## 画面の描画（battle_hud.gd）
 var attack_fx := BattleAttackFx.new(self)  ## ボスの攻撃の見た目（battle_attack_fx.gd）
@@ -97,8 +99,6 @@ var ai_picks: Array = []
 var ai_cfg: Dictionary = {}
 var ai_allies := {}
 var ai_hits := {}
-var ai_done := {}
-var ai_rng := RandomNumberGenerator.new()
 var current_hazards: Array = []
 var current_attack: Dictionary = {}
 var current_attack_u := 0.0
@@ -995,43 +995,9 @@ var ai_forecast: Array = []
 var ai_forecast_t := -999.0
 
 
-## いまの攻撃を、horizon 秒先まで step 秒きざみで進めて、当たる物を集める [{dt: 何秒後（実際の秒）, h: 当たり}]。
-## 攻撃の中の秒 u は speed 倍で進む（版69の怒り）。攻撃が終わる先は見ない（次の攻撃は、まだ分からない）
+## → battle_ai_team.gd
 func boss_forecast(horizon: float, step: float) -> Array:
-	var out: Array = []
-	if current_attack.is_empty() or not round_active() or step <= 0.0:
-		return out
-	var a: Dictionary = current_attack
-	# 重い攻撃（巨大酒瓶ライド）は先を調べない。いま見えている予告と当たりを「すぐ当たる」として渡す（AIは走ってよける）
-	if ((ai_cfg.get("tactics", {}) as Dictionary).get("forecast_skip", []) as Array).has(str(a["kind"])):
-		for h in current_hazards:
-			if bool(h["active"]) or float(h.get("tele", 0.0)) > 0.0:
-				out.append({"dt": 0.0, "h": h})
-		return out
-	var sp := float(a.get("speed", 1.0))
-	var end_u := (float(a["end"]) - float(a["start"])) * sp
-	var k := 0.0
-	while k <= horizon + 0.0001:
-		var u := current_attack_u + k * sp
-		if u > end_u:
-			break
-		for h in Attacks.hazards(a, u, attacks_cfg, _attack_ctx(a, u, true)):
-			if bool(h["active"]):
-				out.append({"dt": k, "h": h})
-		k += step
-	return out
-
-
-## ボスの次の攻撃が始まるまでの秒（いまの攻撃の最中なら、終わり＋攻撃の間）。分からなければ 0
-func boss_next_attack_in() -> float:
-	var t := _round_t()
-	var cur: Dictionary = ai.current()
-	if not cur.is_empty():
-		return maxf(0.0, float(cur["end"]) - t + float(attacks_cfg.get("gap_sec", 0.6)))
-	var nxt: Dictionary = ai.next_attack()
-	if not nxt.is_empty():
-		return maxf(0.0, float(nxt["start"]) - t)
-	return maxf(0.0, ai.next_start - t)
+	return ai_team.boss_forecast(horizon, step)
 
 
 ## → battle_hud.gd
@@ -1287,168 +1253,34 @@ func _grab_update(delta: float) -> void:
 
 ## ---- AIの味方 ----
 
+## → battle_ai_team.gd
 func _ai_active() -> bool:
-	if not ai_enabled:
-		return false
-	if not net_active:
-		return true
-	return (net_state.get("members", []) as Array).size() <= 1
+	return ai_team._ai_active()
 
 
-func _ai_total() -> int:
-	return (ai_cfg.get("slots", []) as Array).size()
-
-
+## → battle_ai_team.gd
 func _ai_hits_total() -> float:
-	var t := 0.0
-	for slot in ai_hits:
-		t += float(ai_hits[slot])
-	return t
+	return ai_team._ai_hits_total()
 
 
+## → battle_ai_team.gd
 func _ai_all_down() -> bool:
-	for slot in ai_allies:
-		if not bool(ai_allies[slot]["downed"]):
-			return false
-	return true
+	return ai_team._ai_all_down()
 
 
-## AIの味方を作りなおす（戦いの始まり、人数や選択が変わったとき）。いまの状況でAIが要らなければ、片づける
+## → battle_ai_team.gd
 func _ai_reset() -> void:
-	if ai_cfg.is_empty():
-		ai_cfg = AiAlly.load_config()
-	if characters_cfg.is_empty():
-		characters_cfg = CharacterData.load_config()
-	for slot in ai_allies.keys():
-		_ai_remove_node(str(slot))
-	ai_allies = {}
-	ai_hits = {}
-	ai_done = {}
-	other_lift = {}
-	if not _ai_active():
-		return
-	ai_rng.seed = int(fmod(maxf(round_start_ms, 1.0), 1000000007.0)) + 99
-	var picks := _ai_picks_resolved()
-	var slots: Array = ai_cfg["slots"]
-	var offs: Array = ai_cfg["spawn_offsets"]
-	var half := float(config["bounds"])
-	for i in slots.size():
-		var def := CharacterData.find(characters_cfg, str(picks[i]))
-		if def.is_empty():
-			continue
-		var o: Array = offs[i % offs.size()]
-		var a := AiAlly.make(def, i, Vector2(float(o[0]), float(o[1])))
-		var slot := str(slots[i])
-		ai_allies[slot] = a
-		ai_hits[slot] = 0.0
-		other_target[slot] = Vector2((a["pos"].x + half) / (2.0 * half), (a["pos"].y + half) / (2.0 * half))
-		other_pos[slot] = other_target[slot]
+	ai_team._ai_reset()
 
 
-## 選んだ3人（足りなければ、既定で埋める。自分のキャラは重ねても構わない）
+## → battle_ai_team.gd
 func _ai_picks_resolved() -> Array:
-	var out: Array = []
-	var defaults: Array = ai_cfg.get("default_picks", [])
-	for i in _ai_total():
-		var id := str(ai_picks[i]) if i < ai_picks.size() else ""
-		if CharacterData.find(characters_cfg, id).is_empty():
-			id = str(defaults[i % defaults.size()]) if not defaults.is_empty() else ""
-		out.append(id)
-	return out
+	return ai_team._ai_picks_resolved()
 
 
-func _ai_remove_node(slot: String) -> void:
-	other_target.erase(slot)
-	other_pos.erase(slot)
-	if others.has(slot):
-		(others[slot] as Node).queue_free()
-		others.erase(slot)
-	other_views.erase(slot)
-
-
-## 毎コマ：AIを、必要なら作る／片づける。戦いの最中なら動かす
+## → battle_ai_team.gd
 func _ai_update(delta: float) -> void:
-	if ai_cfg.is_empty():
-		ai_cfg = AiAlly.load_config()
-	var want := _ai_active()
-	var have := not ai_allies.is_empty()
-	if want != have:
-		_ai_reset()
-	if ai_allies.is_empty():
-		return
-	var half := float(config["bounds"])
-	if round_active():
-		var ctx := {"boss": Vector2(boss.position.x, boss.position.z), "boss_radius": float(config["boss_size"]) * 0.5, "bounds": half,
-			"hazards": current_hazards, "cfg": ai_cfg, "attack_multiplier": float(config["attack_multiplier"]), "rng": ai_rng, "can_hit_boss": not phase.invulnerable(),
-			"drop_damage": Damage.damage_amount(float(attacks_cfg["kinds"]["grab"]["drop_power"]), float(attacks_cfg["damage_multiplier"]))}
-		# 版71：ボスのいまの攻撃の先読み（AIの味方が、よける・攻める時刻を決める）
-		var tac: Dictionary = ai_cfg.get("tactics", {})
-		var rt := _round_t()
-		if rt - ai_forecast_t >= float(tac.get("forecast_every", 0.2)) or rt < ai_forecast_t:
-			ai_forecast = boss_forecast(float(tac.get("forecast_sec", 2.0)), float(tac.get("forecast_step", 0.15)))
-			ai_forecast_t = rt
-		ctx["forecast"] = ai_forecast
-		ctx["forecast_age"] = maxf(0.0, rt - ai_forecast_t)
-		ctx["next_attack_in"] = boss_next_attack_in()
-		var dealt_total := 0.0
-		for slot in ai_allies:
-			var a: Dictionary = ai_allies[slot]
-			ctx["slot"] = slot
-			var hit_n0 := int(a.get("hit_n", 0))
-			var dealt := AiAlly.step(a, delta, ctx)
-			# 版69：AIの攻撃がボスに当たった回数。近くからなら、怒りに数える
-			for _i in int(a.get("hit_n", 0)) - hit_n0:
-				rage.add_hit(_round_t(), _dist_to_boss_surface(a["pos"]))
-			_ai_show_action(str(slot), a)
-			for he in a.get("hit_events", []):
-				_show_damage(float(he["dmg"]), str(he["action"]), a["pos"])  # 版75：AIの一撃ずつ
-			if dealt > 0.0:
-				ai_hits[slot] = float(ai_hits[slot]) + dealt
-				dealt_total += dealt
-			# 版72：AIの必殺技の見た目（ためと、当たった瞬間の斬撃）
-			var ua: Actions = AiAlly.act(a)
-			var apos: Vector2 = a["pos"]
-			if str(a["banner"]) != "":
-				ult_fx_spawn("charge", Vector3(apos.x, ground_y, apos.y), ua.aim)
-			if dealt > 0.0 and ua.active == "ultimate":
-				var at := HitArea.closest_on(a.get("ult_from", apos), apos, Vector2(boss.position.x, boss.position.z))
-				_ult_slash_fx(Vector3(at.x, ground_y, at.y), ua.aim, true, false)
-			var was_held := bool(a.get("held", false))
-			AiAlly.take_hazards(a, str(slot), current_hazards, ai_done, float(attacks_cfg["damage_multiplier"]))
-			if bool(a.get("held", false)) and not was_held and grab_state.is_empty():
-				var gp: Vector2 = a["pos"]
-				_start_hold(str(slot), gp)
-			elif bool(a.get("held", false)) and not was_held:
-				a["held"] = false
-			var p: Vector2 = a["pos"]
-			other_target[slot] = Vector2((p.x + half) / (2.0 * half), (p.y + half) / (2.0 * half))
-		if dealt_total > 0.0:
-			_recompute_boss_hp()
-	if not net_active:
-		_update_others(delta)
-	_check_wipe_ai_only()
-
-
-## AIの攻撃の見た目：流すアニメ、向き、高さ、必殺技の名前
-func _ai_show_action(slot: String, a: Dictionary) -> void:
-	var act: Actions = AiAlly.act(a)
-	var view: Node3D = other_views.get(slot, null)
-	if view != null:
-		for ev in a["events"]:
-			(view as Node).play_step(str(ev["anim"]), float(ev["speed"]), bool(ev.get("from_end", false)))
-		if act.busy():
-			(view as Node).face_now(act.aim)
-	if not bool(a.get("held", false)):
-		other_lift[slot] = float(a["height"])
-	if str(a["banner"]) != "":
-		_show_banner(str(a["banner"]), role_name_of(slot), float(act.def("ultimate").get("banner_sec", 1.6)))
-		_play_sfx("ultimate")
-
-
-## 自分がダウン中で、AIも全員ダウンしたら全滅
-func _check_wipe_ai_only() -> void:
-	if round_active() and downed:
-		_check_wipe()
+	ai_team._ai_update(delta)
 
 
 func _my_slot() -> String:
