@@ -40,7 +40,7 @@
   "friends_label": "フレンド",
   "account_label": "アカウント",
   "formation_button_font_size": 36,
-  "formation_stats_font_size": 32,
+  "formation_stats_font_size": 30,
   "formation_label": "へんせい",
   "formation_title": "へんせい",
   "formation_selected": "えらんでいる",
@@ -203,5 +203,7 @@
   ],
   "ai_title": "AIの なかま（タップで かえる）",
   "ai_picks_path": "user://ai_picks.json",
-  "ai_button_font_size": 30
+  "ai_button_font_size": 28,
+  "ai_title_font_size": 40,
+  "formation_content_width": 580
 }

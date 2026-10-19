@@ -311,7 +311,7 @@ func _build_panels() -> void:
 	l.add_child(toast_label)
 
 	# へんせい（キャラを選ぶ）
-	var f := _make_panel(Logic.FORMATION)
+	var f := _make_lobby_panel(Logic.FORMATION, 20)
 	f.add_child(_make_label(str(config["formation_title"]), heading, Color(str(config["title_color"]))))
 	var fgrid := GridContainer.new()
 	fgrid.columns = 2
@@ -320,7 +320,7 @@ func _build_panels() -> void:
 	for c in characters_cfg.get("characters", []):
 		var id := str(c["id"])
 		var label := str(c["role"]) + "\n" + str(c["name"])
-		var b := _make_button(label, [260, 110], func(): select_character(id))
+		var b := _make_button(label, [250, 110], func(): select_character(id))
 		b.add_theme_font_size_override("font_size", int(config["formation_button_font_size"]))
 		formation_buttons[id] = b
 		fgrid.add_child(b)
@@ -328,15 +328,20 @@ func _build_panels() -> void:
 	fholder.add_child(fgrid)
 	f.add_child(fholder)
 	formation_stats = _make_label("", int(config["formation_stats_font_size"]), text_color)
+	formation_stats.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	formation_stats.custom_minimum_size = Vector2(int(config["formation_content_width"]), 0)
 	f.add_child(formation_stats)
-	f.add_child(_make_label(str(config["ai_title"]), heading, Color(str(config["title_color"]))))
+	var ai_head := _make_label(str(config["ai_title"]), int(config["ai_title_font_size"]), Color(str(config["title_color"])))
+	ai_head.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	ai_head.custom_minimum_size = Vector2(int(config["formation_content_width"]), 0)
+	f.add_child(ai_head)
 	var ai_row := HBoxContainer.new()
 	ai_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	ai_row.add_theme_constant_override("separation", 12)
 	ai_picks = _ai_picks_filled(SaveData.load_ai_picks(str(config["ai_picks_path"])))
 	ai_buttons = []
 	for i in 3:
-		var ab := _make_button("", [200, 110], func(): cycle_ai_pick(i))
+		var ab := _make_button("", [190, 110], func(): cycle_ai_pick(i))
 		ab.add_theme_font_size_override("font_size", int(config["ai_button_font_size"]))
 		ai_buttons.append(ab)
 		ai_row.add_child(ab)
