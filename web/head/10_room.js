@@ -1,5 +1,5 @@
 window.bbFirebase = {
-  state: { status: 'idle', uid: '', error: '', room: '', slot: '', members: [], positions: {}, hits: {}, hp: {}, chars: {}, votes: {}, effects: {}, phases: {}, round: 0, offset: 0, sent: 0, received: 0, connection: 'unknown' },
+  state: { status: 'idle', uid: '', error: '', room: '', slot: '', members: [], positions: {}, hits: {}, hp: {}, chars: {}, votes: {}, effects: {}, phases: {}, who: {}, round: 0, offset: 0, sent: 0, received: 0, connection: 'unknown' },
   _active: null,
   _session: null,
   _unsubscribe: null,
@@ -136,6 +136,8 @@ window.bbFirebase = {
     }).then(function () {
       return d.remove(d.ref(s.database, 'rooms/' + code + '/phase/' + slot)).catch(function () {});
     }).then(function () {
+      return d.remove(d.ref(s.database, 'rooms/' + code + '/who/' + slot)).catch(function () {});
+    }).then(function () {
       self._phase = '';
       self._joinedAt = joinedAt;
       self.state.slot = slot;
@@ -158,6 +160,7 @@ window.bbFirebase = {
     if (this._unsubscribeVotes) { this._unsubscribeVotes(); this._unsubscribeVotes = null; }
     if (this._unsubscribeEffects) { this._unsubscribeEffects(); this._unsubscribeEffects = null; }
     if (this._unsubscribePhases) { this._unsubscribePhases(); this._unsubscribePhases = null; }
+    if (this._unsubscribeWho) { this._unsubscribeWho(); this._unsubscribeWho = null; }
   },
   // 在室の一覧：保持時間の内に書き直された枠だけを数える
   _refreshMembers: function () {
@@ -201,6 +204,9 @@ window.bbFirebase = {
     }, function (e) { self._fail(e); });
     this._unsubscribePhases = d.onValue(d.ref(s.database, 'rooms/' + code + '/phase'), function (snap) {
       self.state.phases = snap.val() || {};
+    }, function (e) { self._fail(e); });
+    this._unsubscribeWho = d.onValue(d.ref(s.database, 'rooms/' + code + '/who'), function (snap) {
+      self.state.who = snap.val() || {};
     }, function (e) { self._fail(e); });
     this._startHeartbeat();
   },
@@ -439,6 +445,7 @@ window.bbFirebase = {
     var voteRef = d.ref(s.database, 'rooms/' + room + '/votes/' + slot);
     var effectRef = d.ref(s.database, 'rooms/' + room + '/effects/' + slot);
     var phaseRef = d.ref(s.database, 'rooms/' + room + '/phase/' + slot);
+    var whoRef = d.ref(s.database, 'rooms/' + room + '/who/' + slot);
     return d.onDisconnect(posRef).cancel().then(function () {
       return d.remove(ref);
     }).then(function () {
@@ -456,6 +463,8 @@ window.bbFirebase = {
     }).then(function () {
       return d.remove(phaseRef).catch(function () {});
     }).then(function () {
+      return d.remove(whoRef).catch(function () {});
+    }).then(function () {
       self._stopWatch();
       self.state.slot = '';
       self.state.members = [];
@@ -466,6 +475,7 @@ window.bbFirebase = {
       self.state.votes = {};
       self.state.effects = {};
       self.state.phases = {};
+      self.state.who = {};
       self.state.round = 0;
       self.state.status = 'left';
     }, function (e) { self._fail(e); });

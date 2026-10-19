@@ -47,6 +47,22 @@ static func build_claim_call() -> String:
 	return "window.bbAccount.claimSession()"
 
 
+static func build_request_sid_call(sid: String) -> String:
+	return "window.bbAccount.requestFriendSid(%s)" % JSON.stringify(sid)
+
+
+static func build_announce_call(room: String, slot: String) -> String:
+	return "window.bbAccount.announce(%s, %s)" % [JSON.stringify(room), JSON.stringify(slot)]
+
+
+static func build_request_code_call(code: String) -> String:
+	return "window.bbAccount.requestFriend(%s)" % JSON.stringify(code)
+
+
+static func build_clear_preview_call() -> String:
+	return "window.bbAccount.clearPreview()"
+
+
 static func build_logout_call() -> String:
 	return "window.bbAccount.logout()"
 
@@ -92,6 +108,22 @@ func invite(friend_sid: String, room: String) -> void:
 
 func claim_session() -> void:
 	js_eval.call(build_claim_call())
+
+
+func request_friend_sid(sid: String) -> void:
+	js_eval.call(build_request_sid_call(sid))
+
+
+func announce(room: String, slot: String) -> void:
+	js_eval.call(build_announce_call(room, slot))
+
+
+func request_friend_code(code: String) -> void:
+	js_eval.call(build_request_code_call(code))
+
+
+func clear_preview() -> void:
+	js_eval.call(build_clear_preview_call())
 
 
 func logout() -> void:

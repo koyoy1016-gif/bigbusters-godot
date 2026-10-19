@@ -131,6 +131,31 @@ func _initialize() -> void:
 	flow.goto("lobby")
 	flow.reclaim_session()
 	check(not flow.displaced_box.visible and _count("window.bbAccount.claimSession()") == 2, "「この画面で つかう」で取りもどす")
+	# 部屋の人にフレンド申請
+	acc = {"status": "ok", "signedIn": true, "sid": "AAAAAAAAAAAA", "friendCode": "ABCDEFGH", "nickname": "えー", "displaced": false, "inbox": [], "friends": [], "preview": null}
+	state["members"] = ["p1", "p2", "p3"]
+	state["who"] = {"p2": {"sid": "BBBBBBBBBBBB", "nickname": "びー"}}
+	flow.goto("lobby")
+	flow._poll_room(1.0)
+	flow._poll_account(1.0)
+	flow._poll_room(1.0)
+	check(flow.party_box.get_child_count() == 1, "アカウントの人だけ、一覧に出る（ゲストの p3 は出ない）")
+	check(_count("window.bbAccount.announce(") >= 1, "自分の席の持ち主を部屋に書く")
+	flow._request_friend_of("BBBBBBBBBBBB")
+	check(_count("window.bbAccount.requestFriendSid(\"BBBBBBBBBBBB\")") == 1, "ボタンで、フレンドの申しこみを送る")
+	flow._poll_room(1.0)
+	check(flow.party_box.get_child(0).get_child(1).disabled, "送ったあとは、もうしこみずみ")
+	# LINEのフレンドURL
+	acc["preview"] = {"code": "ZZZZZZZZ", "status": "ok", "nickname": "しー"}
+	flow._poll_account(1.0)
+	check(flow.friend_box.visible and flow.friend_box_col.get_child_count() == 3, "ついかする／キャンセルの画面が出る")
+	flow._close_friend_preview()
+	check(not flow.friend_box.visible and _count("window.bbAccount.clearPreview()") == 1, "キャンセルで閉じる")
+	acc["preview"] = {"code": "ZZZZZZZZ", "status": "needlogin", "nickname": ""}
+	flow._poll_account(1.0)
+	check(flow.friend_box.visible and flow.friend_box_col.get_child_count() == 2, "ログインしていなければ、案内だけ出る")
+	var RoomLinkT := load("res://scripts/network/room_link.gd")
+	check(RoomLinkT.build_friend_url("https://x.io/a/?room=1#h", "ABCDEFGH") == "https://x.io/a/?friend=ABCDEFGH", "フレンドURLの形")
 	flow.queue_free()
 	print("失敗: ", failures)
 	quit(1 if failures > 0 else 0)

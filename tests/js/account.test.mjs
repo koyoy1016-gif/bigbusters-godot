@@ -319,3 +319,49 @@ test('ログインを切りかえる前に、ゲストの席を空ける（同�
   assert.equal(ok.ok, true);
   assert.equal(world.store.has('rooms/4321/players/p1'), false, 'ログインに成功したら、ゲストの席は空いている');
 });
+
+test('部屋でいっしょの人に、ボタンでフレンドの申しこみ。who に席の持ち主を書く', async () => {
+  const world = makeWorld();
+  const a = device(world);
+  const b = device(world);
+  await a.acc.init(CFG);
+  await b.acc.init(CFG);
+  await a.acc.register('mypass-a');
+  await b.acc.register('mypass-b');
+  await a.acc.setNickname('えー');
+  await b.acc.setNickname('びー');
+  await a.bb.joinRoom(CFG, '4321');
+  await b.bb.joinRoom(CFG, '4321');
+  await a.acc.announce('4321', a.bb.state.slot);
+  await b.acc.announce('4321', b.bb.state.slot);
+  await settle();
+  assert.equal(a.bb.state.who[b.bb.state.slot].sid, b.acc.state.sid, 'ほかの人の席の持ち主が分かる');
+  assert.equal(a.bb.state.who[b.bb.state.slot].nickname, 'びー');
+  const r = await a.acc.requestFriendSid(b.acc.state.sid);
+  assert.equal(r.ok, true, a.acc.state.message);
+  await settle();
+  same(b.acc.state.inbox.map((i) => [i.type, i.nickname]), [['friend', 'えー']], 'びーに申しこみが届く');
+  assert.equal((await a.acc.requestFriendSid(a.acc.state.sid)).ok, false, '自分には送れない');
+  await a.bb.leaveRoom();
+  assert.equal(world.store.has('rooms/4321/who/' + a.bb.state.slot), false, '退出で who も消える');
+});
+
+test('LINEのフレンドURL：だれのコードか調べる（ついかする／キャンセルの前）', async () => {
+  const world = makeWorld();
+  const a = device(world);
+  const b = device(world);
+  await a.acc.init(CFG);
+  await b.acc.init(CFG);
+  await a.acc.register('mypass-a');
+  await b.acc.register('mypass-b');
+  await a.acc.setNickname('えー');
+  await b.acc.previewFriend(a.acc.state.friendCode);
+  same([b.acc.state.preview.status, b.acc.state.preview.nickname], ['ok', 'えー']);
+  await b.acc.previewFriend('ZZZZZZZZ');
+  assert.equal(b.acc.state.preview.status, 'notfound');
+  await a.acc.previewFriend(a.acc.state.friendCode);
+  assert.equal(a.acc.state.preview.status, 'self');
+  assert.equal((await b.acc.requestFriend(a.acc.state.friendCode)).ok, true);
+  b.acc.clearPreview();
+  assert.equal(b.acc.state.preview, null);
+});

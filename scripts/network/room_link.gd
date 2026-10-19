@@ -26,6 +26,12 @@ static func build_url(base: String, code: String) -> String:
 	return clean + "?room=" + code
 
 
+## フレンドのURL：ページの場所に ?friend=フレンドコード をつける
+static func build_friend_url(base: String, friend_code: String) -> String:
+	var clean := base.split("#")[0].split("?")[0]
+	return clean + "?friend=" + friend_code
+
+
 ## ブラウザ側の「おくる」画面を出す呼び出し（LINE・共有・コピーのボタンは、ブラウザ側の本物のボタン）
 static func build_share_call(url: String, labels: Dictionary) -> String:
 	return "window.bbShare.show(%s, %s)" % [JSON.stringify(url), JSON.stringify(labels)]

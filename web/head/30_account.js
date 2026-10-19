@@ -1,9 +1,11 @@
 window.bbAccount = {
   state: {
     status: 'idle', busy: false, message: '', signedIn: false, loginId: '', sid: '', nickname: '',
-    friendCode: '', friends: [], inbox: [], save: null, recoveryCode: '', needReload: false, displaced: false, sessionOn: false
+    friendCode: '', friends: [], inbox: [], save: null, recoveryCode: '', needReload: false, displaced: false, sessionOn: false, preview: null
   },
   _cfg: '',
+  _friendParam: '',
+  _announced: '',
   _save: null,
   _domain: 'bb.example.com',
   _alphabet: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
@@ -114,11 +116,19 @@ window.bbAccount = {
     var self = this;
     this._cfg = cfgJson;
     this.state.status = 'pending';
+    try {
+      var fp = String(new URLSearchParams(window.location.search).get('friend') || '').toUpperCase();
+      this._friendParam = /^[A-Z2-9]{8}$/.test(fp) ? fp : '';
+    } catch (e0) { this._friendParam = ''; }
     return this._ctx().then(function (c) {
       var user = c.auth.currentUser;
       if (user && !user.isAnonymous) { return self._restore(c, user); }
       self.state.status = 'ok';
       return null;
+    }).then(function () {
+      if (!self._friendParam) { return null; }
+      if (!self.state.signedIn) { self.state.preview = { code: self._friendParam, status: 'needlogin', nickname: '' }; return null; }
+      return self.previewFriend(self._friendParam);
     }).catch(function (e) { self.state.status = 'error'; self._fail(e); });
   },
   // ログインずみの人の、保存・プロフィール・フレンドを読み、見張りを始める
@@ -332,7 +342,10 @@ window.bbAccount = {
     setTimeout(function () {
       try {
         var room = (window.bbFirebase && window.bbFirebase.state.room) || '';
-        window.location.href = window.location.origin + window.location.pathname + (room ? '?room=' + room : '');
+        var q = [];
+        if (room) { q.push('room=' + room); }
+        if (window.bbAccount && window.bbAccount._friendParam) { q.push('friend=' + window.bbAccount._friendParam); }
+        window.location.href = window.location.origin + window.location.pathname + (q.length ? '?' + q.join('&') : '');
       } catch (e) {}
     }, 1200);
   },
@@ -363,19 +376,70 @@ window.bbAccount = {
     var self = this;
     var code = this._clean(codeRaw);
     if (!this.state.signedIn) { return Promise.resolve(this._fail(this._stop('ログインが ひつようです'))); }
-    var ctx = null;
     return this._ctx().then(function (c) {
-      ctx = c;
-      return self._freshNickname(c).then(function () { return self._get(c, 'friendCodes/' + code); });
+      return self._get(c, 'friendCodes/' + code);
     }).then(function (target) {
       if (!target) { throw self._stop('そのコードは みつかりません'); }
-      if (target === self.state.sid) { throw self._stop('それは じぶんの コードです'); }
+      return self._sendRequest(target);
+    }).catch(function (e) { return self._fail(e); });
+  },
+  // 部屋でいっしょの人（アカウントの sid が分かる人）に、もうしこむ
+  requestFriendSid: function (sid) {
+    var self = this;
+    if (!this.state.signedIn) { return Promise.resolve(this._fail(this._stop('ログインが ひつようです'))); }
+    return this._sendRequest(String(sid)).catch(function (e) { return self._fail(e); });
+  },
+  _sendRequest: function (target) {
+    var self = this;
+    var ctx = null;
+    if (target === this.state.sid) { return Promise.reject(this._stop('それは じぶんです')); }
+    return this._ctx().then(function (c) {
+      ctx = c;
+      return self._freshNickname(c);
+    }).then(function () {
       return self._set(ctx, 'inbox/' + target + '/' + self.state.sid, { type: 'friend', nickname: self.state.nickname, t: Date.now() });
     }).then(function () {
       self.state.message = 'フレンドの もうしこみを おくりました。あいてが ひきうけると フレンドになります';
       return { ok: true };
-    }).catch(function (e) { return self._fail(e); });
+    });
   },
+  // LINEのURL（?friend=コード）を開いたとき：だれのコードか調べて、「ついかする／キャンセル」を出すための情報
+  previewFriend: function (codeRaw) {
+    var self = this;
+    var code = this._clean(codeRaw);
+    this.state.preview = { code: code, status: 'loading', nickname: '' };
+    return this._ctx().then(function (c) {
+      return self._get(c, 'friendCodes/' + code).then(function (sid) {
+        if (!sid) { self.state.preview = { code: code, status: 'notfound', nickname: '' }; return null; }
+        if (sid === self.state.sid) { self.state.preview = { code: code, status: 'self', nickname: '' }; return null; }
+        return self._get(c, 'profiles/' + sid + '/nickname').then(function (n) {
+          var isFriend = self.state.friends.some(function (f) { return f.sid === sid; });
+          self.state.preview = { code: code, status: isFriend ? 'already' : 'ok', nickname: n || '' };
+        });
+      });
+    }).catch(function () { self.state.preview = { code: code, status: 'error', nickname: '' }; });
+  },
+  clearPreview: function () {
+    this.state.preview = null;
+    this._friendParam = '';
+    try {
+      var u = new URL(window.location.href);
+      u.searchParams.delete('friend');
+      window.history.replaceState(null, '', u.pathname + u.search);
+    } catch (e) {}
+  },
+  // 部屋の中で、「この席の人は、このアカウント」と知らせる（ほかの人が、フレンド申請のボタンを出せる）
+  announce: function (room, slot) {
+    var self = this;
+    if (!this.state.signedIn || !room || !slot) { return Promise.resolve(); }
+    var key = room + '|' + slot + '|' + this.state.sid + '|' + this.state.nickname;
+    if (this._announced === key) { return Promise.resolve(); }
+    this._announced = key;
+    return this._ctx().then(function (c) {
+      return self._set(c, 'rooms/' + room + '/who/' + slot, { sid: self.state.sid, nickname: self.state.nickname });
+    }).catch(function () { self._announced = ''; });
+  },
+
   acceptFriend: function (from) {
     var self = this;
     var ctx = null;

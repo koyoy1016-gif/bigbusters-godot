@@ -72,6 +72,12 @@ var displaced_box: Control
 var displaced_shown := false
 var claimed_key := ""
 var claim_grace := 0.0
+var party_box: VBoxContainer
+var party_signature := ""
+var friend_box: Control
+var friend_box_col: VBoxContainer
+var friend_preview_sig := ""
+var requested_sids: Dictionary = {}
 ## ロビーから入っている部屋（戦いを出入りしても、部屋は続く）
 var bridge: RefCounted = null
 var room_state: Dictionary = {}
@@ -266,6 +272,9 @@ func _build_panels() -> void:
 	room_row.add_child(invite_button)
 	room_row.add_child(leave_button)
 	l.add_child(room_row)
+	party_box = VBoxContainer.new()
+	party_box.add_theme_constant_override("separation", 8)
+	l.add_child(party_box)
 	invite_join_button = _make_button("", big, join_invite)
 	invite_join_button.visible = false
 	l.add_child(invite_join_button)
@@ -371,6 +380,23 @@ func _build_panels() -> void:
 	n.add_child(rematch_wait_next)
 	n.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
 
+
+	# LINEのフレンドURLを開いたとき：「ついかする／キャンセル」
+	friend_box = Control.new()
+	friend_box.name = "FriendPreview"
+	friend_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	friend_box.mouse_filter = Control.MOUSE_FILTER_STOP
+	var f_bg := ColorRect.new()
+	f_bg.color = Color(0.05, 0.07, 0.1, 0.96)
+	f_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	friend_box.add_child(f_bg)
+	friend_box_col = VBoxContainer.new()
+	friend_box_col.set_anchors_preset(Control.PRESET_FULL_RECT)
+	friend_box_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	friend_box_col.add_theme_constant_override("separation", 30)
+	friend_box.add_child(friend_box_col)
+	friend_box.visible = false
+	layer.add_child(friend_box)
 
 	# 「ほかの画面で ひらかれました」（同じ人は、同時に1つの画面でしか遊べない）
 	displaced_box = Control.new()
@@ -643,6 +669,116 @@ func init_account() -> void:
 	account.set_save(save)
 
 
+## 部屋にいる、ほかの人の一覧（アカウントの人には「フレンドに なる」ボタン）
+func _refresh_party() -> void:
+	var who: Dictionary = room_state.get("who", {}) if room_state.get("who") is Dictionary else {}
+	var friends: Array = account_state.get("friends", [])
+	var friend_sids := {}
+	for f in friends:
+		friend_sids[str(f.get("sid", ""))] = true
+	var rows: Array = []
+	for slot in Logic.other_members(room_state):
+		var w: Variant = who.get(slot)
+		var sid := str(w.get("sid", "")) if w is Dictionary else ""
+		var nick := str(w.get("nickname", "")) if w is Dictionary else ""
+		rows.append([slot, sid, nick])
+	var mine := bool(account_state.get("signedIn", false))
+	var sig := JSON.stringify([rows, mine, friend_sids.keys(), requested_sids.keys()])
+	if sig == party_signature:
+		return
+	party_signature = sig
+	_clear_box(party_box)
+	for row in rows:
+		var sid: String = row[1]
+		var nick: String = row[2]
+		if sid == "":
+			continue  # ゲストの人には、申しこめない
+		var name_text := nick if nick != "" else str(config["friends_no_name"])
+		var line := HBoxContainer.new()
+		line.alignment = BoxContainer.ALIGNMENT_CENTER
+		line.add_theme_constant_override("separation", 12)
+		var lab := _make_label(name_text, int(config["lobby_small_font_size"]), Color(str(config["text_color"])))
+		lab.custom_minimum_size = Vector2(250, 0)
+		line.add_child(lab)
+		var btn: Button
+		if friend_sids.has(sid):
+			btn = _make_button(str(config["party_friend_done"]), [300, 70], func(): pass)
+			btn.disabled = true
+		elif requested_sids.has(sid):
+			btn = _make_button(str(config["party_friend_sent"]), [300, 70], func(): pass)
+			btn.disabled = true
+		elif not mine:
+			btn = _make_button(str(config["party_need_login"]), [300, 70], func(): pass)
+			btn.disabled = true
+		else:
+			btn = _make_button(str(config["party_friend_button"]), [300, 70], func(): _request_friend_of(sid))
+		btn.add_theme_font_size_override("font_size", int(config["lobby_small_font_size"]))
+		_paint_button(btn, Color(str(config["lobby_nav_color"])))
+		line.add_child(btn)
+		party_box.add_child(line)
+
+
+func _request_friend_of(sid: String) -> void:
+	requested_sids[sid] = true
+	party_signature = ""
+	if account != null:
+		account.request_friend_sid(sid)
+	_refresh_party()
+
+
+## フレンドのURLを、LINEなどで おくる
+func share_friend_url() -> void:
+	var code := str(account_state.get("friendCode", ""))
+	if code == "" or str(js_eval.call("typeof window")) != "object":
+		return
+	var base := str(js_eval.call("window.location.origin + window.location.pathname"))
+	js_eval.call(RoomLink.build_share_call(RoomLink.build_friend_url(base, code), config["friend_url_share_labels"]))
+
+
+## フレンドURLを開いたときの、確認の画面
+func _refresh_friend_preview() -> void:
+	var pv: Variant = account_state.get("preview")
+	var sig := JSON.stringify(pv) + str(requested_sids.has("__link"))
+	if sig == friend_preview_sig:
+		return
+	friend_preview_sig = sig
+	_clear_box(friend_box_col)
+	if not (pv is Dictionary):
+		friend_box.visible = false
+		return
+	var status := str(pv.get("status", ""))
+	if status == "loading":
+		friend_box.visible = false
+		return
+	friend_box.visible = true
+	var nick := str(pv.get("nickname", ""))
+	if nick == "":
+		nick = str(config["friends_no_name"])
+	if requested_sids.has("__link"):
+		friend_box_col.add_child(_info(str(config["friend_preview_sent"])))
+		friend_box_col.add_child(_small_button(str(config["friend_preview_ok"]), _close_friend_preview))
+		return
+	if status == "ok":
+		friend_box_col.add_child(_info(nick + str(config["friend_preview_ask"])))
+		friend_box_col.add_child(_small_button(str(config["friend_preview_add"]), func():
+			requested_sids["__link"] = true
+			friend_preview_sig = ""
+			if account != null:
+				account.request_friend_code(str(pv.get("code", "")))))
+		friend_box_col.add_child(_small_button(str(config["friend_preview_cancel"]), _close_friend_preview))
+	else:
+		friend_box_col.add_child(_info(str(config["friend_preview_" + status]) if config.has("friend_preview_" + status) else str(config["friend_preview_error"])))
+		friend_box_col.add_child(_small_button(str(config["friend_preview_ok"]), _close_friend_preview))
+
+
+func _close_friend_preview() -> void:
+	requested_sids.erase("__link")
+	if account != null:
+		account.clear_preview()
+	friend_preview_sig = ""
+	friend_box.visible = false
+
+
 func _on_displaced() -> void:
 	displaced_shown = true
 	waiting_ready = false
@@ -687,6 +823,9 @@ func _poll_account(delta: float) -> void:
 		save_applied = true
 		_apply_server_save(st["save"])
 	_refresh_invite_button()
+	_refresh_friend_preview()
+	if bool(st.get("signedIn", false)) and str(room_state.get("status", "")) == "in_room":
+		account.announce(room_code, str(room_state.get("slot", "")))
 	var sig := JSON.stringify([st.get("signedIn"), st.get("loginId"), st.get("nickname"), st.get("friendCode"), st.get("friends"), st.get("inbox"), st.get("message"), Logic.party_full(room_state, int(config["max_party"]))])
 	if sig != account_signature:
 		account_signature = sig
@@ -768,6 +907,7 @@ func _refresh_friends() -> void:
 		return
 	friends_box.add_child(_info(str(config["friends_code_label"]) + "\n" + str(st.get("friendCode", ""))))
 	friends_box.add_child(_small_button(str(config["friends_add"]), func(): _show_form("friend")))
+	friends_box.add_child(_small_button(str(config["friends_send_url"]), share_friend_url))
 	for item in st.get("inbox", []):
 		var from := str(item.get("from", ""))
 		var nick := str(item.get("nickname", ""))
@@ -876,6 +1016,7 @@ func _poll_room(delta: float) -> void:
 	if state == Logic.LOBBY:
 		_refresh_room_label()
 		_refresh_play_button()
+		_refresh_party()
 		if waiting_ready and Logic.all_ready(room_state):
 			waiting_ready = false
 			event("play")

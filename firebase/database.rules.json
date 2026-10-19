@@ -123,6 +123,21 @@
               ".validate": false
             }
           }
+        },
+        "who": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid && (!newData.exists() || root.child('links/' + auth.uid).val() === newData.child('sid').val())",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || newData.hasChildren(['sid', 'nickname']))",
+            "sid": {
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{12}$/)"
+            },
+            "nickname": {
+              ".validate": "newData.isString() && newData.val().length <= 12"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
         }
       }
     },
