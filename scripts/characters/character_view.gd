@@ -39,7 +39,8 @@ func setup(def: Dictionary) -> bool:
 	fix_materials(model, def)
 	# 2026-10-20：見た目のデータ（data/character_looks.json）があれば、体格・服・部品を作る（body_builder.gd）
 	var look_id := str(def.get("look", ""))
-	if look_id != "" and BodyBuilder.load_looks().has(look_id):
+	# 前もって作って保存した形（tools/bake_looks.gd、印 look_baked）なら、もう作らない
+	if look_id != "" and not model.has_meta("look_baked") and BodyBuilder.load_looks().has(look_id):
 		BodyBuilder.apply(model, BodyBuilder.load_looks()[look_id])
 	attach_items(model, def.get("attachments", []))
 	bake_items(model)

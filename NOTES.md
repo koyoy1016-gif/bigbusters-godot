@@ -1,9 +1,11 @@
 # 引き継ぎメモ
 
-更新：2026-10-20 01:00
+更新：2026-10-20（版77）
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-20 版77 味方8人の3Dキャラ】ユーザー：「コードの整理を終えてから、1キャラずつ生成」「自然なアニメーションもつけて、剣士のように全キャラ使えるように」（指示書は8キャラ統合仕様・正規分布クリティカル・3D制作。参考画像8枚は docs/ref/chars/）。Blender は通信が止められて使えないため、剣士と同じ体（MakeHuman CC0）と骨を土台に、scripts/characters/body_builder.gd（体格・塗り・重ね着・部品）でコードで作った。データは tools/make_looks.py → data/character_looks.json、前もって作って assets/models/chars/<id>.scn に保存（tools/bake_looks.gd。xvfb で回す。exports/<id>.glb はリポジトリに入れない）。8方向の確認画像 tools/shot_look.gd、比較画像 docs/ref/chars/<id>_compare.jpg。走りの速さを移動の速さに合わせた（anim_speeds）。強さの数値は変えていない。AIの味方もモデルで出る。くわしくは docs/characters-v77.md（参考画像との差・未対応も書いた）。テスト test_character_looks 新規、test_characters の「モデルのないキャラ」を作ったデータで確かめる形に。Godot 57本・Node 59件 合格。未確認：iPhone での重さ（1人 約3万〜3.6万の三角形、4人で約13万）。指示書の第2〜5部（正規分布・クリティカル・バランス表）は未着手（統合仕様書の全文が見つからない）
+- 【2026-10-20 版76 コードの整理（済み）】stick_prototype.gd（2844行→1593行）を battle_attack_fx・battle_hud・battle_grab・battle_ai_team・battle_net・battle_ult_fx に分けた。1つずつ全テスト合格→コミット（61e0093・4089263・d0702b5・2cc04ff・65c25cd・1be1987）。動きは変えていない
 - 【2026-10-20 03:40 引き継ぎ】アカウント切りかえのため、版69〜76をまとめた引き継ぎ書 `docs/handover-2026-10-20-v76.md` を作った。新しいセッションは、まずそれを読む
 - 【2026-10-20 版76 コードの整理（途中）】stick_prototype.gd を6つに分ける計画（ユーザー了承、名前は変えない）。整理1（battle_attack_fx.gd）は全テスト合格・コミット済み（61e0093）。整理2（battle_hud.gd）は分け終わったが全テスト未実行で、変更は docs/wip/refactor-2-hud.patch（git apply で戻す）。整理の道具は tools/refactor/（split_tool.py・wire.py・alltests.sh）。3〜6（つかみ・AIの味方・通信・必殺技の見た目）はまだ
 - 【2026-10-20 版75】ユーザーの指示書「第2工程：アクションゲーム風ダメージ表示」。確認：みんなの数字を同じ大きさで出す・数字だけ・四捨五入して整数。scripts/ui/damage_numbers.gd（新規。動きの計算だけ：出た瞬間 pop 倍→弾んで1倍→上へ浮きながら消える。続けて出たらずらす。画面の外に出さない）。体力を減らす所から、減らした量をそのまま渡す：自分は _resolve_hit の _damage_boss のすぐあと、AIは ai_ally の _resolve_hit が a["hit_events"] に一撃ずつ入れ、_ai_update で出す。外れ・無敵（倒れて覚醒する間）は、ダメージがないので出ない。強い攻撃（かわし斬り・必殺技）は大きく、金色、衝撃線つき。クリティカルはゲームにないので、見た目だけ用意（出る所はない）。描くのは _draw_damage_numbers（カメラで画面の位置に変える。いまの文字を FontVariation で太らせ、縁取り）。数値は prototype_stick.json の damage_numbers。346.5 が 346.4999… になる誤差は snappedf でそろえてから四捨五入。通信のほかの人の数字は出ない（合計しか届かないため）。テスト test_v75 新規。写真で確認。公開の自動作業で test_v68 が落ちた：数字を描く処理が画面なしのテストでエラー文を大量に出し、CI の「echo | grep -q」が途中で切られて pipefail で失敗あつかい。画面なし（headless）では描かない・CI は <<< で調べる、に直して公開できた

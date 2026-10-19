@@ -165,6 +165,8 @@ def brawler():
                              rot=(0, ang, 0), metallic=0.85, rough=0.3, mirror=True))
     return {
         "name": "ファイター",
+        "idle_speed": 1.1,
+        "attack_speed": 2.0,
         "attack_anim": "Punch",
         "ref": "docs/ref/chars/IMG_0392.jpeg",
         "keep": ["eyebrow001", "eyelashes01", "low-poly", "short04"],
@@ -245,6 +247,8 @@ def sprinter():
     parts.append(sph("foot.L", (0.205, 0.07, -0.085), 0.028, CYAN, squash=(1.2, 0.8, 0.6), mirror=True, emission=1.8, tex="none"))
     return {
         "name": "スピードファイター",
+        "idle_speed": 1.25,
+        "attack_speed": 2.2,
         "ref": "docs/ref/chars/IMG_0395.jpeg",
         "attack_anim": "Punch",
         "run_anim": "Sprint",
@@ -652,8 +656,8 @@ def guardian():
     for x in (0.16, -0.16):
         parts.append(box("spine05", (x, 0.96, 0.17), (0.15, 0.2, 0.03), STEEL, rot=(-10, 0, 8 if x > 0 else -8), metallic=0.7, tex="steel"))
     # 黒いマント（背中、地面の近くまで）
-    cape = [((0, 1.66, -0.04), 0.23, 0.12), ((0, 1.3, -0.07), 0.27, 0.15), ((0, 0.8, -0.09), 0.31, 0.17), ((0, 0.3, -0.1), 0.34, 0.18)]
-    parts.append(loft("spine01", cape, BLACK, segs=18, arc=(15, 165), caps=False, double=True, rough=0.9))
+    cape = [((0, 1.66, -0.04), 0.23, 0.12), ((0, 1.3, -0.07), 0.27, 0.15), ((0, 0.9, -0.08), 0.3, 0.16), ((0, 0.55, -0.08), 0.32, 0.17)]
+    parts.append(loft("spine03", cape, BLACK, segs=18, arc=(15, 165), caps=False, double=True, rough=0.9))
     # 右手のとげ鉄球の棍棒
     wr = [-WRIST_L[0], WRIST_L[1], WRIST_L[2]]
     fd = [-FOREARM_DIR[0], FOREARM_DIR[1], FOREARM_DIR[2]]
@@ -672,6 +676,8 @@ def guardian():
     parts.append(extrude("lowerarm01.L", add(sc, [0.006, 0.0, 0.034]), circle2d(0.05, 12, 1.0, 1.2), 0.02, "#a8812e", rot=(0, 15, 0), metallic=0.8))
     return {
         "name": "アーマー",
+        "idle_speed": 0.8,
+        "attack_speed": 1.3,
         "ref": "docs/ref/chars/IMG_0401.jpeg",
         "attack_anim": "Sword_Attack",
         "height": 0.9,
@@ -922,7 +928,8 @@ def main():
             lk = looks[c["id"]]
             c["look"] = c["id"]
             # 土台は剣士と同じ体・骨・動き（hero_ual.res）。攻撃の動きだけ、キャラに合わせる
-            c["model"] = "res://assets/models/hero_swordsman.glb"
+            # 前もって作った形（tools/bake_looks.gd が作る）。作り直すときは、bake_looks.gd を回す
+            c["model"] = "res://assets/models/chars/%s.scn" % c["id"]
             c["model_scale"] = round(1.95 * float(lk.get("height", 1.0)), 4)
             c["anim_library"] = "res://assets/anims/hero_ual.res"
             c["procedural_anims"] = True
@@ -930,6 +937,14 @@ def main():
             c["animations"] = {"idle": "Idle", "run": lk.get("run_anim", "Run"), "jump": "Jump", "attack": atk, "down": "Death",
                                "swing": atk, "jump_start": "Jump_Start", "land": "Jump_Land", "roll": "Roll", "charge": "Spell", "hit": "Hit"}
             c["anim_oneshot"] = ["attack"]
+            # 自然に見える速さ：走りの動きは、移動の速さに合わせる（剣士：7.0m/秒で 1.1倍、体の大きさでも変える）。
+            # 重いキャラはゆっくり待ち、軽いキャラは速く待つ（idle_speed）
+            mv = float(c["stats"]["move_speed"])
+            run = 1.1 * (mv / 7.0) * (1.95 / c["model_scale"])
+            if lk.get("run_anim") == "Sprint":
+                run *= 0.72  # 全力の走り（Sprint）は、1歩が大きい
+            c["anim_speeds"] = {"run": round(max(0.75, min(run, 1.6)), 3), "idle": lk.get("idle_speed", 1.0),
+                                "attack": lk.get("attack_speed", 1.6)}
     (ROOT / "data/characters.json").write_text(json.dumps(chars, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("looks", list(looks))
 

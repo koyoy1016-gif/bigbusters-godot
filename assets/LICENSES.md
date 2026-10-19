@@ -43,3 +43,6 @@
 
 ## 参考画像（ゲームには入れない）
 - `docs/ref/boss_oni_reference.jpg`：ユーザーが用意したボスのデザインの参考画像。形と色を合わせるために見るだけで、ゲームの中では使っていない（書き出しにも入らない）。
+
+## 2026-10-20 版77：味方8人のモデル
+- `assets/models/chars/*.scn`（brawler・sprinter・gunner・bomber・mage・guardian・summoner・healer）：剣士の体（`hero_swordsman.glb`、MakeHuman の CC0 素材）と骨を土台に、Claude がコード（`scripts/characters/body_builder.gd`・`tools/make_looks.py`・`tools/bake_looks.gd`）で形と色を作った。新しい外の素材は使っていない。ライセンスは剣士の体と同じ（CC0）。見た目の参考は、ユーザーの画像（`docs/ref/chars/`）。

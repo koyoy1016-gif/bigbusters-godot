@@ -11,3 +11,4 @@ web/*
 .env.*
 assets/anims/_ual_src.glb
 assets/anims/_ual_src.glb.import
+exports/*.glb

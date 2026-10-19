@@ -55,7 +55,12 @@ func _initialize() -> void:
 		var def := CD.find(cfg, str(id))
 		check(not def.is_empty() and str(def.get("look", "")) == str(id), "%s：キャラの一覧から見た目を指している" % id)
 		check(CD.has_model(def) and str(def.get("anim_library", "")) != "", "%s：体（剣士と同じ）と動きを使う" % id)
-		var model: Node = (load(str(def["model"])) as PackedScene).instantiate()
+		var baked: Node = (load(str(def["model"])) as PackedScene).instantiate()
+		check(str(baked.get_meta("look_baked", "")) == str(id), "%s：前もって作った形を読む（ゲームの中で作らない）" % id)
+		var bsk := baked.find_children("*", "Skeleton3D", true, false)
+		check(bsk.size() == 1 and (bsk[0] as Skeleton3D).get_bone_count() == 137, "%s：作った形の骨も剣士と同じ" % id)
+		baked.free()
+		var model: Node = (load("res://assets/models/hero_swordsman.glb") as PackedScene).instantiate()
 		var tris := BB.apply(model, lk)
 		check(tris > 0, "%s：当てはめられる（三角形 %d）" % [id, tris])
 		var sk := model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
