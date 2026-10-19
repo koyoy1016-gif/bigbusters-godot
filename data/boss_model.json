@@ -1,66 +1,125 @@
 {
-  "_memo": "ボスの3Dモデルの大きさ・色（コードで組む）。長さの単位はメートル（model_scale をかけて大きくする）。原点は足もとの床",
-  "eye_color": "#ffd84a",
-  "dark_color": "#2a1018",
-  "arm_radius": 0.36,
-  "arm_length": 8.0,
-  "arm_bow": 0.9,
-  "arm_sag": 1.6,
-  "hand_radius": 0.6,
-  "hand_follow_rate": 12.0,
-  "lean_rate": 8.0,
-  "flinch": 0.09,
-  "flinch_recover": 0.5,
-  "breath_speed": 1.8,
-  "bob": 0.07,
-  "breath_scale": 0.014,
-  "sway": 0.025,
-  "lean_by_attack": {
-    "grab": [
-      0.22,
-      0.0
-    ],
-    "typhoon": [
-      0.0,
-      0.18
-    ],
-    "flyers": [
-      -0.08,
-      0.0
-    ],
-    "flyer_storm": [
-      -0.22,
-      0.0
-    ],
-    "hand_sweep": [
-      0.12,
-      0.2
-    ]
-  },
-  "windup_sec": 0.35,
-  "windup_ratio": -0.8,
-  "model_scale": 1.3,
-  "skin_normal": "#6a58a8",
-  "skin_awake": "#c8405a",
-  "pants_color": "#2f5fb0",
-  "boot_color": "#3a2a2a",
-  "jacket_color": "#1c2a4a",
-  "sleeve_color": "#f0ece0",
-  "emblem_color": "#e8962a",
-  "hair_color": "#d0262e",
-  "horn_color": "#efe6c8",
-  "tail_color": "#5a4a98",
-  "bat_color": "#8a6a4a",
-  "bottle_color": "#4ab070",
-  "jug_color": "#c89038",
-  "torso_arm_y": 3.3,
-  "small_arm_radius": 0.2,
-  "small_arm_length": 3.0,
-  "stagger_at": 0.6,
-  "awake_at": 0.5,
-  "stagger_sec": 3.4,
-  "stagger_swap_sec": 2.2,
-  "awake_lean": 0.28,
-  "awake_crouch": 0.5,
-  "crouch_drop": 0.9
+ "_memo": "ボスの3Dモデル（コードで組む）。参考画像：docs/ref/boss_oni_reference.jpg（紫の鬼・スカジャン・とげバット）。長さの単位はメートル（model_scale をかけて大きくする）。原点は足もとの床。前は +Z。左（L）は +X",
+ "arm_radius": 0.155,
+ "arm_length": 8.0,
+ "arm_bow": 0.35,
+ "arm_sag": 0.45,
+ "hand_radius": 0.3,
+ "hand_follow_rate": 12.0,
+ "lean_rate": 8.0,
+ "flinch": 0.09,
+ "flinch_recover": 0.5,
+ "breath_speed": 1.8,
+ "bob": 0.07,
+ "breath_scale": 0.014,
+ "sway": 0.025,
+ "lean_by_attack": {
+  "grab": [
+   0.22,
+   0.0
+  ],
+  "typhoon": [
+   0.0,
+   0.18
+  ],
+  "flyers": [
+   -0.08,
+   0.0
+  ],
+  "flyer_storm": [
+   -0.22,
+   0.0
+  ],
+  "hand_sweep": [
+   0.12,
+   0.2
+  ]
+ },
+ "windup_sec": 0.35,
+ "windup_ratio": -0.8,
+ "model_scale": 1.3,
+ "skin_normal": "#5e4a9c",
+ "skin_awake": "#7e3474",
+ "small_arm_radius": 0.115,
+ "small_arm_length": 2.4,
+ "stagger_at": 0.6,
+ "awake_at": 0.5,
+ "stagger_sec": 3.4,
+ "stagger_swap_sec": 2.2,
+ "awake_lean": 0.22,
+ "awake_crouch": 0.8,
+ "crouch_drop": 0.5,
+ "torso_normal": "#9a3a5e",
+ "torso_awake": "#c63a4c",
+ "colors": {
+  "pants": "#2b3168",
+  "pants_dark": "#2a3270",
+  "jacket": "#232b58",
+  "jacket_back": "#1b1b25",
+  "sleeve": "#e8dcc0",
+  "rib_red": "#c42e3a",
+  "rib_white": "#f2efe8",
+  "shoe": "#26252d",
+  "shoe_white": "#f3f2ee",
+  "hair": "#cc2230",
+  "hair_dark": "#2a1626",
+  "horn": "#d2bc8e",
+  "tuft": "#b02a3a",
+  "spine": "#3e2f70",
+  "bat": "#8e92a4",
+  "spike": "#d4d7e0",
+  "grip": "#ebe7dc",
+  "gold": "#e2b23a",
+  "belt": "#1d1a24",
+  "stud": "#c8c8d2",
+  "claw": "#2e2240",
+  "eye": "#ffd84a",
+  "pupil": "#1a0f14",
+  "tooth": "#f6f2e6",
+  "mouth": "#3a0f1c",
+  "cuff": "#1a1820",
+  "bottle": "#3f7a44",
+  "jug": "#c8955a",
+  "rope": "#5a3a22",
+  "band": "#f4f1ea"
+ },
+ "arm_shoulder": [
+  0.74,
+  3.24,
+  0.0
+ ],
+ "small_arm_shoulders": [
+  [
+   0.36,
+   2.66,
+   -0.26
+  ],
+  [
+   0.34,
+   2.42,
+   -0.28
+  ],
+  [
+   0.32,
+   2.18,
+   -0.28
+  ]
+ ],
+ "head_pos": [
+  0.0,
+  3.95,
+  0.04
+ ],
+ "tail_base": [
+  0.0,
+  1.98,
+  -0.3
+ ],
+ "tail_radius": [
+  0.13,
+  0.05
+ ],
+ "hip_y": 2.08,
+ "_memo_crouch": "crouch_drop：いちばんしゃがんだとき、脚を何割縮めるか。hip_y：腰の高さ（しゃがむと、そのぶん上半身が下がる）",
+ "head_scale": 0.9
 }

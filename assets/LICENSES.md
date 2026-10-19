@@ -36,3 +36,10 @@
 ## 動きの素材（assets/anims/hero_ual.res）
 - Quaternius「Universal Animation Library [Standard]」（https://quaternius.com/packs/universalanimationlibrary.html）。ライセンス：CC0 1.0（パブリックドメイン）。配布のzipの License.txt で確認済み（2026-10-19）。
 - 元の動き（UAL1_Standard.glb）から、一部の動き（待ち・走り・ジャンプ・こうげき・たおれる・ダメージ・ころがり・技・パンチ）を、`tools/retarget_ual.gd` で主人公（MPFBの骨）に移して保存した。元のファイルは、リポジトリには入れていない。
+
+## ボスの模様（assets/textures/boss/）
+- tiger.png（スカジャンの背中のトラ）：`tools/make_boss_decals.py` が、丸・三角などの図形の組み合わせで描いた自作の図案。CC0として扱う。
+- yoi.png・sake.png（「酔」「酒」の文字）：同じツールが、同梱の Noto Sans JP（SIL OFL 1.1、上の「フォント」の項）で書いた画像。
+
+## 参考画像（ゲームには入れない）
+- `docs/ref/boss_oni_reference.jpg`：ユーザーが用意したボスのデザインの参考画像。形と色を合わせるために見るだけで、ゲームの中では使っていない（書き出しにも入らない）。

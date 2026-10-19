@@ -103,7 +103,8 @@ func _initialize() -> void:
 	await process_frame
 	var ba := _draw_items(boss)
 	check(ba.y <= int(budget.get("boss_awake", 0)), "ボス（覚醒）を描く回数が上限以内：" + str(ba.y) + " / " + str(budget.get("boss_awake", 0)))
-	check(boss.arm_mm != null and boss.arm_mm.multimesh.instance_count == 50, "腕の節は、まとめて描く（50節で1回）")
+	var segs: int = BM.BigArmSegments * 2 + BM.SmallArmSegments * 6
+	check(boss.arm_mm != null and boss.arm_mm.multimesh.instance_count == segs, "腕の節は、まとめて描く（" + str(segs) + "節で1回）")
 	boss.set_curl("L", 1.0)
 	check(boss.hand_fist["L"].visible and not boss.hand_open["L"].visible, "にぎると、にぎった手に切り替わる")
 	boss.set_curl("L", 0.0)
@@ -111,7 +112,7 @@ func _initialize() -> void:
 	boss.set_flash(true)
 	var all_flash := true
 	for m in boss.mats:
-		all_flash = all_flash and (m as StandardMaterial3D).emission_enabled
+		all_flash = all_flash and (m as StandardMaterial3D).emission_enabled and (m as StandardMaterial3D).emission_energy_multiplier > 0.0
 	check(all_flash and boss.mats.has(bskin), "点滅は、まとめた形にも、肌にも出る")
 	boss.set_flash(false)
 	boss.queue_free()
