@@ -62,7 +62,7 @@ func update(t: float, form: String, dist_of: Callable) -> void:
 	if cur.is_empty() and not nxt.is_empty() and t >= float(nxt["start"]):
 		var k: Dictionary = cfg["kinds"][str(nxt["kind"])]
 		cur = nxt.duplicate()
-		cur["end"] = float(nxt["start"]) + float(k["duration"]) + float(nxt.get("feint", 0.0))
+		cur["end"] = float(nxt["start"]) + Attacks.attack_duration(str(nxt["kind"]), k, int(nxt["n"]), round_start_ms) + float(nxt.get("feint", 0.0))
 		nxt = {}
 
 

@@ -47,6 +47,22 @@ func _initialize() -> void:
 	check(Recorder.position_on_path(path, 12.0).is_equal_approx(Vector2(1.0, 1.2)), "足あとの途中の位置")
 	check(Recorder.position_on_path(path, -5.0).is_equal_approx(Vector2(1.0, 1.0)) and Recorder.position_on_path(path, 99.0).is_equal_approx(Vector2(1.0, 1.4)), "範囲の外は端の位置")
 	check(Recorder.position_on_path([], 1.0) == Vector2.ZERO, "空の足あとでも壊れない")
+	# 版63：巨大酒瓶ライドの間（入れない時刻）は、ハイライトに選ばない。ライドが終わったら、ふつうに選ぶ
+	var rb := Recorder.new()
+	for i in 31:
+		var tt := float(i)
+		rb.record("p1", tt, 0, 0, (60.0 if i >= 12 else float(i) * 0.5) + (float(i - 20) * 1.0 if i >= 20 else 0.0))
+		if i >= 8 and i <= 14:
+			rb.block(tt)
+	var bw := rb.best_window(6.0)
+	check(not bw.is_empty() and (float(bw["start"]) > 14.0 or float(bw["end"]) < 8.0), "ライドの間をふくむ区間は、ハイライトにしない（%s〜%s）" % [bw.get("start", -1), bw.get("end", -1)])
+	var rb2 := Recorder.new()
+	for i in 10:
+		rb2.record("p1", float(i), 0, 0, float(i))
+		rb2.block(float(i))
+	check(rb2.best_window(6.0).is_empty(), "ライドの間しかなければ、ハイライトなし")
+	rb.clear()
+	check(rb.blocked.is_empty(), "clear で入れない時刻も消える（次の戦いはふつうに選ぶ）")
 	var c := Recorder.new()
 	c.record("p1", 0.0, 0, 0, 0)
 	c.clear()

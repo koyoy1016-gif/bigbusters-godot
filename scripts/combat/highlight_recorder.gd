@@ -10,9 +10,27 @@ var samples: Dictionary = {}
 var boss_samples: Array = []
 
 
+## ハイライトに入れない時刻（版63：巨大酒瓶ライドの間。ボスに攻撃が当たらないので、見せ場にしない）
+var blocked: Array = []
+
+
 func clear() -> void:
 	samples.clear()
 	boss_samples.clear()
+	blocked.clear()
+
+
+## t 秒を、ハイライトに入れない時刻にする
+func block(t: float) -> void:
+	blocked.append(t)
+
+
+## a〜b 秒の間に、入れない時刻があるか
+func _is_blocked(a: float, b: float) -> bool:
+	for t in blocked:
+		if float(t) >= a - 0.0001 and float(t) <= b + 0.0001:
+			return true
+	return false
 
 
 ## ボスの位置・向き・いまの攻撃（種類と進み具合 u）・覚醒か・歩いた距離・歩く速さ・バットを持っているか
@@ -84,7 +102,7 @@ func best_window(window_sec: float) -> Dictionary:
 			while j + 1 < list.size() and float((list[j + 1] as Array)[0]) <= t0 + window_sec:
 				j += 1
 			var damage := float((list[j] as Array)[3]) - float((list[i] as Array)[3])
-			if damage > best_damage + 0.0001:
+			if damage > best_damage + 0.0001 and not _is_blocked(t0, float((list[j] as Array)[0])):
 				best_damage = damage
 				# 窓の頭の、何も当てていない時間は切り、ダメージが増えはじめる直前から始める
 				var k := i

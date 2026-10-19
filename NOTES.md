@@ -4,8 +4,12 @@
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-19 版61〜63】ユーザーの「ボス戦の追加修正指示書（最終版）」を3段で実装（docs/boss-attacks.md に一覧と表）。
+  - 版61：大きな手・台風・火祭りを AI から外す（`ai.forms` を空・`removed`）。酒だまりを残さない（`boss_attacks.json` の puddles_enabled: false）。つかみは近いときだけ重み1.5倍（`near_mult`。boss_ai.gd）。覚醒のオーラを消して色だけ（`boss_model.json` aura.enabled: false）
+  - 版62：新しい攻撃 jump_move（移動ジャンプ落下：4〜10m移動・着地点を毎回ずらす・直撃18だけ）と spin_bat（回転バット移動：予告なし・体ごと回って前進・9×最大3回・当たりの丸 7.6m＝tools/measure_reach.gd で測ったバットの先）。テスト tests/test_new_attacks.gd
+  - 版63：巨大酒瓶ライドを作り直し。4〜6回・8方向・速さ36 m/秒（前の0.75倍）・突入ごとに酒瓶5本（12、オレンジの予告、道から離す）・道（obox のピンクの帯）は通り抜けるまで。瓶は1つのなめらかな面（scripts/boss/sake_bottle_mesh.gd。投げる瓶も同じ形）。ボスはまたがって座る（腰の高さ seat_hip 4.3m は tools/measure_seat.gd で測定、脚は瓶の面から0.3m以上）。全体の長さは道で決まる（Attacks.attack_duration。AI とテスト用 force_attack が使う）。ライドの間はハイライトに入れない（recorder.block）。ボスが高く跳ぶとカメラが上を見て引く（prototype_stick.json の camera_boss_frame）。画面の版の表示を 63 に
+  - 確認：Godot全45本 合格、sim_fight 3戦3勝（70〜84秒）、xvfb の画面撮影で見た目を確認。**未確認**：iPhone実機の重さと見やすさ、通信中の画面ごとのずれ、ハイライトでのライド中の瓶（ライドは入れないので出ない）。`test_bgm` はまれに落ちる（今回1回。原因は未調査）
 - 【2026-10-19 版60】①**ハイライトの箱をなくした**：戦いの間に、ボスの位置・向き・攻撃（種類と進み）・覚醒・バットの有無を記録（`highlight_recorder.gd` の record_boss / boss_path / boss_at）し、ハイライトでは本物のボスのモデルで再生（`highlight_replay.gd`）。サブ敵を消してあればハイライトにも出さない。カメラを引いて、ボスの頭まで入れた（`game_flow.json` の replay_cam_*・replay_look_height）。巨大酒瓶ライド中の瓶は、ハイライトには出ない（未対応）。②**攻撃の予告の見た目を変えた**（ユーザーの参考画像2枚）：`shaders/warning_zone.gdshader`。ふつうの攻撃＝オレンジの半透明の面＋しま模様＋明るい縁＋広がる線、巨大酒瓶ライドの道＝ピンクの帯＋走る向きの「＞」矢印（流れる）。色は `boss_attacks.json` の zone_style。ライドの道は、通り抜けるまで出しておく。前の「中から広がる濃い面」（hazard_fill_nodes）は使わない。テスト：`tests/test_warning_zone.gd` 新規、`test_highlight.gd` 追加、Godot全44本 合格。xvfb の画面撮影で確認。**未確認**：iPhone実機での見やすさと重さ。
-- 【指示書「ボス戦の追加修正指示書（最新版）」2026-10-19 21:57】受け取り済み・未着手。ユーザーに質問中（瓶ライドの向き・瓶投げ・座り方ほか）。
 - 【2026-10-19 版59】ユーザー：①味方（剣士ほか全員）の体力・攻撃力を、版58の2倍から「元の1.5倍」に（剣士 体力150・攻撃力18）。必殺技ゲージの gain_per_damage 0.6667（たまる速さは元と同じ）、回復 45。②サブ敵（紫の小さい箱）を一旦消す：`prototype_stick.json` の `sub_enemy_enabled: false`（true で戻る。`stick_prototype.gd` の `_reset_sub_enemies`）。③「敵の攻撃パターンを全部変えたい」は、どう変えるかが未確定のため、ユーザーに確認中（未着手）。sim_fight 3回：全勝、約72秒。テスト：Godot全43本 合格（test_sub_enemy に「消す設定」の確認を追加）。**未確認**：実機の手ごたえ。
 - 【2026-10-19 版58】ユーザー：敵が強すぎるので、忍者（味方のキャラ全員）の体力と攻撃力を2倍に。`data/characters.json` の味方9体の hp・attack_power、`data/prototype_stick.json` の roles（p1〜p4）と player_hp・attack_power を2倍。AIの味方も同じ値を使うので2倍。あわせて、必殺技のゲージのたまる速さが変わらないよう `actions.json` の gain_per_damage を 1.0→0.5、回復の技（`skills.json`）を 30→60（体力に対する割合を同じに）。サブ敵（体力20）は、ふつうの攻撃1回で倒れるようになった。`tools/sim_fight.gd` 3回：全勝、約55秒（前は約90秒）。テスト：数値を見ていた5本を直し、Godot全43本 合格。**未確認**：実機での手ごたえ。
 - 【2026-10-19 版57】ユーザーの指示書「Godotボス戦・全面改修 最終実装指示書」を実装（版57a〜e の5回に分けてコミット）。

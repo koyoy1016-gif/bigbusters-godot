@@ -1,6 +1,6 @@
 // ボスの攻撃の予告（床に置く面）。版60。
 // mode 0：丸（円・扇・輪）／mode 1：四角（帯）… オレンジの面＋明るい縁＋しま模様。中から（帯は後ろから）広がる線で「いつ当たるか」を見せる
-// mode 2：巨大酒瓶ライドの道 … ピンクの帯＋進む向きの矢印（流れて動く）＋明るい縁
+// mode 2：巨大酒瓶ライドの道 … ピンクの帯＋進む向きの矢印（流れて動く）＋明るい縁。形の z が進む向き
 // 色は data/boss_attacks.json の zone_style。画像は使わない（計算だけで描く）
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_never, blend_mix, shadows_disabled;
@@ -11,8 +11,8 @@ uniform int mode = 0;
 uniform int grow_axis = 0;  // 0：中心から外へ／1：後ろ（ボスの側）から前へ
 uniform float progress = 0.0;  // 予告の進み 0〜1（1 で当たる）
 uniform float inner = 0.0;  // 輪の内側の半径（丸のとき。半径1に対する割合）
-uniform vec2 size = vec2(1.0, 1.0);  // 世界での大きさ。丸：x＝半径。四角・帯：x＝幅、y＝奥行き
-uniform float dir = 1.0;  // ライドの進む向き（形の x の +／-）
+uniform vec2 size = vec2(1.0, 1.0);  // 世界での大きさ。丸：x＝半径。四角・帯：x＝幅、y＝奥行き（進む向きの長さ）
+uniform float dir = 1.0;  // ライドの進む向き（形の z の +／-）
 uniform float active = 0.0;  // 1：いま当たっている
 uniform float strength = 1.0;  // 全体のこさ（害のない予告はうすく）
 uniform float stripe_width = 0.7;  // しま模様の太さ（メートル）
@@ -32,13 +32,14 @@ void fragment() {
 	vec3 col;
 	float a;
 	if (mode == 2) {
-		float across = abs(lp.z) * 2.0;  // 0：真ん中 → 1：帯のふち
-		float along = lp.x * size.x * dir;  // 進む向きに、メートル
-		float half_w = size.y * 0.5;
+		// 帯は、形の z が進む向き（向きのある長方形 obox。版63でななめの道に対応）
+		float across = abs(lp.x) * 2.0;  // 0：真ん中 → 1：帯のふち
+		float along = lp.z * size.y * dir;  // 進む向きに、メートル
+		float half_w = size.x * 0.5;
 		// 「＞」の形：進む向きに、真ん中が先に出る
 		float v = fract((along + across * half_w * 0.9) / arrow_spacing - TIME * arrow_speed);
 		float arrow = step(v, 0.16) * step(across, 0.8);
-		float edge = smoothstep(1.0 - rim_width * 2.0 / max(size.y, 0.1), 1.0, across);
+		float edge = smoothstep(1.0 - rim_width * 2.0 / max(size.x, 0.1), 1.0, across);
 		col = mix(fill_color.rgb, rim_color.rgb, max(arrow * 0.75, edge));
 		a = fill_color.a + arrow * 0.3 + edge * (rim_color.a - fill_color.a);
 		a *= mix(0.65, 1.0, progress);

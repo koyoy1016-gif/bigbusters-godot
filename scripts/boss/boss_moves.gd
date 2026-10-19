@@ -253,12 +253,23 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 					return {"pose": an.sample("Jump_Start", float(mv.get("crouch_t", 0.3)) * smoothstep(0.0, ci * 0.4, u)), "weight": _fade(u, dur)}
 				return {"pose": air_p, "weight": 1.0}
 			if ph == "wait" or ph == "pass":
+				# 版63：瓶にまたがって座る。ももを横へ開いて瓶の横腹にそわせ、すねは下へたらす（立っているようにも、瓶に埋まるようにも見えないように）。
+				# 座る高さは boss_attacks.gd の ride_at（瓶の上の面＝腰の高さ）。開く角度は data/boss_model.json の moves.ride_*（tools/measure_seat.gd で測って決めた）
 				var wob := sin(float(st.get("clock", 0.0)) * 9.0)
-				var spread := float(mv.get("ride_leg_spread", 35.0))
-				var lift := float(mv.get("ride_leg_lift", 70.0))
-				return {"pose": an.blend(an.sample("Jump", 0.35), an.sample("Sword_Attack", 0.22), 1.0, an.upper), "weight": 1.0,
-					"deltas": {"upperleg01.L": BossAnim.raise_side("L", -spread) * BossAnim.fwd(lift), "upperleg01.R": BossAnim.raise_side("R", -spread) * BossAnim.fwd(lift),
-						"spine05": BossAnim.lean(16.0) * BossAnim.roll(6.0 * wob), "upperarm01.R": BossAnim.yaw(40.0 * wob), "head": BossAnim.lean(-12.0)}}
+				var spread := float(mv.get("ride_thigh_spread", 55.0))
+				var tf := float(mv.get("ride_thigh_fwd", 15.0))
+				var kb := float(mv.get("ride_knee_back", 15.0))
+				# 瓶を投げる：左腕を後ろへ引いて、前へふり出す（throw_t：いちばん近い投げる時刻からの秒。-1 なら投げていない）
+				var tt := float(st.get("ride_throw_t", -1.0))
+				var arm := 0.0
+				if tt >= -0.35 and tt < 0.35:
+					arm = BossAnim.remap(tt, [[-0.35, 0.0], [-0.08, -60.0], [0.05, 70.0], [0.35, 0.0]])
+				# 脚は、まっすぐ立った形（休みの姿勢）から開く（待ちの構えの脚から開くと、左右でちがう向きになるため）
+				return {"pose": an.blend(an.rest_pose(), an.sample("Sword_Attack", 0.22), 1.0, an.upper), "weight": 1.0,
+					"deltas": {"upperleg01.L": BossAnim.raise_side("L", spread) * BossAnim.fwd(tf), "upperleg01.R": BossAnim.raise_side("R", spread) * BossAnim.fwd(tf),
+						"lowerleg01.L": BossAnim.raise_side("L", -spread) * BossAnim.fwd(-tf - kb), "lowerleg01.R": BossAnim.raise_side("R", -spread) * BossAnim.fwd(-tf - kb),
+						"spine05": BossAnim.lean(10.0) * BossAnim.roll(4.0 * wob), "upperarm01.R": BossAnim.yaw(30.0 * wob), "head": BossAnim.lean(-10.0),
+						"upperarm01.L": BossAnim.fwd(arm)}}
 			if ph == "outro":
 				return {"pose": air_p, "weight": 1.0}
 			var rt := float(st.get("ride_phase_t", 0.0))

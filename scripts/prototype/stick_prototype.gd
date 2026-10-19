@@ -40,6 +40,7 @@ const BossMotion := preload("res://scripts/combat/boss_motion.gd")
 const BossPhase := preload("res://scripts/combat/boss_phase.gd")
 const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
+const BottleMesh := preload("res://scripts/boss/sake_bottle_mesh.gd")
 const SakeField := preload("res://scripts/combat/sake_field.gd")
 
 var config: Dictionary = {}
@@ -346,11 +347,21 @@ func _add_marker(parent: Node3D, color: Color) -> StandardMaterial3D:
 	return mat
 
 
+var cam_boss_lift := Vector2.ZERO  ## ボスが高いときに、カメラが上を見る量（x）と、引く量（y）
+
+
 ## カメラは、自分の動きに合わせて、ゆっくりついていく（動きの一部だけ）。f 秒あたりの追いつきの速さは data で決める
 func camera_update(delta: float) -> void:
 	var goal := Vector3(player.position.x, 0.0, player.position.z) * float(config["camera_follow"])
 	camera_target = camera_target.lerp(goal, Sync.smooth_weight(delta, float(config["camera_follow_per_sec"])))
-	var pos := camera_target + camera_offset
+	# 版63：ボスが高く跳んだときは、少し上を見て、少し引く（ボスの頭が画面から出ないように）。data の camera_boss_frame
+	var bf: Dictionary = config.get("camera_boss_frame", {})
+	var over := maxf(0.0, (motion.height if motion != null else 0.0) - float(bf.get("start_height", 1.5)))
+	var want_lift := Vector2(minf(over * float(bf.get("look_up_per_m", 0.0)), float(bf.get("max_look_up", 0.0))), minf(over * float(bf.get("back_per_m", 0.0)), float(bf.get("max_back", 0.0))))
+	cam_boss_lift = cam_boss_lift.lerp(want_lift, Sync.smooth_weight(delta, float(bf.get("follow_per_sec", 3.0))))
+	var look_at := camera_target + Vector3(0.0, cam_boss_lift.x, 0.0)
+	var back_dir := Vector3(0.0, camera_offset.y, camera_offset.z).normalized() if camera_offset.length() > 0.01 else Vector3.BACK
+	var pos := camera_target + camera_offset + back_dir * cam_boss_lift.y
 	# 画面のゆれ（強い攻撃に当たったとき）
 	if shake_left > 0.0:
 		shake_left = maxf(0.0, shake_left - delta)
@@ -358,7 +369,7 @@ func camera_update(delta: float) -> void:
 		pos += Vector3(randf_range(-1.0, 1.0), randf_range(-0.5, 0.5), randf_range(-1.0, 1.0)) * shake_amp * k
 		if shake_left <= 0.0:
 			shake_amp = 0.0
-	camera.transform = Transform3D(Basis.looking_at(camera_target - pos, Vector3.UP), pos)
+	camera.transform = Transform3D(Basis.looking_at(look_at - pos, Vector3.UP), pos)
 
 
 func _make_box(node_name: String, size: float, color: Color) -> MeshInstance3D:
@@ -710,6 +721,8 @@ func _record_highlight(delta: float) -> void:
 	var t := (server_now_ms() - round_start_ms) / 1000.0
 	var me := str(net_state.get("slot", "p1"))
 	recorder.record(me, t, player.position.x, player.position.z, my_hits)
+	if str(current_attack.get("kind", "")) == Attacks.BOTTLE_RIDE:
+		recorder.block(t)  # 巨大酒瓶ライドの間は、ハイライトに入れない（版63）
 	if boss != null and boss_model != null:
 		recorder.record_boss(t, boss.position, boss.rotation.y, str(current_attack.get("kind", "")), current_attack_u, boss_model.is_awake(), motion.walk_dist, motion.speed_now, boss_model.bat_in_hand, float(current_attack.get("feint", 0.0)))
 	var hits: Variant = net_state.get("hits", {})
@@ -1012,7 +1025,7 @@ func _pose_boss(delta: float = 0.0) -> void:
 	var kinds: Dictionary = attacks_cfg.get("kinds", {})
 	var st := {"clock": boss_clock, "walk_dist": motion.walk_dist, "walk_speed": motion.speed_now, "kind": kind, "u": current_attack_u,
 		"k": Attacks.kind_cfg(attacks_cfg, current_attack) if kind != "" else {}, "hit_now": hit_now, "airborne": motion.height, "grab": _grab_anim_state(), "aim_yaw": _grab_aim_yaw(),
-		"ride_phase": str(motion.path_info.get("phase", "")), "ride_phase_t": float(motion.path_info.get("phase_t", 0.0))}
+		"ride_phase": str(motion.path_info.get("phase", "")), "ride_phase_t": float(motion.path_info.get("phase_t", 0.0)), "ride_throw_t": float(motion.path_info.get("throw_t", -1.0))}
 	var res: Dictionary = boss_model.animate(delta, boss_clock, st)
 	_update_ride_bottle(kind == Attacks.BOTTLE_RIDE and bool(motion.path_info.get("riding", false)))
 	boss.rotation.y = motion.yaw + float(res.get("spin", 0.0)) + motion.path_spin
@@ -1470,7 +1483,7 @@ func force_attack(kind: String) -> Dictionary:
 	var t := _round_t()
 	ai.n += 1
 	var k: Dictionary = attacks_cfg["kinds"][kind]
-	ai.cur = {"n": ai.n, "kind": kind, "start": t, "end": t + float(k["duration"]), "feint": 0.0}
+	ai.cur = {"n": ai.n, "kind": kind, "start": t, "end": t + Attacks.attack_duration(kind, k, ai.n, round_start_ms), "feint": 0.0}
 	ai.nxt = {}
 	return ai.cur
 
@@ -1729,6 +1742,11 @@ func _show_hazards(hz: Array) -> void:
 			elif not puddle_seen.has(str(h["id"])):
 				puddle_seen[str(h["id"])] = true
 				_add_puddle(Vector3(float(h["x"]), 0.0, float(h["z"])), float(h["r"]), str(h["id"]))
+		if style == "bottle" and active and str(h["id"]).begins_with("rb") and not _landed.has(str(h["id"])):
+			# 巨大酒瓶ライドで投げた瓶が、地面で割れる（ガラスの破片。酒だまりは残さない）
+			_landed[str(h["id"])] = true
+			_burst_fx(Vector3(float(h["x"]), 0.3, float(h["z"])), "glass")
+			_play_sfx("thud")
 		if style == "bottle" and h.has("bottle"):
 			# 飛んでいる酒瓶（回りながら）
 			var bn := _bottle_node(bottle_used)
@@ -1793,36 +1811,13 @@ func _update_ride_bottle(on: bool) -> void:
 		_ride_bottle.name = "RideBottle"
 		_ride_bottle.top_level = true
 		add_child(_ride_bottle)
-		var glass := StandardMaterial3D.new()
-		glass.albedo_color = Color(str(rk.get("bottle_color", "#3f7a4a")))
-		glass.roughness = 0.25
-		var label := StandardMaterial3D.new()
-		label.albedo_color = Color(str(rk.get("label_color", "#f1e7cf")))
-		var cap := StandardMaterial3D.new()
-		cap.albedo_color = Color(str(rk.get("cap_color", "#b8322a")))
+		# 版63：一升瓶の形を、1つのなめらかな面で作り直した（scripts/boss/sake_bottle_mesh.gd）。長さ＝half_len×2、胴の半径＝bottle_radius
 		var radius := float(rk.get("bottle_radius", 1.6))
 		var length := float(rk["half_len"]) * 2.0
-		# 胴（z の向きに横だおし。前＝首）
-		var parts := [
-			[radius, radius, length * 0.62, -length * 0.12, glass],
-			[radius * 1.02, radius * 1.02, length * 0.26, -length * 0.1, label],
-			[radius * 0.45, radius, length * 0.14, length * 0.26, glass],
-			[radius * 0.42, radius * 0.45, length * 0.2, length * 0.43, glass],
-			[radius * 0.5, radius * 0.5, length * 0.06, length * 0.55, cap],
-		]
-		for pr in parts:
-			var cm := CylinderMesh.new()
-			cm.top_radius = pr[0]
-			cm.bottom_radius = pr[1]
-			cm.height = pr[2]
-			cm.radial_segments = 14
-			cm.rings = 1
-			var mi := MeshInstance3D.new()
-			mi.mesh = cm
-			mi.material_override = pr[4]
-			mi.rotation = Vector3(PI * 0.5, 0.0, 0.0)
-			mi.position = Vector3(0.0, radius, float(pr[3]))
-			_ride_bottle.add_child(mi)
+		var body := MeshInstance3D.new()
+		body.name = "Body"
+		body.mesh = BottleMesh.build(length, radius, BottleMesh.colors_from(rk), 24)
+		_ride_bottle.add_child(body)
 		# 走ったあとに飛ぶ酒のしぶき（小さな粒。数は少なく）
 		var spray := CPUParticles3D.new()
 		spray.name = "Spray"
@@ -1833,7 +1828,7 @@ func _update_ride_bottle(on: bool) -> void:
 		spray.initial_velocity_min = 4.0
 		spray.initial_velocity_max = 7.0
 		spray.gravity = Vector3(0, -18, 0)
-		spray.position = Vector3(0, 0.3, -length * 0.45)
+		spray.position = Vector3(0, -radius * 0.3, -length * 0.5)
 		var sm := SphereMesh.new()
 		sm.radius = 0.18
 		sm.height = 0.36
@@ -1848,10 +1843,11 @@ func _update_ride_bottle(on: bool) -> void:
 		spray.local_coords = false
 		_ride_bottle.add_child(spray)
 	_ride_bottle.visible = true
-	var rk2: Dictionary = attacks_cfg["kinds"]["bottle_ride"]
-	var bob := motion.height - float(rk2["ride_height"])
-	_ride_bottle.global_position = Vector3(motion.pos.x, bob, motion.pos.y)
-	_ride_bottle.rotation = Vector3(0.0, motion.yaw, sin(_round_t() * 11.0) * 0.06)
+	# 瓶の中心は、道の計算（boss_attacks.gd の ride_at）の bottle。ボスも同じ計算から座る位置が決まるので、ずれない
+	var bc: Variant = motion.path_info.get("bottle", null)
+	if bc is Vector3:
+		_ride_bottle.position = bc  # top_level なので、position がそのまま世界の位置
+	_ride_bottle.rotation = Vector3(0.0, float(motion.path_info.get("yaw", motion.yaw)), 0.0)
 	(_ride_bottle.get_node("Spray") as CPUParticles3D).emitting = str(motion.path_info.get("phase", "")) == "pass"
 
 
@@ -2012,26 +2008,15 @@ func _sake_field_update() -> void:
 
 func _bottle_node(i: int) -> Node3D:
 	while _bottle_nodes.size() <= i:
+		# 投げる酒瓶：巨大酒瓶と同じ形（scripts/boss/sake_bottle_mesh.gd）を小さくしたもの。立てた向き（口が上）
 		var n := Node3D.new()
 		n.name = "Bottle%d" % _bottle_nodes.size()
-		var green := StandardMaterial3D.new()
-		green.albedo_color = Color(str(attacks_cfg.get("bottle_color", "#3f7a44")))
-		green.roughness = 0.3
-		var label := StandardMaterial3D.new()
-		label.albedo_color = Color("#f4f1ea")
-		for part in [[0.32, 1.0, 0.0, green], [0.34, 0.4, 0.0, label], [0.12, 0.5, 0.72, green]]:
-			var c := CylinderMesh.new()
-			c.top_radius = float(part[0])
-			c.bottom_radius = float(part[0])
-			c.height = float(part[1])
-			c.radial_segments = 10
-			c.rings = 1
-			c.material = part[3]
-			var mi := MeshInstance3D.new()
-			mi.mesh = c
-			mi.position = Vector3(0, float(part[2]), 0)
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			n.add_child(mi)
+		var rk: Dictionary = attacks_cfg["kinds"].get("bottle_ride", {})
+		var mi := MeshInstance3D.new()
+		mi.mesh = BottleMesh.build(1.3, 0.17, BottleMesh.colors_from(rk), 10)
+		mi.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.add_child(mi)
 		n.visible = false
 		add_child(n)
 		_bottle_nodes.append(n)

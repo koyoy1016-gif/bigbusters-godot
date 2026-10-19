@@ -77,7 +77,8 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 		if not path.is_empty():
 			# 自分で動く攻撃（回転突進・ジャンプ）：道の上を動く
 			pos = path["pos"]
-			yaw = _turn(yaw, float(path["yaw"]), 14.0, delta)
+			# 酒瓶に乗っている間は、瓶と同じ向きにぴったり合わせる（向きがずれて、瓶からはみ出して見えないように）
+			yaw = float(path["yaw"]) if bool(path.get("riding", false)) else _turn(yaw, float(path["yaw"]), 14.0, delta)
 			height = float(path.get("y", 0.0))
 			path_spin = float(path.get("spin", 0.0))
 			path_info = path

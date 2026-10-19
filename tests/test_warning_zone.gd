@@ -29,7 +29,7 @@ func _initialize() -> void:
 	var hz := [
 		{"id": "c", "shape": "circle", "x": 2.0, "z": 1.0, "r": 3.0, "active": false, "tele": 0.5, "power": 10.0, "style": "zone"},
 		{"id": "b", "shape": "obox", "x": 0.0, "z": 0.0, "hx": 1.0, "hz": 4.0, "yaw": 0.0, "active": false, "tele": 0.3, "power": 10.0, "style": "zone"},
-		{"id": "l", "shape": "box", "x": 0.0, "z": -3.0, "hx": 15.0, "hz": 2.0, "band_z": -3.0, "band_half": 15.0, "dir": -1.0, "active": false, "tele": 1.0, "power": 22.0, "style": "ride_lane"},
+		{"id": "l", "shape": "obox", "x": 0.0, "z": -3.0, "hx": 2.0, "hz": 30.0, "yaw": 2.356, "dir": 1.0, "active": false, "tele": 1.0, "power": 22.0, "style": "ride_lane"},
 		{"id": "r", "shape": "obox", "x": 4.0, "z": -3.0, "hx": 2.0, "hz": 5.0, "yaw": 0.0, "active": true, "tele": 1.0, "power": 22.0, "style": "ride"},
 	]
 	s._show_hazards(hz)
@@ -46,7 +46,8 @@ func _initialize() -> void:
 	var m2 := n2.material_override as ShaderMaterial
 	check(m2 != null and int(m2.get_shader_parameter("mode")) == 2, "ライドの道：矢印の帯")
 	check(m2 != null and (m2.get_shader_parameter("fill_color") as Color).is_equal_approx(Color(str(zs["ride"]["fill"]))), "ライドの道は、ピンクの色")
-	check(m2 != null and is_equal_approx(float(m2.get_shader_parameter("dir")), -1.0), "矢印は、走る向きを指す")
+	check(m2 != null and is_equal_approx(float(m2.get_shader_parameter("dir")), 1.0) and is_equal_approx(n2.rotation.y, 2.356), "矢印は、走る向き（帯の向き。ななめも）を指す")
+	check(m2 != null and (m2.get_shader_parameter("size") as Vector2).is_equal_approx(Vector2(4.0, 60.0)), "道の帯：幅と長さが、道どおり")
 	check(n0.visible and n1.visible and n2.visible, "予告が見えている")
 	check(not n3.visible, "走っている瓶の当たり場所の面は出さない（瓶そのものが見える）")
 	check(s.hazard_fill_nodes.all(func(f: Node3D) -> bool: return not f.visible), "前の「中から広がる濃い面」は使わない（1枚の面で描く）")
@@ -58,9 +59,9 @@ func _initialize() -> void:
 	for ps in Attacks.ride_plan(k, ctx):
 		var mid := (float(ps["start"]) + float(ps["end"])) * 0.5
 		var a := {"kind": Attacks.BOTTLE_RIDE, "n": 0}
-		var lanes: Array = Attacks.hazards(a, mid, cfg, ctx).filter(func(h: Dictionary) -> bool: return str(h["style"]) == "ride_lane" and absf(float(h["z"]) - float(ps["z"])) < 0.01)
+		var lanes: Array = Attacks.hazards(a, mid, cfg, ctx).filter(func(h: Dictionary) -> bool: return str(h["style"]) == "ride_lane" and str(h["id"]).ends_with("_%d" % int(ps["i"])))
 		ok = ok and lanes.size() == 1
-	check(ok, "ライドの道は、走っている間も出ている（5回とも）")
+	check(ok, "ライドの道は、走っている間も出ている（どの回も）")
 	root.remove_child(s)
 	s.free()
 	print("失敗: ", failures)
