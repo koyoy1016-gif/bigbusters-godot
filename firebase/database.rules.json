@@ -273,6 +273,7 @@
     },
     "counter": {
       "ids": {
+        ".read": "auth != null",
         ".write": "auth != null && newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1)",
         ".validate": "newData.isNumber()"
       }
