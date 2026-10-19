@@ -698,6 +698,8 @@ func _begin_round(start_ms: float) -> void:
 	ai.reset(attacks_cfg, start_ms)
 	rage.setup((attacks_cfg.get("ai", {}) as Dictionary).get("rage", {}))
 	rage.enabled = not net_active or rage.online  # 通信中は、画面ごとに数がちがうので、ふだんは怒らない
+	ai_forecast = []
+	ai_forecast_t = -999.0
 	puddle_seen = {}
 	field.clear()
 	_landed = {}
@@ -898,6 +900,50 @@ func _damage_boss(amount: float) -> void:
 
 func _round_t() -> float:
 	return (server_now_ms() - round_start_ms) / 1000.0
+
+
+## ---- 版71：AIの味方のための、ボスの攻撃の先読み ----
+var ai_forecast: Array = []
+var ai_forecast_t := -999.0
+
+
+## いまの攻撃を、horizon 秒先まで step 秒きざみで進めて、当たる物を集める [{dt: 何秒後（実際の秒）, h: 当たり}]。
+## 攻撃の中の秒 u は speed 倍で進む（版69の怒り）。攻撃が終わる先は見ない（次の攻撃は、まだ分からない）
+func boss_forecast(horizon: float, step: float) -> Array:
+	var out: Array = []
+	if current_attack.is_empty() or not round_active() or step <= 0.0:
+		return out
+	var a: Dictionary = current_attack
+	# 重い攻撃（巨大酒瓶ライド）は先を調べない。いま見えている予告と当たりを「すぐ当たる」として渡す（AIは走ってよける）
+	if ((ai_cfg.get("tactics", {}) as Dictionary).get("forecast_skip", []) as Array).has(str(a["kind"])):
+		for h in current_hazards:
+			if bool(h["active"]) or float(h.get("tele", 0.0)) > 0.0:
+				out.append({"dt": 0.0, "h": h})
+		return out
+	var sp := float(a.get("speed", 1.0))
+	var end_u := (float(a["end"]) - float(a["start"])) * sp
+	var k := 0.0
+	while k <= horizon + 0.0001:
+		var u := current_attack_u + k * sp
+		if u > end_u:
+			break
+		for h in Attacks.hazards(a, u, attacks_cfg, _attack_ctx(a, u, true)):
+			if bool(h["active"]):
+				out.append({"dt": k, "h": h})
+		k += step
+	return out
+
+
+## ボスの次の攻撃が始まるまでの秒（いまの攻撃の最中なら、終わり＋攻撃の間）。分からなければ 0
+func boss_next_attack_in() -> float:
+	var t := _round_t()
+	var cur: Dictionary = ai.current()
+	if not cur.is_empty():
+		return maxf(0.0, float(cur["end"]) - t + float(attacks_cfg.get("gap_sec", 0.6)))
+	var nxt: Dictionary = ai.next_attack()
+	if not nxt.is_empty():
+		return maxf(0.0, float(nxt["start"]) - t)
+	return maxf(0.0, ai.next_start - t)
 
 
 ## 版69：p（x, z）から、ボスの体の表面までの距離（m。体の中なら 0 以下）
@@ -1425,6 +1471,15 @@ func _ai_update(delta: float) -> void:
 		var ctx := {"boss": Vector2(boss.position.x, boss.position.z), "boss_radius": float(config["boss_size"]) * 0.5, "bounds": half,
 			"hazards": current_hazards, "cfg": ai_cfg, "attack_multiplier": float(config["attack_multiplier"]), "rng": ai_rng, "can_hit_boss": not phase.invulnerable(),
 			"drop_damage": Damage.damage_amount(float(attacks_cfg["kinds"]["grab"]["drop_power"]), float(attacks_cfg["damage_multiplier"]))}
+		# 版71：ボスのいまの攻撃の先読み（AIの味方が、よける・攻める時刻を決める）
+		var tac: Dictionary = ai_cfg.get("tactics", {})
+		var rt := _round_t()
+		if rt - ai_forecast_t >= float(tac.get("forecast_every", 0.2)) or rt < ai_forecast_t:
+			ai_forecast = boss_forecast(float(tac.get("forecast_sec", 2.0)), float(tac.get("forecast_step", 0.15)))
+			ai_forecast_t = rt
+		ctx["forecast"] = ai_forecast
+		ctx["forecast_age"] = maxf(0.0, rt - ai_forecast_t)
+		ctx["next_attack_in"] = boss_next_attack_in()
 		var dealt_total := 0.0
 		for slot in ai_allies:
 			var a: Dictionary = ai_allies[slot]
@@ -1481,7 +1536,8 @@ func _my_slot() -> String:
 
 
 ## 攻撃の計算に渡す、いまの状況（ボス、みんなの位置、つかみの固定位置）。位置は (x, z)
-func _attack_ctx(a: Dictionary, u: float) -> Dictionary:
+## peek が true なら、先を調べるだけ（つかみの位置を、まだ決めない。版71：AIの味方の先読み）
+func _attack_ctx(a: Dictionary, u: float, peek: bool = false) -> Dictionary:
 	var half := float(config["bounds"])
 	var me := _my_slot()
 	var members: Array = net_state.get("members", []).duplicate() if net_active else []
@@ -1504,7 +1560,11 @@ func _attack_ctx(a: Dictionary, u: float) -> Dictionary:
 		var n := int(a["n"])
 		if not grab_locked.has(n):
 			var target := Attacks.attack_target(a, members)
-			grab_locked[n] = positions.get(target, (ctx["boss"] as Vector2) + Attacks.fwd_of(float(ctx["yaw"])) * 6.0)
+			var lp: Vector2 = positions.get(target, (ctx["boss"] as Vector2) + Attacks.fwd_of(float(ctx["yaw"])) * 6.0)
+			if peek:
+				ctx["locked"] = lp  # いまの位置で決まるとして調べる（記録はしない）
+				return ctx
+			grab_locked[n] = lp
 		ctx["locked"] = grab_locked[n]
 	return ctx
 

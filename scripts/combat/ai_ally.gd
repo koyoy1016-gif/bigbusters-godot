@@ -1,8 +1,16 @@
 extends RefCounted
 ## AIの味方。画面を持たない計算だけ（テストしやすい）。
-## 動き：①ボスの攻撃の予告（赤い輪・帯）の中にいたら、外へ逃げる（ときどき、サブ攻撃の跳びでよける）
-## ②そうでなければ、ボスの近くへ行って、プレイヤーと同じ3つの攻撃（通常・サブ・メイン）と必殺技を、player_actions.gd で使う。
 ## 位置は世界の座標 (x, z)。ボスの当たり場所（hazards）は boss_attacks.gd と同じ形。
+## 版71：ボスの攻撃を見て、よける・攻める・下がるを決める（数値は data/ai_allies.json の tactics）。
+##   ctx["forecast"]：いまの攻撃の、これから当たる場所と時刻 [{dt: 何秒後, h: 当たり}]（stick_prototype が、攻撃の中の秒を先へ進めて調べる）。
+##   ctx["forecast_age"]：forecast を作ってからの秒。ctx["next_attack_in"]：ボスの次の攻撃が始まるまでの秒。
+##   ①考える（reaction_sec ごと）：いまの場所に、これから当たる物（threat）があるか。
+##     ・あれば：Y（かわし斬り）の跳んでいる間に全部当たり、どれもジャンプでよけられるなら、Y でよける。
+##       走って外へ出られるなら走る（両方できれば prefer_dodge の確率で Y）。Y がまだ早いなら、ちょうどよい時刻まで待って Y。
+##     ・なければ：次に危なくなるまでの秒（すき）を出す。すきが長いほど、長い攻撃（五段斬り）を使う。短ければ、すぐ終わる攻撃だけ。
+##   ②体力が low_hp より少ないとき・当たった直後（regroup_sec）は「用心」：すきが careful_window より短ければ、離れて待つ。
+##   ③必殺技は動いている間は無敵なので、ゲージがたまって届けば使う。
+##   見まちがい：考えるたびに skill の確率で正しく読む（読めなければ、そのときは何もしない）
 
 const Attacks := preload("res://scripts/combat/boss_attacks.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
@@ -24,6 +32,7 @@ static func make(def: Dictionary, index: int, spawn: Vector2) -> Dictionary:
 		"id": str(def.get("id", "")), "index": index, "pos": spawn, "hp": float(st.get("hp", 100.0)), "max_hp": float(st.get("hp", 100.0)),
 		"downed": false, "hits": 0.0, "height": 0.0, "stun": 0.0, "flash": 0.0, "stats": st.duplicate(), "face": Vector2(0, -1),
 		"decided": {}, "think": 0.0, "think_attack": 0.0, "evade": Vector2.ZERO,
+		"window": 99.0, "hold": false, "regroup": 0.0, "hp_prev": float(st.get("hp", 100.0)), "dodges": 0, "evades": 0, "mode": "",
 		"actions": Actions.new(), "gauge": Gauge.new(Actions.load_config()), "events": [], "banner": "", "name": str(def.get("name", "")),
 	}
 
@@ -93,6 +102,13 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 					a["flash"] = 0.15
 					if float(a["hp"]) <= 0.0:
 						a["downed"] = true
+	# 版71：当たった直後は、少しのあいだ用心する（立て直し）。すき（window）は時間とともに減る（動いている間も）
+	var tac: Dictionary = cfg.get("tactics", {})
+	if float(a["hp"]) < float(a.get("hp_prev", a["hp"])) - 0.001:
+		a["regroup"] = float(tac.get("regroup_sec", 1.5))
+	a["hp_prev"] = float(a["hp"])
+	a["regroup"] = maxf(0.0, float(a.get("regroup", 0.0)) - delta)
+	a["window"] = float(a.get("window", 99.0)) - delta
 	if bool(a["downed"]) or bool(a.get("held", false)):
 		actions.cancel()
 		a["height"] = 0.0
@@ -102,28 +118,22 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 	a["height"] = 0.0
 	var speed := float(st.get("move_speed", 6.0))
 	var pos: Vector2 = a["pos"]
-	var me := str(ctx.get("slot", ""))
-	var hz: Array = ctx["hazards"]
-	var rng: RandomNumberGenerator = ctx["rng"]
 	# 考える間隔（反応の遅れ）
 	a["think"] = float(a["think"]) - delta
 	if float(a["think"]) <= 0.0:
 		a["think"] = float(cfg["reaction_sec"])
-		a["evade"] = evade_dir(pos, hz, float(cfg["evade_margin"]), me)
-		# 「ジャンプでよけられる」当たりが近いとき、ときどき、サブ攻撃の跳びでよける
-		for h in hz:
-			if bool(h["jumpable"]) and float(h["tele"]) > 0.6 and Attacks.inside(h, pos.x, pos.y) and (str(h["target"]) == "" or str(h["target"]) == me):
-				if rng.randf() < float(cfg["dodge_chance"]) and _start(a, "sub", ctx):
-					return _flush(a, dealt)
-				break
+		if _think(a, ctx):
+			return _flush(a, dealt)  # Y でよけ始めた
 	var ev2: Vector2 = a["evade"]
 	var moved := Vector2.ZERO
+	var reach := float(st.get("attack_reach", 2.0)) + float(ctx["boss_radius"])
 	if ev2 != Vector2.ZERO:
 		moved = ev2 * speed * float(cfg["evade_speed_factor"]) * delta
 	else:
-		var reach := float(st.get("attack_reach", 2.0)) + float(ctx["boss_radius"])
 		var ang := deg_to_rad(float((cfg["approach_angles_deg"] as Array)[int(a["index"]) % (cfg["approach_angles_deg"] as Array).size()]))
 		var stand := reach * float(cfg["stand_factor"])
+		if bool(a.get("hold", false)):
+			stand = reach + float(tac.get("safe_gap", 2.5))  # 用心：届かない所で待つ
 		var want := boss + Vector2(sin(ang), cos(ang)) * stand
 		var to := want - pos
 		if to.length() > 0.3:
@@ -132,11 +142,158 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 	if moved != Vector2.ZERO:
 		pos = Vector2(clampf(pos.x + moved.x, -half, half), clampf(pos.y + moved.y, -half, half))
 		a["pos"] = pos
-	# こうげき：届くところにいて、よけなくてよいときだけ
-	var reach2 := float(st.get("attack_reach", 2.0)) + float(ctx["boss_radius"])
-	if bool(ctx.get("can_hit_boss", true)) and ev2 == Vector2.ZERO and (boss - pos).length() <= reach2:
+	# こうげき：届くところにいて、よけなくてよく、待っていないときだけ（どの攻撃を使うかは、すきの長さで決める）
+	if bool(ctx.get("can_hit_boss", true)) and ev2 == Vector2.ZERO and not bool(a.get("hold", false)) and (boss - pos).length() <= reach:
 		_choose_attack(a, ctx, delta)
 	return _flush(a, dealt)
+
+
+## 版71：これから当たる物のうち、pos にいたら当たる物 [{dt, h}]（ねらいが自分か全員、ダメージがある、安全地帯ではない）
+static func threats_at(pos: Vector2, forecast: Array, age: float, margin: float, me: String) -> Array:
+	var out: Array = []
+	for f in forecast:
+		var h: Dictionary = f["h"]
+		var target := str(h.get("target", ""))
+		if target != "" and target != me:
+			continue
+		if str(h.get("style", "")) == "safe" or (float(h.get("power", 0.0)) <= 0.0 and not bool(h.get("grab", false))):
+			continue
+		var dt := float(f["dt"]) - age
+		if dt < -0.05:
+			continue
+		if float(Attacks.escape_of(h, pos.x, pos.y, margin)["depth"]) <= 0.0:
+			continue
+		out.append({"dt": maxf(dt, 0.0), "h": h})
+	return out
+
+
+## 版71：いちばん早く当たる時刻（なければ 99）
+static func first_dt(threats: Array) -> float:
+	var best := 99.0
+	for th in threats:
+		best = minf(best, float(th["dt"]))
+	return best
+
+
+## 版71：Y（かわし斬り）の跳ぶ高さが DODGE_HEIGHT をこえている時間 [始め, 終わり]（秒）。跳ばなければ []
+static func airborne_span(actions: Actions) -> Array:
+	var d := actions.def("sub")
+	var path: Array = d.get("path", [])
+	var dur := float(d.get("duration_sec", 1.0))
+	var t0 := -1.0
+	var t1 := -1.0
+	var x := 0.0
+	while x <= dur:
+		if Actions.offset_at(path, x).y > DODGE_HEIGHT + 0.1:
+			if t0 < 0.0:
+				t0 = x
+			t1 = x
+		x += 0.02
+	return [t0, t1] if t0 >= 0.0 else []
+
+
+## 版71：いま Y を始めると、threats の中で Y の間（duration）に当たる物を、全部跳んでよけられるか。
+## 1つもなければ false（よける物がない）
+static func dodge_covers(actions: Actions, threats: Array) -> bool:
+	var span := airborne_span(actions)
+	if span.is_empty():
+		return false
+	var dur := float(actions.def("sub").get("duration_sec", 1.0))
+	var any := false
+	for th in threats:
+		var dt := float(th["dt"])
+		if dt > dur:
+			continue  # 着地のあとの当たりは、次に考える
+		any = true
+		if not bool((th["h"] as Dictionary).get("jumpable", false)):
+			return false
+		if dt < float(span[0]) or dt > float(span[1]):
+			return false
+	return any
+
+
+## 版71：threats から外へ出る向き（深いほど重く）と、出るまでの距離（m）
+static func escape_plan(pos: Vector2, threats: Array, margin: float) -> Dictionary:
+	var sum := Vector2.ZERO
+	var far := 0.0
+	for th in threats:
+		var h: Dictionary = th["h"]
+		var e := Attacks.escape_of(h, pos.x, pos.y, margin)
+		var depth := float(e["depth"])
+		if depth <= 0.0:
+			continue
+		var dist := depth - 100.0 if str(h["shape"]) == "rain" else depth
+		far = maxf(far, dist)
+		sum += (e["dir"] as Vector2) * maxf(dist, 0.1)
+	return {"dir": sum.normalized() if sum.length() > 0.001 else Vector2.ZERO, "dist": far}
+
+
+## 版71：考える。Y でよけ始めたら true。a["evade"]（走る向き）・a["window"]（すき）・a["hold"]（離れて待つ）・a["mode"] を決める
+static func _think(a: Dictionary, ctx: Dictionary) -> bool:
+	var cfg: Dictionary = ctx["cfg"]
+	var tac: Dictionary = cfg.get("tactics", {})
+	var rng: RandomNumberGenerator = ctx["rng"]
+	var actions := act(a)
+	var pos: Vector2 = a["pos"]
+	var me := str(ctx.get("slot", ""))
+	var st: Dictionary = a["stats"]
+	var speed := float(st.get("move_speed", 6.0)) * float(cfg["evade_speed_factor"])
+	var forecast: Array = ctx.get("forecast", [])
+	var age := float(ctx.get("forecast_age", 0.0))
+	var threats := threats_at(pos, forecast, age, float(tac.get("threat_margin", 0.5)), me)
+	# いま当たっている物（予告の外から来る物も）からは、まず離れる
+	var now_dir := evade_dir(pos, ctx["hazards"], float(cfg["evade_margin"]), me)
+	if rng.randf() >= float(tac.get("skill", 1.0)):
+		return false  # 読みそこねた：いまの動きのまま
+	a["hold"] = false
+	if not threats.is_empty():
+		var eta := first_dt(threats)
+		a["window"] = eta
+		var plan := escape_plan(pos, threats, float(tac.get("threat_margin", 0.5)))
+		var can_run := float(plan["dist"]) / maxf(speed, 0.1) < eta - 0.05 and (plan["dir"] as Vector2) != Vector2.ZERO
+		var y_ready := actions.can_start("sub")
+		var can_dodge := y_ready and dodge_covers(actions, threats)
+		if can_dodge and (not can_run or rng.randf() < float(tac.get("prefer_dodge", 0.5))):
+			if _start(a, "sub", ctx):
+				a["dodges"] = int(a.get("dodges", 0)) + 1
+				a["mode"] = "dodge"
+				a["evade"] = Vector2.ZERO
+				return true
+		if can_run or not y_ready:
+			a["evade"] = plan["dir"] if (plan["dir"] as Vector2) != Vector2.ZERO else now_dir
+			a["evades"] = int(a.get("evades", 0)) + 1
+			a["mode"] = "evade"
+			return false
+		# 走っても間に合わない：Y でよけられる時刻になるまで待つ（ジャンプでよけられる物だけなら）
+		var all_jump := true
+		for th in threats:
+			if not bool((th["h"] as Dictionary).get("jumpable", false)):
+				all_jump = false
+		var span := airborne_span(actions)
+		if all_jump and not span.is_empty() and eta > float(span[1]):
+			a["evade"] = Vector2.ZERO
+			a["mode"] = "wait_dodge"
+			a["think"] = clampf(eta - (float(span[0]) + float(span[1])) * 0.5, float(tac.get("dodge_think_min", 0.03)), float(cfg["reaction_sec"]))
+			return false
+		a["evade"] = plan["dir"] if (plan["dir"] as Vector2) != Vector2.ZERO else now_dir
+		a["evades"] = int(a.get("evades", 0)) + 1
+		a["mode"] = "evade"
+		return false
+	# 当たる物がない：すき（次に危なくなるまでの秒）を出す
+	a["evade"] = now_dir
+	var window := minf(float(tac.get("forecast_sec", 2.0)), float(ctx.get("next_attack_in", 99.0)) + float(tac.get("next_warn_sec", 0.45)))
+	a["window"] = window
+	var careful := float(a["hp"]) < float(a["max_hp"]) * float(tac.get("low_hp", 0.35)) or float(a.get("regroup", 0.0)) > 0.0
+	a["hold"] = careful and window < float(tac.get("careful_window", 1.2)) and not (a["gauge"] as Gauge).is_ready()
+	a["mode"] = "hold" if bool(a["hold"]) else "attack"
+	return false
+
+
+## 版71：攻撃 id を始めてから、動けるようになるまでの秒
+static func lock_sec(a: Dictionary, id: String) -> float:
+	if id == "normal":
+		return float((a["stats"] as Dictionary).get("attack_cooldown_sec", 0.4))
+	return float(act(a).def(id).get("duration_sec", 1.0))
 
 
 ## 始めた攻撃がその場で当たった分（通常攻撃）を、戻り値に足す
@@ -154,14 +311,20 @@ static func _choose_attack(a: Dictionary, ctx: Dictionary, delta: float) -> void
 	if bool(cfg.get("ai_ultimate", true)) and (a["gauge"] as Gauge).is_ready():
 		if _start(a, "ultimate", ctx):
 			return
+	# 版71：すき（window）の中で終わる攻撃だけを使う。すきが長いときに、長い攻撃（メイン）を使う
+	var margin := float((cfg.get("tactics", {}) as Dictionary).get("commit_margin", 0.15))
+	var window := float(a.get("window", 99.0))
+	var careful := float(a["hp"]) < float(a["max_hp"]) * float((cfg.get("tactics", {}) as Dictionary).get("low_hp", 0.35))
 	a["think_attack"] = float(a["think_attack"]) - delta
 	if float(a["think_attack"]) <= 0.0:
 		a["think_attack"] = float(cfg["attack_think_sec"])
-		if actions.can_start("main") and rng.randf() < float(cfg["use_main_chance"]) and _start(a, "main", ctx):
+		if actions.can_start("main") and window >= lock_sec(a, "main") + margin and rng.randf() < float(cfg["use_main_chance"]) and _start(a, "main", ctx):
 			return
-		if actions.can_start("sub") and rng.randf() < float(cfg["use_sub_chance"]) and _start(a, "sub", ctx):
+		# Y は、よけるために残しておきたいので、攻めに使うのは体力に余裕があって、すきが長いときだけ
+		if not careful and actions.can_start("sub") and window >= lock_sec(a, "sub") + margin and rng.randf() < float(cfg["use_sub_chance"]) and _start(a, "sub", ctx):
 			return
-	_start(a, "normal", ctx)
+	if window >= lock_sec(a, "normal") + margin:
+		_start(a, "normal", ctx)
 
 
 ## id の攻撃を、ボスに向かって始める。始められたら true
