@@ -43,6 +43,7 @@ const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const BossRage := preload("res://scripts/combat/boss_rage.gd")
 const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
+const BattleUltFx := preload("res://scripts/prototype/battle_ult_fx.gd")
 const BattleNet := preload("res://scripts/prototype/battle_net.gd")
 const BattleAiTeam := preload("res://scripts/prototype/battle_ai_team.gd")
 const BattleGrab := preload("res://scripts/prototype/battle_grab.gd")
@@ -80,6 +81,7 @@ var ai := BossAI.new()  ## ボスの攻撃の選び方（重み付きランダ�
 var motion := BossMotion.new()  ## ボスの歩き（位置と向き）
 var phase := BossPhase.new()  ## ボスの体力の2段階（第1形態 → 倒れて覚醒 → 第2形態）
 var rage := BossRage.new()  ## 版69：近くからの攻撃が多い間、ボスが怒る（攻撃が速く、つかみ投げが多くなる）
+var ult_fx := BattleUltFx.new(self)  ## 必殺技の見た目（battle_ult_fx.gd）
 var net := BattleNet.new(self)  ## 通信（battle_net.gd）
 var ai_team := BattleAiTeam.new(self)  ## AIの味方・先読み（battle_ai_team.gd）
 var grab := BattleGrab.new(self)  ## つかみ・投げ（battle_grab.gd）
@@ -916,53 +918,24 @@ var ult_ghost_parts: Array = []  ## 版72b：残像の形（踏み込みの始�
 var ult_last_ghost := Vector3.INF  ## 版72b：最後に残像を置いた所
 
 
-## 版72b：踏み込みの間、ghost_spacing m 進むごとに、剣士の形の残像を置く
+## → battle_ult_fx.gd
 func _ult_ghost_update() -> void:
-	if actions.active != "ultimate" or ult_last_ghost == Vector3.INF:
-		return
-	var fx: Dictionary = actions.def("ultimate").get("fx", {})
-	var here := Vector3(player.position.x, ground_y, player.position.z)
-	var spacing := maxf(0.5, float(fx.get("ghost_spacing", 2.2)))
-	# 1コマで長く進んでも、通った道の上に、決めた間かくで並べる（画面が遅くても数が減らない）
-	var guard := 0
-	while here.distance_to(ult_last_ghost) >= spacing and guard < 10:
-		_spawn_ghost(ult_last_ghost + (here - ult_last_ghost).normalized() * spacing)
-		guard += 1
+	ult_fx._ult_ghost_update()
 
 
-## p（床の上）に残像を1体置く。見た目の向き・大きさは、いまの剣士と同じ
+## → battle_ult_fx.gd
 func _spawn_ghost(p: Vector3 = Vector3.INF) -> void:
-	var here := Vector3(player.position.x, ground_y, player.position.z)
-	ult_last_ghost = here if p == Vector3.INF else p
-	var xf: Transform3D = char_view.global_transform if char_view != null and char_view.is_inside_tree() else Transform3D(Basis(), here)
-	xf.origin += ult_last_ghost - here
-	ult_fx_spawn("ghost", ult_last_ghost, actions.aim, {"parts": ult_ghost_parts, "xform": xf})
+	ult_fx._spawn_ghost(p)
 
 
+## → battle_ult_fx.gd
 func ult_fx_spawn(kind: String, pos: Vector3, aim: Vector2, extra: Dictionary = {}) -> void:
-	ult_fx_log.append(kind)
-	if ult_fx_log.size() > 20:
-		ult_fx_log.pop_front()
-	if is_inside_tree():
-		UltFx.spawn(self, kind, pos, aim, actions.def("ultimate").get("fx", {}), extra)
+	ult_fx.ult_fx_spawn(kind, pos, aim, extra)
 
 
-## 斬った瞬間：三日月の斬撃（と、踏み込んだ道の残像）。当たったら、火花と、一瞬止める・画面をゆらす。mine：自分の必殺技
+## → battle_ult_fx.gd
 func _ult_slash_fx(pos: Vector3, aim: Vector2, landed: bool, mine: bool) -> void:
-	var fx: Dictionary = actions.def("ultimate").get("fx", {})
-	if mine:
-		ult_dash_from = Vector3.INF
-	ult_fx_spawn("slash", pos, aim)
-	if landed:
-		var bp := Vector2(boss.position.x, boss.position.z)
-		var to := bp - Vector2(pos.x, pos.z)
-		var contact := bp - to.normalized() * float(config["boss_size"]) * 0.5 if to.length() > 0.01 else bp
-		if bool(fx.get("hit_spark", true)):
-			_burst_fx(Vector3(contact.x, 1.4, contact.y), "spark")
-		ult_fx_log.append("hit")
-		if mine:
-			var hs: Array = fx.get("hitstop", [0.08, 0.3])
-			_hitstop(float(hs[0]), float(hs[1]))
+	ult_fx._ult_slash_fx(pos, aim, landed, mine)
 
 
 ## → battle_hud.gd
