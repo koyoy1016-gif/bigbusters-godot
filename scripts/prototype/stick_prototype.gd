@@ -43,6 +43,7 @@ const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const BossRage := preload("res://scripts/combat/boss_rage.gd")
 const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
+const BattleGrab := preload("res://scripts/prototype/battle_grab.gd")
 const BattleHud := preload("res://scripts/prototype/battle_hud.gd")
 const BattleAttackFx := preload("res://scripts/prototype/battle_attack_fx.gd")
 const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
@@ -77,6 +78,7 @@ var ai := BossAI.new()  ## ボスの攻撃の選び方（重み付きランダ�
 var motion := BossMotion.new()  ## ボスの歩き（位置と向き）
 var phase := BossPhase.new()  ## ボスの体力の2段階（第1形態 → 倒れて覚醒 → 第2形態）
 var rage := BossRage.new()  ## 版69：近くからの攻撃が多い間、ボスが怒る（攻撃が速く、つかみ投げが多くなる）
+var grab := BattleGrab.new(self)  ## つかみ・投げ（battle_grab.gd）
 var hud := BattleHud.new(self)  ## 画面の描画（battle_hud.gd）
 var attack_fx := BattleAttackFx.new(self)  ## ボスの攻撃の見た目（battle_attack_fx.gd）
 var phase_text := {"text": "", "left": 0.0}  ## 形態が変わったときに、画面に出す文字
@@ -87,7 +89,6 @@ var stun_left := 0.0
 var grab_state := {}
 var sfx: Node = null
 var last_attack_n := -1
-var grab_hand := Vector3.ZERO
 var grab_last_target := Vector3.ZERO
 var other_lift := {}
 ## AIの味方（通信なし、または部屋に自分ひとりのとき、空いた枠を埋める）。テストでは既定でオフ（流れの側がオンにする）
@@ -1215,25 +1216,14 @@ func _update_jump_shadow() -> void:
 	attack_fx._update_jump_shadow()
 
 
-## つかんでいる最中の、ボスの動きに渡す状態（つかんでいなければ {}）
+## → battle_grab.gd
 func _grab_anim_state() -> Dictionary:
-	if grab_state.is_empty():
-		return {}
-	var k: Dictionary = attacks_cfg["kinds"]["grab"]
-	return {"phase": str(grab_state.get("phase", "hold")), "t": float(grab_state["t"]), "throw_t": float(grab_state.get("throw_t", 0.0)),
-		"throw_sec": float(k["throw_sec"]), "release_sec": float(k["release_sec"])}
+	return grab._grab_anim_state()
 
 
-## つかみの手を向ける角度（ボスの正面から、ねらう場所までの角度。ラジアン）
+## → battle_grab.gd
 func _grab_aim_yaw() -> float:
-	if str(current_attack.get("kind", "")) != Attacks.GRAB:
-		return 0.0
-	for h in current_hazards:
-		if bool(h.get("grab", false)):
-			var d := Vector2(float(h["x"]) - boss.position.x, float(h["z"]) - boss.position.z)
-			if d.length() > 0.3:
-				return clampf(wrapf(atan2(d.x, d.y) - motion.yaw, -PI, PI), -0.9, 0.9)
-	return 0.0
+	return grab._grab_aim_yaw()
 
 
 ## 必殺技の大きな手：当たり場所（手の形）の位置に置く。動いていないときは隠す
@@ -1262,193 +1252,37 @@ func _play_sfx(sound: String) -> void:
 		sfx.play(sound)
 
 
+## → battle_grab.gd
 func _me_held() -> bool:
-	return not grab_state.is_empty() and str(grab_state["slot"]) == _my_slot()
+	return grab._me_held()
 
 
+## → battle_grab.gd
 func _start_hold(slot: String, from: Vector2) -> void:
-	if not grab_state.is_empty():
-		return
-	_play_sfx("grab")
-	var n := int(current_attack.get("n", 0))
-	var hold := Attacks.grab_hold_sec(attacks_cfg, round_start_ms, n)
-	if bool(current_attack.get("quick", false)):
-		hold = float(attacks_cfg["kinds"]["grab"].get("quick_hold_sec", 0.25))  # 版68：すぐ投げるつかみ
-	grab_state = {"slot": slot, "t": 0.0, "from": from, "squeeze": 0.0, "lift": 0.0, "hold": hold}
-	if slot == _my_slot():
-		stun_left = maxf(stun_left, 0.1)
-	grab_state["phase"] = "hold"
-	grab_state["throw_t"] = 0.0
-	grab_hand = Vector3(from.x, 0.9, from.y)
+	grab._start_hold(slot, from)
 
 
+## → battle_grab.gd
 func _release_hold(freed: bool) -> void:
-	var k: Dictionary = attacks_cfg["kinds"]["grab"]
-	var slot := str(grab_state["slot"])
-	var decided: Variant = grab_state.get("throw_dir", null)
-	grab_state = {}
-	if freed:
-		_play_sfx("free")
-	if slot == _my_slot():
-		if freed:
-			stun_left = maxf(stun_left, float(k["free_stun_sec"]))
-			player.position.y = ground_y
-		else:
-			# 逃げられなかった：放り投げられる（着地のダメージと、転んで起き上がるまでは、player_actions の「thrown」）
-			# 版67：ボスからいちばん遠い人のほうへ投げる（だれもいなければ、ボスの向き）
-			var away: Vector2 = decided if decided is Vector2 else throw_dir(slot)
-			actions.start("thrown", away, 0.0, true)
-			if char_view != null:
-				char_view.face_now(-away)
-			_handle_action_events(actions.update(0.0))
-			_play_sfx("whoosh")
-	elif ai_allies.has(slot):
-		var a: Dictionary = ai_allies[slot]
-		a["held"] = false
-		other_lift[slot] = 0.0
-		if not freed:
-			# 投げられる（着地のダメージは、AiAlly.step が「landed」の印で受ける）。向きは、いちばん遠い人のほう（版67）
-			var away: Vector2 = decided if decided is Vector2 else throw_dir(slot)
-			(AiAlly.act(a) as Actions).start("thrown", away, 0.0, true)
-		else:
-			a["stun"] = float(k["free_stun_sec"])
+	grab._release_hold(freed)
 
 
-## ---- 版68：剣士をつかんですぐ投げる（1戦に1回、決めたランダムな時刻のあと） ----
-## 剣士の枠：自分が剣士（キャラを選んでいない＝ファイター、または hero_swordsman）なら自分。AIの味方の剣士も。倒れていない人だけ
+## → battle_grab.gd
 func swordsman_slots() -> Array:
-	var out: Array = []
-	var me := _my_slot()
-	var mine := selected_character
-	if not downed and (mine == "" or mine == "hero_swordsman"):
-		out.append(me)
-	var names: Array = ai_allies.keys()
-	names.sort()
-	for slot in names:
-		var a: Dictionary = ai_allies[slot]
-		if str(a.get("id", "")) == "hero_swordsman" and not bool(a["downed"]):
-			out.append(str(slot))
-	return out
+	return grab.swordsman_slots()
 
 
+## → battle_grab.gd
 func _quick_grab_check(t: float) -> void:
-	if quick_grab_done or quick_grab_at < 0.0 or t < quick_grab_at or won or lost or not phase.can_attack():
-		return
-	if not grab_state.is_empty() or str(current_attack.get("kind", "")) == Attacks.GRAB:
-		return
-	var targets := swordsman_slots()
-	if targets.is_empty():
-		return  # 剣士がいない・倒れている：無理に出さない（できるようになるまで待つ）
-	quick_grab_done = true
-	ai.request(Attacks.GRAB, {"target": str(targets[0]), "quick": true})
+	grab._quick_grab_check(t)
 
 
 ## ---- 版67：つかみ投げの、投げる向き（版70：投げられた人がほかの人にぶつかる仕組みは消した） ----
 
 
-## 位置のわかる人（倒れていない）：枠 → 床の上の位置。自分・AIの味方・通信のほかの人
-func _people_positions() -> Dictionary:
-	var out := {}
-	var me := _my_slot()
-	if not downed:
-		out[me] = Vector2(player.position.x, player.position.z)
-	var half := float(config["bounds"])
-	for slot in other_pos:
-		if ai_allies.has(slot) and bool(ai_allies[slot]["downed"]):
-			continue
-		var np: Vector2 = other_pos[slot]
-		out[str(slot)] = (ai_allies[slot]["pos"] as Vector2) if ai_allies.has(slot) else Vector2(np.x * 2.0 * half - half, np.y * 2.0 * half - half)
-	return out
-
-
-## 投げる向き：投げられる人（slot）を除いて、ボスからいちばん遠い人のほう。同じ距離（0.01m 以内）なら、枠の名前の順で先の人。
-## だれもいない・ボスと同じ所にいるときは、ボスの正面
-func throw_dir(slot: String) -> Vector2:
-	var bp := Vector2(boss.position.x, boss.position.z)
-	var best := ""
-	var best_d := -1.0
-	var people := _people_positions()
-	var names: Array = people.keys()
-	names.sort()
-	for name in names:
-		if str(name) == slot:
-			continue
-		var d := (people[name] as Vector2).distance_to(bp)
-		if d > best_d + 0.01:
-			best_d = d
-			best = str(name)
-	if best != "" and best_d > 0.3:
-		return ((people[best] as Vector2) - bp).normalized()
-	return Attacks.fwd_of(boss.rotation.y)
-
-
+## → battle_grab.gd
 func _grab_update(delta: float) -> void:
-	if grab_state.is_empty():
-		return
-	var k: Dictionary = attacks_cfg["kinds"]["grab"]
-	var slot := str(grab_state["slot"])
-	var mult := float(attacks_cfg["damage_multiplier"])
-	grab_state["t"] = float(grab_state["t"]) + delta
-	var t := float(grab_state["t"])
-	# 版70：逃げる仕組み（「にげる」の連打・みんなのダメージで外れる）はない。つかまれたら必ず投げられる。
-	# 外れるのは、つかまれた人が倒れたときと、戦いが終わったときだけ
-	var is_me := slot == _my_slot()
-	var target_down := downed if is_me else (not ai_allies.has(slot) or bool(ai_allies[slot]["downed"]))
-	if target_down or not round_active():
-		_release_hold(true)
-		return
-	var throwing := str(grab_state.get("phase", "hold")) == "throw"
-	if not throwing and t >= float(grab_state["hold"]):
-		# つかむ時間が終わった：ボスが、うしろへ引いて前へ投げる動きに入る（手をはなす瞬間に、飛んでいく）
-		grab_state["phase"] = "throw"
-		grab_state["throw_t"] = 0.0
-		throwing = true
-		# 版67：投げる向きは、投げる動きに入った時点で決める（いちばん遠い人のほう）。ボスもそちらを向いて投げる
-		var tdir := throw_dir(slot)
-		grab_state["throw_dir"] = tdir
-		var gn := int(current_attack.get("n", -1))
-		if motion.locks.has(gn):
-			motion.locks[gn]["yaw"] = atan2(tdir.x, tdir.y)
-	if throwing:
-		grab_state["throw_t"] = float(grab_state["throw_t"]) + delta
-		if float(grab_state["throw_t"]) >= float(k["release_sec"]):
-			_release_hold(false)
-			return
-	# 手の位置：ボスの左手（手のひらの少し下に、体がぶら下がる）。つかんだ直後は、つかんだ場所から手へ寄せる
-	var hand: Vector3 = boss_model.hand_world("L") if boss_model != null else Vector3(boss.position.x, float(k["hold_height"]), boss.position.z)
-	hand.y -= float(k.get("hang_below", 1.0))
-	var lift := clampf(t / float(k["lift_sec"]), 0.0, 1.0)
-	var from: Vector2 = grab_state["from"]
-	var start := Vector3(from.x, ground_y, from.y)
-	var held := start.lerp(hand, smoothstep(0.0, 1.0, lift))
-	held.y = maxf(held.y, ground_y)
-	var xz := Vector2(held.x, held.z)
-	var y := held.y - ground_y
-	grab_hand = held
-	# しめつけのダメージ
-	grab_state["squeeze"] = float(grab_state["squeeze"]) + delta
-	if float(grab_state["squeeze"]) >= float(k["squeeze_tick_sec"]):
-		grab_state["squeeze"] = float(grab_state["squeeze"]) - float(k["squeeze_tick_sec"])
-		var sq := Damage.damage_amount(float(k["squeeze_power"]), mult)
-		if is_me:
-			_take_damage(sq)
-			player_hit_flash = float(config["hit_flash_sec"])
-		else:
-			var a2: Dictionary = ai_allies[slot]
-			a2["hp"] = maxf(0.0, float(a2["hp"]) - sq)
-			a2["flash"] = 0.15
-			if float(a2["hp"]) <= 0.0:
-				a2["downed"] = true
-	if is_me:
-		stun_left = maxf(stun_left, 0.1)
-		player.position = Vector3(xz.x, ground_y + y, xz.y)
-	elif ai_allies.has(slot):
-		var a3: Dictionary = ai_allies[slot]
-		a3["pos"] = xz
-		other_lift[slot] = y
-		var half := float(config["bounds"])
-		other_target[slot] = Vector2((xz.x + half) / (2.0 * half), (xz.y + half) / (2.0 * half))
-		other_pos[slot] = other_target[slot]
+	grab._grab_update(delta)
 
 
 ## ---- AIの味方 ----
