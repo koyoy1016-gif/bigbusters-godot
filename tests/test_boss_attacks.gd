@@ -158,13 +158,11 @@ func _init() -> void:
 			landed = true
 	check(landed and str(s_land[0]["style"]) == "sake", "酒の雨：落ちた瞬間に当たる")
 	check((sp0["pos"] as Vector2).y > 0.0 and is_equal_approx((Attacks.sake_spot(sr, 0, 0, srk, bctx)["pos"] as Vector2).x, (sp0["pos"] as Vector2).x), "酒の雨：ボスの前に落ちる。同じ番号なら同じ場所")
-	# つかむ時間：毎回 1〜3秒のどれか。同じ戦い・同じ番号なら、全員の画面で同じ
-	var holds := {}
+	# つかむ時間：版69から、いつも1秒（その間に「にげる」を7回押せなければ投げられる）。同じ戦い・同じ番号なら、全員の画面で同じ
 	for n2 in range(1, 30):
 		var hs2 := Attacks.grab_hold_sec(cfg, 5555.0, n2)
-		check(hs2 >= 1.0 and hs2 <= 3.0, "つかむ時間は1〜3秒")
-		holds[snappedf(hs2, 0.1)] = true
-	check(holds.size() > 5 and is_equal_approx(Attacks.grab_hold_sec(cfg, 5555.0, 3), Attacks.grab_hold_sec(cfg, 5555.0, 3)), "つかむ時間は毎回ちがい、同じ番号なら同じ")
+		check(is_equal_approx(hs2, 1.0), "つかむ時間は1秒（版69）")
+	check(is_equal_approx(Attacks.grab_hold_sec(cfg, 5555.0, 3), Attacks.grab_hold_sec(cfg, 5555.0, 3)), "つかむ時間は、同じ番号なら同じ")
 	# AIのよけ方：扇・輪・帯からも逃げる向きが出る
 	var e1 := Attacks.escape_of(h_a[0], 0.0, 3.0, 0.5)
 	check(float(e1["depth"]) > 0.0 and (e1["dir"] as Vector2).length() > 0.5, "扇の中にいると、逃げる向きが出る")

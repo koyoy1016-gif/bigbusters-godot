@@ -34,7 +34,7 @@ func _initialize() -> void:
 	var k: Dictionary = s.attacks_cfg["kinds"]["grab"]
 	var bz := float(s.config["boss_position"][1])
 	var need := int(k["mash_needed"])
-	check(need >= 8 and need <= 15, "逃げるのに必要な連打は、10回前後（%d）" % need)
+	check(need == 7, "逃げるのに必要な連打は、7回（版69。いま %d）" % need)
 
 	# つかまれる
 	s.player.position = Vector3(0.0, s.ground_y, bz + 6.0)
