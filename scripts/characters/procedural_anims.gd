@@ -41,6 +41,12 @@ static func smooth(x: float) -> float:
 	return c * c * (3.0 - 2.0 * c)
 
 
+## はじめが速く、おわりがゆっくりな 0→1（ふりおろしの「ビシッ」）
+static func ease_out(x: float) -> float:
+	var c := clampf(x, 0.0, 1.0)
+	return 1.0 - pow(1.0 - c, 3.0)
+
+
 ## ある時刻の姿勢。返すのは {"rot": {骨の名前: モデル空間の回転(Basis)}, "offset": Vector3（腰の位置のずれ）}
 static func pose_at(anim: String, t: float, cfg: Dictionary) -> Dictionary:
 	var rot := {}
@@ -62,6 +68,8 @@ static func pose_at(anim: String, t: float, cfg: Dictionary) -> Dictionary:
 			rot["upperleg01.R"] = fwd(kb * 0.5)
 			rot["lowerleg01.R"] = fwd(-kb)
 			off.y = -absf(kb) * 0.002 + sin(p) * float(c["root_bob"])
+			off.x = sin(p * 0.5) * float(c.get("shift", 0.0))
+			rot["spine05"] = Basis(Vector3.FORWARD, deg_to_rad(sin(p * 0.5) * float(c.get("shift_tilt_deg", 0.0))))
 		"Run":
 			var c: Dictionary = cfg["run"]
 			var p := t / float(c["seconds"]) * TAU
@@ -79,6 +87,7 @@ static func pose_at(anim: String, t: float, cfg: Dictionary) -> Dictionary:
 			rot["lowerarm01.R"] = fwd(elb * (0.7 - 0.3 * sin(p)))
 			rot["spine05"] = lean(float(c["lean_deg"]))
 			rot["spine02"] = yaw(sin(p) * float(c["twist_deg"]))
+			rot["head"] = yaw(-sin(p) * float(c["twist_deg"]) * float(c.get("head_counter", 0.0))) * lean(-float(c["lean_deg"]) * 0.8)
 			off.y = cos(2.0 * p) * float(c["root_bob"])
 		"Jump":
 			var c: Dictionary = cfg["jump"]
@@ -99,12 +108,14 @@ static func pose_at(anim: String, t: float, cfg: Dictionary) -> Dictionary:
 			var we := float(c["windup_end"])
 			var se := float(c["swing_end"])
 			var wind := smooth(u / we)
-			var swing := smooth((u - we) / (se - we))
+			var swing := ease_out((u - we) / (se - we))
 			var rec := smooth((u - se) / (1.0 - se))
+			var rec_u := clampf((u - se) / (1.0 - se), 0.0, 1.0)
 			# 右手：上にふりかぶる → 前へふりおろす → もどる
 			var arm := lerpf(0.0, float(c["windup_arm_deg"]), wind)
 			arm = lerpf(arm, float(c["swing_arm_deg"]), swing)
 			arm = lerpf(arm, 0.0, rec)
+			arm += float(c.get("overshoot_deg", 0.0)) * sin(PI * rec_u)
 			var elbow := float(c["elbow_deg"]) * (wind * (1.0 - swing) + swing * 0.5) * (1.0 - rec)
 			var tw := lerpf(0.0, -float(c["twist_deg"]), wind)
 			tw = lerpf(tw, float(c["twist_deg"]), swing)
@@ -118,9 +129,13 @@ static func pose_at(anim: String, t: float, cfg: Dictionary) -> Dictionary:
 			rot["spine02"] = yaw(tw)
 			rot["spine05"] = lean(lean_a)
 			var step := float(c["step_hip_deg"]) * swing * (1.0 - rec)
-			rot["upperleg01.L"] = fwd(step)
-			rot["upperleg01.R"] = fwd(-step * 0.6)
-			rot["lowerleg01.R"] = fwd(-step * 0.5)
+			# ためのしゃがみ：ふりかぶるあいだ、ひざを曲げて少し沈む（そのあと一気にのびる）
+			var crouch := float(c.get("crouch_deg", 0.0)) * wind * (1.0 - swing)
+			rot["upperleg01.L"] = fwd(step + crouch)
+			rot["upperleg01.R"] = fwd(-step * 0.6 + crouch)
+			rot["lowerleg01.L"] = fwd(-crouch * 1.6)
+			rot["lowerleg01.R"] = fwd(-step * 0.5 - crouch * 1.6)
+			off.y = -float(c.get("crouch_drop", 0.0)) * wind * (1.0 - swing)
 			off.z = float(c["lunge"]) * swing * (1.0 - rec)
 		"Death":
 			var c: Dictionary = cfg["death"]

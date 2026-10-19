@@ -23,6 +23,7 @@ const Bridge := preload("res://scripts/network/room_bridge.gd")
 const Sync := preload("res://scripts/network/position_sync.gd")
 const BossSync := preload("res://scripts/network/boss_sync.gd")
 const BossModel := preload("res://scripts/boss/boss_model.gd")
+const StyleFx := preload("res://scripts/characters/style_fx.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 const Recorder := preload("res://scripts/combat/highlight_recorder.gd")
 const CrowdState := preload("res://scripts/combat/crowd_state.gd")
@@ -237,8 +238,11 @@ func _build_world() -> void:
 	boss_material = StandardMaterial3D.new()
 	boss_material.albedo_color = Color(str(config["boss_color"]))
 	boss_material.roughness = 0.55
+	StyleFx.style_material(boss_material, "skin")
+	StyleFx.apply_outline(boss_material, float(StyleFx.config().get("outline_width_boss", 0.05)))
 	torso.material = boss_material
 	boss.mesh = torso
+	boss.add_to_group("styled")
 	add_child(boss)
 	var bp: Array = config["boss_position"]
 	boss.position = Vector3(bp[0], float(bcfg["torso_center_y"]), bp[1])

@@ -207,10 +207,10 @@ func _initialize() -> void:
 			if mt.resource_name == "Human.body":
 				body_ok = mt.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED
 	check(hair_ok and body_ok, "髪は切り抜き、体は不透明に直っている")
-	check(tris > 1000 and tris <= int(float(cfg["budgets"]["ally"]) * 2.2), "面の数が予算の2.2倍以内（いまは約30,000＝体＋小物。あとで減らすか、予算を上げる）：" + str(tris))
+	check(tris > 1000 and tris <= int(float(cfg["budgets"]["ally"]) * 2.4), "面の数が予算の2.4倍以内（いまは約33,000＝体＋小物。あとで減らすか、予算を上げる）：" + str(tris))
 	# 小物（長い刀・袴・鎧・結び髪など）：骨に付く
 	var items := rv.model.find_children("Item_*", "BoneAttachment3D", true, false)
-	check(items.size() == 21, "刀と、侍の装備（21こ）が骨に付いている：" + str(items.size()))
+	check(items.size() == 31, "刀と、侍の装備（31こ）が骨に付いている：" + str(items.size()))
 	var sword := rv.model.find_child("Item_katana_long", true, false) as BoneAttachment3D
 	check(sword != null and sword.bone_name == "wrist.R", "刀は右手首の骨に付く")
 	check(sword != null and sword.get_child(0).get_child_count() == 5, "刀は5つの部品（つか・柄巻き×2・つば・刃）")

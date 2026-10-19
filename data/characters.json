@@ -39,7 +39,17 @@
         "sam_saya",
         "sam_boot_L",
         "sam_boot_R",
-        "sam_hakama_skirt"
+        "sam_hakama_skirt",
+        "sam_hachimaki",
+        "sam_maedate",
+        "sam_nodowa",
+        "sam_mon",
+        "sam_sode2_L",
+        "sam_sode2_R",
+        "sam_suneate_L",
+        "sam_suneate_R",
+        "sam_haidate_L",
+        "sam_haidate_R"
       ],
       "animations": {
         "idle": "Idle",

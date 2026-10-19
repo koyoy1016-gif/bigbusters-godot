@@ -1,0 +1,17 @@
+{
+  "_memo": "作風の数値（docs/art-style.md）。質感は assets/textures/（tools/make_textures.py が作る）",
+  "toon": true,
+  "rim": 0.55,
+  "rim_tint": 0.5,
+  "outline_color": "#0b0d1c",
+  "outline_width": 0.014,
+  "outline_width_boss": 0.05,
+  "texture_scale": 5.0,
+  "textures": {
+    "cloth": "res://assets/textures/cloth.png",
+    "steel": "res://assets/textures/steel.png",
+    "skin": "res://assets/textures/skin.png",
+    "leather": "res://assets/textures/leather.png"
+  },
+  "metal_threshold": 0.3
+}

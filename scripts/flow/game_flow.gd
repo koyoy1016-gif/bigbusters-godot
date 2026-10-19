@@ -5,6 +5,7 @@ extends Node
 
 const Logic := preload("res://scripts/flow/flow_logic.gd")
 const Quality := preload("res://scripts/core/quality.gd")
+const StyleFx := preload("res://scripts/characters/style_fx.gd")
 const SaveData := preload("res://scripts/flow/save_data.gd")
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const Replay := preload("res://scripts/flow/highlight_replay.gd")
@@ -560,7 +561,9 @@ func _apply_quality() -> void:
 	var lights: Array[Node] = []
 	if get_tree() != null:
 		lights = get_tree().get_nodes_in_group("sun")
-	Quality.apply(quality_name, quality_config, get_viewport(), lights)
+	var applied := Quality.apply(quality_name, quality_config, get_viewport(), lights)
+	if get_tree() != null:
+		StyleFx.set_outline(get_tree().root, bool(applied.get("outline", false)))
 
 
 func show_toast() -> void:

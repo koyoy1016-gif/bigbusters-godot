@@ -3,6 +3,7 @@ extends Node3D
 ## モデルがなければ、何も出さない（呼び出し側が、箱のままにする）。
 
 const CharacterData := preload("res://scripts/characters/character_data.gd")
+const StyleFx := preload("res://scripts/characters/style_fx.gd")
 const ProceduralAnims := preload("res://scripts/characters/procedural_anims.gd")
 const ATTACHMENTS_PATH := "res://data/attachments.json"
 
@@ -16,6 +17,7 @@ var facing := 0.0
 ## モデルを読み込む。成功したら true
 func setup(def: Dictionary) -> bool:
 	character = def
+	add_to_group("styled")
 	if not CharacterData.has_model(def):
 		return false
 	var packed := load(str(def["model"])) as PackedScene
@@ -113,8 +115,8 @@ static func _make_model_part(part: Dictionary, rest: Transform3D) -> MeshInstanc
 			var sm := SphereMesh.new()
 			sm.radius = float(part["r"])
 			sm.height = float(part["r"]) * 2.0
-			sm.radial_segments = 12
-			sm.rings = 6
+			sm.radial_segments = 8 if float(part["r"]) < 0.05 else 12
+			sm.rings = 4 if float(part["r"]) < 0.05 else 6
 			mesh = sm
 			var c2: Array = part["center"]
 			pos = Vector3(float(c2[0]), float(c2[1]), float(c2[2]))
@@ -130,7 +132,7 @@ static func _make_model_part(part: Dictionary, rest: Transform3D) -> MeshInstanc
 			cm.bottom_radius = float(part["r0"])
 			cm.top_radius = float(part["r1"])
 			cm.height = dir.length()
-			cm.radial_segments = 12
+			cm.radial_segments = 8 if maxf(float(part["r0"]), float(part["r1"])) < 0.07 else 12
 			cm.rings = 1
 			mesh = cm
 			pos = (from + to) * 0.5
@@ -140,6 +142,8 @@ static func _make_model_part(part: Dictionary, rest: Transform3D) -> MeshInstanc
 	mat.albedo_color = Color(str(part.get("color", "#cccccc")))
 	mat.metallic = float(part.get("metallic", 0.0))
 	mat.roughness = float(part.get("roughness", 0.8))
+	StyleFx.style_material(mat, StyleFx.texture_for(mat.metallic, str(part.get("tex", ""))))
+	StyleFx.apply_outline(mat, float(StyleFx.config().get("outline_width", 0.014)))
 	mesh.material = mat
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
@@ -175,6 +179,8 @@ static func _make_part(part: Dictionary) -> MeshInstance3D:
 	mat.albedo_color = Color(str(part.get("color", "#cccccc")))
 	mat.metallic = float(part.get("metallic", 0.0))
 	mat.roughness = float(part.get("roughness", 0.8))
+	StyleFx.style_material(mat, StyleFx.texture_for(mat.metallic, str(part.get("tex", ""))))
+	StyleFx.apply_outline(mat, float(StyleFx.config().get("outline_width", 0.014)))
 	mesh.material = mat
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
@@ -210,6 +216,8 @@ static func fix_materials(node: Node, def: Dictionary) -> int:
 					mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
 				mat.cull_mode = BaseMaterial3D.CULL_BACK
 				mat.clearcoat_enabled = false
+				StyleFx.style_material(mat)
+				StyleFx.apply_outline(mat, float(StyleFx.config().get("outline_width", 0.014)))
 				count += 1
 	for c in node.get_children():
 		count += fix_materials(c, def)

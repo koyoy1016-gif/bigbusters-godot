@@ -3,6 +3,7 @@ extends Node3D
 ## そして「長い手」2本を付ける。手は、いくつもの節をなめらかにつないだ曲線で、手の先の位置（胴体から見た座標）に合わせて伸び縮みする。
 ## 色は1つの材質をみんなで使うので、ダメージのときの白い点滅が、体ぜんぶに出る。
 
+const StyleFx := preload("res://scripts/characters/style_fx.gd")
 const ARM_SEGMENTS := 10
 
 var skin: StandardMaterial3D
@@ -121,6 +122,7 @@ func _mat(color: Color) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = color
 	m.roughness = 0.5
+	StyleFx.style_material(m)
 	return m
 
 

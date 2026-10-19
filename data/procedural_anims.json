@@ -7,7 +7,9 @@
     "arm_sway_deg": 2.5,
     "head_deg": 1.5,
     "knee_bend_deg": 4.0,
-    "root_bob": 0.006
+    "root_bob": 0.006,
+    "shift": 0.015,
+    "shift_tilt_deg": 1.2
   },
   "run": {
     "seconds": 0.6,
@@ -17,7 +19,8 @@
     "elbow_deg": 70.0,
     "lean_deg": 9.0,
     "twist_deg": 8.0,
-    "root_bob": 0.035
+    "root_bob": 0.035,
+    "head_counter": 0.9
   },
   "jump": {
     "seconds": 0.8,
@@ -40,7 +43,10 @@
     "lunge": 0.12,
     "windup_end": 0.3,
     "swing_end": 0.62,
-    "wrist_cancel": 0.75
+    "wrist_cancel": 0.75,
+    "overshoot_deg": 18.0,
+    "crouch_deg": 16.0,
+    "crouch_drop": 0.05
   },
   "death": {
     "seconds": 1.1,

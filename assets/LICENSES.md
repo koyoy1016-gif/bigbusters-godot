@@ -23,3 +23,6 @@
 | 内容 | ライセンス | 備考 |
 |---|---|---|
 | 侍の装備（袴・着物・帯・鎧・籠手・草摺・結び髪・刀・鞘・足袋ぐつ）`data/attachments.json`（`tools/make_samurai.py` で作る） | 自作（権利の問題なし） | 箱・円柱・球の組み合わせ。他の作品の形は使っていない |
+
+## 自作の質感（assets/textures/）
+- cloth.png / steel.png / skin.png / leather.png：`tools/make_textures.py` が計算で作った画像（他の作品は使っていない）。CC0として扱う。

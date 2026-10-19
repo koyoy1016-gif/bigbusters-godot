@@ -1471,6 +1471,577 @@
           "roughness": 0.85
         }
       ]
+    },
+    "sam_hachimaki": {
+      "bone": "head",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0,
+            1.885,
+            0.0
+          ],
+          "to": [
+            0,
+            1.925,
+            0.0
+          ],
+          "r0": 0.118,
+          "r1": 0.118,
+          "squash": [
+            1.0,
+            1.06
+          ],
+          "color": "#f1efe8",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "box",
+          "center": [
+            0,
+            1.905,
+            0.125
+          ],
+          "size": [
+            0.05,
+            0.045,
+            0.01
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            0
+          ],
+          "color": "#b8262a",
+          "metallic": 0.0,
+          "roughness": 0.8
+        }
+      ]
+    },
+    "sam_maedate": {
+      "bone": "head",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0.0,
+            1.93,
+            0.128
+          ],
+          "to": [
+            0.07,
+            2.06,
+            0.13
+          ],
+          "r0": 0.014,
+          "r1": 0.006,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.0,
+            1.93,
+            0.128
+          ],
+          "to": [
+            -0.07,
+            2.06,
+            0.13
+          ],
+          "r0": 0.014,
+          "r1": 0.006,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        },
+        {
+          "shape": "sphere",
+          "center": [
+            0.0,
+            1.935,
+            0.13
+          ],
+          "r": 0.022,
+          "squash": [
+            1,
+            1,
+            0.6
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "sam_nodowa": {
+      "bone": "head",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0,
+            1.66,
+            0.0
+          ],
+          "to": [
+            0,
+            1.73,
+            0.0
+          ],
+          "r0": 0.105,
+          "r1": 0.085,
+          "squash": [
+            1.0,
+            0.9
+          ],
+          "color": "#26345f",
+          "metallic": 0.5,
+          "roughness": 0.4
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0,
+            1.725,
+            0.0
+          ],
+          "to": [
+            0,
+            1.735,
+            0.0
+          ],
+          "r0": 0.088,
+          "r1": 0.088,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#b8262a",
+          "metallic": 0.0,
+          "roughness": 0.85
+        }
+      ]
+    },
+    "sam_mon": {
+      "bone": "spine02",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "sphere",
+          "center": [
+            0,
+            1.51,
+            0.212
+          ],
+          "r": 0.04,
+          "squash": [
+            1,
+            1,
+            0.25
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "sam_sode2_L": {
+      "bone": "clavicle.L",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "box",
+          "center": [
+            0.325,
+            1.625,
+            0.012
+          ],
+          "size": [
+            0.2,
+            0.014,
+            0.17
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            -34
+          ],
+          "color": "#26345f",
+          "metallic": 0.4,
+          "roughness": 0.45
+        },
+        {
+          "shape": "box",
+          "center": [
+            0.345,
+            1.595,
+            0.012
+          ],
+          "size": [
+            0.2,
+            0.014,
+            0.17
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            -40
+          ],
+          "color": "#26345f",
+          "metallic": 0.4,
+          "roughness": 0.45
+        },
+        {
+          "shape": "box",
+          "center": [
+            0.337,
+            1.608,
+            0.012
+          ],
+          "size": [
+            0.2,
+            0.01,
+            0.175
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            -37
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "sam_sode2_R": {
+      "bone": "clavicle.R",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "box",
+          "center": [
+            -0.325,
+            1.625,
+            0.012
+          ],
+          "size": [
+            0.2,
+            0.014,
+            0.17
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            34
+          ],
+          "color": "#26345f",
+          "metallic": 0.4,
+          "roughness": 0.45
+        },
+        {
+          "shape": "box",
+          "center": [
+            -0.345,
+            1.595,
+            0.012
+          ],
+          "size": [
+            0.2,
+            0.014,
+            0.17
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            40
+          ],
+          "color": "#26345f",
+          "metallic": 0.4,
+          "roughness": 0.45
+        },
+        {
+          "shape": "box",
+          "center": [
+            -0.337,
+            1.608,
+            0.012
+          ],
+          "size": [
+            0.2,
+            0.01,
+            0.175
+          ],
+          "rotation_deg": [
+            0,
+            0,
+            37
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "sam_suneate_L": {
+      "bone": "lowerleg01.L",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0.2,
+            0.46,
+            0.035
+          ],
+          "to": [
+            0.2,
+            0.2,
+            0.035
+          ],
+          "r0": 0.1,
+          "r1": 0.085,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#d8dde3",
+          "metallic": 0.85,
+          "roughness": 0.3
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.2,
+            0.46,
+            0.035
+          ],
+          "to": [
+            0.2,
+            0.455,
+            0.035
+          ],
+          "r0": 0.108,
+          "r1": 0.108,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#b8262a",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.2,
+            0.2,
+            0.035
+          ],
+          "to": [
+            0.2,
+            0.195,
+            0.035
+          ],
+          "r0": 0.09,
+          "r1": 0.09,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "sam_suneate_R": {
+      "bone": "lowerleg01.R",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            -0.2,
+            0.46,
+            0.035
+          ],
+          "to": [
+            -0.2,
+            0.2,
+            0.035
+          ],
+          "r0": 0.1,
+          "r1": 0.085,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#d8dde3",
+          "metallic": 0.85,
+          "roughness": 0.3
+        },
+        {
+          "shape": "rod",
+          "from": [
+            -0.2,
+            0.46,
+            0.035
+          ],
+          "to": [
+            -0.2,
+            0.455,
+            0.035
+          ],
+          "r0": 0.108,
+          "r1": 0.108,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#b8262a",
+          "metallic": 0.0,
+          "roughness": 0.85
+        },
+        {
+          "shape": "rod",
+          "from": [
+            -0.2,
+            0.2,
+            0.035
+          ],
+          "to": [
+            -0.2,
+            0.195,
+            0.035
+          ],
+          "r0": 0.09,
+          "r1": 0.09,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "sam_haidate_L": {
+      "bone": "upperleg01.L",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            0.15,
+            1.0,
+            0.04
+          ],
+          "to": [
+            0.17,
+            0.66,
+            0.04
+          ],
+          "r0": 0.1,
+          "r1": 0.095,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#26345f",
+          "metallic": 0.4,
+          "roughness": 0.45
+        },
+        {
+          "shape": "rod",
+          "from": [
+            0.17,
+            0.665,
+            0.04
+          ],
+          "to": [
+            0.17,
+            0.655,
+            0.04
+          ],
+          "r0": 0.1,
+          "r1": 0.1,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        }
+      ]
+    },
+    "sam_haidate_R": {
+      "bone": "upperleg01.R",
+      "space": "model",
+      "parts": [
+        {
+          "shape": "rod",
+          "from": [
+            -0.15,
+            1.0,
+            0.04
+          ],
+          "to": [
+            -0.17,
+            0.66,
+            0.04
+          ],
+          "r0": 0.1,
+          "r1": 0.095,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#26345f",
+          "metallic": 0.4,
+          "roughness": 0.45
+        },
+        {
+          "shape": "rod",
+          "from": [
+            -0.17,
+            0.665,
+            0.04
+          ],
+          "to": [
+            -0.17,
+            0.655,
+            0.04
+          ],
+          "r0": 0.1,
+          "r1": 0.1,
+          "squash": [
+            1,
+            1
+          ],
+          "color": "#c9a227",
+          "metallic": 0.8,
+          "roughness": 0.3
+        }
+      ]
     }
   }
 }

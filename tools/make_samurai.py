@@ -138,6 +138,48 @@ items["sam_saya"] = item("spine05", [
     rod((0.23, 1.17, 0.1), (0.233, 1.157, 0.075), 0.032, 0.032, RED),
 ])
 
+GOLD = "#c9a227"
+# ---- 鉢巻（白）と、前立て（金の三日月）：シルエットで侍と分かるように ----
+items["sam_hachimaki"] = item("head", [
+    rod((0, 1.885, 0.0), (0, 1.925, 0.0), 0.118, 0.118, WHITE, squash=(1.0, 1.06)),
+    box((0, 1.905, 0.125), (0.05, 0.045, 0.01), (0, 0, 0), RED),
+])
+items["sam_maedate"] = item("head", [
+    rod((0.0, 1.93, 0.128), (0.07, 2.06, 0.13), 0.014, 0.006, GOLD, metallic=0.8, rough=0.3),
+    rod((0.0, 1.93, 0.128), (-0.07, 2.06, 0.13), 0.014, 0.006, GOLD, metallic=0.8, rough=0.3),
+    sph((0.0, 1.935, 0.13), 0.022, GOLD, squash=(1, 1, 0.6), metallic=0.8, rough=0.3),
+])
+# ---- 首当て（のどわ）----
+items["sam_nodowa"] = item("head", [
+    rod((0, 1.66, 0.0), (0, 1.73, 0.0), 0.105, 0.085, ARMOR, squash=(1.0, 0.9), metallic=0.5, rough=0.4),
+    rod((0, 1.725, 0.0), (0, 1.735, 0.0), 0.088, 0.088, RED),
+])
+# ---- 胸の紋（金）----
+items["sam_mon"] = item("spine02", [
+    sph((0, 1.51, 0.212), 0.04, GOLD, squash=(1, 1, 0.25), metallic=0.8, rough=0.3),
+])
+# ---- 袖の鎧を重ねる（2まい目、3まい目）----
+sode2 = [
+    box((0.325, 1.625, 0.012), (0.2, 0.014, 0.17), (0, 0, -34), ARMOR, metallic=0.4, rough=0.45),
+    box((0.345, 1.595, 0.012), (0.2, 0.014, 0.17), (0, 0, -40), ARMOR, metallic=0.4, rough=0.45),
+    box((0.337, 1.608, 0.012), (0.2, 0.01, 0.175), (0, 0, -37), GOLD, metallic=0.8, rough=0.3),
+]
+items["sam_sode2_L"] = item("clavicle.L", sode2)
+items["sam_sode2_R"] = item("clavicle.R", [mirror(p) for p in sode2])
+# ---- すね当て（鉄）----
+sune = [
+    rod((0.2, 0.46, 0.035), (0.2, 0.2, 0.035), 0.1, 0.085, STEEL, metallic=0.85, rough=0.3),
+    rod((0.2, 0.46, 0.035), (0.2, 0.455, 0.035), 0.108, 0.108, RED),
+    rod((0.2, 0.2, 0.035), (0.2, 0.195, 0.035), 0.09, 0.09, GOLD, metallic=0.8, rough=0.3),
+]
+items["sam_suneate_L"] = item("lowerleg01.L", sune)
+items["sam_suneate_R"] = item("lowerleg01.R", [mirror(p) for p in sune])
+# ---- 大腿の当て（はいだて）----
+hai = [rod((0.15, 1.0, 0.04), (0.17, 0.66, 0.04), 0.1, 0.095, ARMOR, metallic=0.4, rough=0.45),
+       rod((0.17, 0.665, 0.04), (0.17, 0.655, 0.04), 0.1, 0.1, GOLD, metallic=0.8, rough=0.3)]
+items["sam_haidate_L"] = item("upperleg01.L", hai)
+items["sam_haidate_R"] = item("upperleg01.R", [mirror(p) for p in hai])
+
 p = Path(__file__).resolve().parent.parent / "data" / "attachments.json"
 d = json.loads(p.read_text(encoding="utf8"))
 d["items"].update(items)
