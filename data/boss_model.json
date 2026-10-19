@@ -160,5 +160,10 @@
   -0.15,
   -0.7
  ],
- "tail_whip_len": 3.4
+ "tail_whip_len": 3.4,
+ "upper_arm_len": 1.35,
+ "fore_arm_len": 1.45,
+ "small_upper_len": 0.75,
+ "small_fore_len": 0.85,
+ "_memo_arms": "腕は関節のある2本の骨（上腕 upper_arm_len＋前腕 fore_arm_len、小さな腕は small_*）。届かない目標のときだけ、まっすぐのまま伸びる"
 }

@@ -45,6 +45,23 @@ func _init() -> void:
 	var fr: Vector3 = _chain(sk, "R").origin
 	check("歩くと、左右の足が前後にずれる", absf(fl.z - fr.z) > 0.3)
 	m.reset_form()
+	# 腕の関節：上腕と前腕は、まっすぐの骨（長さは変わらない）。ひじで曲がる
+	m.begin_frame(0.0)
+	var sh: Vector3 = m.shoulder["R"]
+	m.set_hand("R", sh + Vector3(-1.0, -1.5, 1.2))
+	var el: Vector3 = m.arm_elbow["R"]
+	var ul := float(cfg["upper_arm_len"])
+	var fl2 := float(cfg["fore_arm_len"])
+	var hr: Vector3 = m.hand_target["R"]
+	check("腕は、上腕と前腕の長さが変わらない（くねくねしない）", absf((el - sh).length() - ul) < 0.01 and absf((hr - el).length() - fl2) < 0.01)
+	var straight: bool = (hr - sh).length() < ul + fl2 - 0.05
+	check("近い目標では、ひじが曲がる", straight)
+	m.set_hand("R", sh + Vector3(-6.0, 0.0, 0.0))
+	el = m.arm_elbow["R"]
+	var d1: Vector3 = (el - sh).normalized()
+	var hr2: Vector3 = m.hand_target["R"]
+	var d2: Vector3 = (hr2 - el).normalized()
+	check("届かない遠くの目標では、腕はまっすぐのまま伸びる", d1.dot(d2) > 0.99)
 	m.set_flash(true)
 	check("点滅を出せる", m.is_flashing() and (m.skin as StandardMaterial3D).emission_energy_multiplier > 0.0)
 	m.set_flash(false)

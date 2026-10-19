@@ -73,6 +73,7 @@ var merge_cache := {}  ## まとめた形の材質（頂点の色で描く）
 var arm_mm: MultiMeshInstance3D  ## 腕の節（全部の腕を1つで描く）
 var arm_seg_sleeve: Array = []  ## 節の番号 → そで（true）か肌（false）か
 var arm_visible := {}
+var arm_elbow := {}  ## 腕のid → ひじの位置（モデルの座標）
 var sleeve_color := Color.WHITE
 var tail_mm: MultiMeshInstance3D  ## しっぽの節
 var tail_deco_mm: MultiMeshInstance3D  ## しっぽのとげと、先の毛
@@ -1113,35 +1114,48 @@ func set_hand(side: String, target: Vector3, bend: Vector3 = Vector3.ZERO) -> vo
 	_layout_arm(side)
 
 
+## 腕を、関節のある2本の骨（上腕＋前腕）で並べる。ひじの位置は、手の先から計算する（solve_two_bone）。
+## 骨はまっすぐで曲がらないので、くねくねしない。届かない遠くの目標（必殺技の手など）だけは、腕全体がまっすぐのまま伸びる
 func _layout_arm(side: String) -> void:
 	var s: Vector3 = shoulder[side]
 	var h: Vector3 = hand_target[side]
 	var out := 1.0 if side.begins_with("L") else -1.0
-	var length := float(arm_len[side])
-	var control := (s + h) * 0.5 + Vector3(out * float(cfg["arm_bow"]), -float(cfg["arm_sag"]) * clampf((h - s).length() / length, 0.2, 1.0), 0.0) + (hand_bend[side] as Vector3)
+	var big := BIG.has(side)
+	var l1 := float(cfg.get("upper_arm_len" if big else "small_upper_len", 1.35 if big else 0.75))
+	var l2 := float(cfg.get("fore_arm_len" if big else "small_fore_len", 1.45 if big else 0.85))
+	var dist := (h - s).length()
+	if dist > (l1 + l2) * 0.999:
+		var stretch := dist / ((l1 + l2) * 0.999)
+		l1 *= stretch
+		l2 *= stretch
+	# ひじの向き：ふだんは外・うしろ・少し下。bend で向きを変えられる（バットをかつぐ腕など）
+	var pole := Vector3(out * 0.9, -0.35, -0.55) + (hand_bend[side] as Vector3)
+	var elbow := solve_two_bone(s, h, l1, l2, pole)
 	var segs: Array = arm_nodes[side]
 	var n := segs.size()
-	var pts: Array = []
-	for i in n + 1:
-		var t := float(i) / float(n)
-		pts.append(s.lerp(control, t).lerp(control.lerp(h, t), t))
+	var n_up := n / 2
 	var r0 := float(arm_radius[side])
-	var r1 := r0 * 0.72
 	var mm := arm_mm.multimesh
 	var vis: bool = arm_visible.get(side, true)
 	for i in n:
-		var a: Vector3 = pts[i]
-		var b: Vector3 = pts[i + 1]
+		var upper := i < n_up
+		var a0: Vector3 = s if upper else elbow
+		var b0: Vector3 = elbow if upper else h
+		var cnt := n_up if upper else n - n_up
+		var j := i if upper else i - n_up
+		var a := a0.lerp(b0, float(j) / float(cnt))
+		var b := a0.lerp(b0, float(j + 1) / float(cnt))
 		var d := b - a
 		var len := maxf(d.length(), 0.01)
-		# 前腕（先の半分）は、少し太く（毛深い前腕）
-		var k := (float(i) + 0.5) / n
-		var r := lerpf(r0, r1, k) * (1.0 + 0.18 * sin(clampf((k - 0.45) / 0.5, 0.0, 1.0) * PI))
+		# 太さ：上腕は付け根が太く、前腕はまん中がふくらむ（筋肉）。手首は細く
+		var k := (float(j) + 0.5) / float(cnt)
+		var r := r0 * (lerpf(1.08, 0.86, k) if upper else lerpf(0.92, 0.7, k) * (1.0 + 0.22 * sin(k * PI)))
 		var basis := Basis(Quaternion(Vector3.UP, d / len)) * Basis.from_scale(Vector3(r * 2.0, (len + r * 2.0) * 0.5, r * 2.0)) if vis else Basis.from_scale(Vector3.ZERO)
 		mm.set_instance_transform(int(segs[i]), Transform3D(basis, (a + b) * 0.5))
+	arm_elbow[side] = elbow
 	var hand: Node3D = hand_nodes[side]
 	hand.position = h
-	var tip: Vector3 = (pts[n] as Vector3) - (pts[n - 1] as Vector3)
+	var tip: Vector3 = h - elbow
 	if tip.length() > 0.01:
 		hand.basis = Basis(Quaternion(Vector3.DOWN, tip.normalized())) * Basis.from_scale(hand.basis.get_scale())
 	if side == "L" and bat != null and bat.visible:
@@ -1172,7 +1186,7 @@ func pose_idle(time: float) -> void:
 			rest = s + Vector3(0.1 + 0.04 * sin(time * 1.2), 0.32 + 0.05 * sin(time * 1.5), 0.3)
 		else:
 			# 長い腕を、ひざのあたりまで垂らす
-			rest = s + Vector3(-0.42 - 0.08 * sin(time * 1.3), -2.15 + 0.1 * sin(time * 1.1), 0.3 + 0.12 * cos(time * 0.9))
+			rest = s + Vector3(-0.5 - 0.08 * sin(time * 1.3), -2.5 + 0.1 * sin(time * 1.1), 0.45 + 0.12 * cos(time * 0.9))
 		var bend := Vector3.ZERO
 		if form != "awake" and side == "L":
 			bend = Vector3(0.75, -1.0, 0.15)  # ひじを外・下へ曲げて、肩の前でバットを持つ
