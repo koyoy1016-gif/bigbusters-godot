@@ -1055,8 +1055,8 @@ func _show_damage(amount: float, action: String, from: Vector2) -> void:
 
 func _draw_damage_numbers(screen: Vector2) -> void:
 	var dn: RefCounted = damage_numbers()
-	if dn.items.is_empty() or camera == null or font == null:
-		return
+	if dn.items.is_empty() or camera == null or font == null or DisplayServer.get_name() == "headless":
+		return  # 画面のないテストでは描かない（数字の中身は damage_numbers() で調べる）
 	var dc: Dictionary = config.get("damage_numbers", {})
 	if _dmg_font == null:
 		_dmg_font = FontVariation.new()
