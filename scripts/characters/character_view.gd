@@ -7,6 +7,7 @@ const StyleFx := preload("res://scripts/characters/style_fx.gd")
 const ProceduralAnims := preload("res://scripts/characters/procedural_anims.gd")
 const AnimRetime := preload("res://scripts/characters/anim_retime.gd")
 const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
+const BodyBuilder := preload("res://scripts/characters/body_builder.gd")
 const ATTACHMENTS_PATH := "res://data/attachments.json"
 
 var character: Dictionary = {}
@@ -36,6 +37,10 @@ func setup(def: Dictionary) -> bool:
 		player = ProceduralAnims.build_player(model, ProceduralAnims.load_config())
 	build_retimed(player, def)
 	fix_materials(model, def)
+	# 2026-10-20：見た目のデータ（data/character_looks.json）があれば、体格・服・部品を作る（body_builder.gd）
+	var look_id := str(def.get("look", ""))
+	if look_id != "" and BodyBuilder.load_looks().has(look_id):
+		BodyBuilder.apply(model, BodyBuilder.load_looks()[look_id])
 	attach_items(model, def.get("attachments", []))
 	bake_items(model)
 	return true

@@ -1,0 +1,1800 @@
+{
+ "_memo": "味方キャラの見た目（tools/make_looks.py が作る。手で書きかえない）。scripts/characters/body_builder.gd が使う。土台は剣士と同じ体（MakeHuman CC0）と骨。参考画像は docs/ref/chars/。",
+ "looks": {
+  "brawler": {
+   "name": "ファイター",
+   "attack_anim": "Punch",
+   "ref": "docs/ref/chars/IMG_0392.jpeg",
+   "keep": [
+    "eyebrow001",
+    "eyelashes01",
+    "low-poly",
+    "short04"
+   ],
+   "skin": "#d99a6c",
+   "tint_short04": "#2a2420",
+   "head_scale": 0.97,
+   "bulk": {
+    "neck": 1.45,
+    "chest": [
+     1.42,
+     1.32
+    ],
+    "belly": [
+     1.22,
+     1.18
+    ],
+    "hips": [
+     1.18,
+     1.12
+    ],
+    "upperarm": 1.6,
+    "forearm": 1.5,
+    "thigh": 1.45,
+    "shin": 1.38
+   },
+   "paint": [
+    {
+     "groups": [
+      "head"
+     ],
+     "y": [
+      1.705,
+      1.755
+     ],
+     "nz": [
+      -0.2,
+      1.0
+     ],
+     "z": [
+      0.02,
+      0.3
+     ],
+     "rough": 0.95,
+     "mesh": [
+      "body"
+     ],
+     "color": "#9a6a4c"
+    }
+   ],
+   "hide": [
+    {
+     "groups": [
+      "forearm",
+      "hand"
+     ],
+     "mesh": [
+      "suit"
+     ]
+    }
+   ],
+   "shells": [
+    {
+     "groups": [
+      "hips",
+      "thigh",
+      "belly"
+     ],
+     "y": [
+      0.74,
+      1.06
+     ],
+     "offset": 0.012,
+     "puff": {
+      "thigh": 1.12,
+      "hips": [
+       1.03,
+       1.03
+      ]
+     },
+     "hide_under": true,
+     "rough": 0.35,
+     "tex": "none",
+     "color": "#a3161d"
+    },
+    {
+     "groups": [
+      "hips",
+      "belly"
+     ],
+     "y": [
+      1.04,
+      1.16
+     ],
+     "offset": 0.03,
+     "puff": {
+      "hips": [
+       1.05,
+       1.05
+      ],
+      "belly": [
+       1.05,
+       1.05
+      ]
+     },
+     "hide_under": true,
+     "rough": 0.5,
+     "tex": "leather",
+     "color": "#a3161d"
+    },
+    {
+     "groups": [
+      "hand"
+     ],
+     "offset": 0.012,
+     "puff": {
+      "hand": 1.6
+     },
+     "hide_under": true,
+     "rough": 0.45,
+     "tex": "leather",
+     "color": "#6e1016"
+    },
+    {
+     "groups": [
+      "foot",
+      "shin"
+     ],
+     "y": [
+      0.07,
+      0.25
+     ],
+     "offset": 0.008,
+     "puff": {
+      "shin": 1.06,
+      "foot": 1.05
+     },
+     "hide_under": false,
+     "stripes": {
+      "axis": "y",
+      "period": 0.022,
+      "colors": [
+       "#d9c7a0",
+       "#c4b088"
+      ]
+     },
+     "rough": 0.95
+    }
+   ],
+   "parts": [
+    {
+     "bone": "head",
+     "shape": "loft",
+     "rings": [
+      [
+       [
+        0,
+        1.887,
+        0.035
+       ],
+       0.098,
+       0.112
+      ],
+      [
+       [
+        0,
+        1.923,
+        0.035
+       ],
+       0.098,
+       0.112
+      ]
+     ],
+     "side": [
+      1,
+      0,
+      0
+     ],
+     "segs": 18,
+     "caps": false,
+     "double": true,
+     "color": "#a3161d",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.035,
+       1.905,
+       -0.075
+      ],
+      [
+       0.12,
+       1.88,
+       -0.17
+      ],
+      [
+       0.22,
+       1.62,
+       -0.17
+      ]
+     ],
+     "r0": 0.017,
+     "r1": 0.007,
+     "segs": 8,
+     "squash": 0.35,
+     "smooth": true,
+     "steps": 6,
+     "color": "#a3161d",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.025,
+       1.9,
+       -0.08
+      ],
+      [
+       0.08,
+       1.83,
+       -0.18
+      ],
+      [
+       0.14,
+       1.58,
+       -0.17
+      ]
+     ],
+     "r0": 0.015,
+     "r1": 0.006,
+     "segs": 8,
+     "squash": 0.35,
+     "smooth": true,
+     "steps": 6,
+     "color": "#a3161d",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       -0.035,
+       1.905,
+       -0.075
+      ],
+      [
+       -0.12,
+       1.88,
+       -0.17
+      ],
+      [
+       -0.22,
+       1.62,
+       -0.17
+      ]
+     ],
+     "r0": 0.017,
+     "r1": 0.007,
+     "segs": 8,
+     "squash": 0.35,
+     "smooth": true,
+     "steps": 6,
+     "color": "#a3161d",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       -0.025,
+       1.9,
+       -0.08
+      ],
+      [
+       -0.08,
+       1.83,
+       -0.18
+      ],
+      [
+       -0.14,
+       1.58,
+       -0.17
+      ]
+     ],
+     "r0": 0.015,
+     "r1": 0.006,
+     "segs": 8,
+     "squash": 0.35,
+     "smooth": true,
+     "steps": 6,
+     "color": "#a3161d",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "wrist.L",
+     "shape": "sphere",
+     "center": [
+      0.6057,
+      1.172,
+      0.288
+     ],
+     "r": 0.082,
+     "squash": [
+      1.0,
+      1.05,
+      1.15
+     ],
+     "segs": 12,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "color": "#6e1016",
+     "metallic": 0.0,
+     "roughness": 0.45,
+     "tex": "leather",
+     "mirror": true
+    },
+    {
+     "bone": "wrist.L",
+     "shape": "rod",
+     "from": [
+      0.5253,
+      1.2491,
+      0.1732
+     ],
+     "to": [
+      0.568,
+      1.2082,
+      0.2342
+     ],
+     "r0": 0.056,
+     "r1": 0.06,
+     "color": "#e8e4da",
+     "metallic": 0.0,
+     "roughness": 0.7,
+     "mirror": true
+    },
+    {
+     "bone": "spine05",
+     "shape": "extrude",
+     "center": [
+      0,
+      1.095,
+      0.205
+     ],
+     "points2d": [
+      [
+       0.1063,
+       0.0
+      ],
+      [
+       0.1026,
+       0.022
+      ],
+      [
+       0.092,
+       0.0425
+      ],
+      [
+       0.0751,
+       0.0601
+      ],
+      [
+       0.0531,
+       0.0736
+      ],
+      [
+       0.0275,
+       0.0821
+      ],
+      [
+       0.0,
+       0.085
+      ],
+      [
+       -0.0275,
+       0.0821
+      ],
+      [
+       -0.0531,
+       0.0736
+      ],
+      [
+       -0.0751,
+       0.0601
+      ],
+      [
+       -0.092,
+       0.0425
+      ],
+      [
+       -0.1026,
+       0.022
+      ],
+      [
+       -0.1063,
+       0.0
+      ],
+      [
+       -0.1026,
+       -0.022
+      ],
+      [
+       -0.092,
+       -0.0425
+      ],
+      [
+       -0.0751,
+       -0.0601
+      ],
+      [
+       -0.0531,
+       -0.0736
+      ],
+      [
+       -0.0275,
+       -0.0821
+      ],
+      [
+       -0.0,
+       -0.085
+      ],
+      [
+       0.0275,
+       -0.0821
+      ],
+      [
+       0.0531,
+       -0.0736
+      ],
+      [
+       0.0751,
+       -0.0601
+      ],
+      [
+       0.092,
+       -0.0425
+      ],
+      [
+       0.1026,
+       -0.022
+      ]
+     ],
+     "depth": 0.03,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#d4a838",
+     "metallic": 0.85,
+     "roughness": 0.3
+    },
+    {
+     "bone": "spine05",
+     "shape": "extrude",
+     "center": [
+      0,
+      1.095,
+      0.222
+     ],
+     "points2d": [
+      [
+       0.05,
+       0.0
+      ],
+      [
+       0.0476,
+       0.0155
+      ],
+      [
+       0.0405,
+       0.0294
+      ],
+      [
+       0.0294,
+       0.0405
+      ],
+      [
+       0.0155,
+       0.0476
+      ],
+      [
+       0.0,
+       0.05
+      ],
+      [
+       -0.0155,
+       0.0476
+      ],
+      [
+       -0.0294,
+       0.0405
+      ],
+      [
+       -0.0405,
+       0.0294
+      ],
+      [
+       -0.0476,
+       0.0155
+      ],
+      [
+       -0.05,
+       0.0
+      ],
+      [
+       -0.0476,
+       -0.0155
+      ],
+      [
+       -0.0405,
+       -0.0294
+      ],
+      [
+       -0.0294,
+       -0.0405
+      ],
+      [
+       -0.0155,
+       -0.0476
+      ],
+      [
+       -0.0,
+       -0.05
+      ],
+      [
+       0.0155,
+       -0.0476
+      ],
+      [
+       0.0294,
+       -0.0405
+      ],
+      [
+       0.0405,
+       -0.0294
+      ],
+      [
+       0.0476,
+       -0.0155
+      ]
+     ],
+     "depth": 0.012,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#8a1a1a",
+     "metallic": 0.0,
+     "roughness": 0.5
+    },
+    {
+     "bone": "spine05",
+     "shape": "sphere",
+     "center": [
+      0,
+      1.095,
+      0.228
+     ],
+     "r": 0.026,
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "segs": 12,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "color": "#d4a838",
+     "metallic": 0.85,
+     "roughness": 0.3
+    },
+    {
+     "bone": "spine05",
+     "shape": "extrude",
+     "center": [
+      0.109,
+      1.095,
+      0.1556
+     ],
+     "points2d": [
+      [
+       0.032,
+       0.0
+      ],
+      [
+       0.0296,
+       0.0122
+      ],
+      [
+       0.0226,
+       0.0226
+      ],
+      [
+       0.0122,
+       0.0296
+      ],
+      [
+       0.0,
+       0.032
+      ],
+      [
+       -0.0122,
+       0.0296
+      ],
+      [
+       -0.0226,
+       0.0226
+      ],
+      [
+       -0.0296,
+       0.0122
+      ],
+      [
+       -0.032,
+       0.0
+      ],
+      [
+       -0.0296,
+       -0.0122
+      ],
+      [
+       -0.0226,
+       -0.0226
+      ],
+      [
+       -0.0122,
+       -0.0296
+      ],
+      [
+       -0.0,
+       -0.032
+      ],
+      [
+       0.0122,
+       -0.0296
+      ],
+      [
+       0.0226,
+       -0.0226
+      ],
+      [
+       0.0296,
+       -0.0122
+      ]
+     ],
+     "depth": 0.016,
+     "rotation_deg": [
+      0,
+      35,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#d4a838",
+     "metallic": 0.85,
+     "roughness": 0.3,
+     "mirror": true
+    },
+    {
+     "bone": "spine05",
+     "shape": "extrude",
+     "center": [
+      0.1785,
+      1.095,
+      0.065
+     ],
+     "points2d": [
+      [
+       0.032,
+       0.0
+      ],
+      [
+       0.0296,
+       0.0122
+      ],
+      [
+       0.0226,
+       0.0226
+      ],
+      [
+       0.0122,
+       0.0296
+      ],
+      [
+       0.0,
+       0.032
+      ],
+      [
+       -0.0122,
+       0.0296
+      ],
+      [
+       -0.0226,
+       0.0226
+      ],
+      [
+       -0.0296,
+       0.0122
+      ],
+      [
+       -0.032,
+       0.0
+      ],
+      [
+       -0.0296,
+       -0.0122
+      ],
+      [
+       -0.0226,
+       -0.0226
+      ],
+      [
+       -0.0122,
+       -0.0296
+      ],
+      [
+       -0.0,
+       -0.032
+      ],
+      [
+       0.0122,
+       -0.0296
+      ],
+      [
+       0.0226,
+       -0.0226
+      ],
+      [
+       0.0296,
+       -0.0122
+      ]
+     ],
+     "depth": 0.016,
+     "rotation_deg": [
+      0,
+      70,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#d4a838",
+     "metallic": 0.85,
+     "roughness": 0.3,
+     "mirror": true
+    }
+   ]
+  },
+  "sprinter": {
+   "name": "スピードファイター",
+   "ref": "docs/ref/chars/IMG_0395.jpeg",
+   "attack_anim": "Punch",
+   "run_anim": "Sprint",
+   "height": 1.03,
+   "keep": [],
+   "skin": "#d9b08c",
+   "head_scale": 0.95,
+   "bulk": {
+    "neck": 0.95,
+    "chest": [
+     0.95,
+     0.92
+    ],
+    "belly": [
+     0.88,
+     0.88
+    ],
+    "hips": [
+     0.95,
+     0.95
+    ],
+    "upperarm": 0.9,
+    "forearm": 0.92,
+    "thigh": 0.9,
+    "shin": 0.88
+   },
+   "paint": [
+    {
+     "rough": 0.55,
+     "color": "#1c2541"
+    },
+    {
+     "groups": [
+      "head"
+     ],
+     "y": [
+      1.68,
+      1.84
+     ],
+     "z": [
+      0.04,
+      0.3
+     ],
+     "rough": 0.5,
+     "color": "#121a30"
+    },
+    {
+     "groups": [
+      "thigh",
+      "shin"
+     ],
+     "rx_out": [
+      0.93,
+      1.0
+     ],
+     "y": [
+      0.2,
+      1.0
+     ],
+     "emission": 1.4,
+     "tex": "none",
+     "color": "#3fd0ff"
+    },
+    {
+     "groups": [
+      "forearm",
+      "upperarm"
+     ],
+     "ny": [
+      0.55,
+      1.0
+     ],
+     "emission": 1.4,
+     "tex": "none",
+     "color": "#3fd0ff"
+    },
+    {
+     "groups": [
+      "chest",
+      "belly"
+     ],
+     "x_abs": [
+      0.085,
+      0.105
+     ],
+     "nz": [
+      0.3,
+      1.0
+     ],
+     "y": [
+      1.2,
+      1.55
+     ],
+     "emission": 1.4,
+     "tex": "none",
+     "color": "#3fd0ff"
+    },
+    {
+     "groups": [
+      "hips",
+      "belly"
+     ],
+     "x_abs": [
+      0.12,
+      0.15
+     ],
+     "nz": [
+      0.2,
+      1.0
+     ],
+     "y": [
+      1.0,
+      1.14
+     ],
+     "emission": 0.6,
+     "tex": "none",
+     "color": "#e8c547"
+    }
+   ],
+   "shells": [
+    {
+     "groups": [
+      "foot"
+     ],
+     "mesh": [
+      "shoes"
+     ],
+     "offset": 0.012,
+     "puff": {
+      "foot": [
+       1.35,
+       1.2
+      ]
+     },
+     "hide_under": true,
+     "stripes": {
+      "axis": "y",
+      "period": 0.035,
+      "offset": 0.0,
+      "colors": [
+       "#555b66",
+       "#121a30",
+       "#121a30",
+       "#121a30",
+       "#121a30",
+       "#121a30",
+       "#121a30",
+       "#121a30"
+      ]
+     },
+     "rough": 0.6
+    }
+   ],
+   "parts": [
+    {
+     "bone": "head",
+     "shape": "loft",
+     "rings": [
+      [
+       [
+        0,
+        1.835,
+        0.03
+       ],
+       0.098,
+       0.118
+      ],
+      [
+       [
+        0,
+        1.875,
+        0.03
+       ],
+       0.1,
+       0.12
+      ]
+     ],
+     "side": [
+      1,
+      0,
+      0
+     ],
+     "segs": 20,
+     "caps": false,
+     "arc_from": 15,
+     "arc_to": 165,
+     "double": true,
+     "color": "#3fd0ff",
+     "metallic": 0.0,
+     "roughness": 0.2,
+     "emission": 1.6,
+     "tex": "none"
+    },
+    {
+     "bone": "head",
+     "shape": "sphere",
+     "center": [
+      0.097,
+      1.855,
+      0.03
+     ],
+     "r": 0.026,
+     "squash": [
+      0.6,
+      1,
+      1
+     ],
+     "segs": 12,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "color": "#121a30",
+     "metallic": 0.6,
+     "roughness": 0.4,
+     "mirror": true
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.0,
+       1.95,
+       0.06
+      ],
+      [
+       0.0,
+       2.04,
+       0.03
+      ],
+      [
+       0.0,
+       2.09,
+       0.0
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.05,
+       1.94,
+       0.04
+      ],
+      [
+       0.09,
+       2.02,
+       0.005
+      ],
+      [
+       0.13,
+       2.06,
+       -0.03
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       -0.05,
+       1.94,
+       0.04
+      ],
+      [
+       -0.09,
+       2.02,
+       0.005
+      ],
+      [
+       -0.13,
+       2.06,
+       -0.03
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.0,
+       1.95,
+       -0.02
+      ],
+      [
+       0.01,
+       2.035,
+       -0.09
+      ],
+      [
+       0.02,
+       2.08,
+       -0.16
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.06,
+       1.92,
+       -0.04
+      ],
+      [
+       0.11,
+       1.975,
+       -0.095
+      ],
+      [
+       0.16,
+       1.99,
+       -0.15
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       -0.06,
+       1.92,
+       -0.04
+      ],
+      [
+       -0.11,
+       1.975,
+       -0.095
+      ],
+      [
+       -0.16,
+       1.99,
+       -0.15
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.0,
+       1.9,
+       -0.07
+      ],
+      [
+       0.0,
+       1.945,
+       -0.155
+      ],
+      [
+       0.0,
+       1.95,
+       -0.24
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.08,
+       1.9,
+       0.0
+      ],
+      [
+       0.13,
+       1.95,
+       0.02
+      ],
+      [
+       0.18,
+       1.96,
+       0.04
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       -0.08,
+       1.9,
+       0.0
+      ],
+      [
+       -0.13,
+       1.95,
+       0.02
+      ],
+      [
+       -0.18,
+       1.96,
+       0.04
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       0.03,
+       1.96,
+       0.09
+      ],
+      [
+       0.045,
+       2.025,
+       0.12
+      ],
+      [
+       0.06,
+       2.05,
+       0.15
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "tube",
+     "points": [
+      [
+       -0.03,
+       1.96,
+       0.09
+      ],
+      [
+       -0.05,
+       2.02,
+       0.115
+      ],
+      [
+       -0.07,
+       2.04,
+       0.14
+      ]
+     ],
+     "r0": 0.045,
+     "r1": 0.004,
+     "segs": 7,
+     "squash": 1.0,
+     "smooth": true,
+     "steps": 4,
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "head",
+     "shape": "sphere",
+     "center": [
+      0,
+      1.9,
+      0.0
+     ],
+     "r": 0.105,
+     "squash": [
+      1.0,
+      0.8,
+      1.15
+     ],
+     "segs": 12,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "color": "#1d2c6e",
+     "metallic": 0.0,
+     "roughness": 0.6
+    },
+    {
+     "bone": "neck01",
+     "shape": "loft",
+     "rings": [
+      [
+       [
+        0,
+        1.66,
+        0.0
+       ],
+       0.085,
+       0.085
+      ],
+      [
+       [
+        0,
+        1.71,
+        0.01
+       ],
+       0.078,
+       0.08
+      ],
+      [
+       [
+        0,
+        1.75,
+        0.015
+       ],
+       0.07,
+       0.074
+      ]
+     ],
+     "side": [
+      1,
+      0,
+      0
+     ],
+     "segs": 16,
+     "caps": true,
+     "color": "#2b4c9a",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "neck01",
+     "shape": "torus",
+     "center": [
+      0,
+      1.7,
+      0.008
+     ],
+     "R": 0.083,
+     "r": 0.006,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "segs": 16,
+     "color": "#e8c547",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "neck01",
+     "shape": "tube",
+     "points": [
+      [
+       0.03,
+       1.7,
+       -0.07
+      ],
+      [
+       0.25,
+       1.7,
+       -0.2
+      ],
+      [
+       0.55,
+       1.64,
+       -0.22
+      ]
+     ],
+     "r0": 0.035,
+     "r1": 0.03,
+     "segs": 8,
+     "squash": 0.18,
+     "smooth": true,
+     "steps": 8,
+     "color": "#2b4c9a",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "neck01",
+     "shape": "tube",
+     "points": [
+      [
+       0.03,
+       1.712,
+       -0.07
+      ],
+      [
+       0.25,
+       1.712,
+       -0.2
+      ],
+      [
+       0.55,
+       1.652,
+       -0.22
+      ]
+     ],
+     "r0": 0.012,
+     "r1": 0.01,
+     "segs": 6,
+     "squash": 0.2,
+     "smooth": true,
+     "steps": 8,
+     "color": "#e8c547",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "neck01",
+     "shape": "tube",
+     "points": [
+      [
+       0.03,
+       1.7,
+       -0.07
+      ],
+      [
+       0.31,
+       1.65,
+       -0.2
+      ],
+      [
+       0.61,
+       1.59,
+       -0.22
+      ]
+     ],
+     "r0": 0.035,
+     "r1": 0.03,
+     "segs": 8,
+     "squash": 0.18,
+     "smooth": true,
+     "steps": 8,
+     "color": "#2b4c9a",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "neck01",
+     "shape": "tube",
+     "points": [
+      [
+       0.03,
+       1.712,
+       -0.07
+      ],
+      [
+       0.31,
+       1.662,
+       -0.2
+      ],
+      [
+       0.61,
+       1.602,
+       -0.22
+      ]
+     ],
+     "r0": 0.012,
+     "r1": 0.01,
+     "segs": 6,
+     "squash": 0.2,
+     "smooth": true,
+     "steps": 8,
+     "color": "#e8c547",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "upperarm01.L",
+     "shape": "sphere",
+     "center": [
+      0.2718,
+      1.5632,
+      0.0137
+     ],
+     "r": 0.07,
+     "squash": [
+      1.0,
+      0.75,
+      1.0
+     ],
+     "segs": 12,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "color": "#121a30",
+     "metallic": 0.4,
+     "roughness": 0.4,
+     "mirror": true
+    },
+    {
+     "bone": "upperarm01.L",
+     "shape": "extrude",
+     "center": [
+      0.3118,
+      1.5732,
+      0.0137
+     ],
+     "points2d": [
+      [
+       0,
+       0.03
+      ],
+      [
+       0.025,
+       0.01
+      ],
+      [
+       0.018,
+       -0.03
+      ],
+      [
+       -0.018,
+       -0.03
+      ],
+      [
+       -0.025,
+       0.01
+      ]
+     ],
+     "depth": 0.006,
+     "rotation_deg": [
+      0,
+      90,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#3fd0ff",
+     "metallic": 0.0,
+     "roughness": 0.8,
+     "emission": 1.5,
+     "tex": "none",
+     "mirror": true
+    },
+    {
+     "bone": "lowerarm01.L",
+     "shape": "extrude",
+     "center": [
+      0.4937,
+      1.3379,
+      0.0508
+     ],
+     "points2d": [
+      [
+       0,
+       0
+      ],
+      [
+       0.06,
+       -0.01
+      ],
+      [
+       0,
+       -0.03
+      ]
+     ],
+     "depth": 0.008,
+     "rotation_deg": [
+      0,
+      -60,
+      -40
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#121a30",
+     "metallic": 0.5,
+     "roughness": 0.35,
+     "mirror": true
+    },
+    {
+     "bone": "lowerarm01.L",
+     "shape": "extrude",
+     "center": [
+      0.5324,
+      1.3007,
+      0.1061
+     ],
+     "points2d": [
+      [
+       0,
+       0
+      ],
+      [
+       0.06,
+       -0.01
+      ],
+      [
+       0,
+       -0.03
+      ]
+     ],
+     "depth": 0.008,
+     "rotation_deg": [
+      0,
+      -60,
+      -40
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#121a30",
+     "metallic": 0.5,
+     "roughness": 0.35,
+     "mirror": true
+    },
+    {
+     "bone": "wrist.L",
+     "shape": "rod",
+     "from": [
+      0.5329,
+      1.2419,
+      0.1839
+     ],
+     "to": [
+      0.553,
+      1.2226,
+      0.2126
+     ],
+     "r0": 0.04,
+     "r1": 0.041,
+     "color": "#121a30",
+     "metallic": 0.5,
+     "roughness": 0.8,
+     "mirror": true
+    },
+    {
+     "bone": "foot.L",
+     "shape": "box",
+     "center": [
+      0.205,
+      0.1,
+      0.06
+     ],
+     "size": [
+      0.13,
+      0.03,
+      0.06
+     ],
+     "rotation_deg": [
+      -25,
+      0,
+      0
+     ],
+     "color": "#121a30",
+     "metallic": 0.0,
+     "roughness": 0.6,
+     "mirror": true
+    },
+    {
+     "bone": "foot.L",
+     "shape": "box",
+     "center": [
+      0.205,
+      0.075,
+      0.12
+     ],
+     "size": [
+      0.13,
+      0.03,
+      0.06
+     ],
+     "rotation_deg": [
+      -25,
+      0,
+      0
+     ],
+     "color": "#121a30",
+     "metallic": 0.0,
+     "roughness": 0.6,
+     "mirror": true
+    },
+    {
+     "bone": "foot.L",
+     "shape": "sphere",
+     "center": [
+      0.205,
+      0.07,
+      -0.085
+     ],
+     "r": 0.028,
+     "squash": [
+      1.2,
+      0.8,
+      0.6
+     ],
+     "segs": 12,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "color": "#3fd0ff",
+     "metallic": 0.0,
+     "roughness": 0.8,
+     "emission": 1.8,
+     "tex": "none",
+     "mirror": true
+    }
+   ]
+  }
+ }
+}

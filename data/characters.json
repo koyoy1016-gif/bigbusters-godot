@@ -138,16 +138,22 @@
       "archetype": "speed",
       "weapon": "あし・短い刃",
       "note": "足がとても速い。すばやく動いて当てる",
-      "model": "",
+      "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 2.0085,
       "animations": {
         "idle": "Idle",
-        "run": "Run",
+        "run": "Sprint",
         "jump": "Jump",
-        "attack": "Attack",
-        "down": "Death"
+        "attack": "Punch",
+        "down": "Death",
+        "swing": "Punch",
+        "jump_start": "Jump_Start",
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell",
+        "hit": "Hit"
       },
       "skill": "ダッシュ",
       "break_power": 1.0,
@@ -157,7 +163,13 @@
         "attack_power": 12.0,
         "attack_cooldown_sec": 0.25,
         "attack_reach": 2.0
-      }
+      },
+      "look": "sprinter",
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "procedural_anims": true,
+      "anim_oneshot": [
+        "attack"
+      ]
     },
     {
       "id": "brawler",
@@ -167,16 +179,22 @@
       "archetype": "fist",
       "weapon": "こぶし",
       "note": "拳でたたかう近接",
-      "model": "",
+      "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 1.95,
       "animations": {
         "idle": "Idle",
         "run": "Run",
         "jump": "Jump",
-        "attack": "Attack",
-        "down": "Death"
+        "attack": "Punch",
+        "down": "Death",
+        "swing": "Punch",
+        "jump_start": "Jump_Start",
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell",
+        "hit": "Hit"
       },
       "skill": "ダッシュ",
       "break_power": 2.0,
@@ -186,7 +204,13 @@
         "attack_power": 15.0,
         "attack_cooldown_sec": 0.3,
         "attack_reach": 2.0
-      }
+      },
+      "look": "brawler",
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "procedural_anims": true,
+      "anim_oneshot": [
+        "attack"
+      ]
     },
     {
       "id": "gunner",
