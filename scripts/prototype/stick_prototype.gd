@@ -43,6 +43,7 @@ const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const BossRage := preload("res://scripts/combat/boss_rage.gd")
 const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
+const BattleHud := preload("res://scripts/prototype/battle_hud.gd")
 const BattleAttackFx := preload("res://scripts/prototype/battle_attack_fx.gd")
 const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
 const BottleMesh := preload("res://scripts/boss/sake_bottle_mesh.gd")
@@ -76,6 +77,7 @@ var ai := BossAI.new()  ## ボスの攻撃の選び方（重み付きランダ�
 var motion := BossMotion.new()  ## ボスの歩き（位置と向き）
 var phase := BossPhase.new()  ## ボスの体力の2段階（第1形態 → 倒れて覚醒 → 第2形態）
 var rage := BossRage.new()  ## 版69：近くからの攻撃が多い間、ボスが怒る（攻撃が速く、つかみ投げが多くなる）
+var hud := BattleHud.new(self)  ## 画面の描画（battle_hud.gd）
 var attack_fx := BattleAttackFx.new(self)  ## ボスの攻撃の見た目（battle_attack_fx.gd）
 var phase_text := {"text": "", "left": 0.0}  ## 形態が変わったときに、画面に出す文字
 var hazard_nodes: Array = []
@@ -960,23 +962,19 @@ func _ult_slash_fx(pos: Vector3, aim: Vector2, landed: bool, mine: bool) -> void
 			_hitstop(float(hs[0]), float(hs[1]))
 
 
-## 必殺技の名前を、画面の真ん中に出す。who：使った人の表示（空なら出さない）
+## → battle_hud.gd
 func _show_banner(text: String, who: String, seconds: float) -> void:
-	banner = {"text": text, "who": who, "left": seconds, "total": seconds}
+	hud._show_banner(text, who, seconds)
 
 
-## ボタンの中心（画面の割合は data/prototype_stick.json の「<id>_center_frac」。縦長なら「…_portrait」）
+## → battle_hud.gd
 func _button_center(id: String, screen: Vector2) -> Vector2:
-	var f: Array = _layout(id + "_center_frac", screen)
-	return Vector2(screen.x * f[0], screen.y * f[1])
+	return hud._button_center(id, screen)
 
 
-## 触れた場所にある、攻撃ボタンの id。なければ ""
+## → battle_hud.gd
 func _button_at(pos: Vector2, screen: Vector2) -> String:
-	for id in actions.ids():
-		if pos.distance_to(_button_center(str(id), screen)) <= float(config["button_radius_px"]):
-			return str(id)
-	return ""
+	return hud._button_at(pos, screen)
 
 
 func _damage_boss(amount: float) -> void:
@@ -1035,66 +1033,19 @@ func boss_next_attack_in() -> float:
 	return maxf(0.0, ai.next_start - t)
 
 
-## ---- 版75：与えたダメージの数字 ----
-var _dmg_nums: RefCounted = null
-var _dmg_font: FontVariation = null
-
-
+## → battle_hud.gd
 func damage_numbers() -> RefCounted:
-	if _dmg_nums == null:
-		_dmg_nums = DamageNumbers.new(config.get("damage_numbers", {}))
-	return _dmg_nums
+	return hud.damage_numbers()
 
 
-## 実際に与えたダメージ amount を、ボスの体の、当てた人（from：床の上の x, z）の側に出す。action：技の名前（強い技は大きく）
+## → battle_hud.gd
 func _show_damage(amount: float, action: String, from: Vector2) -> void:
-	var dc: Dictionary = config.get("damage_numbers", {})
-	var kind := "strong" if (dc.get("strong_actions", []) as Array).has(action) else "normal"
-	var bxz := Vector2(boss.position.x, boss.position.z)
-	var to := from - bxz
-	var side := to.normalized() * float(config["boss_size"]) * 0.5 * float(dc.get("toward", 0.6)) if to.length() > 0.01 else Vector2.ZERO
-	damage_numbers().add(amount, Vector3(bxz.x + side.x, float(dc.get("height_m", 4.0)), bxz.y + side.y), kind)
+	hud._show_damage(amount, action, from)
 
 
+## → battle_hud.gd
 func _draw_damage_numbers(screen: Vector2) -> void:
-	var dn: RefCounted = damage_numbers()
-	if dn.items.is_empty() or camera == null or font == null or DisplayServer.get_name() == "headless":
-		return  # 画面のないテストでは描かない（数字の中身は damage_numbers() で調べる）
-	var dc: Dictionary = config.get("damage_numbers", {})
-	if _dmg_font == null:
-		_dmg_font = FontVariation.new()
-		_dmg_font.base_font = font
-		_dmg_font.variation_embolden = float(dc.get("embolden", 0.9))  # 太い文字（いまの文字の形を太らせる）
-	var base := float(config["ui_font_size"]) * float(dc.get("size_scale", 1.4))
-	for it in dn.items:
-		var w: Vector3 = it["world"]
-		if camera.is_position_behind(w):
-			continue
-		var kc: Dictionary = dn.kind_cfg(str(it["kind"]))
-		var lk: Dictionary = dn.look(it)
-		var px := maxi(int(dc.get("min_px", 18)), int(base * float(kc.get("size", 1.0)) * float(lk["scale"])))
-		var text := str(it["text"])
-		var sz := _dmg_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px)
-		var p := camera.unproject_position(w) + Vector2(float(it["dx"]) + float(lk["shake"]), float(it["dy"]) - float(lk["rise"]))
-		p = DamageNumbers.keep_on_screen(p, screen, sz * 0.5, float(dc.get("margin_px", 12.0)))
-		var a := float(lk["alpha"])
-		# 強い攻撃：出た瞬間の、短い衝撃線
-		if float(lk["burst"]) > 0.0:
-			var bcol := Color(str(kc.get("burst_color", "#fff3b0")))
-			bcol.a = a * float(lk["burst"])
-			for i in 8:
-				var ang := TAU * i / 8.0 + 0.2
-				var dir := Vector2(cos(ang), sin(ang))
-				var r0 := sz.x * 0.45 + 6.0
-				var r1 := r0 + 26.0 * (1.2 - float(lk["burst"]))
-				overlay.draw_line(p + dir * r0, p + dir * r1, bcol, 4.0)
-		var at := p + Vector2(-sz.x * 0.5, sz.y * 0.32)
-		var oc := Color(str(kc.get("outline", "#2b1606")))
-		oc.a = a
-		var fc := Color(str(kc.get("color", "#fff6c8")))
-		fc.a = a
-		overlay.draw_string_outline(_dmg_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, int(dc.get("outline_px", 9)), oc)
-		overlay.draw_string(_dmg_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, fc)
+	hud._draw_damage_numbers(screen)
 
 
 ## 版69：p（x, z）から、ボスの体の表面までの距離（m。体の中なら 0 以下）
@@ -2061,170 +2012,38 @@ func _other_node(slot: String) -> MeshInstance3D:
 	return others[slot]
 
 
+## → battle_hud.gd
 func _stick_input(pos: Vector2, screen: Vector2) -> Vector2:
-	return StickMath.stick_vector(pos, _stick_center(screen), float(config["stick_radius_px"]), float(config["stick_dead_zone"]))
+	return hud._stick_input(pos, screen)
 
 
-## 縦長の画面か
+## → battle_hud.gd
 static func is_portrait(size: Vector2) -> bool:
-	return size.y > size.x
+	return BattleHud.is_portrait(size)
 
 
-## 配置の値。縦長の画面では、「…_portrait」があればそちらを使う
-func _layout(key: String, screen: Vector2) -> Array:
-	if is_portrait(screen) and config.has(key + "_portrait"):
-		return config[key + "_portrait"]
-	return config[key]
-
-
-## 縦横の向きを合わせる：基準の大きさ（文字・ボタンの大きさの元）、カメラの見え方を切り替える。向きが変わったときだけ動く
+## → battle_hud.gd
 func apply_orientation(window_size: Vector2) -> void:
-	var portrait := is_portrait(window_size)
-	if portrait == portrait_mode:
-		return
-	portrait_mode = portrait
-	var base: Array = config["portrait_base_size"] if portrait else config["landscape_base_size"]
-	var win := get_window()
-	if win != null:
-		win.content_scale_size = Vector2i(int(base[0]), int(base[1]))
-	var off: Array = config["camera_offset_portrait"] if portrait else config["camera_offset"]
-	camera_offset = Vector3(off[0], off[1], off[2])
-	camera.keep_aspect = Camera3D.KEEP_WIDTH if portrait else Camera3D.KEEP_HEIGHT
-	camera.fov = float(config["camera_fov_portrait"]) if portrait else float(config["camera_fov"])
+	hud.apply_orientation(window_size)
 
 
+## → battle_hud.gd
 func _stick_center(screen: Vector2) -> Vector2:
-	var f: Array = _layout("stick_center_frac", screen)
-	return Vector2(screen.x * f[0], screen.y * f[1])
+	return hud._stick_center(screen)
 
 
+## → battle_hud.gd
 func _start_center(screen: Vector2) -> Vector2:
-	var f: Array = _layout("start_center_frac", screen)
-	return Vector2(screen.x * f[0], screen.y * f[1])
+	return hud._start_center(screen)
 
 
-func _draw_centered(center: Vector2, text: String, color: Color, scale: float = 1.0) -> void:
-	var fs := int(float(config["ui_font_size"]) * scale)
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	overlay.draw_string(font, center + Vector2(-w * 0.5, fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, color)
-
-
-## なかまの体力の一覧（この戦いに出ている、自分以外）
-## なかまの名前のあとに付ける、キャラの印（共有されていれば「サポート（いやし）」の形。まだなら空）
-func _char_tag(slot: String) -> String:
-	var def := char_def_of(slot)
-	if def.is_empty():
-		return ""
-	return " " + str(def.get("role", "")) + "（" + str(def.get("name", "")) + "）"
-
-
+## → battle_hud.gd
 func build_team_text() -> String:
-	var fighters := BossSync.others_hp(net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms)
-	var text := ""
-	for slot in fighters:
-		text += "  " + str(slot) + _char_tag(str(slot)) + " " + str(ceili(float(fighters[slot])))
-	for slot in ai_allies:
-		text += "  " + str(slot) + _char_tag(str(slot)) + " " + str(ceili(float(ai_allies[slot]["hp"])))
-	if text == "":
-		return ""
-	return str(config["team_label"]) + text
+	return hud.build_team_text()
 
 
+## → battle_hud.gd
 func _draw_overlay() -> void:
-	var screen := overlay.size
-	var fs := int(config["ui_font_size"])
-	var text_color := Color(str(config["text_color"]))
-	var button_text := Color(str(config["button_text_color"]))
-	var r := float(config["stick_radius_px"])
-	var c := _stick_center(screen)
-	overlay.draw_circle(c, r, Color(str(config["stick_base_color"])))
-	overlay.draw_circle(c + stick_vec * r, r * 0.4, Color(str(config["stick_knob_color"])))
-
-	var br := float(config["button_radius_px"])
-	var held := _me_held()
-	for id in actions.ids():
-		var bc := _button_center(str(id), screen)
-		var color := str(config["button_pressed_color"]) if float(button_flash.get(id, 0.0)) > 0.0 else (str(config["button_cooldown_color"]) if actions.cooldown_left(str(id)) > 0.0 or actions.busy() or held else str(config["button_color"]))
-		var label := str(actions.def(str(id)).get("label", id))
-		var is_ult := str(id) == "ultimate"
-		if is_ult and not held:
-			if gauge.is_ready():
-				var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.012)
-				color = str(config["button_pressed_color"]) if float(button_flash.get(id, 0.0)) > 0.0 else str(config["ultimate_ready_color"])
-				overlay.draw_circle(bc, br + 4.0 + 6.0 * pulse, Color(str(config["ultimate_ring_color"])).darkened(0.1))
-			elif actions.busy():
-				color = str(config["button_cooldown_color"])
-		if held:
-			label = "×"  # 版70：つかまれている間は、どのボタンも効かない
-		overlay.draw_circle(bc, br, Color(color))
-		if is_ult and not gauge.is_ready():
-			overlay.draw_arc(bc, br + 6.0, -PI * 0.5, -PI * 0.5 + TAU * gauge.ratio(), 40, Color(str(config["ultimate_ring_color"])), 7.0)
-		_draw_centered(bc, label, button_text)
-
-	overlay.draw_string(font, Vector2(16, fs * 1.4), (str(config["hint_portrait"]) if is_portrait(screen) else str(config["hint"])) + "   " + str(config["build_label"]) + str(config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var bp: Array = _layout("bossbar_pos", screen)
-	var bs: Array = _layout("bossbar_size", screen)
-	var bar_rect := Rect2(Vector2(screen.x * bp[0], screen.y * bp[1]), Vector2(screen.x * bs[0], maxf(10.0, screen.y * bs[1])))
-	overlay.draw_rect(bar_rect, Color(str(config["bossbar_back_color"])))
-	var frac := boss_hp_ratio()
-	var second := phase.phase != BossPhase.NORMAL
-	overlay.draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * frac, bar_rect.size.y)), Color(str(config["bossbar_color_awake"] if second else config["bossbar_color"])))
-	# 第1形態の間は、右はしに「第2形態がある」ことを示す小さな印
-	if not second:
-		overlay.draw_rect(Rect2(bar_rect.position + Vector2(bar_rect.size.x - 6.0, 0.0), Vector2(6.0, bar_rect.size.y)), Color(str(config["bossbar_color_awake"])))
-	var hp_text := str(config["boss_hp_label_awake"] if second else config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(phase.max_hp()))
-	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + (("（" + str(role()["character_name"]) + "）") if role().has("character_name") else "") + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(ceili(role_value("hp")))
-	if downed:
-		my_text += "  " + str(config["down_text"])
-	overlay.draw_string(font, Vector2(16, fs * 4.4), my_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var team := build_team_text()
-	var next_line := 5.9
-	if team != "":
-		overlay.draw_string(font, Vector2(16, fs * next_line), team, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-		next_line += 1.5
-	overlay.draw_string(font, Vector2(16, fs * next_line), build_room_text(net_state, room_code, net_active, config), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-
-	if _start_button_visible():
-		var sc := _start_center(screen)
-		overlay.draw_circle(sc, float(config["start_radius_px"]), Color(str(config["button_color"])))
-		_draw_centered(sc, str(config["restart_label"]) if round_count > 0 else str(config["start_label"]), button_text)
-	if won or lost:
-		var result := str(config["win_text"]) if won else str(config["lose_text"])
-		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.22), result, text_color, 2.0)
-		var lines := build_result_lines()
-		for i in lines.size():
-			_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.22 + fs * (2.2 + 1.5 * i)), str(lines[i]), text_color)
-	if is_enraged() and int(Time.get_ticks_msec() / 400) % 2 == 0:
-		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.12), str(config["enrage_text"]), Color(str(config["enrage_color"])), 1.4)
-	if float(phase_text["left"]) > 0.0 and str(phase_text["text"]) != "":
-		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(phase_text["text"]), Color(str(config.get("bossbar_color_awake", "#ffffff"))), 1.8)
-	_draw_damage_numbers(screen)
-	_draw_banner(screen)
+	hud._draw_overlay()
 
 
-## 必殺技の名前（使った瞬間にはね上がり、少しあとに消える）
-func _draw_banner(screen: Vector2) -> void:
-	var left := float(banner["left"])
-	if left <= 0.0:
-		return
-	var total := maxf(0.01, float(banner["total"]))
-	var age := total - left
-	var pop := 1.0 + 0.6 * maxf(0.0, 1.0 - age / 0.25)
-	var alpha := clampf(left / 0.4, 0.0, 1.0)
-	var center := Vector2(screen.x * 0.5, screen.y * (float(config["banner_y_portrait"]) if is_portrait(screen) else float(config["banner_y"])))
-	var fs := int(float(config["ui_font_size"]) * 2.4 * pop)
-	var text := str(banner["text"])
-	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
-	var back := Color(str(config["banner_back_color"]))
-	back.a *= alpha
-	overlay.draw_rect(Rect2(Vector2(0.0, center.y - fs * 0.9), Vector2(screen.x, fs * 1.8)), back)
-	var col := Color(str(config["banner_color"]))
-	col.a = alpha
-	overlay.draw_string(font, center + Vector2(-w * 0.5 + 3.0, fs * 0.35 + 3.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, alpha))
-	overlay.draw_string(font, center + Vector2(-w * 0.5, fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
-	var who := str(banner["who"])
-	if who != "":
-		var fs2 := int(float(config["ui_font_size"]) * 0.9)
-		var w2 := font.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
-		overlay.draw_string(font, center + Vector2(-w2 * 0.5, fs * 0.95 + fs2 * 0.4), who, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(1, 1, 1, alpha))
