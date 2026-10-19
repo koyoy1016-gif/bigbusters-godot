@@ -154,7 +154,7 @@ func _initialize() -> void:
 		var d: Dictionary = acts[id]
 		check(str(d["name"]) == rows[id] and doc.contains(rows[id]), "一覧に「%s」がある（データの名前と同じ）" % rows[id])
 		var hits: Array = d["hits"]
-		var per := Damage_amount(power, float((hits[0] as Dictionary)["multiplier"]))
+		var per := Damage_amount(power, float((hits[0] as Dictionary)["multiplier"]) * (float(hero.get("ultimate_scale", 1.0)) if id == "ultimate" else 1.0))
 		var line := ""
 		for l in doc.split("\n"):
 			if l.contains(rows[id]) and l.begins_with("|"):

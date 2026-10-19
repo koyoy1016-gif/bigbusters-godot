@@ -108,7 +108,7 @@ func _initialize() -> void:
 	check(announced == "切り捨て御免", "CPUも、ゲージがたまれば必殺技を使い、技名が出る")
 	check((a["gauge"] as Gauge).value < float(cfg["ultimate_gauge"]["max"]), "CPUのゲージは、使うと減る")
 	var one := float(hero["stats"]["attack_power"]) * float(acfg["damage_scale"])
-	check(total >= one * 20.0, "CPUの必殺技も、大きなダメージ（%.0f）" % total)
+	check(total >= one * 15.0, "CPUの必殺技も、大きなダメージ（版74：剣士は0.7倍で、ふつうの1回の約15倍。%.0f）" % total)
 	# CPUは、必殺技の名前を、使った瞬間の1コマだけ出す
 	var b := Ai.make(hero, 1, Vector2(0, -2.0))
 	(b["gauge"] as Gauge).charge(99999.0)

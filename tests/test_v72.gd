@@ -135,7 +135,7 @@ func _initialize() -> void:
 		if hit_dmg == 0.0 and tt < 0.6:
 			before_hit_dmg += got
 	check(before_hit_dmg == 0.0, "構え・ための間は、ダメージは入らない")
-	check(is_equal_approx(hit_dmg, 22.5 * 22.0), "斬り捨てで、一撃 495 ダメージ（%.1f）" % hit_dmg)
+	check(is_equal_approx(hit_dmg, 22.5 * 22.0 * 0.7), "斬り捨てで、一撃 346.5 ダメージ（版74で0.7倍。%.1f）" % hit_dmg)
 	var end_p := Vector2(s.player.position.x, s.player.position.z)
 	var start_p := Vector2(bp.x, bp.z + 9.0)
 	check(start_p.distance_to(end_p) > 9.0, "ボスがいても止まらず、約10m 駆けぬける（%.1f m）" % start_p.distance_to(end_p))
@@ -179,7 +179,7 @@ func _initialize() -> void:
 	while s.actions.busy():
 		s._actions_update(0.02)
 		Engine.time_scale = 1.0
-	check(is_equal_approx(s.my_hits - h0, 495.0), "ボスがすぐそばでも、駆けぬけながら当たる")
+	check(is_equal_approx(s.my_hits - h0, 346.5), "ボスがすぐそばでも、駆けぬけながら当たる")
 	# 遠すぎると当たらない（斬撃は出る）
 	s.actions.reset()
 	s.ult_fx_log.clear()

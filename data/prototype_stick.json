@@ -119,7 +119,10 @@
       "move_speed": 7.0,
       "attack_power": 22.5,
       "attack_cooldown_sec": 0.35,
-      "hp_note": "版70：剣士（忍者風の剣士・ファイター）の体力 288.75→190（ユーザーの指示）。攻撃力は版68の 22.5 のまま。版68：262.5→288.75、18→22.5"
+      "hp_note": "版70：剣士（忍者風の剣士・ファイター）の体力 288.75→190（ユーザーの指示）。攻撃力は版68の 22.5 のまま。版68：262.5→288.75、18→22.5",
+      "gauge_rate": 1.3,
+      "ultimate_scale": 0.7,
+      "gauge_note": "版74：剣士だけ。gauge_rate：必殺ゲージのたまる速さの倍率（1.3＝30%速い）。ultimate_scale：必殺技のダメージの倍率（0.7＝30%減）。ほかのキャラは書かない（1倍）"
     },
     "p2": {
       "name": "ガーディアン",
@@ -164,7 +167,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "73",
+  "build_id": "74",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {

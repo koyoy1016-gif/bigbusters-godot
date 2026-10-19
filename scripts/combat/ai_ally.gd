@@ -373,10 +373,11 @@ static func _resolve_hit(a: Dictionary, ev: Dictionary, ctx: Dictionary) -> floa
 			return 0.0
 	elif (ctx["boss"] as Vector2).distance_to(pos) > reach:
 		return 0.0
-	var dmg := Damage.damage_amount(float(st.get("attack_power", 10.0)), float(ctx["attack_multiplier"]) * float(ev["multiplier"]) * float(cfg["damage_scale"]))
+	var ult_scale := float(st.get("ultimate_scale", 1.0)) if str(ev.get("action", "")) == "ultimate" else 1.0  # 版74：剣士の必殺技は0.7倍
+	var dmg := Damage.damage_amount(float(st.get("attack_power", 10.0)), float(ctx["attack_multiplier"]) * float(ev["multiplier"]) * float(cfg["damage_scale"]) * ult_scale)
 	a["hits"] = float(a["hits"]) + dmg
 	a["hit_n"] = int(a.get("hit_n", 0)) + 1  # 版69：当たった回数（ボスの怒りを数える）
-	(a["gauge"] as Gauge).charge(dmg)
+	(a["gauge"] as Gauge).charge(dmg * float(st.get("gauge_rate", 1.0)))  # 版74：剣士だけ30%速くたまる
 	return dmg
 
 

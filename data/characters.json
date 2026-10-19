@@ -75,7 +75,9 @@
         "move_speed": 7.0,
         "attack_power": 22.5,
         "attack_cooldown_sec": 0.35,
-        "attack_reach": 2.0
+        "attack_reach": 2.0,
+        "gauge_rate": 1.3,
+        "ultimate_scale": 0.7
       },
       "anim_library": "res://assets/anims/hero_ual.res",
       "anim_speeds": {

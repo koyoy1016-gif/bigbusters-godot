@@ -862,7 +862,9 @@ func _on_action_mark(mark: String) -> void:
 
 ## 攻撃が当たったか調べて、ダメージを与える。当たりの範囲は hit_area.gd、ダメージは damage.gd
 func _resolve_hit(ev: Dictionary) -> void:
-	var dmg := Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]) * float(ev["multiplier"]))
+	# 版74：必殺技は、キャラの ultimate_scale 倍（剣士は0.7＝30%減。書いていなければ1倍）
+	var ult_scale := float(role().get("ultimate_scale", 1.0)) if str(ev.get("action", "")) == "ultimate" else 1.0
+	var dmg := Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]) * float(ev["multiplier"]) * ult_scale)
 	var reach := HitArea.reach_of(role_value("attack_reach"), float(ev["radius_scale"]))
 	_play_sfx("slash")
 	var hit_boss := boss.visible and HitArea.hits(player.position, boss.position, reach, float(config["boss_size"]) * 0.5)
@@ -971,7 +973,7 @@ func _button_at(pos: Vector2, screen: Vector2) -> String:
 
 
 func _damage_boss(amount: float) -> void:
-	gauge.charge(amount)
+	gauge.charge(amount * float(role().get("gauge_rate", 1.0)))  # 版74：剣士だけ、ゲージが30%速くたまる
 	my_hits += amount
 	_recompute_boss_hp()
 	if net_active:
