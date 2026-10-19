@@ -1747,6 +1747,10 @@ func _show_hazards(hz: Array) -> void:
 			# 燃えている所：炎は _update_fires。当たり場所の面は出さない（炎が見えるので）
 			n.visible = false
 			continue
+		if style == "spin_bat":
+			# 回転バット移動（版61）：予告なし。回るバットそのものが見えるので、床の面も出さない
+			n.visible = false
+			continue
 		if style == "hand" and active:
 			n.visible = false
 			continue

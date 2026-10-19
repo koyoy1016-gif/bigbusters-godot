@@ -206,6 +206,16 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 			var ct9 := BossAnim.remap(u, [[0.0, 0.0], [w9 - 0.15, 0.25, "linear"], [w9 + 0.1, float(mv.get("sword_hit", 0.47))], [w9 + 0.4, 0.62], [catch - 0.2, 0.62], [catch, 0.45], [dur, 0.0]])
 			var tw9 := BossAnim.remap(u, [[0.0, 0.0], [w9 - 0.15, 30.0, "linear"], [w9 + 0.1, -20.0], [catch, 0.0]])
 			return {"pose": an.sample("Sword_Attack", ct9), "weight": _fade(u, dur), "deltas": {"spine02": BossAnim.yaw(tw9), "spine05": BossAnim.lean(BossAnim.remap(u, [[0.0, 0.0], [w9 - 0.15, -10.0], [w9 + 0.1, 15.0], [catch, 5.0], [dur, 0.0]]))}}
+		Attacks.SPIN_BAT:
+			# 回転バット移動（版61）：腕を横にのばしてバットを持ったまま（ため）→ 体ごと回りながら前へ（体の回りは、道の計算から）→ 止まって、腕を下ろす
+			# 腕の形は回転斬りと同じ（バットの先が当たりの丸 radius のふちを回る）
+			var w11 := float(k["windup_sec"])
+			var run_end11 := w11 + float(k["run_sec"])
+			var arm_out11 := float(mv.get("sword_arm_out", 0.4))
+			var ct11 := BossAnim.remap(u, [[0.0, 0.0], [w11 * 0.7, arm_out11], [run_end11, arm_out11], [dur, 0.0]])
+			var lean11 := 10.0 * smoothstep(0.0, w11, u) * (1.0 - smoothstep(run_end11, run_end11 + 0.4, u))
+			return {"pose": an.sample("Sword_Attack", ct11), "weight": _fade(u, dur),
+				"deltas": {"spine05": BossAnim.roll(-lean11), "upperarm01.R": BossAnim.raise_side("R", 25.0 * smoothstep(0.0, w11, u) * (1.0 - smoothstep(run_end11, dur, u)))}}
 		Attacks.SPIN_CHARGE:
 			# 回転突進：しゃがんでバットを横へ（ため）→ 回りながら走る（体の回りは、道の計算から）→ 止まって、ふらふら（すき）
 			var w10 := float(k["windup_sec"])
@@ -220,8 +230,8 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 			var sway := sin((u - run_end) * 7.0)
 			return {"pose": base, "weight": _fade(u, dur), "deltas": {"spine05": BossAnim.roll(14.0 * sway * dz) * BossAnim.lean(10.0 * dz), "head": BossAnim.roll(-18.0 * sway * dz),
 				"upperarm01.L": BossAnim.raise_side("L", 25.0 * dz), "upperarm01.R": BossAnim.raise_side("R", 25.0 * dz)}}
-		Attacks.JUMP_SLAM:
-			# ジャンプ落下：しゃがむ（ため）→ 跳ぶ（ひざを曲げて、バットを頭の上へ）→ 落ちる → 着地でしゃがみこむ（すき）→ 立ち上がる
+		Attacks.JUMP_SLAM, Attacks.JUMP_MOVE:
+			# ジャンプ落下（と、版61の移動ジャンプ落下。動きは同じで、空中の移動の長さがちがう）：しゃがむ（ため）→ 跳ぶ（ひざを曲げて、バットを頭の上へ）→ 落ちる → 着地でしゃがみこむ（すき）→ 立ち上がる
 			var cr := float(k["crouch_sec"])
 			var land := cr + float(k["air_sec"])
 			if u < cr:

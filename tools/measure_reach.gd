@@ -14,7 +14,7 @@ func _initialize() -> void:
 	m.build(BM.load_config(), StandardMaterial3D.new())
 	var cfg := Attacks.load_config()
 	var kinds: Dictionary = cfg["kinds"]
-	for kind in ["bat_h", "bat_v", "bat_spin", "walk_swing"]:
+	for kind in ["bat_h", "bat_v", "bat_spin", "walk_swing", "spin_bat"]:
 		var k: Dictionary = kinds[kind]
 		var ranges := _hit_ranges(kind, k)
 		var rmax := 0.0
@@ -68,6 +68,8 @@ func _hit_ranges(kind: String, k: Dictionary) -> Array:
 			return [[float(k["windup_sec"]), float(k["windup_sec"]) + float(k["hit_sec"])]]
 		"bat_spin":
 			return [[float(k["windup_sec"]) + 0.1, float(k["duration"]) - float(k["recover_sec"])]]
+		"spin_bat":
+			return [[float(k["windup_sec"]), float(k["windup_sec"]) + float(k["run_sec"])]]
 		"walk_swing":
 			var out: Array = []
 			for i in int(k["swings"]):

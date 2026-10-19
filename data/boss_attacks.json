@@ -420,6 +420,36 @@
         "strong": true
       }
     },
+    "spin_bat": {
+      "_memo": "版61 回転バット移動「ぶんまわし行進」：腕を横にのばしてバットを持ち、体ごとぐるぐる回りながら、ねらう人のほうへまっすぐ進む。予告なし。当たり（バットの先までの丸）は回っている間だけ。同じ人に当たるのは tick_sec ごと・最大 max_ticks 回。回転突進（曲がって走る・予告あり・はね飛ばし）とは別。時間は attack_speed で割る前の値",
+      "duration": 6.3,
+      "windup_sec": 0.9,
+      "run_sec": 4.2,
+      "tick_sec": 0.75,
+      "max_ticks": 3,
+      "speed": 2.0,
+      "spin_deg_per_sec": 360.0,
+      "radius": 7.6,
+      "power": 9.0,
+      "jumpable": true,
+      "stop_dist": 7.0,
+      "chase_sec": 0.5,
+      "knockback": "kb_heavy",
+      "kb_mode": "sweep",
+      "ai": {
+        "forms": {
+          "normal": 1.0,
+          "awake": 1.2
+        },
+        "range": [
+          3.0,
+          14.0
+        ],
+        "cooldown_sec": 8.0,
+        "strong": true
+      },
+      "radius_note": "バットの先までの長さ（tools/measure_reach.gd で 7.63 m）"
+    },
     "jump_slam": {
       "_memo": "ジャンプ落下「ドスン落とし」：しゃがんで、高く跳び、ねらった所へ落ちる（直撃）。落ちたあと、衝撃の輪が外へ広がる（輪はジャンプでよけられる）。着地のあとは、すき",
       "duration": 4.4,
@@ -448,6 +478,36 @@
           18.0
         ],
         "cooldown_sec": 8.0,
+        "strong": true
+      }
+    },
+    "jump_move": {
+      "_memo": "版61 移動ジャンプ落下「とびかかり」：しゃがんで、空中を移動して、はなれた所へ落ちる（直撃だけ。衝撃波は出さない）。着地点は、ねらう人のまわりで毎回少し変わる。着地のあと、すき。時間は attack_speed で割る前の値",
+      "duration": 3.6,
+      "crouch_sec": 0.75,
+      "air_sec": 1.2,
+      "hit_sec": 0.2,
+      "radius": 3.2,
+      "power": 18.0,
+      "jumpable": false,
+      "height": 6.0,
+      "max_jump": 10.0,
+      "min_jump": 4.0,
+      "land_jitter": 2.5,
+      "stop_dist": 8.0,
+      "chase_sec": 0.3,
+      "knockback": "kb_slam",
+      "kb_mode": "radial",
+      "ai": {
+        "forms": {
+          "normal": 0.8,
+          "awake": 1.5
+        },
+        "range": [
+          4.0,
+          16.0
+        ],
+        "cooldown_sec": 7.0,
         "strong": true
       }
     },
