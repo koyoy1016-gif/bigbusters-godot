@@ -5,6 +5,7 @@ extends Node3D
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const StyleFx := preload("res://scripts/characters/style_fx.gd")
 const ProceduralAnims := preload("res://scripts/characters/procedural_anims.gd")
+const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
 const ATTACHMENTS_PATH := "res://data/attachments.json"
 
 var character: Dictionary = {}
@@ -34,7 +35,47 @@ func setup(def: Dictionary) -> bool:
 		player = ProceduralAnims.build_player(model, ProceduralAnims.load_config())
 	fix_materials(model, def)
 	attach_items(model, def.get("attachments", []))
+	bake_items(model)
 	return true
+
+
+## 骨に付けた小物（Item_*）を、骨の動きについていく1つの形（スキン）にまとめて、描く回数を減らす。
+## 小物ごとの部品（数十こ）が、材質の種類の数（2〜3回）で描ける。まとめた形を返す（小物がなければ null）
+static func bake_items(model: Node) -> MeshInstance3D:
+	var found := model.find_children("*", "Skeleton3D", true, false)
+	if found.is_empty():
+		return null
+	var sk := found[0] as Skeleton3D
+	var holders := sk.find_children("Item_*", "BoneAttachment3D", false, false)
+	if holders.is_empty():
+		return null
+	var skin := Skin.new()
+	var bind_of := {}
+	var parts: Array = []
+	for h in holders:
+		var holder := h as BoneAttachment3D
+		var bi := sk.find_bone(holder.bone_name)
+		if bi < 0:
+			continue
+		var rest := _global_rest(sk, bi)
+		if not bind_of.has(bi):
+			bind_of[bi] = skin.get_bind_count()
+			skin.add_named_bind(holder.bone_name, rest.affine_inverse())
+		for p in MeshMerge.collect(holder):
+			parts.append({"mesh": p["mesh"], "xf": rest * (p["xf"] as Transform3D), "bone": bind_of[bi]})
+	var mesh := MeshMerge.merge_parts(parts, [], {})
+	if mesh == null:
+		return null
+	for h in holders:
+		sk.remove_child(h)
+		h.free()
+	var mi := MeshInstance3D.new()
+	mi.name = "Items"
+	mi.mesh = mesh
+	sk.add_child(mi)
+	mi.skin = skin
+	mi.skeleton = mi.get_path_to(sk)
+	return mi
 
 
 ## data/attachments.json の小物（剣・ベルトなど）を、骨に付ける。付けた数を返す

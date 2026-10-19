@@ -208,15 +208,19 @@ func _initialize() -> void:
 				body_ok = mt.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED
 	check(hair_ok and body_ok, "髪は切り抜き、体は不透明に直っている")
 	check(tris > 1000 and tris <= int(float(cfg["budgets"]["ally"]) * 2.4), "面の数が予算の2.4倍以内（いまは約33,000＝体＋小物。あとで減らすか、予算を上げる）：" + str(tris))
-	# 小物（長い刀・袴・鎧・結び髪など）：骨に付く
-	var items := rv.model.find_children("Item_*", "BoneAttachment3D", true, false)
+	# 小物（長い刀・袴・鎧・結び髪など）：骨に付く。setup では、付けたあと1つの形にまとめる（tests/test_mesh_merge.gd）ので、
+	# 付ける手順そのものは、まとめる前のモデルで確かめる
+	var raw: Node = (load(str(hero["model"])) as PackedScene).instantiate()
+	root.add_child(raw)
+	CharacterView.attach_items(raw, hero.get("attachments", []))
+	var items := raw.find_children("Item_*", "BoneAttachment3D", true, false)
 	check(items.size() == 31, "刀と、侍の装備（31こ）が骨に付いている：" + str(items.size()))
-	var sword := rv.model.find_child("Item_katana_long", true, false) as BoneAttachment3D
+	var sword := raw.find_child("Item_katana_long", true, false) as BoneAttachment3D
 	check(sword != null and sword.bone_name == "wrist.R", "刀は右手首の骨に付く")
 	check(sword != null and sword.get_child(0).get_child_count() == 5, "刀は5つの部品（つか・柄巻き×2・つば・刃）")
-	var kote := rv.model.find_child("Item_sam_kote_L", true, false) as BoneAttachment3D
+	var kote := raw.find_child("Item_sam_kote_L", true, false) as BoneAttachment3D
 	check(kote != null and kote.bone_name == "lowerarm01.L" and kote.get_child_count() == 2, "籠手は、前腕の骨に付く")
-	var tail := rv.model.find_child("Item_sam_ponytail", true, false) as BoneAttachment3D
+	var tail := raw.find_child("Item_sam_ponytail", true, false) as BoneAttachment3D
 	check(tail != null and tail.bone_name == "head", "結び髪は、頭の骨に付く")
 	var none := CharacterView.attach_items(rv.model, ["no_such_item"])
 	check(none == 0, "知らない小物の id は、何も付けない")
@@ -224,6 +228,7 @@ func _initialize() -> void:
 	check(bad_bone == 0, "骨がなければ、付けない")
 	check(CharacterView.attach_items(rv.model, []) == 0, "小物の指定が空なら、何もしない")
 	rv.queue_free()
+	raw.queue_free()
 
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(model_path))
 	print("失敗: ", failures)

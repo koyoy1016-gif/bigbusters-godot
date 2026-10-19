@@ -50,5 +50,16 @@ static func apply(name_text: String, cfg: Dictionary, viewport: Viewport, lights
 	for l in lights:
 		if l is Light3D:
 			l.shadow_enabled = bool(p["shadow"])
+		if l is DirectionalLight3D:
+			# 影は1段（1回）で描くと軽い。段を増やすと、そのぶん体を何回も描く
+			var dl := l as DirectionalLight3D
+			match int(p.get("shadow_splits", 1)):
+				2:
+					dl.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+				4:
+					dl.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+				_:
+					dl.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+			dl.directional_shadow_max_distance = float(p.get("shadow_distance", 45.0))
 	Engine.max_fps = int(p["max_fps"])
 	return p

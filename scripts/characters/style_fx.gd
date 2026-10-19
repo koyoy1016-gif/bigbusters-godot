@@ -82,6 +82,12 @@ static func set_outline(root: Node, on: bool) -> int:
 static func _walk(node: Node) -> int:
 	var n := 0
 	var cfg := config()
+	if node is MultiMeshInstance3D and _styled(node):
+		# まとめて描く物（ボスの腕・しっぽなど）は、材質の上書きに線をつける
+		var om := (node as MultiMeshInstance3D).material_override
+		if om is StandardMaterial3D:
+			apply_outline(om, float(cfg.get("outline_width_boss", 0.05)) if _in_boss(node) else float(cfg.get("outline_width", 0.014)))
+			n += 1
 	if node is MeshInstance3D and _styled(node):
 		var mi := node as MeshInstance3D
 		if mi.mesh != null:

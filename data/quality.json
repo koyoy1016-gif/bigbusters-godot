@@ -11,7 +11,9 @@
    "shadow": false,
    "max_fps": 30,
    "scale_3d": 0.8,
-   "outline": false
+   "outline": false,
+   "shadow_splits": 1,
+   "shadow_distance": 45.0
   },
   "high": {
    "label": "たかい",
@@ -19,7 +21,16 @@
    "shadow": true,
    "max_fps": 60,
    "scale_3d": 1.0,
-   "outline": true
+   "outline": true,
+   "shadow_splits": 1,
+   "shadow_distance": 45.0
   }
+ },
+ "_memo": "画質のプリセット。shadow_splits：影を何段に分けて描くか（1が一番軽い）。shadow_distance：影を出す距離（メートル。戦いの場が入る広さ）",
+ "draw_budget": {
+  "_memo": "1体を描く回数（面の数）の上限。増えすぎるとスマホで重くなる。tests/test_mesh_merge.gd が確かめる",
+  "boss": 24,
+  "boss_awake": 45,
+  "hero": 14
  }
 }

@@ -5,9 +5,12 @@ extends Node3D
 ## 大きな腕（L, R）は、手の先の位置（モデルの座標）に合わせて、いくつもの節をなめらかにつないだ曲線で伸び縮みする（攻撃の動きが使う）。
 ## 小さな腕（L2, R2, L3, R3, L4, R4）は、ふだんはゆらゆら動く飾り（覚醒の手は、あとで攻撃にも使う）。
 ## 色は材質を共有し、ダメージのときの白い点滅は set_flash で、すべての材質に出す。
+## 軽くするため、組み終わったら動かない部品を親ごとに1つの形にまとめる（_bake。色は頂点の色）。腕の節としっぽは MultiMesh（まとめて1回で描く）。
+## 指は「開いた手」と「にぎった手」を前もってまとめておき、set_curl で切り替える。
 ## モデルの原点は、足もとの床（高さ0）。向きは +Z が前（プレイヤー側）。
 
 const StyleFx := preload("res://scripts/characters/style_fx.gd")
+const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
 const BigArmSegments := 10
 const SmallArmSegments := 5
 const BIG := ["L", "R"]
@@ -45,6 +48,16 @@ var tail_nodes: Array = []
 var held_items := {}
 var head: Node3D
 var _clock := 0.0
+var merge_cache := {}  ## まとめた形の材質（頂点の色で描く）
+var arm_mm: MultiMeshInstance3D  ## 腕の節（全部の腕を1つで描く）
+var arm_seg_sleeve: Array = []  ## 節の番号 → そで（true）か肌（false）か
+var arm_visible := {}
+var sleeve_color := Color.WHITE
+var tail_mm: MultiMeshInstance3D
+var tail_scales: Array = []
+var hand_open := {}
+var hand_fist := {}
+var _band: Node3D
 
 
 static func load_config(path: String = "res://data/boss_model.json") -> Dictionary:
@@ -71,6 +84,7 @@ func build(config: Dictionary, skin_material: StandardMaterial3D) -> void:
 	_build_tail()
 	_build_arms()
 	_attach_props()
+	_bake()
 	_apply_form("normal")
 	pose_idle(0.0)
 
@@ -193,20 +207,33 @@ func _build_head() -> void:
 		_put(head, _cyl(0.04, 0.0, 0.16, 5), tooth, Vector3(tx, -0.2 if k % 2 == 0 else -0.35, 0.58), Vector3(180.0 if k % 2 == 1 else 0.0, 0.0, 0.0))
 	# はちまき（覚醒のときだけ）
 	var band := _mat(Color("#f2efe6"))
-	var hb := _put(head, _cyl(0.64, 0.64, 0.16, 16), band, Vector3(0.0, 0.3, 0.0))
-	_put(head, _cyl(0.1, 0.1, 0.03, 12), _mat(Color("#c0203a")), Vector3(0.0, 0.3, 0.64), Vector3(90.0, 0.0, 0.0))
-	awake_nodes.append(hb)
-	awake_nodes.append(head.get_child(head.get_child_count() - 1))
+	_band = Node3D.new()
+	_band.name = "Band"
+	head.add_child(_band)
+	_put(_band, _cyl(0.64, 0.64, 0.16, 16), band, Vector3(0.0, 0.3, 0.0))
+	_put(_band, _cyl(0.1, 0.1, 0.03, 12), _mat(Color("#c0203a")), Vector3(0.0, 0.3, 0.64), Vector3(90.0, 0.0, 0.0))
+	awake_nodes.append(_band)
 
 
 func _build_tail() -> void:
 	var tail_mat := _mat(Color(str(cfg["tail_color"])))
-	var tuft := _mat(Color(str(cfg["hair_color"])))
+	var tuft := Color(str(cfg["hair_color"]))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = _sphere(1.0, 8, 5)
+	mm.instance_count = 9
 	for i in 9:
 		var k := float(i) / 8.0
-		var node := _put(self, _sphere(0.26 * (1.0 - 0.6 * k), 8, 5), tail_mat if i < 8 else tuft, Vector3(0.0, 1.6, -0.6))
-		tail_nodes.append(node)
-	(tail_nodes[8] as Node3D).scale = Vector3(1.6, 1.6, 2.4)
+		var r := 0.26 * (1.0 - 0.6 * k)
+		tail_scales.append(Vector3(r, r, r) * (Vector3(1.6, 1.6, 2.4) if i == 8 else Vector3.ONE))
+		mm.set_instance_color(i, tail_mat.albedo_color if i < 8 else tuft)
+		tail_nodes.append(i)
+	tail_mm = MultiMeshInstance3D.new()
+	tail_mm.name = "Tail"
+	tail_mm.multimesh = mm
+	tail_mm.material_override = MeshMerge.vc_material(tail_mat, merge_cache)
+	add_child(tail_mm)
 	_update_tail(0.0)
 
 
@@ -216,7 +243,7 @@ func _update_tail(clock: float) -> void:
 		var k := float(i) / float(tail_nodes.size() - 1)
 		var sway := sin(clock * 1.6 - k * 2.4) * 0.5 * k
 		var p := base + Vector3(sway, -0.55 * k * (1.0 + 0.4 * k) + 0.45 * sin(k * PI) * (1.0 - crouch), -1.4 * k * (1.0 + 0.3 * k))
-		(tail_nodes[i] as Node3D).position = p
+		tail_mm.multimesh.set_instance_transform(i, Transform3D(Basis.from_scale(tail_scales[i]), p))
 
 
 # ---- 腕 ----
@@ -247,20 +274,16 @@ func _build_arms() -> void:
 		var big := BIG.has(id)
 		var n := BigArmSegments if big else SmallArmSegments
 		arm_nodes[id] = []
+		arm_visible[id] = true
 		for i in n:
-			var seg := MeshInstance3D.new()
-			var sm := CylinderMesh.new()
-			sm.radial_segments = 10 if big else 7
-			sm.rings = 1
-			sm.material = sleeve if (big and i < 2) else skin
-			seg.mesh = sm
-			add_child(seg)
-			(arm_nodes[id] as Array).append(seg)
+			(arm_nodes[id] as Array).append(arm_seg_sleeve.size())
+			arm_seg_sleeve.append(big and i < 2)
 		var hand := Node3D.new()
 		add_child(hand)
 		hand_nodes[id] = hand
 		var hr := float(cfg["hand_radius"]) * (1.0 if big else 0.7)
 		var palm := _put(hand, _sphere(hr, 10, 6), skin, Vector3.ZERO, Vector3.ZERO, Vector3(1.0, 1.0, 0.55))
+		palm.set_meta("finger", true)
 		finger_pivots[id] = []
 		var claw := _mat(Color(str(cfg["horn_color"])), 0.4)
 		for k in (5 if big else 3):
@@ -271,6 +294,7 @@ func _build_arms() -> void:
 			var len2 := hr * 0.65
 			var rad := hr * (0.2 if not thumb else 0.24)
 			var p1 := Node3D.new()
+			p1.set_meta("finger", true)
 			p1.position = base
 			p1.rotation = Vector3(0, 0, 1.0) if thumb else Vector3(0, 0, -a * 0.6)
 			hand.add_child(p1)
@@ -286,6 +310,76 @@ func _build_arms() -> void:
 			nail.name = "Nail"
 			(finger_pivots[id] as Array).append([p1, p2])
 	# 肩・腕のつけ根の見た目（そでの丸み）は _build_upper にある
+	# 腕の節：全部の腕を、1つの MultiMesh で描く（形は作り直さず、節ごとの変形だけ変える）
+	sleeve_color = sleeve.albedo_color
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	var unit := CylinderMesh.new()
+	unit.top_radius = 1.0
+	unit.bottom_radius = 1.0
+	unit.height = 1.0
+	unit.radial_segments = 10
+	unit.rings = 1
+	mm.mesh = unit
+	mm.instance_count = arm_seg_sleeve.size()
+	arm_mm = MultiMeshInstance3D.new()
+	arm_mm.name = "Arms"
+	arm_mm.multimesh = mm
+	arm_mm.material_override = MeshMerge.vc_material(skin, merge_cache)
+	add_child(arm_mm)
+	_refresh_arm_colors()
+
+
+func _refresh_arm_colors() -> void:
+	if arm_mm == null:
+		return
+	for i in arm_seg_sleeve.size():
+		arm_mm.multimesh.set_instance_color(i, sleeve_color if arm_seg_sleeve[i] else skin.albedo_color)
+
+
+## 組み終わった部品を、親ごとに1つの形にまとめる（軽くするため）。手は「開いた手」「にぎった手」の2つを作る
+func _bake() -> void:
+	for id in hand_nodes:
+		_bake_hand(id)
+	var containers: Array = [legs, rig, head, _band, bat]
+	for id in held_items:
+		containers.append(held_items[id])
+	for n in containers:
+		if n != null:
+			MeshMerge.merge_children(n, [skin], merge_cache)
+	# 点滅させる材質は、肌と、まとめた形の材質
+	mats = [skin]
+	for k in merge_cache:
+		mats.append(merge_cache[k])
+
+
+func _bake_hand(id: String) -> void:
+	var hand: Node3D = hand_nodes[id]
+	var parts_nodes: Array = []
+	var others: Array = []
+	for c in hand.get_children():
+		if c.has_meta("finger"):
+			parts_nodes.append(c)
+		else:
+			others.append(c)
+	for state in [["Open", 0.0], ["Fist", 0.85]]:
+		_curl_pivots(id, float(state[1]))
+		var mesh := MeshMerge.merge_parts(MeshMerge.collect(hand, others), [skin], merge_cache)
+		var mi := MeshInstance3D.new()
+		mi.name = str(state[0])
+		mi.mesh = mesh
+		hand.add_child(mi)
+		others.append(mi)
+		if state[0] == "Open":
+			hand_open[id] = mi
+		else:
+			hand_fist[id] = mi
+	for n in parts_nodes:
+		hand.remove_child(n)
+		n.free()
+	finger_pivots.erase(id)
+	(hand_fist[id] as Node3D).visible = false
 
 
 func _sphere_node(r: float) -> MeshInstance3D:
@@ -357,9 +451,10 @@ func _apply_form(name: String) -> void:
 		(n as Node3D).visible = not awake
 	for id in arm_nodes:
 		var vis: bool = str(arm_forms[id]) == "" or (str(arm_forms[id]) == "awake" and awake)
-		for seg in arm_nodes[id]:
-			(seg as Node3D).visible = vis
+		arm_visible[id] = vis
 		(hand_nodes[id] as Node3D).visible = vis
+		_layout_arm(id)
+	_refresh_arm_colors()
 
 
 func skin_color() -> Color:
@@ -415,7 +510,16 @@ func _stagger_pose() -> Vector2:
 
 # ---- 手のあつかい（大きな腕は、攻撃の動きが使う） ----
 
+## にぎる（k=1）／ひらく（k=0）。軽くするため、前もって作った「開いた手」「にぎった手」を切り替える
 func set_curl(side: String, k: float) -> void:
+	if hand_open.has(side):
+		(hand_open[side] as Node3D).visible = k < 0.45
+		(hand_fist[side] as Node3D).visible = k >= 0.45
+		return
+	_curl_pivots(side, k)
+
+
+func _curl_pivots(side: String, k: float) -> void:
 	var list: Array = finger_pivots.get(side, [])
 	for i in list.size():
 		var pair: Array = list[i]
@@ -453,18 +557,16 @@ func _layout_arm(side: String) -> void:
 		pts.append(s.lerp(control, t).lerp(control.lerp(h, t), t))
 	var r0 := float(arm_radius[side])
 	var r1 := r0 * 0.7
+	var mm := arm_mm.multimesh
+	var vis: bool = arm_visible.get(side, true)
 	for i in n:
 		var a: Vector3 = pts[i]
 		var b: Vector3 = pts[i + 1]
-		var seg: MeshInstance3D = segs[i]
 		var d := b - a
 		var len := maxf(d.length(), 0.01)
-		var cm := seg.mesh as CylinderMesh
-		cm.height = len * 1.08
-		cm.bottom_radius = lerpf(r0, r1, float(i) / n)
-		cm.top_radius = lerpf(r0, r1, float(i + 1) / n)
-		seg.position = (a + b) * 0.5
-		seg.basis = Basis(Quaternion(Vector3.UP, d / len))
+		var r := lerpf(r0, r1, (float(i) + 0.5) / n)
+		var basis := Basis(Quaternion(Vector3.UP, d / len)) * Basis.from_scale(Vector3(r, len * 1.08, r)) if vis else Basis.from_scale(Vector3.ZERO)
+		mm.set_instance_transform(int(segs[i]), Transform3D(basis, (a + b) * 0.5))
 	var hand: Node3D = hand_nodes[side]
 	hand.position = h
 	var tip: Vector3 = (pts[n] as Vector3) - (pts[n - 1] as Vector3)
