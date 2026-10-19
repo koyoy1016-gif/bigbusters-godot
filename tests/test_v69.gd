@@ -1,6 +1,6 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_v69.gd
-## 版69：つかまれたら1秒。その間に「にげる」を7回押せなければ投げられる（すぐ投げるつかみ・AIの押す速さはそのまま）。
+## 版69：つかまれたら1秒（版70で、逃げる仕組みはなくした）。
 ## ボスの怒り：ボスの体から3m以内で当たった攻撃が、直前の5秒に20回以上ある間は怒る。
 ## 怒っている間は、つかみ投げの重みが2倍、始まる攻撃が1.25倍の速さ（必殺技は除く）。通信中は怒らない。
 
@@ -43,67 +43,12 @@ func step(s: Node, t: float, dt: float = 0.05) -> float:
 func _initialize() -> void:
 	var acfg := Attacks.load_config()
 	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/boss_attacks.json"))
-	var ai_cfg: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/ai_allies.json"))
 	var k: Dictionary = acfg["kinds"]["grab"]
 
-	# ---- 1. つかまれたら1秒・にげる7回 ----
+	# ---- 1. つかまれたら1秒 ----
 	check(is_equal_approx(float(k["hold_min_sec"]), 1.0) and is_equal_approx(float(k["hold_max_sec"]), 1.0), "つかむ時間は1秒（速さの1.5倍でも変えない）")
-	check(int(k["mash_needed"]) == 7, "逃げるのに必要な「にげる」は7回")
 	check(is_equal_approx(float(k["quick_hold_sec"]), 0.25), "剣士をすぐ投げるつかみは、そのまま（0.25秒で投げる）")
-	check(is_equal_approx(float(ai_cfg["escape_taps_min"]), 3.0) and is_equal_approx(float(ai_cfg["escape_taps_max"]), 5.0), "AIの味方の押す速さは、そのまま（1秒に3〜5回）")
-
-	var s := make_scene()
-	var bz: float = s.boss.position.z
-	# 7回押せば、1秒の中で逃げられる
-	s.player.position = Vector3(0.0, s.ground_y, bz + 6.0)
-	s._start_hold(s._my_slot(), Vector2(0.0, bz + 6.0))
-	check(s._me_held() and is_equal_approx(float(s.grab_state["hold"]), 1.0), "つかまれた。つかむ時間は1秒")
-	for i in 6:
-		s._mash_escape()
-		s._grab_update(0.1)
-	check(s._me_held(), "6回では、まだ逃げられない（0.6秒）")
-	s._mash_escape()
-	s._grab_update(0.1)
-	check(not s._me_held() and s.actions.active != "thrown", "7回目で逃げられる（0.7秒。投げられない）")
-	# 6回しか押せないと、1秒で投げられる
-	s.actions.reset()
-	s.stun_left = 0.0
-	s.player.position = Vector3(0.0, s.ground_y, bz + 6.0)
-	s._start_hold(s._my_slot(), Vector2(0.0, bz + 6.0))
-	for i in 6:
-		s._mash_escape()
-	var held_t := 0.0
-	while s._me_held() and str(s.grab_state.get("phase", "hold")) == "hold" and held_t < 5.0:
-		s._grab_update(0.02)
-		held_t += 0.02
-	check(absf(held_t - 1.0) < 0.05, "6回だけだと、1秒で投げる動きに入る（%.2f 秒）" % held_t)
-	s._mash_escape()
-	var guard := 0
-	while s._me_held() and guard < 200:
-		s._grab_update(0.02)
-		guard += 1
-	check(s.actions.active == "thrown", "そのまま投げられる（投げる動きに入ったら、押しても逃げられない）")
-	root.remove_child(s)
-	s.free()
-	# AIの味方は、1秒に3〜5回しか押さないので、7回に届かず投げられる（10回まわして確かめる）
-	var thrown_all := true
-	for rep in 10:
-		var sa := make_scene(true)
-		var slot := str(sa.ai_allies.keys()[0])
-		var ap: Vector2 = sa.ai_allies[slot]["pos"]
-		sa.ai_allies[slot]["held"] = true
-		sa._start_hold(slot, ap)
-		var rate := float(sa.grab_state["ai_rate"])
-		var g2 := 0
-		while not sa.grab_state.is_empty() and g2 < 200:
-			sa._grab_update(0.02)
-			g2 += 1
-		var act: Variant = sa.AiAlly.act(sa.ai_allies[slot])
-		if not (rate <= 5.0 and str(act.active) == "thrown"):
-			thrown_all = false
-		root.remove_child(sa)
-		sa.free()
-	check(thrown_all, "AIの味方がつかまれると、10回とも投げられる（1秒に3〜5回では7回に届かない）")
+	# 「にげる」7回は版70で消した（必ず投げられる。tests/test_v70.gd）
 
 	# ---- 2. 怒りの数え方（boss_rage.gd） ----
 	var rc: Dictionary = raw["ai"]["rage"]

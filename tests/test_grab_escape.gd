@@ -1,6 +1,6 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_grab_escape.gd
-## つかまれたら動けない／「にげる」の連打で逃げる／逃げられないと投げられて、転んで、起き上がる。
+## つかまれたら動けない／版70：逃げる仕組みはない（ボタンを押しても外れない）／必ず投げられて、転んで、起き上がる。
 
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 var failures := 0
@@ -33,8 +33,6 @@ func _initialize() -> void:
 	var s := make()
 	var k: Dictionary = s.attacks_cfg["kinds"]["grab"]
 	var bz := float(s.config["boss_position"][1])
-	var need := int(k["mash_needed"])
-	check(need == 7, "逃げるのに必要な連打は、7回（版69。いま %d）" % need)
 
 	# つかまれる
 	s.player.position = Vector3(0.0, s.ground_y, bz + 6.0)
@@ -48,21 +46,15 @@ func _initialize() -> void:
 	check(absf(s.player.position.x - x0) < 0.5 or s._me_held(), "つかまれている間は、スティックで動けない")
 	s.stick_vec = Vector2.ZERO
 
-	# 逃げる：「にげる」（通常ボタンの位置）を連打
-	var normal_at: Vector2 = s._button_center("normal", SCREEN)
-	var hp0: float = s.my_hp
-	for i in need - 1:
-		s.handle_press(1, normal_at, SCREEN)
-		s.handle_release(1)
-	check(s.escape_progress() > 0.8 and s._me_held(), "連打の途中では、まだ逃げられない")
-	var sub_at: Vector2 = s._button_center("sub", SCREEN)
-	s.handle_press(2, sub_at, SCREEN)
-	check(s.escape_progress() < 1.0 and s._me_held() and not s.actions.busy(), "サブのボタンでは、逃げられないし、攻撃も出ない")
-	s.handle_press(1, normal_at, SCREEN)
+	# 版70：どのボタンを何回押しても、逃げられないし、攻撃も出ない
+	for id in ["normal", "sub", "main"]:
+		var at: Vector2 = s._button_center(id, SCREEN)
+		for i in 15:
+			s.handle_press(1, at, SCREEN)
+			s.handle_release(1)
 	s._grab_update(0.016)
-	check(not s._me_held() and not s.actions.busy(), "決めた回数の連打で、逃げられる（投げられない）")
-	check(is_equal_approx(s.player.position.y, s.ground_y) or s.player.position.y < s.ground_y + 0.1, "逃げたら、地面にもどる")
-	check(s.my_hp >= hp0 - 0.001 or s.my_hp > hp0 - float(k["squeeze_power"]) * 2.0, "逃げれば、投げのダメージは受けない")
+	check(s._me_held() and not s.actions.busy(), "版70：ボタンを連打しても、逃げられないし、攻撃も出ない")
+	s._release_hold(true)
 
 	# 逃げられない：時間切れで、投げられる
 	s.actions.reset()
@@ -77,18 +69,13 @@ func _initialize() -> void:
 	check(s._me_held(), "つかむ時間の終わりまでは、まだ持ち上げられている")
 	s.grab_state["t"] = hold + 0.1
 	s._grab_update(0.016)
-	check(s._me_held() and str(s.grab_state["phase"]) == "throw", "逃げられないと、ボスが投げる動きに入る（まだ手の中）")
-	s._mash_escape()
-	for i in need:
-		s._mash_escape()
-	s._grab_update(0.016)
-	check(s._me_held() or s.actions.active == "thrown", "投げる動きに入ったら、連打では逃げられない")
+	check(s._me_held() and str(s.grab_state["phase"]) == "throw", "つかむ時間が終わると、ボスが投げる動きに入る（まだ手の中）")
 	var guard2 := 0
 	while s._me_held() and guard2 < 100:
 		s._grab_update(0.016)
 		guard2 += 1
 	check(guard2 * 0.016 >= float(k["release_sec"]) - 0.1, "手をはなすのは、投げる動きの途中（%.2f秒後）" % (guard2 * 0.016))
-	check(not s._me_held() and s.actions.active == "thrown", "逃げられないと、投げられる")
+	check(not s._me_held() and s.actions.active == "thrown", "必ず投げられる")
 	check(s.player.position.y > s.ground_y + 2.0 or s.actions.height > 2.0, "投げられた直後は、高い所にいる")
 	var hp1: float = s.my_hp
 	var z0: float = s.player.position.z
@@ -109,13 +96,6 @@ func _initialize() -> void:
 	check(s.player.position.z > z0 + 3.0, "ボスから離れた所に、投げ出される（z %.1f → %.1f）" % [z0, s.player.position.z])
 	check(s.player.position.z > z0 + 10.0, "遠くへ投げられる（10m以上）")
 	check(s.perform("normal"), "起き上がったあとは、また戦える")
-
-	# ボタンの見た目の元：つかまれ中は、にげる
-	s.actions.reset()
-	s.stun_left = 0.0
-	s._start_hold(s._my_slot(), Vector2(0.0, bz + 6.0))
-	check(s.escape_progress() == 0.0, "つかまれた直後の、にげる進みは0")
-	s._release_hold(true)
 
 	root.remove_child(s)
 	s.free()

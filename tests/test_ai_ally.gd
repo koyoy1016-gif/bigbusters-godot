@@ -131,9 +131,11 @@ func _init() -> void:
 	check(s.grab_state.is_empty() and not bool(ally["held"]) and float(s.other_lift["p2"]) == 0.0, "時間がたつと、はなされる")
 	ally["held"] = true
 	s._start_hold("p2", ally["pos"])
-	s.ai_hits["p3"] = float(s.ai_hits["p3"]) + float(kk["free_damage"]) + 1.0
+	s.ai_hits["p3"] = float(s.ai_hits["p3"]) + 500.0
 	s._grab_update(0.05)
-	check(s.grab_state.is_empty() and not bool(ally["held"]), "みんなのダメージで、助けられる")
+	check(not s.grab_state.is_empty() and bool(ally["held"]), "版70：みんなでダメージを与えても、外れない（必ず投げられる）")
+	s.grab_state = {}
+	ally["held"] = false
 	# 自分がダウンしても、AIが生きていれば続く。AIが全員ダウンすれば全滅
 	s.downed = true
 	s._check_wipe()

@@ -1,7 +1,7 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_v67.gd
 ## 版67：形態ごとに、使える攻撃を最低1回は出す（まだの攻撃を先に）。消した攻撃・知らない攻撃は出さずに切りかえる。
-## 巨大酒瓶ライドの瓶は12本・落ちる範囲は半径3.125。（つかみ投げは tests/test_throw_collide.gd）
+## 巨大酒瓶ライドの瓶は12本・落ちる範囲は半径3.125。（つかみ投げのぶつかりは版70で消した）
 
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const Attacks := preload("res://scripts/combat/boss_attacks.gd")

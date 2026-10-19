@@ -210,10 +210,10 @@ func _initialize() -> void:
 			s2._pose_boss(0.05)
 		check(s2.player.position.y > 2.5, "つかまれると、ボスの左手で高く持ち上げられる（高さ %.1f）" % s2.player.position.y)
 		check(not s2.attack() and s2.my_hp < hp_full - float(gk["power"]), "つかまれている間は、こうげきできない。しめつけでダメージ")
-		# 助ける：ボスに十分なダメージが入ると、外れる
-		s2.my_hits = float(gk["free_damage"]) + 1.0
+		# 版70：ボスにたくさんダメージが入っても、外れない（必ず投げられる）
+		s2.my_hits = 500.0
 		s2.combat_update(0.05)
-		check(not s2._me_held() and s2.stun_left > 0.0, "みんなでダメージを与えると、外れる")
+		check(s2._me_held(), "版70：みんなでダメージを与えても、外れない")
 		s2.player.position.y = s2.ground_y
 		s2.grab_state = {}
 		now[0] = t0 + first_ms + float(gk["duration"]) * 1000.0 + 100.0
@@ -403,7 +403,7 @@ func _initialize() -> void:
 		s4.net_state = {"slot": "p2"}
 		var hp_p2: float = s4.role_value("hp")
 		s4.net_state = {"slot": "p1"}
-		check(is_equal_approx(hp_p2, 240.0) and is_equal_approx(s4.role_value("hp"), 288.75), "p2（ガーディアン）240、p1（ファイター＝剣士）288.75（版66・版68で剣士を増やしたので、剣士のほうが多い）")
+		check(is_equal_approx(hp_p2, 240.0) and is_equal_approx(s4.role_value("hp"), 190.0), "p2（ガーディアン）240、p1（ファイター＝剣士）190（版70）")
 		check(roles["p1"]["attack_power"] > roles["p2"]["attack_power"], "p1（ファイター）は、p2（ガーディアン）よりこうげきが強い")
 		check(roles["p3"]["attack_reach"] > float(s4.config["attack_reach"]) * 2.0 and roles["p3"]["hp"] < roles["p1"]["hp"], "p3（シューター）は、遠くからこうげきできるが、体力は少ない")
 		check(roles["p2"]["hp"] > roles["p4"]["hp"] and roles["p4"]["attack_reach"] > float(s4.config["attack_reach"]), "p2（ガーディアン）は p4（サポート）より体力が多い。p4（サポート）は、少し離れてもこうげきできる")

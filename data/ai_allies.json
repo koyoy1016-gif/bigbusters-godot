@@ -34,8 +34,6 @@
     ]
   ],
   "damage_scale": 0.85,
-  "escape_taps_min": 3.0,
-  "escape_taps_max": 5.0,
   "dodge_chance": 0.55,
   "use_main_chance": 0.5,
   "use_sub_chance": 0.3,

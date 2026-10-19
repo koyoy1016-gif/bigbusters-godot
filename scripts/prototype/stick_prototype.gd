@@ -516,11 +516,8 @@ func handle_press(index: int, pos: Vector2, screen: Vector2) -> void:
 		var id := _button_at(pos, screen)
 		if id != "":
 			button_flash[id] = float(config["press_flash_sec"])
-			if _me_held():
-				if id == "normal":
-					_mash_escape()
-			else:
-				perform(id)
+			if not _me_held():
+				perform(id)  # 版70：つかまれている間は、どのボタンも効かない（逃げる仕組みはない）
 
 
 func handle_drag(index: int, pos: Vector2, screen: Vector2) -> void:
@@ -704,7 +701,6 @@ func _begin_round(start_ms: float) -> void:
 	puddle_seen = {}
 	field.clear()
 	_landed = {}
-	throw_fly = {}
 	_ignited = {}
 	motion.reset(motion.home)
 	boss.position = Vector3(motion.pos.x, 0.0, motion.pos.y)
@@ -768,21 +764,6 @@ func _take_damage(amount: float, ignore_invulnerable: bool = false) -> void:
 
 
 ## ---- 3つの攻撃（通常・サブ・メイン）。時間の進みは player_actions.gd、数値は data/actions.json ----
-
-## つかまれ中に「にげる」を1回押した。決めた回数に届くと、つかみが外れる（_grab_update が見て外す）
-func _mash_escape() -> void:
-	if not _me_held():
-		return
-	grab_state["mash"] = float(grab_state["mash"]) + 1.0
-	_play_sfx("mash")
-
-
-## つかまれ中の、にげるの進み（0〜1）。つかまれていなければ 0
-func escape_progress() -> float:
-	if not _me_held():
-		return 0.0
-	return clampf(float(grab_state["mash"]) / float(attacks_cfg["kinds"]["grab"]["mash_needed"]), 0.0, 1.0)
-
 
 ## 通常攻撃（いままでの「こうげき」）。始められたら true
 func attack() -> bool:
@@ -1163,21 +1144,15 @@ func _me_held() -> bool:
 	return not grab_state.is_empty() and str(grab_state["slot"]) == _my_slot()
 
 
-## ボスに与えた合計ダメージ（自分＋ほかの人＋AI）
-func _total_boss_damage() -> float:
-	return my_hits + others_hits + _ai_hits_total()
-
-
 func _start_hold(slot: String, from: Vector2) -> void:
 	if not grab_state.is_empty():
 		return
 	_play_sfx("grab")
-	var rate := ai_rng.randf_range(float(ai_cfg.get("escape_taps_min", 2.5)), float(ai_cfg.get("escape_taps_max", 4.5))) if slot != _my_slot() else 0.0
 	var n := int(current_attack.get("n", 0))
 	var hold := Attacks.grab_hold_sec(attacks_cfg, round_start_ms, n)
 	if bool(current_attack.get("quick", false)):
 		hold = float(attacks_cfg["kinds"]["grab"].get("quick_hold_sec", 0.25))  # 版68：すぐ投げるつかみ
-	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0, "mash": 0.0, "ai_rate": rate, "hold": hold}
+	grab_state = {"slot": slot, "t": 0.0, "from": from, "squeeze": 0.0, "lift": 0.0, "hold": hold}
 	if slot == _my_slot():
 		stun_left = maxf(stun_left, 0.1)
 	grab_state["phase"] = "hold"
@@ -1200,7 +1175,6 @@ func _release_hold(freed: bool) -> void:
 			# 逃げられなかった：放り投げられる（着地のダメージと、転んで起き上がるまでは、player_actions の「thrown」）
 			# 版67：ボスからいちばん遠い人のほうへ投げる（だれもいなければ、ボスの向き）
 			var away: Vector2 = decided if decided is Vector2 else throw_dir(slot)
-			_begin_throw_fly(slot, away)
 			actions.start("thrown", away, 0.0, true)
 			if char_view != null:
 				char_view.face_now(-away)
@@ -1213,7 +1187,6 @@ func _release_hold(freed: bool) -> void:
 		if not freed:
 			# 投げられる（着地のダメージは、AiAlly.step が「landed」の印で受ける）。向きは、いちばん遠い人のほう（版67）
 			var away: Vector2 = decided if decided is Vector2 else throw_dir(slot)
-			_begin_throw_fly(slot, away)
 			(AiAlly.act(a) as Actions).start("thrown", away, 0.0, true)
 		else:
 			a["stun"] = float(k["free_stun_sec"])
@@ -1248,8 +1221,7 @@ func _quick_grab_check(t: float) -> void:
 	ai.request(Attacks.GRAB, {"target": str(targets[0]), "quick": true})
 
 
-## ---- 版67：つかみ投げの、投げる向きと、ぶつかり ----
-var throw_fly := {}  ## 投げられて飛んでいる人 {slot, t, dir, hit: {枠: true}, self_hit: bool}
+## ---- 版67：つかみ投げの、投げる向き（版70：投げられた人がほかの人にぶつかる仕組みは消した） ----
 
 
 ## 位置のわかる人（倒れていない）：枠 → 床の上の位置。自分・AIの味方・通信のほかの人
@@ -1288,103 +1260,6 @@ func throw_dir(slot: String) -> Vector2:
 	return Attacks.fwd_of(boss.rotation.y)
 
 
-func _begin_throw_fly(slot: String, dir: Vector2) -> void:
-	throw_fly = {"slot": slot, "t": 0.0, "dir": dir, "hit": {}, "self_hit": false}
-
-
-## 投げられた人の、いまの床の上の位置と高さ。わからなければ {}
-func _thrown_body(slot: String) -> Dictionary:
-	if slot == _my_slot():
-		return {"pos": Vector2(player.position.x, player.position.z), "h": player.position.y - ground_y}
-	if ai_allies.has(slot):
-		return {"pos": ai_allies[slot]["pos"], "h": float(ai_allies[slot]["height"])}
-	return {}
-
-
-## 飛んでいる間と着地で、ほかの人にぶつかったか。ぶつかった人と投げられた人の両方にダメージ、ぶつかった人は転ぶ。
-## 1回の投げで、1人には1回だけ（hit に記録）。投げられた人へのぶつかりダメージも1回だけ（self_hit）
-func _throw_fly_update(delta: float) -> void:
-	if throw_fly.is_empty():
-		return
-	var k: Dictionary = attacks_cfg["kinds"]["grab"]
-	throw_fly["t"] = float(throw_fly["t"]) + delta
-	var slot := str(throw_fly["slot"])
-	var land_t := 0.85
-	var thrown_def: Dictionary = actions.def("thrown") if actions.has_action("thrown") else {}
-	for m in thrown_def.get("marks", []):
-		if str((m as Dictionary).get("name", "")) == "landed":
-			land_t = float((m as Dictionary)["t"])
-	if float(throw_fly["t"]) > land_t + 0.15:
-		throw_fly = {}
-		return
-	var body := _thrown_body(slot)
-	if body.is_empty():
-		throw_fly = {}
-		return
-	if float(body["h"]) > float(k.get("collide_height", 3.0)):
-		return  # 頭の上を飛びこしている
-	var bpos: Vector2 = body["pos"]
-	var dir: Vector2 = throw_fly["dir"]
-	var dmg := Damage.damage_amount(float(k.get("collide_power", k["drop_power"])), float(attacks_cfg["damage_multiplier"]))
-	var hit: Dictionary = throw_fly["hit"]
-	var me := _my_slot()
-	var people := _people_positions()
-	var names: Array = people.keys()
-	names.sort()
-	for name in names:
-		var victim := str(name)
-		if victim == slot or hit.has(victim):
-			continue
-		if not ai_allies.has(victim) and victim != me:
-			continue  # 通信のほかの人：ダメージは、その人の画面が決める（ここでは調べない）
-		if (people[name] as Vector2).distance_to(bpos) > float(k.get("collide_radius", 1.6)):
-			continue
-		hit[victim] = true
-		_hit_by_thrown(victim, dmg, dir)
-		if not bool(throw_fly["self_hit"]):
-			throw_fly["self_hit"] = true
-			_thrown_self_damage(slot, dmg)
-
-
-## ぶつかられた人：ダメージと、転ぶ（kb_heavy。投げの向きへ）。いまダメージを受けない状態（転んでいる・起き上がった直後・つかまれている）なら、何もしない
-func _hit_by_thrown(victim: String, dmg: float, dir: Vector2) -> void:
-	if victim == _my_slot():
-		if downed or _me_held() or actions.invulnerable() or kb_guard_left > 0.0:
-			return
-		_take_damage(dmg)
-		player_hit_flash = float(config["hit_flash_sec"])
-		_knockback("kb_heavy", dir)
-		return
-	var a: Dictionary = ai_allies[victim]
-	var acts := AiAlly.act(a)
-	if bool(a["downed"]) or bool(a.get("held", false)) or acts.invulnerable() or float(a.get("kb_guard", 0.0)) > 0.0:
-		return
-	a["hp"] = maxf(0.0, float(a["hp"]) - dmg)
-	a["flash"] = 0.15
-	if float(a["hp"]) <= 0.0:
-		a["downed"] = true
-		return
-	if acts.has_action("kb_heavy"):
-		acts.start("kb_heavy", dir, 0.0, true)
-		a["face"] = -dir
-		a["kb_guard"] = float(acts.def("kb_heavy").get("duration_sec", 0.5)) + float(acts.cfg.get("kb_guard_sec", 0.6))
-
-
-## 投げられた人が、ぶつかったときのダメージ（投げられている間は無敵なので、それを越えて1回だけ）。転ぶのは、投げられた動きのまま
-func _thrown_self_damage(slot: String, dmg: float) -> void:
-	if slot == _my_slot():
-		if not downed:
-			_take_damage(dmg, true)
-			player_hit_flash = float(config["hit_flash_sec"])
-	elif ai_allies.has(slot):
-		var a: Dictionary = ai_allies[slot]
-		if not bool(a["downed"]):
-			a["hp"] = maxf(0.0, float(a["hp"]) - dmg)
-			a["flash"] = 0.15
-			if float(a["hp"]) <= 0.0:
-				a["downed"] = true
-
-
 func _grab_update(delta: float) -> void:
 	if grab_state.is_empty():
 		return
@@ -1393,25 +1268,16 @@ func _grab_update(delta: float) -> void:
 	var mult := float(attacks_cfg["damage_multiplier"])
 	grab_state["t"] = float(grab_state["t"]) + delta
 	var t := float(grab_state["t"])
-	# 助ける：つかまれてから、みんなで与えたダメージが、決めた量を超えると外れる
-	var grip := _total_boss_damage() - float(grab_state["base"])
+	# 版70：逃げる仕組み（「にげる」の連打・みんなのダメージで外れる）はない。つかまれたら必ず投げられる。
+	# 外れるのは、つかまれた人が倒れたときと、戦いが終わったときだけ
 	var is_me := slot == _my_slot()
 	var target_down := downed if is_me else (not ai_allies.has(slot) or bool(ai_allies[slot]["downed"]))
 	if target_down or not round_active():
 		_release_hold(true)
 		return
-	if grip >= float(k["free_damage"]):
-		_release_hold(true)
-		return
-	# 自分で逃げる：「にげる」ボタンの連打（AIは、決まった速さで連打したことにする）
-	if not is_me:
-		grab_state["mash"] = float(grab_state["mash"]) + float(grab_state["ai_rate"]) * delta
 	var throwing := str(grab_state.get("phase", "hold")) == "throw"
-	if not throwing and float(grab_state["mash"]) >= float(k["mash_needed"]):
-		_release_hold(true)
-		return
 	if not throwing and t >= float(grab_state["hold"]):
-		# 逃げられなかった：ボスが、うしろへ引いて前へ投げる動きに入る（手をはなす瞬間に、飛んでいく）
+		# つかむ時間が終わった：ボスが、うしろへ引いて前へ投げる動きに入る（手をはなす瞬間に、飛んでいく）
 		grab_state["phase"] = "throw"
 		grab_state["throw_t"] = 0.0
 		throwing = true
@@ -1691,7 +1557,6 @@ func combat_update(delta: float) -> void:
 	_apply_hazards(current_hazards)
 	_ai_update(delta)
 	_grab_update(delta)
-	_throw_fly_update(delta)
 	_show_hazards(current_hazards)
 	_update_puddles(delta)
 	_sake_spray_update()
@@ -2686,16 +2551,10 @@ func _draw_overlay() -> void:
 			elif actions.busy():
 				color = str(config["button_cooldown_color"])
 		if held:
-			if str(id) == "normal":
-				color = str(config["button_pressed_color"]) if float(button_flash.get(id, 0.0)) > 0.0 else str(config["escape_button_color"])
-				label = str(config["escape_label"])
-			else:
-				label = "×"
+			label = "×"  # 版70：つかまれている間は、どのボタンも効かない
 		overlay.draw_circle(bc, br, Color(color))
 		if is_ult and not gauge.is_ready():
 			overlay.draw_arc(bc, br + 6.0, -PI * 0.5, -PI * 0.5 + TAU * gauge.ratio(), 40, Color(str(config["ultimate_ring_color"])), 7.0)
-		if held and str(id) == "normal":
-			overlay.draw_arc(bc, br + 8.0, -PI * 0.5, -PI * 0.5 + TAU * escape_progress(), 40, Color(str(config["escape_ring_color"])), 8.0)
 		_draw_centered(bc, label, button_text)
 
 	overlay.draw_string(font, Vector2(16, fs * 1.4), (str(config["hint_portrait"]) if is_portrait(screen) else str(config["hint"])) + "   " + str(config["build_label"]) + str(config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
