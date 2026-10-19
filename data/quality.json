@@ -9,28 +9,34 @@
    "label": "ひくい",
    "msaa": 0,
    "shadow": false,
-   "max_fps": 30,
-   "scale_3d": 0.8,
+   "max_fps": 0,
+   "scale_3d": 1.0,
    "outline": false,
    "shadow_splits": 1,
-   "shadow_distance": 45.0
+   "shadow_distance": 45.0,
+   "min_scale_3d": 0.35,
+   "target_3d_pixels": 450000,
+   "shadow_size": 1024
   },
   "high": {
    "label": "たかい",
    "msaa": 2,
    "shadow": true,
-   "max_fps": 60,
+   "max_fps": 0,
    "scale_3d": 1.0,
    "outline": true,
    "shadow_splits": 1,
-   "shadow_distance": 45.0
+   "shadow_distance": 45.0,
+   "min_scale_3d": 0.45,
+   "target_3d_pixels": 900000,
+   "shadow_size": 2048
   }
  },
- "_memo": "画質のプリセット。shadow_splits：影を何段に分けて描くか（1が一番軽い）。shadow_distance：影を出す距離（メートル。戦いの場が入る広さ）",
+ "_memo": "画質のプリセット。target_3d_pixels：3Dを描く画素数の目安（スマホは画面の画素がとても多いので、3Dだけ小さく描いて広げる。文字やボタンはくっきりのまま）。scale_3d：3Dの細かさの上限（1.0＝画面と同じ）。min_scale_3d：下限。max_fps：0＝画面の更新に合わせる（30などに制限すると、ブラウザでは間隔がそろわず、かくかくして見える）。shadow_size：影の画像の大きさ。shadow_splits：影を何段に分けて描くか（1が一番軽い）。shadow_distance：影を出す距離（メートル）",
  "draw_budget": {
   "_memo": "1体を描く回数（面の数）の上限。増えすぎるとスマホで重くなる。tests/test_mesh_merge.gd が確かめる",
   "boss": 24,
-  "boss_awake": 45,
+  "boss_awake": 50,
   "hero": 14
  }
 }

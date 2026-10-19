@@ -16,6 +16,7 @@ const AccountBridge := preload("res://scripts/network/account_bridge.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 const SfxPlayer := preload("res://scripts/audio/sfx.gd")
 const BgmPlayer := preload("res://scripts/audio/bgm.gd")
+const PerfOverlay := preload("res://scripts/core/perf_overlay.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -36,6 +37,7 @@ var last_won := false
 var best_text := ""
 var menu_sfx: Node = null  # ボタンのクリック音
 var bgm: Node = null  # メニューのBGM（戦いの最中は止める）
+var perf_overlay: CanvasLayer = null  # 重さの表示（URL に ?perf=1 のときだけ）
 
 var title_label: Label
 var lobby_info: Label
@@ -137,6 +139,11 @@ func _ready() -> void:
 		return
 	_apply_window_scale()
 	_apply_quality()
+	# 画面の大きさが変わったら（向き・ブラウザの大きさ）、3Dの細かさを計算し直す
+	if get_tree() != null and not get_tree().root.size_changed.is_connected(_apply_quality):
+		get_tree().root.size_changed.connect(_apply_quality)
+	if OS.has_feature("web") and str(js_eval.call("new URLSearchParams(window.location.search).get('perf') || ''")) != "":
+		show_perf()
 	goto(Logic.TITLE)
 
 
@@ -601,6 +608,15 @@ func change_quality() -> void:
 	_refresh_lobby()
 
 
+## 重さの表示を出す（実機で測るとき）
+func show_perf() -> void:
+	if perf_overlay == null:
+		perf_overlay = PerfOverlay.new()
+		perf_overlay.name = "Perf"
+		add_child(perf_overlay)
+	perf_overlay.quality_name = quality_name
+
+
 func _apply_quality() -> void:
 	var lights: Array[Node] = []
 	if get_tree() != null:
@@ -608,6 +624,8 @@ func _apply_quality() -> void:
 	var applied := Quality.apply(quality_name, quality_config, get_viewport(), lights)
 	if get_tree() != null:
 		StyleFx.set_outline(get_tree().root, bool(applied.get("outline", false)))
+	if perf_overlay != null:
+		perf_overlay.quality_name = quality_name
 
 
 func show_toast() -> void:
