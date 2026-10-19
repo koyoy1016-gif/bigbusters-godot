@@ -54,7 +54,7 @@
     0.0,
     -6.0
   ],
-  "attack_power": 20.0,
+  "attack_power": 15.0,
   "attack_multiplier": 1.0,
   "attack_reach": 2.0,
   "attack_cooldown_sec": 0.4,
@@ -84,7 +84,7 @@
   "room_full": "満員",
   "room_reconnecting": "再接続中",
   "room_offline": "通信なし（1人）",
-  "player_hp": 200.0,
+  "player_hp": 150.0,
   "slam_first_delay_sec": 3.0,
   "slam_interval_sec": 4.0,
   "slam_telegraph_sec": 1.2,
@@ -115,31 +115,31 @@
   "roles": {
     "p1": {
       "name": "ファイター",
-      "hp": 200.0,
+      "hp": 150.0,
       "move_speed": 7.0,
-      "attack_power": 24.0,
+      "attack_power": 18.0,
       "attack_cooldown_sec": 0.35
     },
     "p2": {
       "name": "ガーディアン",
-      "hp": 320.0,
+      "hp": 240.0,
       "move_speed": 5.0,
-      "attack_power": 14.0,
+      "attack_power": 10.5,
       "attack_cooldown_sec": 0.5
     },
     "p3": {
       "name": "シューター",
-      "hp": 140.0,
+      "hp": 105.0,
       "move_speed": 6.0,
-      "attack_power": 18.0,
+      "attack_power": 13.5,
       "attack_cooldown_sec": 0.3,
       "attack_reach": 7.0
     },
     "p4": {
       "name": "サポート",
-      "hp": 180.0,
+      "hp": 135.0,
       "move_speed": 6.0,
-      "attack_power": 12.0,
+      "attack_power": 9.0,
       "attack_cooldown_sec": 0.4,
       "attack_reach": 4.0
     }
@@ -221,6 +221,8 @@
     0.025
   ],
   "hint_portrait": "スティックで動く。右下のボタンでこうげき。サブ（跳ぶ）で輪をよける",
+  "sub_enemy_enabled": false,
+  "sub_enemy_enabled_note": "サブ敵（紫の小さい箱）を出すか。版59でユーザーの依頼により一旦消した（false）。true で元に戻る",
   "sub_enemy_count": 10,
   "sub_enemy_size": [
     0.7,

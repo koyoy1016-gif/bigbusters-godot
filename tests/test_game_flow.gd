@@ -137,7 +137,7 @@ func _initialize() -> void:
 		flow.play()
 		_ensure_ready(flow.battle)
 		check(flow.battle.ai_enabled and flow.battle.ai_picks[0] == "summoner", "戦いに、AIの選びが渡る")
-		check(flow.battle.selected_character == "gunner" and is_equal_approx(flow.battle.role_value("attack_reach"), 7.0) and is_equal_approx(flow.battle.my_hp, 140.0), "戦いは、選んだキャラ（じゅうし）の性能で動く")
+		check(flow.battle.selected_character == "gunner" and is_equal_approx(flow.battle.role_value("attack_reach"), 7.0) and is_equal_approx(flow.battle.my_hp, 105.0), "戦いは、選んだキャラ（じゅうし）の性能で動く")
 		check(flow.state == "battle" and flow.battle != null and flow.battle.flow_mode, "プレイで、戦いが始まる（流れの中のモード）")
 		check(not flow.panels["lobby"].visible, "戦いの間は、メニューを隠す")
 		flow.battle.my_hits = 100.0

@@ -89,7 +89,7 @@ func _initialize() -> void:
 	root.add_child(b)
 	if b.get_node_or_null("Boss") == null:
 		b._ready()
-	check(is_equal_approx(b.role_value("hp"), 320.0) and b.role().get("name") == "ガーディアン" and b.role().get("character_name") == "たて", "選んだキャラ（たて）の性能・役職名で動く")
+	check(is_equal_approx(b.role_value("hp"), 240.0) and b.role().get("name") == "ガーディアン" and b.role().get("character_name") == "たて", "選んだキャラ（たて）の性能・役職名で動く")
 	check(b.role_name_of("p1") == "ガーディアン", "通信なしなら、自分の役職名が出る")
 	# 通信：ほかの人のキャラが共有されたら、そのキャラの役職名が出る
 	b.net_active = true

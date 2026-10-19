@@ -261,7 +261,7 @@ func _build_world() -> void:
 	sub_crowd.name = "SubCrowd"
 	add_child(sub_crowd)
 	sub_crowd.setup(config, Vector2(bp[0], bp[1]))
-	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
+	_reset_sub_enemies()
 
 	# ボスの攻撃の見た目（予告の輪、帯、チラシ、手）は、使うときに作って使いまわす
 	attacks_cfg = Attacks.load_config()
@@ -542,6 +542,17 @@ func role() -> Dictionary:
 	return roles.get(slot if roles.has(slot) else "p1", {})
 
 
+## サブ敵を出すか（data の sub_enemy_enabled）。出さないときは数を0にして、見た目も隠す
+func sub_enemies_enabled() -> bool:
+	return bool(config.get("sub_enemy_enabled", true))
+
+
+func _reset_sub_enemies() -> void:
+	crowd_state.reset(int(config["sub_enemy_count"]) if sub_enemies_enabled() else 0, float(config["sub_enemy_hp"]))
+	if sub_crowd != null:
+		sub_crowd.visible = sub_enemies_enabled()
+
+
 func role_value(key: String) -> float:
 	return float(role().get(key, config.get(key, 0.0)))
 
@@ -659,7 +670,7 @@ func _begin_round(start_ms: float) -> void:
 	gauge.reset()
 	banner["left"] = 0.0
 	button_flash = {}
-	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
+	_reset_sub_enemies()
 	touch_timer = 0.0
 	boss_hp = float(config["boss_hp"])
 	phase.reset(float(config["boss_hp"]), float(config.get("boss_hp_awake", config["boss_hp"])), _trans_sec(), float(config.get("boss_hp_refill_sec", 1.2)))

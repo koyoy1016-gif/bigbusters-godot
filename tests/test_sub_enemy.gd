@@ -42,6 +42,7 @@ func _initialize() -> void:
 		s._ready()
 	var now := [1000000.0]
 	s.clock_ms = func() -> float: return now[0]
+	s.config["sub_enemy_enabled"] = true  # 本番では一旦消している（版59）。ここでは出して仕組みを確かめる
 	s.start_round()
 	s.sub_crowd.update_at(0.0, s.crowd_state)
 	var target: Vector3 = s.sub_crowd.last_positions[0]
@@ -78,6 +79,17 @@ func _initialize() -> void:
 	s._touch_update(0.016)
 	check(s.my_hp == hp_air, "ジャンプ中は、ふれてもダメージを受けない")
 	check(s.camera.environment != null and s.camera.environment.ambient_light_energy > 0.0, "光が当たらない面が真っ黒にならない（環境光がある）")
+	# 版59：データで消したときは、1体も出ず、見た目も隠れる
+	s.config["sub_enemy_enabled"] = false
+	s._begin_round(now[0])
+	check(s.crowd_state.count() == 0 and not s.sub_crowd.visible, "サブ敵を消す設定なら、1体も出ない")
+	s.player.position = Vector3(target.x, s.ground_y, target.z)
+	var hp_off: float = s.my_hp
+	s.touch_timer = 0.0
+	s._touch_update(0.016)
+	check(s.my_hp == hp_off, "サブ敵を消す設定なら、ふれてもダメージを受けない")
+	var on_disk: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/prototype_stick.json"))
+	check(on_disk is Dictionary and on_disk.get("sub_enemy_enabled", true) == false, "いまのデータでは、サブ敵は消してある")
 	root.remove_child(s)
 	s.free()
 	print("失敗: ", failures)

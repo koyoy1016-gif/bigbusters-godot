@@ -70,9 +70,9 @@
       "skill": "斬る",
       "break_power": 1.5,
       "stats": {
-        "hp": 200.0,
+        "hp": 150.0,
         "move_speed": 7.0,
-        "attack_power": 24.0,
+        "attack_power": 18.0,
         "attack_cooldown_sec": 0.35,
         "attack_reach": 2.0
       },
@@ -107,9 +107,9 @@
       "skill": "ダッシュ",
       "break_power": 1.0,
       "stats": {
-        "hp": 140.0,
+        "hp": 105.0,
         "move_speed": 10.0,
-        "attack_power": 16.0,
+        "attack_power": 12.0,
         "attack_cooldown_sec": 0.25,
         "attack_reach": 2.0
       }
@@ -136,9 +136,9 @@
       "skill": "ダッシュ",
       "break_power": 2.0,
       "stats": {
-        "hp": 180.0,
+        "hp": 135.0,
         "move_speed": 8.0,
-        "attack_power": 20.0,
+        "attack_power": 15.0,
         "attack_cooldown_sec": 0.3,
         "attack_reach": 2.0
       }
@@ -165,9 +165,9 @@
       "skill": "射撃",
       "break_power": 1.0,
       "stats": {
-        "hp": 140.0,
+        "hp": 105.0,
         "move_speed": 6.0,
-        "attack_power": 18.0,
+        "attack_power": 13.5,
         "attack_cooldown_sec": 0.3,
         "attack_reach": 7.0
       }
@@ -194,9 +194,9 @@
       "skill": "投げ",
       "break_power": 2.0,
       "stats": {
-        "hp": 150.0,
+        "hp": 112.5,
         "move_speed": 5.0,
-        "attack_power": 22.0,
+        "attack_power": 16.5,
         "attack_cooldown_sec": 0.6,
         "attack_reach": 6.0
       }
@@ -223,9 +223,9 @@
       "skill": "魔法",
       "break_power": 1.0,
       "stats": {
-        "hp": 130.0,
+        "hp": 97.5,
         "move_speed": 5.5,
-        "attack_power": 24.0,
+        "attack_power": 18.0,
         "attack_cooldown_sec": 0.5,
         "attack_reach": 7.0
       }
@@ -252,9 +252,9 @@
       "skill": "バリア",
       "break_power": 3.0,
       "stats": {
-        "hp": 320.0,
+        "hp": 240.0,
         "move_speed": 5.0,
-        "attack_power": 14.0,
+        "attack_power": 10.5,
         "attack_cooldown_sec": 0.5,
         "attack_reach": 2.0
       }
@@ -281,9 +281,9 @@
       "skill": "召喚",
       "break_power": 1.0,
       "stats": {
-        "hp": 160.0,
+        "hp": 120.0,
         "move_speed": 6.0,
-        "attack_power": 12.0,
+        "attack_power": 9.0,
         "attack_cooldown_sec": 0.4,
         "attack_reach": 5.0
       }
@@ -310,9 +310,9 @@
       "skill": "回復",
       "break_power": 1.0,
       "stats": {
-        "hp": 170.0,
+        "hp": 127.5,
         "move_speed": 6.0,
-        "attack_power": 10.0,
+        "attack_power": 7.5,
         "attack_cooldown_sec": 0.4,
         "attack_reach": 5.0
       }

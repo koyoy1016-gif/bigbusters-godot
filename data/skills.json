@@ -6,7 +6,7 @@
   "魔法": {"kind": "line", "cooldown_sec": 4.0, "multiplier": 2.5, "length": 10.0, "half_width": 1.2, "pierce": true, "fx_color": "#c070ffc0", "fx_sec": 0.3},
   "投げ": {"kind": "lob", "cooldown_sec": 5.0, "multiplier": 3.0, "throw_distance": 6.0, "delay_sec": 0.7, "radius": 3.2, "fx_color": "#ff9030c0", "fx_sec": 0.3},
   "バリア": {"kind": "guard", "cooldown_sec": 8.0, "duration_sec": 3.0, "damage_taken_multiplier": 0.2, "fx_color": "#60a0ff60"},
-  "回復": {"kind": "heal", "cooldown_sec": 8.0, "heal": 60.0, "fx_color": "#60ff90a0", "fx_sec": 0.4},
+  "回復": {"kind": "heal", "cooldown_sec": 8.0, "heal": 45.0, "fx_color": "#60ff90a0", "fx_sec": 0.4},
   "召喚": {"kind": "summon", "cooldown_sec": 12.0, "duration_sec": 8.0, "hit_interval_sec": 0.5, "multiplier": 0.8, "fx_color": "#ffffffc0"},
   "button_label_size_note": "ボタンには技の名前を出す"
 }
