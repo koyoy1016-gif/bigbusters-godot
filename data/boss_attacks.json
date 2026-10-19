@@ -49,7 +49,7 @@
       "_memo": "つかむ時間は、毎回 hold_min_sec〜hold_max_sec のどれか（全員の画面で同じ）。その間に「にげる」を mash_needed 回押せなければ、ボスがうしろへ引いて前へ投げる（throw_sec、手をはなすのは release_sec）。reach：ボスの手が届く距離（つかむ輪は、これより遠くへ出ない）。stop_dist：つかむ前に、ねらう人のこの距離まで近づく",
       "throw_sec": 0.8,
       "release_sec": 0.48,
-      "hang_below": 1.1,
+      "hang_below": 2.6,
       "reach": 3.4,
       "stop_dist": 3.0,
       "chase_sec": 0.9
