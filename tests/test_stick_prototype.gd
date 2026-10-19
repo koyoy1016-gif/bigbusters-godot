@@ -5,6 +5,7 @@ extends SceneTree
 const StickMath := preload("res://scripts/prototype/stick_math.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
 const Pattern := preload("res://scripts/combat/boss_pattern.gd")
+const Attacks := preload("res://scripts/combat/boss_attacks.gd")
 const Proto := preload("res://scripts/prototype/stick_prototype.gd")
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const SCREEN := Vector2(1280, 720)
@@ -177,56 +178,61 @@ func _initialize() -> void:
 		s2.start_round()
 		check(s2.round_active() and not s2.won and s2.boss.visible and s2.my_hits == 0.0 and s2.boss_hp == float(cfg2["boss_hp"]), "もういちどで、体力が元に戻り、また始まる")
 
-		# ボスの範囲攻撃：予告 → 一撃。輪の中で地面にいると当たり、ジャンプでよけられる
+		# ボスの攻撃（つかみ）：予告の輪 → 一撃。地面にいると当たり、ジャンプでよけられる
 		var hp_full: float = s2.role_value("hp")
 		var t0: float = s2.round_start_ms
-		var first_ms: float = float(cfg2["slam_first_delay_sec"]) * 1000.0
+		var acfg: Dictionary = s2.attacks_cfg
+		var first_ms: float = float(acfg["first_delay_sec"]) * 1000.0
+		var gk: Dictionary = acfg["kinds"]["grab"]
+		var lock_ms: float = (float(gk["follow_sec"]) + float(gk["lock_sec"])) * 1000.0
+		s2.player.position = Vector3(0.0, s2.ground_y, 6.0)
+		now[0] = t0 + first_ms + 500.0
+		s2.combat_update(0.016)
+		check(s2.my_hp == hp_full and (s2.hazard_nodes[0] as Node3D).visible, "予告の最中は、輪が見えて、まだダメージは受けない")
+		now[0] = t0 + first_ms + lock_ms + 50.0
+		s2.combat_update(0.016)
+		check(is_equal_approx(s2.my_hp, hp_full - float(gk["power"])), "つかまれると、ダメージを受ける")
+		check(s2.stun_left > 0.0, "つかまれると、しばらく動けない")
+		s2.combat_update(0.016)
+		check(is_equal_approx(s2.my_hp, hp_full - float(gk["power"])), "同じ一撃は、1回しか当たらない")
+		now[0] = t0 + first_ms + float(gk["duration"]) * 1000.0 + 100.0
+		s2.combat_update(0.016)
+		check(not (s2.hazard_nodes[0] as Node3D).visible, "つかみが終わると、輪が消える")
+		# 2回めは飛び道具（チラシ）：地面で当たる。ジャンプでは、よけられない
+		s2.my_hp = hp_full
+		s2.hazard_done = {}
+		s2.stun_left = 0.0
+		var sched: Array = s2.attack_schedule
+		var fl: Dictionary = sched[1]
+		check(str(fl["kind"]) == "flyers", "予定表の2番めは、チラシ")
+		var ctx: Dictionary = s2._attack_ctx(fl, 3.0)
+		var fk: Dictionary = acfg["kinds"]["flyers"]
+		var hit_found := false
+		for u10 in range(10, 60):
+			var u: float = float(u10) / 10.0
+			for h in Attacks.hazards(fl, u, acfg, ctx):
+				var pp: Vector2 = Vector2(float(h["x"]), float(h["z"]))
+				s2.player.position = Vector3(pp.x, s2.ground_y, pp.y)
+				now[0] = t0 + (float(fl["start"]) + u) * 1000.0
+				s2.combat_update(0.016)
+				if s2.my_hp < hp_full:
+					hit_found = true
+				break
+			if hit_found:
+				break
+		check(hit_found, "チラシに触れると、ダメージを受ける")
+		s2.hazard_done = {}
+		s2.my_hp = hp_full
+		s2.stun_left = 0.0
 		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
-		now[0] = t0 + first_ms - float(cfg2["slam_telegraph_sec"]) * 500.0
+		s2.my_hp = 5.0
+		s2.hazard_done = {}
+		var gt: Dictionary = sched[0]
+		s2.player.position = Vector3(0.0, s2.ground_y, 6.0)
+		now[0] = t0 + (float(gt["start"]) + float(gk["follow_sec"])) * 1000.0 + 10.0
 		s2.combat_update(0.016)
-		check(s2.slam_ring.visible and s2.my_hp == hp_full, "予告の最中は、輪が見えて、まだダメージは受けない")
-		now[0] = t0 + first_ms + 10.0
+		now[0] = t0 + (float(gt["start"]) + float(gk["follow_sec"]) + float(gk["lock_sec"])) * 1000.0 + 50.0
 		s2.combat_update(0.016)
-		check(is_equal_approx(s2.my_hp, hp_full - float(cfg2["slam_power"])), "輪の中で、地面にいると、一撃を受ける")
-		check(not s2.slam_ring.visible, "一撃のあとは、輪が消える")
-		var interval_ms: float = float(cfg2["slam_interval_sec"]) * 1000.0
-		var hp_before: float = s2.my_hp
-		s2.player.position.y = s2.ground_y + 1.5
-		now[0] = t0 + first_ms + interval_ms + 10.0
-		s2.combat_update(0.016)
-		check(s2.my_hp == hp_before, "ジャンプ中は、一撃をよけられる")
-		s2.player.position = Vector3(14.0, s2.ground_y, 14.0)
-		now[0] = t0 + first_ms + interval_ms * 2.0 + 10.0
-		s2.combat_update(0.016)
-		check(s2.my_hp == hp_before, "輪の外にいれば、一撃を受けない")
-		# 2回目は突進：通り道（帯）の中にいると当たり、横にずれるか跳べばよけられる
-		var lane2: float = Pattern.lane_x(2, cfg2["charge_lanes"])
-		var charge_t: float = t0 + first_ms + interval_ms - float(cfg2["slam_telegraph_sec"]) * 500.0
-		s2.last_strike = 1
-		s2.my_hp = hp_full
-		s2.player.position = Vector3(lane2, s2.ground_y, 2.0)
-		now[0] = charge_t
-		s2.combat_update(0.016)
-		check(s2.charge_strip.visible and not s2.slam_ring.visible, "突進の予告の最中は、帯が見える（輪は見えない）")
-		check(is_equal_approx(s2.charge_strip.position.x, lane2), "帯は、突進の通り道の位置にある")
-		s2.last_strike = 2
-		s2.my_hp = hp_full
-		s2.player.position = Vector3(lane2, s2.ground_y, 2.0)
-		s2._resolve_strike(2)
-		check(is_equal_approx(s2.my_hp, hp_full - float(cfg2["charge_power"])), "突進の通り道の中にいると、突進を受ける")
-		s2.my_hp = hp_full
-		s2.player.position = Vector3(lane2 + float(cfg2["charge_half_width"]) + 1.0, s2.ground_y, 2.0)
-		s2._resolve_strike(2)
-		check(s2.my_hp == hp_full, "横にずれれば、突進をよけられる")
-		s2.player.position = Vector3(lane2, s2.ground_y + 1.5, 2.0)
-		s2._resolve_strike(2)
-		check(s2.my_hp == hp_full, "跳んでいれば、突進をよけられる")
-		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
-		var guard := 0
-		while not s2.downed and guard < 20:
-			guard += 1
-			now[0] += interval_ms
-			s2.combat_update(0.016)
 		check(s2.downed and s2.my_hp <= 0.0, "体力が0になると、ダウンする")
 		check(s2.lost and not s2.round_active(), "1人だけでダウンすれば、全滅で戦いが終わる")
 		check(not s2.attack(), "ダウン中は、こうげきが当たらない")
@@ -271,7 +277,6 @@ func _initialize() -> void:
 		now6[0] += float(s6.config["enrage_after_sec"]) * 1000.0 + 100.0
 		check(s6.is_enraged(), "いかりの時刻を過ぎると、いかり")
 		s6.combat_update(0.016)
-		check(s6.last_strike == s6._strike_count(float(s6.config["enrage_after_sec"]) + 0.1), "いかりの間も、一撃の回数が数えられる")
 		s6.player.position = Vector3(0.0, s6.ground_y, float(s6.config["boss_position"][1]) + 2.0)
 		s6.my_hits = 123.0
 		s6.net_state = {"slot": "p1", "members": ["p1", "p2"], "hits": {"p1": 123, "p2": 77}}

@@ -17,10 +17,12 @@ const SLOTS := ["p1", "p2", "p3", "p4"]
 const StickMath := preload("res://scripts/prototype/stick_math.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
 const Pattern := preload("res://scripts/combat/boss_pattern.gd")
+const Attacks := preload("res://scripts/combat/boss_attacks.gd")
 const RoomCode := preload("res://scripts/network/room_code.gd")
 const Bridge := preload("res://scripts/network/room_bridge.gd")
 const Sync := preload("res://scripts/network/position_sync.gd")
 const BossSync := preload("res://scripts/network/boss_sync.gd")
+const BossModel := preload("res://scripts/boss/boss_model.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 const Recorder := preload("res://scripts/combat/highlight_recorder.gd")
 const CrowdState := preload("res://scripts/combat/crowd_state.gd")
@@ -34,6 +36,8 @@ var config: Dictionary = {}
 var player: MeshInstance3D
 var player_material: StandardMaterial3D
 var boss: MeshInstance3D
+var boss_model: Node3D
+var boss_clock := 0.0
 var sub_crowd: Node3D
 var recorder := Recorder.new()
 var char_view: Node3D = null
@@ -60,15 +64,20 @@ var crowd_state := CrowdState.new()
 var touch_timer := 0.0
 var since_sample := 0.0
 var boss_material: StandardMaterial3D
-var slam_ring: MeshInstance3D
-var slam_material: StandardMaterial3D
-var charge_strip: MeshInstance3D
+var attacks_cfg: Dictionary = {}
+var attack_schedule: Array = []
+var hazard_nodes: Array = []
+var hazard_done := {}
+var grab_locked := {}
+var stun_left := 0.0
+var current_hazards: Array = []
+var current_attack: Dictionary = {}
+var current_attack_u := 0.0
 var camera: Camera3D
 var camera_offset := Vector3.ZERO
 var portrait_mode := false
 var camera_target := Vector3.ZERO
 var player_marker_material: StandardMaterial3D
-var charge_material: StandardMaterial3D
 var overlay: Control
 var font: Font
 var stick_vec := Vector2.ZERO
@@ -91,7 +100,6 @@ var lost := false
 var round_start_ms := 0.0
 var known_round := 0.0
 var round_count := 0
-var last_strike := 0
 var round_end_ms := 0.0
 ## 画面の流れの中で動かすとき true。「もういちど」ボタンは、流れ側が受け持つので出さない
 var flow_mode := false
@@ -217,11 +225,27 @@ func _build_world() -> void:
 	player_material = (player.mesh as BoxMesh).material as StandardMaterial3D
 	player.position = Vector3(0.0, ground_y, 0.0)
 
-	# ボス（仮の箱）。位置は床の上の (x, z)
-	boss = _make_box("Boss", float(config["boss_size"]), Color(str(config["boss_color"])))
-	boss_material = (boss.mesh as BoxMesh).material as StandardMaterial3D
+	# ボス：大きな胴体（これが本体）に、頭・足・長い手2本を付ける。位置は床の上の (x, z)
+	var bcfg := BossModel.load_config()
+	boss = MeshInstance3D.new()
+	boss.name = "Boss"
+	var torso := SphereMesh.new()
+	torso.radius = float(bcfg["torso_radius"])
+	torso.height = float(bcfg["torso_height"])
+	torso.radial_segments = 24
+	torso.rings = 12
+	boss_material = StandardMaterial3D.new()
+	boss_material.albedo_color = Color(str(config["boss_color"]))
+	boss_material.roughness = 0.55
+	torso.material = boss_material
+	boss.mesh = torso
+	add_child(boss)
 	var bp: Array = config["boss_position"]
-	boss.position = Vector3(bp[0], float(config["boss_size"]) * 0.5, bp[1])
+	boss.position = Vector3(bp[0], float(bcfg["torso_center_y"]), bp[1])
+	boss_model = BossModel.new()
+	boss_model.name = "BossModel"
+	boss.add_child(boss_model)
+	boss_model.build(bcfg, boss_material)
 
 	# サブ敵の群れ（見た目だけ。時間で動くので通信は要らない）
 	sub_crowd = SubCrowd.new()
@@ -230,34 +254,9 @@ func _build_world() -> void:
 	sub_crowd.setup(config, Vector2(bp[0], bp[1]))
 	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
 
-	# 範囲攻撃の予告の輪（床の上の、薄い円盤）
-	slam_ring = MeshInstance3D.new()
-	slam_ring.name = "SlamRing"
-	var disc := CylinderMesh.new()
-	disc.top_radius = float(config["slam_radius"])
-	disc.bottom_radius = float(config["slam_radius"])
-	disc.height = 0.04
-	slam_material = StandardMaterial3D.new()
-	slam_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	slam_material.albedo_color = Color(str(config["slam_color"]))
-	disc.material = slam_material
-	slam_ring.mesh = disc
-	slam_ring.position = Vector3(bp[0], 0.03, bp[1])
-	slam_ring.visible = false
-	add_child(slam_ring)
-
-	# 突進の予告の帯（ボスから手前へ伸びる、床の上の薄い板）
-	charge_strip = MeshInstance3D.new()
-	charge_strip.name = "ChargeStrip"
-	var strip := BoxMesh.new()
-	strip.size = Vector3(float(config["charge_half_width"]) * 2.0, 0.04, float(config["charge_length"]))
-	charge_material = StandardMaterial3D.new()
-	charge_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	charge_material.albedo_color = Color(str(config["charge_color"]))
-	strip.material = charge_material
-	charge_strip.mesh = strip
-	charge_strip.visible = false
-	add_child(charge_strip)
+	# ボスの攻撃の見た目（予告の輪、帯、チラシ、手）は、使うときに作って使いまわす
+	attacks_cfg = Attacks.load_config()
+	attack_schedule = Attacks.build_schedule(attacks_cfg)
 
 	skill_fx = MeshInstance3D.new()
 	skill_fx.name = "SkillFx"
@@ -444,7 +443,7 @@ func _process(delta: float) -> void:
 	if dormant:
 		_dormant_update(delta)
 		return
-	var move := Vector2.ZERO if downed else stick_vec
+	var move := Vector2.ZERO if (downed or stun_left > 0.0) else stick_vec
 	player.position = StickMath.step_position(player.position, move, role_value("move_speed"), delta, float(config["bounds"]))
 	var r := StickMath.jump_update(player.position.y, velocity_y, delta, float(config["gravity"]), ground_y)
 	player.position.y = r.x
@@ -458,6 +457,9 @@ func _process(delta: float) -> void:
 	boss_material.albedo_color = Color(str(config["boss_hit_color"])) if hit_flash > 0.0 else boss_base
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
+	boss_clock += delta
+	if boss_model != null and boss.visible:
+		_pose_boss()
 	_record_highlight(delta)
 	_skill_update(delta)
 	_update_character(delta)
@@ -665,7 +667,9 @@ func _begin_round(start_ms: float) -> void:
 	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
 	touch_timer = 0.0
 	boss_hp = float(config["boss_hp"])
-	last_strike = _strike_count((server_now_ms() - start_ms) / 1000.0)
+	hazard_done = {}
+	grab_locked = {}
+	stun_left = 0.0
 	if net_active:
 		bridge.send_hits(0.0)
 		bridge.send_hp(my_hp, round_start_ms)
@@ -1028,12 +1032,6 @@ func _recompute_boss_hp() -> void:
 		boss.visible = false
 
 
-## 戦いの進み：ボスの範囲攻撃（予告の輪、一撃）。時刻だけで決まるので、全員の画面で同じになる
-## 戦いが始まってから t 秒までの、一撃の回数（いかりの切り替えを含む）
-func _strike_count(t: float) -> int:
-	return Pattern.strike_index_phased(t, float(config["slam_first_delay_sec"]), float(config["slam_interval_sec"]), float(config["enrage_after_sec"]), float(config["slam_interval_enraged_sec"]))
-
-
 ## ボスが、いかりの状態か（戦いの最中で、いかりの時刻を過ぎている）
 func is_enraged() -> bool:
 	return round_active() and (server_now_ms() - round_start_ms) / 1000.0 >= float(config["enrage_after_sec"])
@@ -1053,57 +1051,185 @@ func build_result_lines() -> Array:
 	return lines
 
 
+## ボスの腕：攻撃ごとの動き（ふだんは、ゆらゆら）
+func _pose_boss() -> void:
+	if current_attack.is_empty() or current_hazards.is_empty() and str(current_attack.get("kind", "")) != Attacks.FLYER_STORM:
+		boss_model.pose_idle(boss_clock)
+		return
+	var u := current_attack_u
+	var k: Dictionary = attacks_cfg["kinds"][str(current_attack["kind"])]
+	var bp := Vector3(boss.position.x, 0.0, boss.position.z)
+	var reach := 7.0
+	match str(current_attack["kind"]):
+		Attacks.GRAB:
+			var h: Dictionary = current_hazards[0]
+			var tgt := Vector3(float(h["x"]), float(k["hand_height"]), float(h["z"]))
+			boss_model.set_hand("R", boss_model.to_local(tgt))
+			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 1.0, 3.0)))
+		Attacks.TYPHOON:
+			var wind := float(k["windup_sec"])
+			var rad := lerpf(2.0, minf(float(k["radius"]) * 0.9, reach), clampf(u / wind, 0.0, 1.0))
+			var ang := deg_to_rad(float(k["spin_deg_per_sec"])) * maxf(u - wind, 0.0) + u * 2.0
+			for side in ["L", "R"]:
+				var a := ang + (0.0 if side == "L" else PI)
+				var w := bp + Vector3(cos(a) * rad, float(k["hand_height"]), sin(a) * rad)
+				boss_model.set_hand(side, boss_model.to_local(w))
+		Attacks.FLYERS:
+			var pulse := sin(u * 9.0)
+			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 1.8, 3.5 + 2.0 * maxf(pulse, 0.0))))
+			boss_model.set_hand("R", boss_model.to_local(bp + Vector3(2.5, 1.8, 3.5 + 2.0 * maxf(-pulse, 0.0))))
+		Attacks.FLYER_STORM:
+			var shake := sin(u * 14.0) * 0.6
+			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5 + shake, 7.0, 0.5)))
+			boss_model.set_hand("R", boss_model.to_local(bp + Vector3(2.5 - shake, 7.0, 0.5)))
+		Attacks.HAND_SWEEP:
+			var h: Dictionary = current_hazards[0]
+			var x := clampf(float(h["x"]), bp.x - reach, bp.x + reach)
+			var z := clampf(float(h["z"]), bp.z - reach, bp.z + reach)
+			boss_model.set_hand("R", boss_model.to_local(Vector3(x, 1.0, z)))
+			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 3.5, 2.0)))
+
+
+func _my_slot() -> String:
+	return str(net_state.get("slot", "p1")) if net_active else "p1"
+
+
+## 攻撃の計算に渡す、いまの状況（ボス、みんなの位置、つかみの固定位置）。位置は (x, z)
+func _attack_ctx(a: Dictionary, u: float) -> Dictionary:
+	var half := float(config["bounds"])
+	var me := _my_slot()
+	var members: Array = net_state.get("members", []).duplicate() if net_active else []
+	if not members.has(me):
+		members.append(me)
+	var positions := {me: Vector2(player.position.x, player.position.z)}
+	for slot in other_pos:
+		var np: Vector2 = other_pos[slot]
+		positions[slot] = Vector2(np.x * 2.0 * half - half, np.y * 2.0 * half - half)
+	var ctx := {"boss": Vector2(boss.position.x, boss.position.z), "members": members, "positions": positions,
+		"locked": null, "round_start_ms": round_start_ms, "bounds": half}
+	if str(a["kind"]) == Attacks.GRAB and u >= float(attacks_cfg["kinds"]["grab"]["follow_sec"]):
+		var n := int(a["n"])
+		if not grab_locked.has(n):
+			var target := Attacks.grab_target(n, members)
+			grab_locked[n] = positions.get(target, ctx["boss"] + Vector2(0.0, 6.0))
+		ctx["locked"] = grab_locked[n]
+	return ctx
+
+
+## 戦いの進み：ボスの攻撃（予告 → 当たり）。時刻だけで決まるので、全員の画面で同じになる
 func combat_update(delta: float) -> void:
 	player_hit_flash = maxf(0.0, player_hit_flash - delta)
+	stun_left = maxf(0.0, stun_left - delta)
+	current_hazards = []
 	if not round_active():
-		slam_ring.visible = false
-		charge_strip.visible = false
+		_show_hazards([])
 		return
 	var t := (server_now_ms() - round_start_ms) / 1000.0
-	var first := float(config["slam_first_delay_sec"])
-	var interval := float(config["slam_interval_sec"])
-	var index := _strike_count(t)
-	while last_strike < index and round_active():
-		last_strike += 1
-		_resolve_strike(last_strike)
-	var progress := Pattern.telegraph_progress_phased(t, first, interval, float(config["slam_telegraph_sec"]), float(config["enrage_after_sec"]), float(config["slam_interval_enraged_sec"]))
-	var upcoming := Pattern.attack_kind(index + 1, config["attack_cycle"])
-	var alpha := lerpf(float(config["slam_min_alpha"]), float(config["slam_max_alpha"]), maxf(progress, 0.0))
-	slam_ring.visible = progress >= 0.0 and round_active() and upcoming == "slam"
-	charge_strip.visible = progress >= 0.0 and round_active() and upcoming == "charge"
-	if slam_ring.visible:
-		var base := Color(str(config["slam_color"]))
-		slam_material.albedo_color = Color(base.r, base.g, base.b, alpha)
-	if charge_strip.visible:
-		var lane := Pattern.lane_x(index + 1, config["charge_lanes"])
-		charge_strip.position = Vector3(lane, 0.03, boss.position.z + float(config["charge_length"]) * 0.5)
-		var cb := Color(str(config["charge_color"]))
-		charge_material.albedo_color = Color(cb.r, cb.g, cb.b, alpha)
-
-
-## n 回目の一撃が当たった。輪（slam）か、突進の帯（charge）の中にいて、地面にいれば（ジャンプでよけていなければ）ダメージを受ける
-func _resolve_strike(n: int) -> void:
-	if downed:
-		return
-	var airborne := player.position.y > ground_y + float(config["dodge_height"])
-	if airborne:
-		return
-	if dash_left > 0.0:
-		return
-	var kind := Pattern.attack_kind(n, config["attack_cycle"])
-	var power := 0.0
-	if kind == "charge":
-		var lane := Pattern.lane_x(n, config["charge_lanes"])
-		var from_z := boss.position.z
-		if not Pattern.in_lane(player.position.x, player.position.z, lane, float(config["charge_half_width"]), from_z, from_z + float(config["charge_length"])):
-			return
-		power = float(config["charge_power"])
+	var idx := Attacks.active_index(attack_schedule, t)
+	if idx >= 0:
+		var a: Dictionary = attack_schedule[idx]
+		var u := t - float(a["start"])
+		current_attack = a
+		current_attack_u = u
+		current_hazards = Attacks.hazards(a, u, attacks_cfg, _attack_ctx(a, u))
+		_apply_hazards(current_hazards)
 	else:
-		if not Damage.in_reach(player.position, boss.position, float(config["slam_radius"])):
+		current_attack = {}
+	_show_hazards(current_hazards)
+
+
+## 当たり場所の中にいれば、ダメージ（自分の分だけ調べる）。同じ当たりは1回だけ
+func _apply_hazards(hz: Array) -> void:
+	if downed or dash_left > 0.0:
+		return
+	var me := _my_slot()
+	var airborne := player.position.y > ground_y + float(attacks_cfg["dodge_height"])
+	for h in hz:
+		if not bool(h["active"]):
+			continue
+		var target := str(h["target"])
+		if target != "" and target != me:
+			continue
+		var key := "%s:%d" % [h["id"], int(h["tick"])]
+		if hazard_done.has(key):
+			continue
+		if bool(h["jumpable"]) and airborne:
+			continue
+		if not Attacks.inside(h, player.position.x, player.position.z):
+			continue
+		hazard_done[key] = true
+		player_hit_flash = float(config["hit_flash_sec"])
+		_take_damage(Damage.damage_amount(float(h["power"]), float(attacks_cfg["damage_multiplier"])))
+		if h.has("stun"):
+			stun_left = maxf(stun_left, float(h["stun"]))
+		if downed:
 			return
-		power = float(config["slam_power"])
-	player_hit_flash = float(config["hit_flash_sec"])
-	_take_damage(Damage.damage_amount(power, float(config["slam_multiplier"])))
+
+
+func _hazard_node(i: int) -> MeshInstance3D:
+	while hazard_nodes.size() <= i:
+		var n := MeshInstance3D.new()
+		n.name = "Hazard%d" % hazard_nodes.size()
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		n.set_meta("mat", m)
+		n.visible = false
+		add_child(n)
+		hazard_nodes.append(n)
+	return hazard_nodes[i]
+
+
+func _show_hazards(hz: Array) -> void:
+	var zc := Color(str(attacks_cfg["zone_color"]))
+	for i in hz.size():
+		var h: Dictionary = hz[i]
+		var n := _hazard_node(i)
+		var m: StandardMaterial3D = n.get_meta("mat")
+		var style := str(h["style"])
+		var kind := "box" if str(h["shape"]) == "box" else ("paper" if style == "paper" else "disc")
+		if n.get_meta("kind", "") != kind:
+			n.set_meta("kind", kind)
+			var mesh: PrimitiveMesh
+			if kind == "disc":
+				var c := CylinderMesh.new()
+				c.top_radius = 1.0
+				c.bottom_radius = 1.0
+				c.height = 0.04
+				c.radial_segments = 24
+				c.rings = 1
+				mesh = c
+			else:
+				var b := BoxMesh.new()
+				b.size = Vector3.ONE
+				mesh = b
+			mesh.material = m
+			n.mesh = mesh
+		var alpha := lerpf(float(attacks_cfg["zone_min_alpha"]), float(attacks_cfg["zone_max_alpha"]), float(h["tele"]))
+		var active := bool(h["active"])
+		n.rotation = Vector3.ZERO
+		if kind == "disc":
+			n.position = Vector3(float(h["x"]), 0.03, float(h["z"]))
+			n.scale = Vector3(float(h["r"]), 1.0, float(h["r"]))
+			m.albedo_color = Color(1.0, 0.55, 0.2, 0.75) if active else Color(zc.r, zc.g, zc.b, alpha)
+		elif kind == "paper":
+			n.position = Vector3(float(h["x"]), 0.9, float(h["z"]))
+			n.scale = Vector3(0.9, 0.08, 1.2)
+			n.rotation = Vector3(0.3, float(h["age"]) * 9.0, 0.2)
+			m.albedo_color = Color(str(attacks_cfg["paper_color"]))
+		else:
+			# 手（動いているあいだ）と、予告の帯
+			if active:
+				n.position = Vector3(float(h["x"]), 0.8, float(h["z"]))
+				n.scale = Vector3(float(h["hx"]) * 2.0, 1.4, float(h["hz"]) * 2.0)
+				m.albedo_color = Color(str(attacks_cfg["hand_color"]))
+			else:
+				n.position = Vector3(0.0, 0.03, float(h["band_z"]))
+				n.scale = Vector3(float(h["band_half"]) * 2.0, 0.04, float(h["hz"]) * 2.0)
+				m.albedo_color = Color(zc.r, zc.g, zc.b, alpha)
+		n.visible = true
+	for i in range(hz.size(), hazard_nodes.size()):
+		(hazard_nodes[i] as Node3D).visible = false
 
 
 func _set_my_hp(value: float) -> void:

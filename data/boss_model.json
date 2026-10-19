@@ -1,0 +1,20 @@
+{
+  "_memo": "ボスの3Dモデルの大きさ・色（コードで組む）。長さの単位はメートル。胴体は prototype_stick.json の boss_* でなく、ここ",
+  "torso_radius": 1.7,
+  "torso_height": 3.6,
+  "torso_center_y": 2.3,
+  "head_radius": 0.85,
+  "eye_radius": 0.22,
+  "eye_gap": 0.38,
+  "eye_color": "#fff6d8",
+  "dark_color": "#2a1018",
+  "leg_radius": 0.5,
+  "leg_gap": 0.8,
+  "leg_length": 1.1,
+  "arm_radius": 0.3,
+  "arm_length": 8.0,
+  "arm_bow": 0.9,
+  "arm_sag": 1.6,
+  "hand_radius": 0.55,
+  "skin_color": "#a03a4a"
+}
