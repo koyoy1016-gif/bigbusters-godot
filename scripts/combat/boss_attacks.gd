@@ -21,6 +21,7 @@ const BAT_V := "bat_v"
 const BAT_SPIN := "bat_spin"
 const TAIL_SPIN := "tail_spin"
 const WALK_SWING := "walk_swing"
+const SAKE_RAIN := "sake_rain"
 
 
 ## 前の向き（x, z）
@@ -135,7 +136,40 @@ static func hazards(a: Dictionary, u: float, cfg: Dictionary, ctx: Dictionary) -
 			return _tail_spin(a, u, k, ctx)
 		WALK_SWING:
 			return _walk_swing(a, u, k, ctx)
+		SAKE_RAIN:
+			return _sake_rain(a, u, k, ctx)
 	return []
+
+
+## 酒の雨：throw 回めに投げる時刻
+static func sake_throw_time(throw: int, k: Dictionary) -> float:
+	return float(k["first_sec"]) + float(throw) * float(k["every_sec"])
+
+
+## 酒の雨：throw 回めに投げた i 粒めの、落ちる場所（ボスの前の扇の中。全員の画面で同じ）と、落ちる時刻
+static func sake_spot(a: Dictionary, throw: int, i: int, k: Dictionary, ctx: Dictionary) -> Dictionary:
+	var rng := rng_for(float(ctx["round_start_ms"]), int(a["n"]) * 1000 + throw * 37 + i)
+	var ang := deg_to_rad(rng.randf_range(-float(k["angle_deg"]), float(k["angle_deg"]))) + float(ctx.get("yaw", 0.0))
+	var dist := rng.randf_range(float(k["min_dist"]), float(k["max_dist"]))
+	var t0 := sake_throw_time(throw, k)
+	var land := t0 + float(k["fall_sec"]) + float(k["fall_spread_sec"]) * float(i) / float(maxi(int(k["per_throw"]) - 1, 1))
+	return {"pos": (ctx["boss"] as Vector2) + Vector2(sin(ang), cos(ang)) * dist, "throw": t0, "land": land}
+
+
+## 酒の雨：ボスが一升瓶をふり上げて、酒を空へばらまく → 少しして、上から降ってくる（落ちる所に、先に輪が出る）
+static func _sake_rain(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
+	var out: Array = []
+	for t in int(k["throws"]):
+		for i in int(k["per_throw"]):
+			var sp := sake_spot(a, t, i, k, ctx)
+			var t0: float = sp["throw"]
+			var land: float = sp["land"]
+			if u < t0 or u >= land + float(k["hit_sec"]):
+				continue
+			var p: Vector2 = sp["pos"]
+			out.append({"id": "sk%d_%d_%d" % [int(a["n"]), t, i], "shape": "circle", "x": p.x, "z": p.y, "r": float(k["radius"]), "active": u >= land,
+				"tele": clampf((u - t0) / (land - t0), 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "sake"})
+	return out
 
 
 ## 攻撃中に、ボスが前へ出る距離（u 秒の時点）。横振り・縦振りは、振るときに一歩ふみこむ。歩きながら振るは、歩き続ける
@@ -159,19 +193,33 @@ static func boss_at(kind: String, u: float, k: Dictionary, ctx: Dictionary) -> V
 	return (ctx["boss"] as Vector2) + fwd_of(float(ctx.get("yaw", 0.0))) * step_forward(kind, u, k)
 
 
+## 扇。k の center_deg：扇のまん中の向きを、ボスの正面から何度ずらすか（+ がボスの左）
 static func _sector(id: String, c: Vector2, r: float, yaw: float, arc_deg: float, active: bool, tele: float, k: Dictionary, tick: int = -1) -> Dictionary:
-	return {"id": id, "shape": "sector", "x": c.x, "z": c.y, "r": r, "yaw": yaw, "half": deg_to_rad(arc_deg) * 0.5, "active": active,
+	return {"id": id, "shape": "sector", "x": c.x, "z": c.y, "r": r, "yaw": yaw + deg_to_rad(float(k.get("center_deg", 0.0))), "half": deg_to_rad(arc_deg) * 0.5, "active": active,
 		"tele": tele, "power": float(k.get("power", 0.0)), "jumpable": bool(k.get("jumpable", true)), "target": "", "tick": tick, "style": "zone"}
 
 
-## バットの横振り：予告の扇 → 振る（短い間だけ当たる）
+## 振りぬく扇：予告はバットが通る全体（sweep_from_deg〜sweep_to_deg）。振っている間は、バットが通りすぎた所までが当たる
+## （動きとそろえる：バットがまだ来ていない所には、まだ当たらない）。p は振りの進み（0〜1）
+static func _sweep_sector(id: String, c: Vector2, yaw: float, k: Dictionary, active: bool, tele: float, p: float) -> Dictionary:
+	var a0 := float(k.get("sweep_from_deg", -80.0))
+	var a1 := float(k.get("sweep_to_deg", 80.0))
+	if active:
+		a1 = a0 + (a1 - a0) * clampf(p, 0.08, 1.0)
+	var h := _sector(id, c, float(k["radius"]), yaw, absf(a1 - a0), active, tele, k)
+	h["yaw"] = yaw + deg_to_rad((a0 + a1) * 0.5)
+	return h
+
+
+## バットの横振り：予告の扇 → 右から左へ振りぬく（バットが通った所から当たる）
 static func _bat_h(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
 	var w := float(k["windup_sec"])
-	var end := w + float(k["swing_sec"])
+	var sw := float(k["swing_sec"])
+	var end := w + sw
 	if u >= end:
 		return []
 	var c := boss_at(BAT_H, end, k, ctx)
-	return [_sector("bh%d" % int(a["n"]), c, float(k["radius"]), float(ctx.get("yaw", 0.0)), float(k["arc_deg"]), u >= w, clampf(u / w, 0.0, 1.0), k)]
+	return [_sweep_sector("bh%d" % int(a["n"]), c, float(ctx.get("yaw", 0.0)), k, u >= w, clampf(u / w, 0.0, 1.0), (u - w) / sw)]
 
 
 ## バットの縦振り：前へまっすぐの帯 → たたきつける
@@ -179,7 +227,7 @@ static func _bat_v(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> A
 	var w := float(k["windup_sec"])
 	if u >= w + float(k["hit_sec"]):
 		return []
-	var yaw := float(ctx.get("yaw", 0.0))
+	var yaw := float(ctx.get("yaw", 0.0)) + deg_to_rad(float(k.get("center_deg", 0.0)))
 	var f := fwd_of(yaw)
 	var c := boss_at(BAT_V, w, k, ctx) + f * (float(k["start"]) + float(k["length"]) * 0.5)
 	return [{"id": "bv%d" % int(a["n"]), "shape": "obox", "x": c.x, "z": c.y, "hx": float(k["half_width"]), "hz": float(k["length"]) * 0.5, "yaw": yaw,
@@ -223,7 +271,7 @@ static func _walk_swing(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary)
 		if u < from or u >= hit_t + float(k["hit_sec"]):
 			continue
 		var c := boss_at(WALK_SWING, hit_t, k, ctx)
-		out.append(_sector("ws%d_%d" % [int(a["n"]), i], c, float(k["radius"]), yaw, float(k["arc_deg"]), u >= hit_t, clampf((u - from) / float(k["tele_sec"]), 0.0, 1.0), k))
+		out.append(_sweep_sector("ws%d_%d" % [int(a["n"]), i], c, yaw, k, u >= hit_t, clampf((u - from) / float(k["tele_sec"]), 0.0, 1.0), (u - hit_t) / float(k["hit_sec"])))
 	return out
 
 
@@ -312,7 +360,7 @@ static func _storm(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> A
 			continue
 		var p: Vector2 = sp["pos"]
 		out.append({"id": "st%d_%d" % [int(a["n"]), i], "shape": "circle", "x": p.x, "z": p.y, "r": float(k["radius"]), "active": u >= s + tele,
-			"tele": clampf((u - s) / tele, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "zone"})
+			"tele": clampf((u - s) / tele, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "sake"})
 	return out
 
 

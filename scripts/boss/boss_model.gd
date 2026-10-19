@@ -35,7 +35,8 @@ var aura: Node3D
 var aura_particles: CPUParticles3D
 var aura_ground: MeshInstance3D
 var aura_glow_mat: StandardMaterial3D
-var sweep_hands := {}  ## 必殺技の大きな手（"L"/"R" → Node3D。世界に直接置く）
+var sweep_hands := {}
+var spray: CPUParticles3D  ## 酒をまくしぶき（世界に直接置く）  ## 必殺技の大きな手（"L"/"R" → Node3D。世界に直接置く）
 var flinch := 0.0
 var _clock := 0.0
 var _flash_on := false
@@ -84,6 +85,7 @@ func build(config: Dictionary, skin_material: StandardMaterial3D) -> void:
 	_build_tail()
 	_build_aura()
 	_build_sweep_hands()
+	_build_spray()
 	_apply_form("normal")
 	pose = anim.sample("Idle", 0.0)
 	anim.apply(pose)
@@ -209,15 +211,9 @@ func _tail_point(k: float, clock: float) -> Vector3:
 
 func _update_tail(clock: float) -> void:
 	# 腰の骨の、休みの姿勢からの動き（位置と向き）を、しっぽ全体にかける
-	var hip_now := anim.bone_model_pos(pose, "spine05")
-	var hip_basis := _hip_model_basis()
-	var rot := hip_basis * _hip_basis_rest.inverse()
 	var mm := tail_mm.multimesh
 	var deco := tail_deco_mm.multimesh
-	var pts: Array = []
-	for i in TailSegments + 1:
-		var p := _tail_point(float(i) / float(TailSegments), clock)
-		pts.append(hip_now + rot * (p - _hip_rest))
+	var pts := _tail_points(clock)
 	for i in TailSegments:
 		var a: Vector3 = pts[i]
 		var b: Vector3 = pts[i + 1]
@@ -238,6 +234,23 @@ func _update_tail(clock: float) -> void:
 		var d2 := (dir + side * spread + Vector3.UP * 0.25 * cos(float(k))).normalized()
 		var h2 := 0.2
 		deco.set_instance_transform(TailSegments + k, Transform3D(Basis(Quaternion(Vector3.UP, d2)) * Basis.from_scale(Vector3(0.04, h2, 0.04)), tip + d2 * h2 * 0.5))
+
+
+## しっぽの道の点（モデルの座標。腰の骨の、休みの姿勢からの動きをかける）
+func _tail_points(clock: float) -> Array:
+	var hip_now := anim.bone_model_pos(pose, "spine05")
+	var rot := _hip_model_basis() * _hip_basis_rest.inverse()
+	var pts: Array = []
+	for i in TailSegments + 1:
+		var p := _tail_point(float(i) / float(TailSegments), clock)
+		pts.append(hip_now + rot * (p - _hip_rest))
+	return pts
+
+
+## しっぽの先の位置（ボスの足もとから見た、大きさをかけた長さ）
+func tail_tip_local() -> Vector3:
+	var pts := _tail_points(_clock)
+	return (pts[pts.size() - 1] as Vector3) * float(cfg["model_scale"])
 
 
 func _hip_model_basis() -> Basis:
@@ -385,6 +398,52 @@ func _build_sweep_hands() -> void:
 		sweep_hands[side] = hand
 
 
+# ---- 酒のしぶき（一升瓶をふり上げたとき、空へ飛ぶ） ----
+
+func _build_spray() -> void:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	mat.vertex_color_use_as_albedo = true
+	var sm := SphereMesh.new()
+	sm.radius = 0.12
+	sm.height = 0.34
+	sm.radial_segments = 6
+	sm.rings = 3
+	sm.material = mat
+	spray = CPUParticles3D.new()
+	spray.name = "SakeSpray"
+	spray.top_level = true
+	spray.mesh = sm
+	spray.one_shot = true
+	spray.emitting = false
+	spray.explosiveness = 0.85
+	spray.amount = int(cfg.get("spray_amount", 36))
+	spray.lifetime = 1.3
+	spray.direction = Vector3.UP
+	spray.spread = 28.0
+	spray.initial_velocity_min = 6.0
+	spray.initial_velocity_max = 11.0
+	spray.gravity = Vector3(0, -14.0, 0)
+	spray.scale_amount_min = 0.7
+	spray.scale_amount_max = 1.5
+	var grad := Gradient.new()
+	grad.set_color(0, Color(str(cfg.get("sake_color", "#f2e6b8")), 0.95))
+	grad.set_color(1, Color(str(cfg.get("sake_color", "#f2e6b8")), 0.0))
+	spray.color_ramp = grad
+	spray.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(spray)
+
+
+## 酒を空へまく（左手の一升瓶から）
+func spray_sake() -> void:
+	if spray == null:
+		return
+	spray.global_position = hand_world("L") + Vector3(0, 0.5, 0)
+	spray.restart()
+
+
 # ---- 姿 ----
 
 func _apply_form(name: String) -> void:
@@ -491,3 +550,15 @@ func hand_world(side: String) -> Vector3:
 		t = (node as Node3D).transform * t
 		node = node.get_parent()
 	return t * local
+
+
+## バットの先の位置（ボスの足もとから見た、大きさをかけた長さ。ボスの向き・回転は入れない）
+func bat_tip_local(p: Dictionary = {}) -> Vector3:
+	var ps: Dictionary = pose if p.is_empty() else p
+	var bt: Dictionary = cfg.get("bat_tip", {})
+	var off: Array = bt.get("offset", [0, 0.08, 0])
+	var aim_a: Array = bt.get("aim", [0, 1, 0])
+	var aim := Vector3(float(aim_a[0]), float(aim_a[1]), float(aim_a[2])).normalized()
+	var wx := anim.bone_model_xform(ps, "wrist.R")
+	var tip := wx * (Vector3(float(off[0]), float(off[1]), float(off[2])) + Basis(Quaternion(Vector3.UP, aim)) * Vector3(0, float(bt.get("length", 1.3)), 0))
+	return tip * float(cfg["model_scale"])

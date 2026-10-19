@@ -117,10 +117,12 @@ func _init() -> void:
 	s.grab_state = {}
 	var kk: Dictionary = s.attacks_cfg["kinds"]["grab"]
 	var ally: Dictionary = s.ai_allies["p2"]
+	ally["downed"] = false
+	ally["hp"] = 100.0
 	var hp_a: float = ally["hp"]
 	ally["held"] = true
 	s._start_hold("p2", ally["pos"])
-	for i in 30:
+	for i in 19:  # つかむ時間（1秒以上）の終わりより前に見る
 		s._grab_update(0.05)
 		s._pose_boss(0.05)
 	check(float(s.other_lift.get("p2", 0.0)) > 2.5 and float(ally["hp"]) < hp_a, "AIが（ボスの左手で）持ち上がり、しめつけられる（高さ %.1f）" % float(s.other_lift.get("p2", 0.0)))

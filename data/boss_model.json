@@ -2,7 +2,7 @@
  "_memo": "ボスの3Dモデル。体と動きは剣士と同じ人型（MPFBの骨＋Quaterniusの動き素材）を model_scale 倍にしたもの。鬼の小物は tools/make_oni.py（data/attachments.json の oni_*）。長さの単位は、大きくする前のモデルの単位（身長およそ2）",
  "model": "res://assets/models/hero_swordsman.glb",
  "anim_library": "res://assets/anims/hero_ual.res",
- "model_scale": 2.6,
+ "model_scale": 4.0,
  "outline_width": 0.022,
  "hide_meshes": [
   "short04",
@@ -61,8 +61,8 @@
   "_memo": "覚醒のオーラ（世界の長さ。m）",
   "amount": 30,
   "lifetime": 1.1,
-  "radius": 1.6,
-  "height": 3.5,
+  "radius": 2.4,
+  "height": 5.4,
   "color_start": "#ff5a3c",
   "color_mid": "#c83cff",
   "color_end": "#5a1e8c",
@@ -71,16 +71,36 @@
  "moves": {
   "_memo": "動きの数値。sword_hit：Sword_Attack で刃が前を通る秒。sword_arm_out：腕を横にのばした秒。punch_reach：Punch で左手がいちばんのびた秒。crouch_t：Jump_Start でしゃがんだ秒。death_fall：Death で倒れきる秒。walk_cycle_m：歩きの動き1回ぶんで進む長さ（m。足がすべらないように合わせる）。walk_full_speed：この速さ（m/秒）以上で、歩きの動きを全部出す",
   "idle_speed": 0.9,
-  "walk_cycle_m": 3.6,
-  "walk_full_speed": 1.6,
+  "walk_cycle_m": 5.5,
+  "walk_full_speed": 2.4,
   "sword_hit": 0.47,
-  "sword_arm_out": 0.4,
+  "sword_arm_out": 0.45,
   "punch_reach": 0.3,
   "crouch_t": 0.3,
   "death_fall": 1.25,
   "grab_bend_deg": 42.0,
   "grab_lift_sec": 0.35,
   "awake_lean": 14.0,
-  "flinch_deg": 9.0
+  "flinch_deg": 9.0,
+  "sword_level": 0.45,
+  "sword_ground": 0.45,
+  "hswing_coil_deg": 95.0,
+  "hswing_finish_deg": 85.0,
+  "bat_v_turn_deg": 11.0,
+  "_memo2": "sword_level：横振りでバットを腰の高さで前へのばした Sword_Attack の秒。sword_ground：縦振りでバットの先が前の地面に来る秒。hswing_coil_deg / hswing_finish_deg：横振りのひねり（ため／振りぬき）。bat_v_turn_deg：縦振りで体を回して、たたく場所を正面にそろえる角度"
+ },
+ "bat_tip": {
+  "_memo": "バットの先の位置（右手首の骨の空間。oni_bat の offset と aim、長さ BAT_LEN から）。当たり範囲の計算（tools/measure_reach.gd）に使う",
+  "offset": [
+   0.0,
+   0.08,
+   0.0
+  ],
+  "aim": [
+   0.4,
+   0.235,
+   0.874
+  ],
+  "length": 1.3
  }
 }

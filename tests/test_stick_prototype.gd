@@ -222,25 +222,30 @@ func _initialize() -> void:
 		s2.player.position.y = s2.ground_y
 		var sched: Array = s2.awake_schedule
 		var fl: Dictionary = sched[0]
-		check(str(fl["kind"]) == "flyers", "覚醒の予定表の1番めは、チラシ")
+		check(str(fl["kind"]) == "sake_rain", "覚醒の予定表の1番めは、酒の雨")
 		s2.boss_model._apply_form("awake")
 		s2.awake_from_t = 0.0
-		var ctx: Dictionary = s2._attack_ctx(fl, 3.0)
-		var fk: Dictionary = acfg["kinds"]["flyers"]
 		var hit_found := false
-		for u10 in range(10, 60):
-			var u: float = float(u10) / 10.0
-			for h in Attacks.hazards(fl, u, acfg, ctx):
-				var pp: Vector2 = Vector2(float(h["x"]), float(h["z"]))
-				s2.player.position = Vector3(pp.x, s2.ground_y, pp.y)
-				now[0] = t0 + (float(fl["start"]) + u) * 1000.0
-				s2.combat_update(0.016)
-				if s2.my_hp < hp_full:
-					hit_found = true
-				break
+		var saw_drop := false
+		for u100 in range(0, 600, 2):
+			var u: float = float(u100) / 100.0
+			now[0] = t0 + (float(fl["start"]) + u) * 1000.0
+			s2.combat_update(0.02)
+			for d in s2.drop_nodes:
+				if (d as Node3D).visible and (d as Node3D).position.y > 1.0:
+					saw_drop = true
+			for h in s2.current_hazards:
+				if bool(h["active"]):
+					s2.player.position = Vector3(float(h["x"]), s2.ground_y, float(h["z"]))
+					s2.combat_update(0.0)
+					if s2.my_hp < hp_full:
+						hit_found = true
+					break
 			if hit_found:
 				break
-		check(hit_found, "チラシに触れると、ダメージを受ける")
+		check(saw_drop, "酒の雨：しずくが上から落ちてくるのが見える")
+		check(not s2.puddles.is_empty(), "酒の雨：落ちた所の床がぬれる")
+		check(hit_found, "酒のしずくに当たると、ダメージを受ける")
 		s2.hazard_done = {}
 		s2.my_hp = hp_full
 		s2.stun_left = 0.0

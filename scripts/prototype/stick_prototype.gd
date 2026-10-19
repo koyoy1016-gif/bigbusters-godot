@@ -656,6 +656,10 @@ func _begin_round(start_ms: float) -> void:
 	hazard_done = {}
 	grab_locked = {}
 	awake_from_t = -1.0
+	puddle_seen = {}
+	for p in puddles:
+		(p["node"] as Node3D).visible = false
+	puddles = []
 	motion.reset(motion.home)
 	boss.position = Vector3(motion.pos.x, 0.0, motion.pos.y)
 	boss.rotation.y = 0.0
@@ -1327,6 +1331,8 @@ func combat_update(delta: float) -> void:
 	_ai_update(delta)
 	_grab_update(delta)
 	_show_hazards(current_hazards)
+	_update_puddles(delta)
+	_sake_spray_update()
 
 
 ## いまの姿の予定表。覚醒したら、覚醒の予定表に切りかえる（切りかえた時刻を控える）
@@ -1337,6 +1343,30 @@ func _schedule_now(t: float) -> Array:
 		return awake_schedule
 	awake_from_t = -1.0
 	return attack_schedule
+
+
+## 酒の雨：一升瓶をふり上げた瞬間に、しぶきを空へまく（必殺技の大雨は、始めに1回）
+var _last_spray_key := ""
+func _sake_spray_update() -> void:
+	if boss_model == null or current_attack.is_empty():
+		return
+	var kind := str(current_attack["kind"])
+	var key := ""
+	if kind == Attacks.SAKE_RAIN:
+		var k: Dictionary = attacks_cfg["kinds"][kind]
+		for t in int(k["throws"]):
+			if current_attack_u >= Attacks.sake_throw_time(t, k):
+				key = "%d_%d" % [int(current_attack["n"]), t]
+	elif kind == Attacks.FLYER_STORM:
+		var k2: Dictionary = attacks_cfg["kinds"][kind]
+		var every := maxf(0.6, float(k2["spread_sec"]) / 6.0)
+		var i := int(floor((current_attack_u - float(k2["start_sec"]) + every) / every))
+		if current_attack_u >= float(k2["start_sec"]) - every and current_attack_u < float(k2["start_sec"]) + float(k2["spread_sec"]):
+			key = "%d_s%d" % [int(current_attack["n"]), i]
+	if key != "" and key != _last_spray_key:
+		_last_spray_key = key
+		if boss_model.has_method("spray_sake") and boss_model.is_inside_tree():
+			boss_model.spray_sake()
 
 
 ## t 秒より後に始まる、次の攻撃（なければ {}）
@@ -1477,6 +1507,7 @@ var hazard_fill_nodes: Array = []
 func _show_hazards(hz: Array) -> void:
 	var zc := Color(str(attacks_cfg["zone_color"]))
 	var fill_used := 0
+	var drop_used := 0
 	for i in hz.size():
 		var h: Dictionary = hz[i]
 		var n := _hazard_node(i)
@@ -1497,6 +1528,17 @@ func _show_hazards(hz: Array) -> void:
 			n.visible = true
 			continue
 		n.set_meta("kind", "zone")
+		if style == "sake":
+			# 酒のしずく：輪の上から落ちてくる（落ちきった瞬間に当たる）。当たったら、床がぬれる
+			if not active:
+				var d := _drop_node(drop_used)
+				drop_used += 1
+				var tl := float(h["tele"])
+				d.position = Vector3(float(h["x"]), 0.4 + float(attacks_cfg.get("drop_height", 14.0)) * (1.0 - tl * tl), float(h["z"]))
+				d.visible = true
+			elif not puddle_seen.has(str(h["id"])):
+				puddle_seen[str(h["id"])] = true
+				_add_puddle(Vector3(float(h["x"]), 0.0, float(h["z"])), float(h["r"]))
 		if style == "hand" and active:
 			n.visible = false
 			continue
@@ -1523,6 +1565,89 @@ func _show_hazards(hz: Array) -> void:
 		(hazard_nodes[i] as Node3D).visible = false
 	for i in range(fill_used, hazard_fill_nodes.size()):
 		(hazard_fill_nodes[i] as Node3D).visible = false
+	for i in range(drop_used, drop_nodes.size()):
+		(drop_nodes[i] as Node3D).visible = false
+
+
+## ---- 酒のしずく・ぬれた床 ----
+var drop_nodes: Array = []
+var puddles: Array = []  ## [{node, left}]
+var puddle_seen := {}  ## もう床をぬらした当たりのid
+var _sake_mat: StandardMaterial3D
+var _wet_mesh: CylinderMesh
+
+
+func _drop_node(i: int) -> MeshInstance3D:
+	while drop_nodes.size() <= i:
+		if _sake_mat == null:
+			_sake_mat = StandardMaterial3D.new()
+			_sake_mat.albedo_color = Color(str(attacks_cfg.get("sake_color", "#f2e6b8")), 0.85)
+			_sake_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			_sake_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var sm := SphereMesh.new()
+		sm.radius = 0.35
+		sm.height = 1.1
+		sm.radial_segments = 8
+		sm.rings = 4
+		sm.material = _sake_mat
+		var n := MeshInstance3D.new()
+		n.name = "SakeDrop%d" % drop_nodes.size()
+		n.mesh = sm
+		n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.visible = false
+		add_child(n)
+		drop_nodes.append(n)
+	return drop_nodes[i]
+
+
+## 床に、ぬれたあと（しばらくすると、かわいて消える）
+func _add_puddle(pos: Vector3, r: float) -> void:
+	if _wet_mesh == null:
+		_wet_mesh = CylinderMesh.new()
+		_wet_mesh.top_radius = 1.0
+		_wet_mesh.bottom_radius = 1.0
+		_wet_mesh.height = 0.02
+		_wet_mesh.radial_segments = 16
+		_wet_mesh.rings = 1
+	var node: MeshInstance3D = null
+	if puddles.size() >= int(attacks_cfg.get("wet_max", 40)):
+		node = (puddles.pop_front() as Dictionary)["node"]
+	else:
+		node = MeshInstance3D.new()
+		node.name = "Wet"
+		node.mesh = _wet_mesh
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		node.material_override = m
+		add_child(node)
+	# 形を少しずつ変える（同じ丸ばかりにならないように）
+	var sx := 0.9 + 0.25 * fposmod(pos.x * 7.3 + pos.z * 3.1, 1.0)
+	node.position = Vector3(pos.x, 0.015, pos.z)
+	node.rotation.y = fposmod(pos.x * 1.7 - pos.z * 2.3, TAU)
+	node.set_meta("r", r * Vector2(sx, 2.0 - sx))
+	node.visible = true
+	puddles.append({"node": node, "left": float(attacks_cfg.get("wet_sec", 4.0)), "age": 0.0})
+
+
+func _update_puddles(delta: float) -> void:
+	var wet := Color(str(attacks_cfg.get("wet_color", "#1d2a2a")))
+	var total := float(attacks_cfg.get("wet_sec", 4.0))
+	for p in puddles.duplicate():
+		p["left"] = float(p["left"]) - delta
+		p["age"] = float(p["age"]) + delta
+		var node: MeshInstance3D = p["node"]
+		if float(p["left"]) <= 0.0:
+			node.visible = false
+			puddles.erase(p)
+			continue
+		# 落ちた瞬間に広がって、だんだんうすくなる
+		var grow := 0.6 + 0.4 * smoothstep(0.0, 0.2, float(p["age"]))
+		var rs: Vector2 = node.get_meta("r")
+		node.scale = Vector3(rs.x * grow, 1.0, rs.y * grow)
+		var mat := node.material_override as StandardMaterial3D
+		mat.albedo_color = Color(wet.r, wet.g, wet.b, 0.55 * clampf(float(p["left"]) / (total * 0.5), 0.0, 1.0))
 
 
 func _set_my_hp(value: float) -> void:

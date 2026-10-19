@@ -35,7 +35,7 @@ func _init() -> void:
 		if str(a["kind"]) in ["flyer_storm", "hand_sweep"]:
 			ults += 1
 			check(float(a["start"]) >= float(cfg["ultimate_first_sec"]), "必殺技は決めた時刻より前に出ない")
-	check(ults >= 2 and seen.has("flyers") and seen.has("typhoon") and seen.has("grab") and not seen.has("bat_h"), "覚醒時は、チラシ・台風・つかみ・必殺技（バットは持たない）")
+	check(ults >= 2 and seen.has("sake_rain") and seen.has("typhoon") and seen.has("grab") and not seen.has("bat_h"), "覚醒時は、酒の雨・台風・つかみ・必殺技（バットは持たない）")
 	for i in sched.size() - 1:
 		check(float(sched[i]["end"]) < float(sched[i + 1]["start"]), "攻撃が重ならない")
 	check(Attacks.active_index(sched, 0.5) == -1, "最初の待ち時間は攻撃なし")
@@ -132,12 +132,14 @@ func _init() -> void:
 	var bk: Dictionary = cfg["kinds"]["bat_h"]
 	var h_t: Array = Attacks.hazards(bh, 0.1, cfg, bctx)
 	check(h_t.size() == 1 and str(h_t[0]["shape"]) == "sector" and not bool(h_t[0]["active"]), "横振り：はじめは、扇の予告（当たらない）")
-	var h_a: Array = Attacks.hazards(bh, float(bk["windup_sec"]) + 0.02, cfg, bctx)
+	var h_a: Array = Attacks.hazards(bh, float(bk["windup_sec"]) + float(bk["swing_sec"]) - 0.005, cfg, bctx)
 	check(bool(h_a[0]["active"]), "横振り：予告のあとで当たる")
+	var h_early: Array = Attacks.hazards(bh, float(bk["windup_sec"]) + 0.01, cfg, bctx)
+	check(Attacks.inside(h_early[0], -4.0, float(h_early[0]["z"]) + 0.2) and not Attacks.inside(h_early[0], 4.0, float(h_early[0]["z"]) + 0.2), "横振り：振りはじめは、バットが来た右側だけ当たる（左はまだ）")
 	check(Attacks.inside(h_a[0], 0.0, 4.0) and not Attacks.inside(h_a[0], 0.0, -4.0), "横振り：前は当たり、うしろは安全")
 	var turned := bctx.duplicate()
 	turned["yaw"] = PI * 0.5
-	var h_r: Array = Attacks.hazards(bh, float(bk["windup_sec"]) + 0.02, cfg, turned)
+	var h_r: Array = Attacks.hazards(bh, float(bk["windup_sec"]) + float(bk["swing_sec"]) - 0.005, cfg, turned)
 	check(Attacks.inside(h_r[0], 4.0, 0.0) and not Attacks.inside(h_r[0], -4.0, 0.0), "横振り：ボスの向き（右を向く）に合わせて扇も回る")
 	check(Attacks.hazards(bh, float(bk["windup_sec"]) + float(bk["swing_sec"]) + 0.05, cfg, bctx).is_empty(), "横振り：振り終わると当たりは消える")
 	var bv := {"n": 6, "kind": "bat_v", "start": 0.0, "end": 2.0}
@@ -166,6 +168,21 @@ func _init() -> void:
 	# チラシ：投げる前に、飛ぶ扇の予告が出る（予告そのものは当たらない）
 	var flt: Array = Attacks.hazards({"n": 2, "kind": "flyers", "start": 0.0, "end": 6.0}, 0.2, cfg, ctx)
 	check(flt.size() >= 1 and str(flt[0]["shape"]) == "sector" and float(flt[0]["power"]) == 0.0, "チラシ：投げる前に、扇の予告が出る")
+	# 酒の雨：投げてから、輪の上に落ちてくる。全員の画面で同じ場所。ボスの前に落ちる
+	var sr := {"n": 10003, "kind": "sake_rain", "start": 0.0, "end": 9.0}
+	var srk: Dictionary = cfg["kinds"]["sake_rain"]
+	var t0 := Attacks.sake_throw_time(0, srk)
+	var s_before: Array = Attacks.hazards(sr, t0 - 0.05, cfg, bctx)
+	var s_tele: Array = Attacks.hazards(sr, t0 + 0.1, cfg, bctx)
+	check(s_before.is_empty() and s_tele.size() == int(srk["per_throw"]) and not bool(s_tele[0]["active"]), "酒の雨：投げたあと、落ちる所に輪が出る（まだ当たらない）")
+	var sp0 := Attacks.sake_spot(sr, 0, 0, srk, bctx)
+	var s_land: Array = Attacks.hazards(sr, float(sp0["land"]) + 0.01, cfg, bctx)
+	var landed := false
+	for h in s_land:
+		if str(h["id"]).ends_with("_0_0") and bool(h["active"]):
+			landed = true
+	check(landed and str(s_land[0]["style"]) == "sake", "酒の雨：落ちた瞬間に当たる")
+	check((sp0["pos"] as Vector2).y > 0.0 and is_equal_approx((Attacks.sake_spot(sr, 0, 0, srk, bctx)["pos"] as Vector2).x, (sp0["pos"] as Vector2).x), "酒の雨：ボスの前に落ちる。同じ番号なら同じ場所")
 	# つかむ時間：毎回 1〜3秒のどれか。同じ戦い・同じ番号なら、全員の画面で同じ
 	var holds := {}
 	for n2 in range(1, 30):
@@ -192,13 +209,18 @@ func _init() -> void:
 	for i in 400:
 		mo.update(1.0 / 60.0, {}, 0.0, next, cfg, mctx)
 	check(absf(mo.pos.distance_to(Vector2(0, 8)) - float(cfg["kinds"]["bat_h"]["stop_dist"])) < 0.3, "ねらう人の手前（技ごとの距離）で止まる")
-	check(absf(mo.yaw) < 0.1, "ねらう人のほうを向く")
+	var to_t: Vector2 = Vector2(0, 8) - mo.pos
+	check(absf(wrapf(mo.yaw - atan2(to_t.x, to_t.y), -PI, PI)) < 0.15, "ねらう人のほうを向く")
+	check(mo.speed_now > 1.0, "近くに来ても立ち止まらず、まわりを回りこむ")
 	mctx["positions"]["p1"] = Vector2(8, mo.pos.y)
-	mo.update(1.0 / 60.0, next, 0.0, {}, cfg, mctx)
+	var chase := float(cfg["kinds"]["bat_h"]["chase_sec"])
+	for i in 60:
+		mo.update(1.0 / 60.0, next, minf(float(i) / 60.0, chase - 0.01), {}, cfg, mctx)
+	mo.update(1.0 / 60.0, next, chase + 0.01, {}, cfg, mctx)
 	var lk: Dictionary = mo.lock_of(1)
-	check(absf(float(lk["yaw"]) - PI * 0.5) < 0.05, "攻撃の始まりで、ねらう人へ向きを固定する")
+	check(absf(float(lk["yaw"]) - PI * 0.5) < 0.05, "攻撃の始め（ねらいを合わせる間）に、ねらう人へ向きを合わせて固定する")
 	var p_before: Vector2 = mo.pos
-	mo.update(1.0 / 60.0, next, 0.1, {}, cfg, {"members": ["p1"], "positions": {"p1": Vector2(-9, -9)}})
+	mo.update(1.0 / 60.0, next, chase + 0.02, {}, cfg, {"members": ["p1"], "positions": {"p1": Vector2(-9, -9)}})
 	check(mo.pos.distance_to(p_before) < 0.05 and is_equal_approx(float(mo.lock_of(1)["yaw"]), float(lk["yaw"])), "攻撃中は、ねらう人が動いても向きは変わらない")
 	mo.update(1.0 / 60.0, {}, 0.0, next, cfg, mctx, true)
 	check(mo.speed_now == 0.0, "よろけ中は動かない")

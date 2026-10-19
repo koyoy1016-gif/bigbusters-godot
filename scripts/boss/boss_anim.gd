@@ -19,7 +19,8 @@ var s2m := Basis.IDENTITY  ## 骨の空間 → モデルの空間の回転
 var m2s := Basis.IDENTITY
 var tracks := {}  ## 動きの名前 → {"rot": {骨の番号: 道の番号}, "pos": 道の番号 か -1, "len": 長さ, "loop": bool}
 var driven: PackedInt32Array = PackedInt32Array()  ## 毎コマ書きこむ骨
-var upper := {}  ## 上半身の骨（歩きながら振るとき、ここだけ攻撃の動き）
+var upper := {}  ## 上半身の骨（spine03 から上）
+var torso := {}  ## 腰から上（歩きながら振るとき、ここだけ攻撃の動き。脚と根は歩きのまま）
 
 
 func setup(skeleton: Skeleton3D, library: AnimationLibrary, model_root: Node) -> void:
@@ -69,11 +70,14 @@ func setup(skeleton: Skeleton3D, library: AnimationLibrary, model_root: Node) ->
 	driven = PackedInt32Array(keys)
 	# 上半身：spine03 とその下（腕・首・頭）
 	var top := sk.find_bone("spine03")
+	var waist := sk.find_bone("spine05")
 	for i in n:
 		var p := i
 		while p >= 0:
 			if p == top:
 				upper[i] = true
+			if p == waist:
+				torso[i] = true
 				break
 			p = parents[p]
 
@@ -185,6 +189,24 @@ func apply(pose: Dictionary) -> void:
 	for bi in driven:
 		sk.set_bone_pose_rotation(bi, r[bi])
 	sk.set_bone_pose_position(root_bi, pose["p"])
+
+
+## 骨の全体の変換（モデルの座標。いまの姿勢から計算する）
+func bone_model_xform(pose: Dictionary, bone: String) -> Transform3D:
+	var bi := bone_index(bone)
+	if bi < 0:
+		return Transform3D.IDENTITY
+	var chain: Array = []
+	var p := bi
+	while p >= 0:
+		chain.push_front(p)
+		p = parents[p]
+	var t := Transform3D.IDENTITY
+	var r: Array[Quaternion] = pose["r"]
+	for i in chain:
+		var origin: Vector3 = pose["p"] if i == root_bi else rest[i].origin
+		t = t * Transform3D(Basis(r[i]), origin)
+	return Transform3D(s2m, Vector3.ZERO) * t
 
 
 ## 骨の全体の位置（モデルの座標。いまの姿勢から計算する）

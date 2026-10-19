@@ -1,7 +1,7 @@
 {
   "_memo": "ボスの攻撃。平常時はバット中心（横振り・縦振り・回転斬り・しっぽ回し・歩きながら振る）＋つかみ。覚醒時はチラシ・台風・つかみ・しっぽ回し＋必殺技2つ。数字は仮。時間は「戦いが始まってからの秒」で決まるので、全員の画面で同じ攻撃が同じときに出る。attack_speed で、攻撃の時間（*_sec と duration）をまとめて速くする（speed_exempt にある物は変えない）",
   "first_delay_sec": 3.0,
-  "gap_sec": 1.8,
+  "gap_sec": 0.9,
   "cycle": [
     "bat_h",
     "grab",
@@ -51,13 +51,14 @@
       "release_sec": 0.48,
       "hang_below": 1.1,
       "reach": 3.4,
-      "stop_dist": 3.0
+      "stop_dist": 3.0,
+      "chase_sec": 0.9
     },
     "typhoon": {
       "duration": 5.5,
       "windup_sec": 1.3,
       "recover_sec": 0.6,
-      "radius": 4.2,
+      "radius": 4.6,
       "tick_sec": 0.5,
       "power": 10.0,
       "jumpable": true,
@@ -65,7 +66,8 @@
       "hand_height": 0.8,
       "arm_height": 0.1,
       "arm_reach": 3.8,
-      "stop_dist": 3.0
+      "stop_dist": 3.5,
+      "chase_sec": 0.6
     },
     "flyers": {
       "duration": 6.0,
@@ -98,7 +100,8 @@
       "area_z": [
         -9.0,
         13.0
-      ]
+      ],
+      "_memo": "必殺技A：空から、酒が雨のように降ってくる（落ちる所に、先に輪が出る。落ちた所はぬれる）"
     },
     "hand_sweep": {
       "duration": 10.0,
@@ -118,52 +121,57 @@
       "hand_scale": 2.4
     },
     "bat_h": {
-      "_memo": "バットの横振り：前の扇の中を、横になぎはらう。低いのでジャンプでよけられる",
+      "_memo": "バットの横振り：右うしろから左前へ、腰の高さでなぎはらう（ジャンプでよけられる）。sweep_from_deg〜sweep_to_deg はバットの先が通る角度（tools/trace_tip.gd で測った値）。振っている間は、通りすぎた所までが当たる",
       "duration": 2.4,
       "windup_sec": 1.0,
       "swing_sec": 0.28,
-      "radius": 5.2,
-      "arc_deg": 150.0,
+      "radius": 7.8,
       "power": 14.0,
       "jumpable": true,
       "lunge": 1.2,
-      "stop_dist": 4.0
+      "stop_dist": 5.0,
+      "sweep_from_deg": -95.0,
+      "sweep_to_deg": 65.0,
+      "chase_sec": 0.45
     },
     "bat_v": {
       "_memo": "バットの縦振り：頭の上から、前へまっすぐたたきつける。細長い帯。ジャンプではよけられない",
       "duration": 2.5,
       "windup_sec": 1.1,
       "hit_sec": 0.22,
-      "start": 1.2,
-      "length": 5.0,
-      "half_width": 1.3,
+      "start": 1.5,
+      "length": 6.0,
+      "half_width": 1.4,
       "power": 22.0,
       "jumpable": false,
       "lunge": 0.8,
-      "stop_dist": 4.5
+      "stop_dist": 6.0,
+      "chase_sec": 0.5
     },
     "bat_spin": {
       "_memo": "バットの回転斬り：バットを横にのばして、体ごと何回も回る。まわりの輪の中に、続けてダメージ",
       "duration": 3.8,
       "windup_sec": 1.0,
       "recover_sec": 0.6,
-      "radius": 5.0,
+      "radius": 7.8,
       "tick_sec": 0.45,
       "power": 8.0,
       "jumpable": true,
       "spin_deg_per_sec": 600.0,
-      "stop_dist": 3.5
+      "stop_dist": 5.0,
+      "chase_sec": 0.6
     },
     "tail_spin": {
       "_memo": "しっぽ回し：しっぽをのばして、体ごと1回まわる。体のすぐそば（r_in より内側）は安全",
       "duration": 2.2,
       "windup_sec": 0.9,
       "sweep_sec": 0.45,
-      "r_in": 1.3,
-      "radius": 4.4,
+      "r_in": 2.0,
+      "radius": 6.4,
       "power": 12.0,
       "jumpable": true,
-      "stop_dist": 3.0
+      "stop_dist": 4.0,
+      "chase_sec": 0.5
     },
     "walk_swing": {
       "_memo": "歩きながら振る：前へ歩きながら、バットを左右交互に swings 回振る。振る前に、当たる扇が出る",
@@ -174,11 +182,30 @@
       "tele_sec": 0.7,
       "hit_sec": 0.2,
       "walk_speed": 2.4,
-      "radius": 4.6,
-      "arc_deg": 140.0,
+      "radius": 7.9,
       "power": 10.0,
       "jumpable": true,
-      "stop_dist": 5.5
+      "stop_dist": 6.0,
+      "sweep_from_deg": -100.0,
+      "sweep_to_deg": 55.0
+    },
+    "sake_rain": {
+      "_memo": "酒の雨（覚醒）：一升瓶をふり上げて、酒を空へばらまく（throws 回、1回に per_throw 粒）。fall_sec 後に、ボスの前の扇（angle_deg、min_dist〜max_dist m）へ降ってくる。落ちる所に先に輪が出る。落ちた所は、しばらくぬれる（見た目だけ）",
+      "duration": 6.0,
+      "throws": 3,
+      "per_throw": 5,
+      "first_sec": 0.9,
+      "every_sec": 1.4,
+      "fall_sec": 1.3,
+      "fall_spread_sec": 0.5,
+      "angle_deg": 70.0,
+      "min_dist": 3.0,
+      "max_dist": 12.0,
+      "radius": 1.5,
+      "hit_sec": 0.2,
+      "power": 12.0,
+      "jumpable": false,
+      "chase_sec": 0.5
     }
   },
   "damage_multiplier": 1.0,
@@ -191,16 +218,24 @@
     "squeeze_tick_sec"
   ],
   "awake_cycle": [
-    "flyers",
+    "sake_rain",
     "grab",
     "typhoon",
     "tail_spin"
   ],
   "walk": {
-    "_memo": "攻撃と攻撃の間に、次にねらう人のほうへ歩く。speed：m/秒、stop_dist：ねらう人の手前で止まる距離（攻撃ごとの stop_dist があれば、そちら）、turn_rate：向きを変える速さ",
-    "speed": 3.0,
+    "_memo": "攻撃と攻撃の間に、次にねらう人のほうへ歩く（近ければ、まわりを回りこむ。立ち止まらない）。speed：m/秒、stop_dist：ねらう人の手前で止まる距離（攻撃ごとの stop_dist があれば、そちら）、turn_rate：向きを変える速さ。攻撃ごとの chase_sec：攻撃の始めから、この秒まではねらう人へ歩きながら向きを合わせる（予告もついてくる）",
+    "speed": 4.5,
     "stop_dist": 4.5,
     "turn_rate": 7.0,
-    "area": 12.0
-  }
+    "area": 13.0,
+    "chase_speed_ratio": 0.6,
+    "circle_step": 1.5
+  },
+  "measured_note": "当たりの大きさは、ボスの大きさ（data/boss_model.json の model_scale）とバットの長さで変わる。変えたら tools/measure_reach.gd・tools/trace_tip.gd で測り直す。tests/test_boss_reach.gd が、動きと範囲が合っているかを確かめる",
+  "sake_color": "#f2e6b8",
+  "wet_color": "#1d2a2a",
+  "wet_sec": 4.0,
+  "wet_max": 40,
+  "drop_height": 14.0
 }

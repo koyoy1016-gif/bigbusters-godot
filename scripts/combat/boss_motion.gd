@@ -39,24 +39,32 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 		return
 	if not a.is_empty():
 		var n := int(a["n"])
-		if not locks.has(n):
-			# 攻撃の始まり：ねらう人のほうを向いて、固定する
-			var face := yaw
-			var tp: Variant = target_pos(n, ctx)
-			if tp is Vector2 and ((tp as Vector2) - pos).length() > 0.3:
-				var d: Vector2 = (tp as Vector2) - pos
-				face = atan2(d.x, d.y)
-			locks[n] = {"pos": pos, "yaw": face}
-			_last_step = 0.0
-		var lk: Dictionary = locks[n]
 		var kind := str(a["kind"])
 		var k: Dictionary = cfg["kinds"][kind]
+		var chase := float(k.get("chase_sec", 0.0))
+		if not locks.has(n) or u < chase:
+			# 攻撃の始まり（と、ねらいを合わせる間）：ねらう人のほうへ歩きながら向きを合わせ、位置と向きを決めなおす。
+			# この間は、予告の範囲もボスについてくる。chase_sec を過ぎたら固定（予告と当たりがずれない）
+			var face := yaw if not locks.has(n) else float(locks[n]["yaw"])
+			var p0 := pos
+			var tp: Variant = target_pos(n, ctx)
+			if tp is Vector2:
+				var d: Vector2 = (tp as Vector2) - pos
+				if d.length() > 0.3:
+					face = atan2(d.x, d.y)
+				var stop := float(k.get("stop_dist", w.get("stop_dist", 4.5)))
+				if locks.has(n) and d.length() > stop:
+					p0 = _clamp_area(pos + d.normalized() * minf(d.length() - stop, float(w.get("speed", 4.5)) * float(w.get("chase_speed_ratio", 0.6)) * delta), w)
+			if not locks.has(n):
+				face = _turn(yaw, face, 30.0, delta)
+			locks[n] = {"pos": p0 - Attacks.fwd_of(face) * Attacks.step_forward(kind, u, k), "yaw": face}
+		var lk: Dictionary = locks[n]
 		var step := Attacks.step_forward(kind, u, k)
 		pos = _clamp_area((lk["pos"] as Vector2) + Attacks.fwd_of(float(lk["yaw"])) * step, w)
 		yaw = _turn(yaw, float(lk["yaw"]), float(w.get("turn_rate", 7.0)) * 1.6, delta)
 		_last_step = step
 	else:
-		# 攻撃と攻撃の間：次にねらう人のほうへ歩く
+		# 攻撃と攻撃の間：次にねらう人のほうへ歩く。もう近ければ、その人のまわりを回りこむように歩き続ける（立ち止まらない）
 		var goal := pos
 		var face := yaw
 		if not next_a.is_empty():
@@ -67,9 +75,13 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 					face = atan2(to.x, to.y)
 				var nk: Dictionary = (cfg.get("kinds", {}) as Dictionary).get(str(next_a.get("kind", "")), {})
 				var stop := float(nk.get("stop_dist", w.get("stop_dist", 4.5)))
-				if to.length() > stop:
+				if to.length() > stop + float(w.get("circle_band", 1.0)):
 					goal = pos + to.normalized() * (to.length() - stop)
-		var sp := float(w.get("speed", 3.4))
+				else:
+					# もう近い：その人のまわりを回りこみながら、距離を stop に保つ（立ち止まらない）
+					var side := Vector2(to.y, -to.x).normalized() * (1.0 if int(next_a["n"]) % 2 == 0 else -1.0)
+					goal = pos + side * float(w.get("circle_step", 1.5)) + to.normalized() * (to.length() - stop)
+		var sp := float(w.get("speed", 4.5))
 		var move := goal - pos
 		if move.length() > 0.05:
 			pos = _clamp_area(pos + move.normalized() * minf(move.length(), sp * delta), w)

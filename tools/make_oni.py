@@ -113,19 +113,22 @@ for i in range(7):
     belt.append(sph((0.12 + 0.07 * t, 0.98 - 0.12 * math.sin(t * math.pi), 0.13 - 0.02 * t), 0.012, STUD, metallic=0.6, rough=0.3))
 items["oni_belt"] = item("spine05", belt)
 # ---- 平常時：とげバット（右手。剣と同じ持ち方：骨の空間で +Y が先） ----
+# 金棒のように長く太いバット（先までの長さ BAT_LEN。data/boss_model.json の bat_tip と合わせる）
+BAT_LEN = 1.3
 bat = [
-    {"shape": "cylinder", "size": [0.026, 0.26, 0.026], "offset": [0, -0.02, 0], "rotation_deg": [0, 0, 0], "color": GRIP, "metallic": 0.0, "roughness": 0.9},
-    {"shape": "cylinder", "size": [0.04, 0.04, 0.04], "offset": [0, 0.12, 0], "rotation_deg": [0, 0, 0], "color": GOLD, "metallic": 0.7, "roughness": 0.3},
-    {"shape": "cylinder", "size": [0.042, 0.3, 0.042], "offset": [0, 0.28, 0], "rotation_deg": [0, 0, 0], "color": BAT, "metallic": 0.6, "roughness": 0.35},
-    {"shape": "cylinder", "size": [0.058, 0.34, 0.058], "offset": [0, 0.58, 0], "rotation_deg": [0, 0, 0], "color": BAT, "metallic": 0.6, "roughness": 0.35},
-    {"shape": "sphere", "size": [0.058, 0, 0], "offset": [0, 0.75, 0], "rotation_deg": [0, 0, 0], "color": BAT, "metallic": 0.6, "roughness": 0.35},
+    {"shape": "cylinder", "size": [0.03, 0.3, 0.03], "offset": [0, 0.0, 0], "rotation_deg": [0, 0, 0], "color": GRIP, "metallic": 0.0, "roughness": 0.9},
+    {"shape": "cylinder", "size": [0.048, 0.05, 0.048], "offset": [0, 0.16, 0], "rotation_deg": [0, 0, 0], "color": GOLD, "metallic": 0.7, "roughness": 0.3},
+    {"shape": "cylinder", "size": [0.052, 0.36, 0.052], "offset": [0, 0.36, 0], "rotation_deg": [0, 0, 0], "color": BAT, "metallic": 0.6, "roughness": 0.35},
+    {"shape": "cylinder", "size": [0.085, 0.72, 0.085], "offset": [0, 0.9, 0], "rotation_deg": [0, 0, 0], "color": BAT, "metallic": 0.6, "roughness": 0.35},
+    {"shape": "sphere", "size": [0.085, 0, 0], "offset": [0, BAT_LEN - 0.04, 0], "rotation_deg": [0, 0, 0], "color": BAT, "metallic": 0.6, "roughness": 0.35},
+    {"shape": "cylinder", "size": [0.09, 0.04, 0.09], "offset": [0, 0.56, 0], "rotation_deg": [0, 0, 0], "color": GOLD, "metallic": 0.7, "roughness": 0.3},
 ]
-for i in range(6):
-    y = 0.47 + 0.05 * i
+for i in range(9):
+    y = 0.62 + 0.065 * i
     for k in range(4):
         a = k * 90.0 + (45.0 if i % 2 else 0.0)
         r = math.radians(a)
-        bat.append({"shape": "box", "size": [0.016, 0.07, 0.016], "offset": [0.07 * math.cos(r), y, 0.07 * math.sin(r)], "rotation_deg": [90, 0, 0] if k % 2 else [0, 0, 90], "color": SPIKE, "metallic": 0.5, "roughness": 0.4})
+        bat.append({"shape": "box", "size": [0.022, 0.1, 0.022], "offset": [0.1 * math.cos(r), y, 0.1 * math.sin(r)], "rotation_deg": [90, 0, 0] if k % 2 else [0, 0, 90], "color": SPIKE, "metallic": 0.5, "roughness": 0.4})
 items["oni_bat"] = {"bone": "wrist.R", "parts": bat, "offset": [0.0, 0.08, 0.0], "aim": [0.4, 0.235, 0.874]}
 # ---- 覚醒：「酔」のはちまき、左手に一升瓶 ----
 items["oni_band"] = item("head", [
