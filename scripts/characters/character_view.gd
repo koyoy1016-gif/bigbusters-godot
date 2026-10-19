@@ -58,6 +58,14 @@ static func attach_items(model: Node, item_ids: Array, catalog: Dictionary = {})
 		holder.name = "Item_" + str(id)
 		holder.bone_name = str(item["bone"])
 		sk.add_child(holder)
+		if str(item.get("space", "")) == "model":
+			# モデルの座標（体の前が +Z、上が +Y）で、そのまま書ける小物。骨の位置・向きは、ここで引き算する
+			var bi := sk.find_bone(str(item["bone"]))
+			var rest := _global_rest(sk, bi)
+			for part in item.get("parts", []):
+				holder.add_child(_make_model_part(part, rest))
+			count += 1
+			continue
 		var pivot := Node3D.new()
 		pivot.name = "Pivot"
 		var off: Array = item.get("offset", [0, 0, 0])
@@ -73,6 +81,71 @@ static func attach_items(model: Node, item_ids: Array, catalog: Dictionary = {})
 			pivot.add_child(_make_part(part))
 		count += 1
 	return count
+
+
+## 骨の、静止の姿勢（モデル座標）。親の静止の姿勢をたどって求める（Skeleton3D の同名の関数は、骨の姿勢の更新を引き起こす）
+static func _global_rest(sk: Skeleton3D, bone: int) -> Transform3D:
+	var t := sk.get_bone_rest(bone)
+	var p := sk.get_bone_parent(bone)
+	while p >= 0:
+		t = sk.get_bone_rest(p) * t
+		p = sk.get_bone_parent(p)
+	return t
+
+
+## モデル座標で書いた部品を作る。shape：rod（from→to の円柱。r0=from側の半径、r1=to側の半径、squash=[横,奥行きの倍率]）、
+## box（center, size, rotation_deg）、sphere（center, r, squash=[x,y,z]）
+static func _make_model_part(part: Dictionary, rest: Transform3D) -> MeshInstance3D:
+	var mesh: PrimitiveMesh
+	var pos := Vector3.ZERO
+	var basis := Basis.IDENTITY
+	match str(part.get("shape", "rod")):
+		"box":
+			var sz: Array = part["size"]
+			var bm := BoxMesh.new()
+			bm.size = Vector3(float(sz[0]), float(sz[1]), float(sz[2]))
+			mesh = bm
+			var c: Array = part["center"]
+			pos = Vector3(float(c[0]), float(c[1]), float(c[2]))
+			var rot: Array = part.get("rotation_deg", [0, 0, 0])
+			basis = Basis.from_euler(Vector3(deg_to_rad(float(rot[0])), deg_to_rad(float(rot[1])), deg_to_rad(float(rot[2]))))
+		"sphere":
+			var sm := SphereMesh.new()
+			sm.radius = float(part["r"])
+			sm.height = float(part["r"]) * 2.0
+			sm.radial_segments = 12
+			sm.rings = 6
+			mesh = sm
+			var c2: Array = part["center"]
+			pos = Vector3(float(c2[0]), float(c2[1]), float(c2[2]))
+			var sq: Array = part.get("squash", [1, 1, 1])
+			basis = Basis.from_scale(Vector3(float(sq[0]), float(sq[1]), float(sq[2])))
+		_:
+			var a: Array = part["from"]
+			var b: Array = part["to"]
+			var from := Vector3(float(a[0]), float(a[1]), float(a[2]))
+			var to := Vector3(float(b[0]), float(b[1]), float(b[2]))
+			var dir := to - from
+			var cm := CylinderMesh.new()
+			cm.bottom_radius = float(part["r0"])
+			cm.top_radius = float(part["r1"])
+			cm.height = dir.length()
+			cm.radial_segments = 12
+			cm.rings = 1
+			mesh = cm
+			pos = (from + to) * 0.5
+			var sq2: Array = part.get("squash", [1, 1])
+			basis = Basis(Quaternion(Vector3.UP, dir.normalized())) * Basis.from_scale(Vector3(float(sq2[0]), 1.0, float(sq2[1])))
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(str(part.get("color", "#cccccc")))
+	mat.metallic = float(part.get("metallic", 0.0))
+	mat.roughness = float(part.get("roughness", 0.8))
+	mesh.material = mat
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var inv := rest.basis.inverse()
+	mi.transform = Transform3D(inv * basis, inv * (pos - rest.origin))
+	return mi
 
 
 static func _make_part(part: Dictionary) -> MeshInstance3D:
