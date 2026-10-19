@@ -19,7 +19,7 @@ func _initialize() -> void:
 	# ---- 1. 剣士の体力：150 の1.75倍。ほかの味方は変えない ----
 	var ccfg := CharacterData.load_config()
 	var hero := CharacterData.find(ccfg, "hero_swordsman")
-	check(is_equal_approx(float(hero["stats"]["hp"]), 150.0 * 1.75 * 1.1), "剣士の体力は 150 の1.75倍（版66）のさらに1.1倍（版68。%.2f）" % float(hero["stats"]["hp"]))
+	check(is_equal_approx(float(hero["stats"]["hp"]), 190.0), "剣士の体力は 190（版70。%.2f）" % float(hero["stats"]["hp"]))
 	var others := {"sprinter": 105.0, "brawler": 135.0, "gunner": 105.0, "bomber": 112.5, "mage": 97.5, "guardian": 240.0, "summoner": 120.0, "healer": 127.5}
 	var same := true
 	for id in others:
@@ -27,7 +27,7 @@ func _initialize() -> void:
 	check(same, "ほかの味方8人の体力は変わらない")
 	var cfg: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/prototype_stick.json"))
 	var roles: Dictionary = cfg["roles"]
-	check(is_equal_approx(float(roles["p1"]["hp"]), 288.75) and is_equal_approx(float(roles["p2"]["hp"]), 240.0) and is_equal_approx(float(roles["p3"]["hp"]), 105.0) and is_equal_approx(float(roles["p4"]["hp"]), 135.0), "キャラを選ばないときの剣士（ファイター）も 288.75。ほかの役は変わらない")
+	check(is_equal_approx(float(roles["p1"]["hp"]), 190.0) and is_equal_approx(float(roles["p2"]["hp"]), 240.0) and is_equal_approx(float(roles["p3"]["hp"]), 105.0) and is_equal_approx(float(roles["p4"]["hp"]), 135.0), "キャラを選ばないときの剣士（ファイター）も 190（版70）。ほかの役は変わらない")
 
 	var s: Node = (load(SCENE) as PackedScene).instantiate()
 	root.add_child(s)
@@ -38,9 +38,9 @@ func _initialize() -> void:
 	s.sfx = null
 	s.ai_enabled = false
 	s.start_round()
-	check(is_equal_approx(s.my_hp, 288.75) and is_equal_approx(s.role_value("hp"), 288.75), "画面：剣士は体力 288.75 で始まる")
+	check(is_equal_approx(s.my_hp, 190.0) and is_equal_approx(s.role_value("hp"), 190.0), "画面：剣士は体力 190 で始まる（版70）")
 	s.selected_character = "hero_swordsman"
-	check(is_equal_approx(s.role_value("hp"), 288.75), "画面：剣士を選んだときも 288.75")
+	check(is_equal_approx(s.role_value("hp"), 190.0), "画面：剣士を選んだときも 190（版70）")
 	s.selected_character = ""
 
 	# ---- 2. ボスの体力：平常 4000、覚醒 9000 ----

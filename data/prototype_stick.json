@@ -115,11 +115,11 @@
   "roles": {
     "p1": {
       "name": "ファイター",
-      "hp": 288.75,
+      "hp": 190.0,
       "move_speed": 7.0,
       "attack_power": 22.5,
       "attack_cooldown_sec": 0.35,
-      "hp_note": "版68：剣士（ファイター）の体力 262.5→288.75（1.1倍）、攻撃力 18→22.5（1.25倍）"
+      "hp_note": "版70：剣士（忍者風の剣士・ファイター）の体力 288.75→190（ユーザーの指示）。攻撃力は版68の 22.5 のまま。版68：262.5→288.75、18→22.5"
     },
     "p2": {
       "name": "ガーディアン",
@@ -164,7 +164,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "69",
+  "build_id": "70",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -277,9 +277,6 @@
     0.73,
     0.79
   ],
-  "escape_label": "にげる",
-  "escape_button_color": "#ffd060cc",
-  "escape_ring_color": "#ff7030",
   "ultimate_center_frac_portrait": [
     0.86,
     0.67

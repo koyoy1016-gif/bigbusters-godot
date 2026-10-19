@@ -54,9 +54,9 @@ func _initialize() -> void:
 	check(is_equal_approx(float(cfg["boss_hp"]), 4000.0 * 1.5) and is_equal_approx(float(cfg["boss_hp_awake"]), 9000.0 * 1.25), "ボスの体力：平常 6000（4000の1.5倍）、覚醒 11250（9000の1.25倍）")
 	var ccfg := CharacterData.load_config()
 	var hero: Dictionary = CharacterData.find(ccfg, "hero_swordsman")["stats"]
-	check(is_equal_approx(float(hero["hp"]), 262.5 * 1.1) and is_equal_approx(float(hero["attack_power"]), 18.0 * 1.25), "剣士：体力 288.75（262.5の1.1倍）、攻撃力 22.5（18の1.25倍）")
+	check(is_equal_approx(float(hero["hp"]), 190.0) and is_equal_approx(float(hero["attack_power"]), 18.0 * 1.25), "剣士：体力 190（版70で 288.75 から変更）、攻撃力 22.5（18の1.25倍）")
 	var p1: Dictionary = cfg["roles"]["p1"]
-	check(is_equal_approx(float(p1["hp"]), 288.75) and is_equal_approx(float(p1["attack_power"]), 22.5), "キャラを選ばないときの剣士（ファイター）も同じ")
+	check(is_equal_approx(float(p1["hp"]), 190.0) and is_equal_approx(float(p1["attack_power"]), 22.5), "キャラを選ばないときの剣士（ファイター）も同じ")
 	var others_ok := true
 	var expect := {"sprinter": [105.0, 12.0], "brawler": [135.0, 15.0], "gunner": [105.0, 13.5], "bomber": [112.5, 16.5], "mage": [97.5, 18.0], "guardian": [240.0, 10.5], "summoner": [120.0, 9.0], "healer": [127.5, 7.5]}
 	for id in expect:
@@ -65,7 +65,7 @@ func _initialize() -> void:
 	check(others_ok, "ほかの味方8人の体力と攻撃力は変わらない")
 	var s := make_scene()
 	var t := 0.5
-	check(is_equal_approx(s.my_hp, 288.75) and is_equal_approx(s.phase.max_hp(), 6000.0), "画面：剣士は体力 288.75、ボスは平常 6000 で始まる")
+	check(is_equal_approx(s.my_hp, 190.0) and is_equal_approx(s.phase.max_hp(), 6000.0), "画面：剣士は体力 190（版70）、ボスは平常 6000 で始まる")
 	var ev := {"multiplier": 1.0, "radius_scale": 1.0}
 	var dmg: float = Damage_of(s, ev)
 	check(is_equal_approx(dmg, 22.5 * float(s.config["attack_multiplier"])), "画面：剣士の斬り1回のダメージは 22.5（攻撃力どおり）")
