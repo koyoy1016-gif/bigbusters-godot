@@ -23,6 +23,28 @@ func _init() -> void:
 	m.update_form(0.45, 0.1)
 	check("50%以下で始まれば、すぐ覚醒", m.is_awake())
 	m.reset_form()
+	# 脚の骨：しゃがんでも、足は床のまま（脚を縮めず、ひざを曲げる）
+	var knee: Vector3 = BM.solve_two_bone(Vector3(0, 2, 0), Vector3(0, 0.6, 0), 0.9, 0.8, Vector3(0, 0, 1))
+	check("ひざの計算：ももの長さが保たれる", absf((knee - Vector3(0, 2, 0)).length() - 0.9) < 0.001)
+	check("ひざの計算：すねの先が足首に届く", absf((Vector3(0, 0.6, 0) - knee).length() - 0.8) < 0.001)
+	check("ひざは前へ曲がる", knee.z > 0.1)
+	m.update_form(0.45, 0.1)
+	m.crouch = float(cfg["awake_crouch"])
+	m.apply_crouch()
+	var sk: Skeleton3D = m.leg_skel
+	var foot: Vector3 = _chain(sk, "L").origin
+	var hip: Vector3 = sk.get_bone_pose_position(sk.find_bone("thigh.L"))
+	check("覚醒でしゃがむと、腰が下がる", hip.y < 2.08 - 0.3)
+	check("しゃがんでも、足首は床の近く", absf(foot.y - 0.46) < 0.05)
+	m.pose_idle(0.8)
+	var hl: Vector3 = m.hand_target["L4"]
+	check("覚醒のいちばん下の腕も、手は床につかない（体が埋もれて見えない）", hl.y > 0.45)
+	m.set_walk(1.0, 1.0)
+	m.apply_crouch()
+	var fl: Vector3 = _chain(sk, "L").origin
+	var fr: Vector3 = _chain(sk, "R").origin
+	check("歩くと、左右の足が前後にずれる", absf(fl.z - fr.z) > 0.3)
+	m.reset_form()
 	m.set_flash(true)
 	check("点滅を出せる", m.is_flashing() and (m.skin as StandardMaterial3D).emission_energy_multiplier > 0.0)
 	m.set_flash(false)
@@ -30,3 +52,12 @@ func _init() -> void:
 	check("点滅で材質の種類は変わらない（光る設定は入れたまま、明るさだけ変える）", (m.skin as StandardMaterial3D).emission_enabled)
 	print("失敗: ", fails)
 	quit()
+
+
+## 脚の骨の姿勢をたどって、足の位置を出す（木に入れたばかりで、骨の全体の姿勢がまだ計算されないため）
+func _chain(sk: Skeleton3D, side: String) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	for b in ["thigh.", "shin.", "foot."]:
+		var i := sk.find_bone(b + side)
+		t = t * Transform3D(Basis(sk.get_bone_pose_rotation(i)), sk.get_bone_pose_position(i))
+	return t

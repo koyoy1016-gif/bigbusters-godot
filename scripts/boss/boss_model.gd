@@ -53,6 +53,10 @@ var rig: Node3D  ## 体の部品の親（しゃがみで下がる）
 var legs: Node3D
 var shoes: Node3D
 var feet: Node3D
+var leg_skel: Skeleton3D  ## 脚の骨（もも・すね・足）
+var leg_rest := {}  ## "L"/"R" → [腰, ひざ, 足首]（休みの位置）
+var walk_phase := 0.0
+var walk_amount := 0.0
 var bat: Node3D
 var awake_nodes: Array = []  ## 覚醒のときだけ出す物
 var normal_nodes: Array = []  ## 平常時だけ出す物
@@ -208,17 +212,26 @@ func _chain(parent: Node3D, a: Vector3, ctrl: Vector3, b: Vector3, links: int, s
 		mi.basis = Basis(q) * Basis(Vector3.RIGHT, PI * 0.5 * float(i % 2))
 
 
+## 脚：もも・すね・足の3つの骨（Skeleton3D）。部品は骨ごとに印（meta "bone"）を付けて組み、あとで骨についていく1つの形にまとめる（_skin_legs）。
+## しゃがみ・歩きは、足首の位置を決めて、ひざの曲がりを計算で出す（_pose_legs）。脚を縮めないので、体が埋もれて見えない
 func _build_legs() -> void:
+	_build_leg_skeleton()
 	var pants := _mat(_c("pants"))
 	for sx in [-1.0, 1.0]:
-		_put(legs, ShapeKit.loft([
+		var side := "L" if sx > 0.0 else "R"
+		_tag(_put(legs, ShapeKit.loft([
 			[Vector3(sx * 0.30, 2.08, 0.0), 0.34, 0.34],
 			[Vector3(sx * 0.36, 1.66, 0.02), 0.40, 0.40],
-			[Vector3(sx * 0.41, 1.16, 0.04), 0.37, 0.38],
+			[Vector3(sx * 0.42, 1.20, 0.05), 0.37, 0.38],
+			[Vector3(sx * 0.43, 1.04, 0.05), 0.33, 0.34],
+		], pants, 12), pants), "thigh." + side)
+		_tag(_put(legs, ShapeKit.loft([
+			[Vector3(sx * 0.43, 1.30, 0.06), 0.31, 0.32],
+			[Vector3(sx * 0.43, 1.12, 0.05), 0.38, 0.38],
 			[Vector3(sx * 0.46, 0.80, 0.02), 0.41, 0.40],
 			[Vector3(sx * 0.49, 0.58, -0.02), 0.30, 0.30],
 			[Vector3(sx * 0.50, 0.46, -0.04), 0.23, 0.24],
-		], pants, 12), pants)
+		], pants, 12), pants), "shin." + side)
 	# 平常時：ハイカットのスニーカー（黒に、白いつま先と底）
 	shoes = Node3D.new()
 	shoes.name = "Shoes"
@@ -228,22 +241,23 @@ func _build_legs() -> void:
 	var white := _mat(_c("shoe_white"))
 	for sx in [-1.0, 1.0]:
 		var x: float = sx * 0.5
-		_put(shoes, ShapeKit.loft([
+		var b := "foot." + ("L" if sx > 0.0 else "R")
+		_tag(_put(shoes, ShapeKit.loft([
 			[Vector3(x, 0.24, -0.30), 0.20, 0.20],
 			[Vector3(x, 0.27, -0.06), 0.23, 0.24],
 			[Vector3(x, 0.22, 0.24), 0.24, 0.19],
 			[Vector3(x, 0.15, 0.46), 0.21, 0.13],
 			[Vector3(x, 0.12, 0.58), 0.13, 0.09],
-		], shoe, 10), shoe)
-		_put(shoes, ShapeKit.loft([[Vector3(x, 0.30, -0.06), 0.22, 0.22], [Vector3(x, 0.58, -0.05), 0.25, 0.25]], shoe, 10), shoe)
-		_put(shoes, ShapeKit.loft([
+		], shoe, 10), shoe), b)
+		_tag(_put(shoes, ShapeKit.loft([[Vector3(x, 0.30, -0.06), 0.22, 0.22], [Vector3(x, 0.58, -0.05), 0.25, 0.25]], shoe, 10), shoe), b)
+		_tag(_put(shoes, ShapeKit.loft([
 			[Vector3(x, 0.06, -0.32), 0.22, 0.07],
 			[Vector3(x, 0.06, 0.30), 0.26, 0.08],
 			[Vector3(x, 0.07, 0.62), 0.15, 0.06],
-		], white, 10), white)
-		_put(shoes, _sphere(1.0, 10, 6), white, Vector3(x, 0.15, 0.48), Vector3.ZERO, Vector3(0.21, 0.11, 0.14))
+		], white, 10), white), b)
+		_tag(_put(shoes, _sphere(1.0, 10, 6), white, Vector3(x, 0.15, 0.48), Vector3.ZERO, Vector3(0.21, 0.11, 0.14)), b)
 		for k in 3:
-			_put(shoes, _box(0.24, 0.035, 0.05), white, Vector3(x, 0.46 - 0.06 * k, 0.08 + 0.12 * k), Vector3(-35.0, 0.0, 0.0))
+			_tag(_put(shoes, _box(0.24, 0.035, 0.05), white, Vector3(x, 0.46 - 0.06 * k, 0.08 + 0.12 * k), Vector3(-35.0, 0.0, 0.0)), b)
 	# 覚醒：はだし（つめのある足）
 	feet = Node3D.new()
 	feet.name = "Feet"
@@ -252,16 +266,158 @@ func _build_legs() -> void:
 	var claw := _mat(_c("claw"), 0.4)
 	for sx in [-1.0, 1.0]:
 		var x: float = sx * 0.5
-		_put(feet, ShapeKit.loft([
+		var b := "foot." + ("L" if sx > 0.0 else "R")
+		_tag(_put(feet, ShapeKit.loft([
 			[Vector3(x, 0.22, -0.26), 0.17, 0.18],
 			[Vector3(x, 0.18, 0.05), 0.21, 0.15],
 			[Vector3(x, 0.10, 0.40), 0.22, 0.09],
 			[Vector3(x, 0.08, 0.52), 0.16, 0.06],
-		], skin, 10), skin)
-		_put(feet, ShapeKit.loft([[Vector3(x, 0.20, -0.06), 0.19, 0.19], [Vector3(x, 0.52, -0.05), 0.22, 0.22]], skin, 10), skin)
+		], skin, 10), skin), b)
+		_tag(_put(feet, ShapeKit.loft([[Vector3(x, 0.20, -0.06), 0.19, 0.19], [Vector3(x, 0.52, -0.05), 0.22, 0.22]], skin, 10), skin), b)
 		for k in 4:
 			var tx: float = x + (float(k) - 1.5) * 0.1
-			_spike(feet, Vector3(tx, 0.08, 0.5), Vector3(tx + (float(k) - 1.5) * 0.04, 0.02, 0.7), 0.035, claw, 5)
+			_tag(_spike(feet, Vector3(tx, 0.08, 0.5), Vector3(tx + (float(k) - 1.5) * 0.04, 0.02, 0.7), 0.035, claw, 5), b)
+
+
+func _tag(mi: MeshInstance3D, bone: String) -> MeshInstance3D:
+	mi.set_meta("bone", bone)
+	return mi
+
+
+## 脚の骨。もも（腰の関節）→すね（ひざ）→足（足首）。位置は data/boss_model.json の leg_joints
+func _build_leg_skeleton() -> void:
+	leg_skel = Skeleton3D.new()
+	leg_skel.name = "LegSkeleton"
+	add_child(leg_skel)
+	var j: Dictionary = cfg.get("leg_joints", {"hip": [0.30, 2.08, 0.0], "knee": [0.43, 1.18, 0.05], "ankle": [0.50, 0.46, -0.04]})
+	var root := leg_skel.add_bone("root")
+	leg_skel.set_bone_rest(root, Transform3D.IDENTITY)
+	for sx in [-1.0, 1.0]:
+		var side := "L" if sx > 0.0 else "R"
+		var hip := _jv(j["hip"], sx)
+		var knee := _jv(j["knee"], sx)
+		var ankle := _jv(j["ankle"], sx)
+		leg_rest[side] = [hip, knee, ankle]
+		var t := leg_skel.add_bone("thigh." + side)
+		leg_skel.set_bone_parent(t, root)
+		leg_skel.set_bone_rest(t, Transform3D(Basis.IDENTITY, hip))
+		var sh := leg_skel.add_bone("shin." + side)
+		leg_skel.set_bone_parent(sh, t)
+		leg_skel.set_bone_rest(sh, Transform3D(Basis.IDENTITY, knee - hip))
+		var f := leg_skel.add_bone("foot." + side)
+		leg_skel.set_bone_parent(f, sh)
+		leg_skel.set_bone_rest(f, Transform3D(Basis.IDENTITY, ankle - knee))
+	leg_skel.reset_bone_poses()
+
+
+static func _jv(a: Array, sx: float) -> Vector3:
+	return Vector3(float(a[0]) * sx, float(a[1]), float(a[2]))
+
+
+## 脚の部品を、骨についていく形にまとめる（ズボン／くつ／はだしの足、それぞれ1つ）
+func _skin_legs() -> void:
+	for container in [legs, shoes, feet]:
+		var parts: Array = []
+		var skin_res := Skin.new()
+		var bind_of := {}
+		var skip: Array = [shoes, feet] if container == legs else []
+		for c in (container as Node3D).get_children():
+			if not (c is MeshInstance3D) or skip.has(c):
+				continue
+			var bone := str(c.get_meta("bone", "root"))
+			var bi := leg_skel.find_bone(bone)
+			if not bind_of.has(bi):
+				bind_of[bi] = skin_res.get_bind_count()
+				skin_res.add_named_bind(bone, leg_skel.get_bone_global_rest(bi).affine_inverse())
+			parts.append({"mesh": (c as MeshInstance3D).mesh, "xf": (c as Node3D).transform, "bone": bind_of[bi], "node": c})
+		if parts.is_empty():
+			continue
+		var mesh := MeshMerge.merge_parts(parts, [skin, skin_red], merge_cache)
+		for p in parts:
+			var n: Node = p["node"]
+			container.remove_child(n)
+			n.free()
+		var mi := MeshInstance3D.new()
+		mi.name = "Skinned"
+		mi.mesh = mesh
+		container.add_child(mi)
+		mi.skin = skin_res
+		mi.skeleton = mi.get_path_to(leg_skel)
+
+
+## 2つの骨（長さ l1・l2）を、根元 a から先 c へ届くように曲げる。曲がる向きは pole。ひざの位置を返す
+static func solve_two_bone(a: Vector3, c: Vector3, l1: float, l2: float, pole: Vector3) -> Vector3:
+	var d := c - a
+	var dist := clampf(d.length(), 0.001, l1 + l2 - 0.001)
+	var dir := d.normalized() if d.length() > 0.0001 else Vector3.DOWN
+	var cos_a := clampf((l1 * l1 + dist * dist - l2 * l2) / (2.0 * l1 * dist), -1.0, 1.0)
+	var p := pole - dir * pole.dot(dir)
+	p = p.normalized() if p.length() > 0.0001 else Vector3.FORWARD
+	return a + dir * l1 * cos_a + p * l1 * sqrt(1.0 - cos_a * cos_a)
+
+
+## 骨の向き：休みの向き rest_dir（曲がる向き rest_pole）を、新しい向き new_dir（曲がる向き pole）へ回す
+static func _aim_basis(rest_dir: Vector3, rest_pole: Vector3, new_dir: Vector3, pole: Vector3) -> Basis:
+	var f0 := _frame(rest_dir, rest_pole)
+	var f1 := _frame(new_dir, pole)
+	return f1 * f0.transposed()
+
+
+static func _frame(y: Vector3, z_hint: Vector3) -> Basis:
+	var yy := y.normalized()
+	var zz := (z_hint - yy * z_hint.dot(yy))
+	zz = zz.normalized() if zz.length() > 0.0001 else Vector3(0, 0, 1)
+	var xx := yy.cross(zz).normalized()
+	return Basis(xx, yy, zz)
+
+
+## 足首の位置（モデルの座標）を決めて、脚の骨を曲げる。hip_drop：腰がどれだけ下がったか
+func _pose_legs(hip_drop: float, fwd: float) -> void:
+	if leg_skel == null:
+		return
+	var c := crouch
+	var splay := float(cfg.get("crouch_splay", 0.32)) * c
+	for sx in [-1.0, 1.0]:
+		var side := "L" if sx > 0.0 else "R"
+		var r: Array = leg_rest[side]
+		var hip_r: Vector3 = r[0]
+		var knee_r: Vector3 = r[1]
+		var ankle_r: Vector3 = r[2]
+		var hip := hip_r + Vector3(0.0, -hip_drop, fwd)
+		# 歩き：片足ずつ前へ（上げながら）出し、うしろへ送る
+		var ph := walk_phase + (0.0 if sx > 0.0 else PI)
+		var stride := float(cfg.get("walk_stride", 0.42)) * walk_amount
+		var lift := float(cfg.get("walk_lift", 0.28)) * walk_amount
+		var ankle := ankle_r + Vector3(sx * splay, lift * maxf(0.0, cos(ph)), stride * sin(ph) + 0.06 * c)
+		var pole := Vector3(sx * (0.15 + 0.9 * c), 0.0, 1.0).normalized()
+		var l1 := (knee_r - hip_r).length()
+		var l2 := (ankle_r - knee_r).length()
+		var knee := solve_two_bone(hip, ankle, l1, l2, pole)
+		var rest_pole := Vector3(0, 0, 1)
+		var b1 := _aim_basis(knee_r - hip_r, rest_pole, knee - hip, pole)
+		var b2 := _aim_basis(ankle_r - knee_r, rest_pole, ankle - knee, pole)
+		# 足は床と平らに（つま先は少し外へ）。歩きで、けり出すときにかかとが少し上がる
+		var toe_out := Basis(Vector3.UP, sx * 0.35 * c)
+		var heel := Basis(Vector3.RIGHT, 0.35 * walk_amount * maxf(0.0, -sin(ph)) * maxf(0.0, cos(ph + 0.6)))
+		var bf := toe_out * heel
+		var g_thigh := Transform3D(b1, hip)
+		var g_shin := Transform3D(b2, knee)
+		var g_foot := Transform3D(bf, ankle)
+		_set_bone("thigh." + side, g_thigh)
+		_set_bone("shin." + side, g_thigh.affine_inverse() * g_shin)
+		_set_bone("foot." + side, g_shin.affine_inverse() * g_foot)
+
+
+func _set_bone(bone: String, local: Transform3D) -> void:
+	var i := leg_skel.find_bone(bone)
+	leg_skel.set_bone_pose_position(i, local.origin)
+	leg_skel.set_bone_pose_rotation(i, local.basis.get_rotation_quaternion())
+
+
+## 歩きの進み。phase：足の運びの角度（ラジアン、増え続けてよい）。amount：歩きの強さ（0＝立ち止まり〜1）
+func set_walk(phase: float, amount: float) -> void:
+	walk_phase = phase
+	walk_amount = clampf(amount, 0.0, 1.0)
 
 
 func _build_torso() -> void:
@@ -697,7 +853,8 @@ func _attach_props() -> void:
 func _bake() -> void:
 	for id in hand_nodes:
 		_bake_hand(id)
-	var containers: Array = [legs, shoes, feet, rig, _sleeves, head, _band, bat]
+	_skin_legs()
+	var containers: Array = [rig, _sleeves, head, _band, bat]
 	for id in held_items:
 		containers.append(held_items[id])
 	for n in containers:
@@ -929,8 +1086,10 @@ func pose_small_arms(time: float) -> void:
 		var s: Vector3 = shoulder[id]
 		var target: Vector3
 		if awake:
-			var drop := 0.9 + 0.45 * float(idx - 2)
-			target = s + Vector3(out * (1.05 + 0.15 * float(idx - 2) + 0.15 * sin(time * 1.7 + ph)), -drop + 0.2 * sin(time * 2.0 + ph), 0.25 + 0.2 * float(idx % 2) + 0.15 * cos(time * 1.4 + ph))
+			# 体のまわりに広げて持つ（上の腕ほど高く。地面につけない＝体が埋もれて見えない）
+			var lifts: Array = cfg.get("awake_small_lift", [0.55, -0.15, -0.7])
+			var up := float(lifts[clampi(idx - 2, 0, lifts.size() - 1)])
+			target = s + Vector3(out * (1.45 + 0.2 * float(idx - 2) + 0.15 * sin(time * 1.7 + ph)), up + 0.2 * sin(time * 2.0 + ph), 0.55 + 0.15 * float(idx % 2) + 0.15 * cos(time * 1.4 + ph))
 		else:
 			target = s + Vector3(out * (0.75 + 0.12 * sin(time * 1.7 + ph)), -1.45 + 0.12 * sin(time * 2.0 + ph), 0.05 + 0.15 * cos(time * 1.4 + ph))
 		set_hand(id, target)
@@ -975,15 +1134,17 @@ func is_flashing() -> bool:
 	return _flash_on
 
 
-## しゃがむ：脚を短く・外へ開き（がに股）、そのぶん上半身・肩・しっぽを下げる。足は床についたまま
+## しゃがむ：腰を下げ、ひざを外へ曲げる（がに股）。上半身・肩・しっぽも下げる。足は床についたまま
 func apply_crouch() -> void:
 	var c := crouch
-	legs.scale = Vector3(1.0 + 0.45 * c, 1.0 - float(cfg["crouch_drop"]) * c, 1.0 + 0.1 * c)
-	var drop := float(cfg.get("hip_y", 2.08)) * float(cfg["crouch_drop"]) * c
+	# 歩くと、1歩ごとに腰が少し上下する
+	var bob := float(cfg.get("walk_bob", 0.07)) * walk_amount * (0.5 - 0.5 * cos(2.0 * walk_phase))
+	var drop := float(cfg.get("hip_y", 2.08)) * float(cfg["crouch_drop"]) * c + bob
 	rig.position = Vector3(0.0, -drop, 0.12 * c)
 	for id in shoulder:
 		var base: Vector3 = shoulder_base[id]
 		shoulder[id] = Vector3(base.x, base.y - drop, base.z + 0.12 * c)
+	_pose_legs(drop, 0.12 * c)
 
 
 ## 体の動き：息づかい、攻撃の予備動作でのかたむき、やられたときのよろけ、覚醒のしゃがみ、よろけて倒れる。
