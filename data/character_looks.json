@@ -6,6 +6,7 @@
    "idle_speed": 1.1,
    "attack_speed": 2.0,
    "attack_anim": "Punch",
+   "height": 1.06,
    "ref": "docs/ref/chars/IMG_0392.jpeg",
    "keep": [
     "eyebrow001",
@@ -804,7 +805,7 @@
    "ref": "docs/ref/chars/IMG_0395.jpeg",
    "attack_anim": "Punch",
    "run_anim": "Sprint",
-   "height": 1.03,
+   "height": 1.1,
    "keep": [],
    "skin": "#d9b08c",
    "head_scale": 0.95,
@@ -1814,7 +1815,7 @@
    "name": "ガンナー",
    "ref": "docs/ref/chars/IMG_0397.jpeg",
    "attack_anim": "Spell",
-   "height": 1.0,
+   "height": 1.07,
    "keep": [],
    "skin": "#c98e6c",
    "head_scale": 1.0,
@@ -2136,7 +2137,7 @@
      "roughness": 0.8
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "rod",
      "from": [
       0.4776,
@@ -2162,7 +2163,7 @@
      "mirror": true
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "rod",
      "from": [
       0.7238,
@@ -2187,7 +2188,7 @@
      "mirror": true
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "rod",
      "from": [
       0.7489,
@@ -2212,7 +2213,7 @@
      "mirror": true
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "box",
      "center": [
       0.563,
@@ -2237,7 +2238,7 @@
      "mirror": true
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "box",
      "center": [
       0.6132,
@@ -2262,7 +2263,7 @@
      "mirror": true
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "box",
      "center": [
       0.6635,
@@ -2287,7 +2288,7 @@
      "mirror": true
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "box",
      "center": [
       0.5228,
@@ -2575,7 +2576,7 @@
    "name": "ボンバー",
    "ref": "docs/ref/chars/IMG_0398.jpeg",
    "attack_anim": "Punch",
-   "height": 0.97,
+   "height": 1.04,
    "keep": [
     "eyebrow001",
     "eyelashes01",
@@ -4099,7 +4100,7 @@
    "name": "魔法使い",
    "ref": "docs/ref/chars/IMG_0400.jpeg",
    "attack_anim": "Spell",
-   "height": 0.92,
+   "height": 1.0,
    "keep": [
     "eyebrow004",
     "eyelashes01",
@@ -6272,7 +6273,7 @@
      "tex": "none"
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "rod",
      "from": [
       0.593,
@@ -6296,7 +6297,7 @@
      "roughness": 0.5
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "rod",
      "from": [
       0.593,
@@ -6320,7 +6321,7 @@
      "roughness": 0.3
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "torus",
      "center": [
       0.593,
@@ -6345,7 +6346,7 @@
      "roughness": 0.3
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "torus",
      "center": [
       0.593,
@@ -6370,7 +6371,7 @@
      "roughness": 0.3
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "extrude",
      "center": [
       0.593,
@@ -6563,7 +6564,7 @@
      "roughness": 0.25
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "sphere",
      "center": [
       0.593,
@@ -6589,7 +6590,7 @@
      "tex": "none"
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "extrude",
      "center": [
       0.643,
@@ -6646,7 +6647,7 @@
      "roughness": 0.8
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "extrude",
      "center": [
       0.543,
@@ -6703,7 +6704,7 @@
      "roughness": 0.8
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "sphere",
      "center": [
       0.563,
@@ -6727,7 +6728,7 @@
      "roughness": 0.8
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "sphere",
      "center": [
       0.623,
@@ -6758,7 +6759,7 @@
    "attack_speed": 1.3,
    "ref": "docs/ref/chars/IMG_0401.jpeg",
    "attack_anim": "Sword_Attack",
-   "height": 0.9,
+   "height": 0.98,
    "keep": [
     "eyebrow001",
     "eyelashes01",
@@ -8667,9 +8668,868 @@
   },
   "summoner": {
    "name": "おもちゃの兵隊",
+   "units": {
+    "plush": {
+     "scale": 2.4,
+     "variants": [
+      [
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0,
+         0.1,
+         0
+        ],
+        "r": 0.098,
+        "squash": [
+         1.0,
+         1.1,
+         0.9
+        ],
+        "segs": 10,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#7a5232",
+        "metallic": 0.0,
+        "roughness": 1.0,
+        "tex": "cloth"
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0,
+         0.254,
+         0.01
+        ],
+        "r": 0.084,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 10,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#7a5232",
+        "metallic": 0.0,
+        "roughness": 1.0,
+        "tex": "cloth"
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.063,
+         0.317,
+         0.005
+        ],
+        "r": 0.0308,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#7a5232",
+        "metallic": 0.0,
+        "roughness": 1.0
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0308,
+         0.2708,
+         0.0828
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#111111",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.098,
+         0.058,
+         0.042
+        ],
+        "r": 0.0364,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#7a5232",
+        "metallic": 0.0,
+        "roughness": 1.0
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.063,
+         0.317,
+         0.005
+        ],
+        "r": 0.0308,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#7a5232",
+        "metallic": 0.0,
+        "roughness": 1.0
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.0308,
+         0.2708,
+         0.0828
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#111111",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.098,
+         0.058,
+         0.042
+        ],
+        "r": 0.0364,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#7a5232",
+        "metallic": 0.0,
+        "roughness": 1.0
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0,
+         0.233,
+         0.087
+        ],
+        "r": 0.0308,
+        "squash": [
+         1.2,
+         0.9,
+         0.8
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#d8b48a",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0,
+         0.2428,
+         0.1136
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#1a1a1a",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.0308,
+         0.184,
+         0.07
+        ],
+        "r": 0.0252,
+        "squash": [
+         1.4,
+         0.8,
+         0.6
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#2f5fb0",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0308,
+         0.184,
+         0.07
+        ],
+        "r": 0.0252,
+        "squash": [
+         1.4,
+         0.8,
+         0.6
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#2f5fb0",
+        "metallic": 0.0,
+        "roughness": 0.8
+       }
+      ],
+      [
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0,
+         0.1,
+         0
+        ],
+        "r": 0.0952,
+        "squash": [
+         1.0,
+         1.15,
+         0.9
+        ],
+        "segs": 10,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#f4efe9",
+        "metallic": 0.0,
+        "roughness": 1.0,
+        "tex": "cloth"
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0,
+         0.261,
+         0.01
+        ],
+        "r": 0.0812,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 10,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#f4efe9",
+        "metallic": 0.0,
+        "roughness": 1.0,
+        "tex": "cloth"
+       },
+       {
+        "bone": "root",
+        "shape": "rod",
+        "from": [
+         0.028,
+         0.317,
+         0.01
+        ],
+        "to": [
+         0.049,
+         0.499,
+         0.0
+        ],
+        "r0": 0.0252,
+        "r1": 0.0196,
+        "segs": 8,
+        "squash": [
+         1.0,
+         0.5
+        ],
+        "color": "#f4efe9",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "rod",
+        "from": [
+         0.028,
+         0.331,
+         0.016
+        ],
+        "to": [
+         0.049,
+         0.485,
+         0.008
+        ],
+        "r0": 0.014,
+        "r1": 0.0112,
+        "segs": 6,
+        "squash": [
+         1.0,
+         0.4
+        ],
+        "color": "#f2b6c6",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0308,
+         0.2778,
+         0.08
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#1a1a1a",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "rod",
+        "from": [
+         -0.028,
+         0.317,
+         0.01
+        ],
+        "to": [
+         -0.049,
+         0.499,
+         0.0
+        ],
+        "r0": 0.0252,
+        "r1": 0.0196,
+        "segs": 8,
+        "squash": [
+         1.0,
+         0.5
+        ],
+        "color": "#f4efe9",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "rod",
+        "from": [
+         -0.028,
+         0.331,
+         0.016
+        ],
+        "to": [
+         -0.049,
+         0.485,
+         0.008
+        ],
+        "r0": 0.014,
+        "r1": 0.0112,
+        "segs": 6,
+        "squash": [
+         1.0,
+         0.4
+        ],
+        "color": "#f2b6c6",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.0308,
+         0.2778,
+         0.08
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#1a1a1a",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0,
+         0.247,
+         0.0898
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#e58aa6",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.0308,
+         0.191,
+         0.07
+        ],
+        "r": 0.028,
+        "squash": [
+         1.4,
+         0.8,
+         0.6
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#e46a9a",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0308,
+         0.191,
+         0.07
+        ],
+        "r": 0.028,
+        "squash": [
+         1.4,
+         0.8,
+         0.6
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#e46a9a",
+        "metallic": 0.0,
+        "roughness": 0.8
+       }
+      ],
+      [
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0,
+         0.1,
+         0
+        ],
+        "r": 0.098,
+        "squash": [
+         1.0,
+         1.1,
+         0.9
+        ],
+        "segs": 10,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#a9784a",
+        "metallic": 0.0,
+        "roughness": 1.0,
+        "tex": "cloth"
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0,
+         0.254,
+         0.01
+        ],
+        "r": 0.084,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 10,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#a9784a",
+        "metallic": 0.0,
+        "roughness": 1.0,
+        "tex": "cloth"
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.063,
+         0.317,
+         0.005
+        ],
+        "r": 0.0308,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#a9784a",
+        "metallic": 0.0,
+        "roughness": 1.0
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0308,
+         0.2708,
+         0.0828
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#111111",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.098,
+         0.058,
+         0.042
+        ],
+        "r": 0.0364,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#a9784a",
+        "metallic": 0.0,
+        "roughness": 1.0
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.063,
+         0.317,
+         0.005
+        ],
+        "r": 0.0308,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#a9784a",
+        "metallic": 0.0,
+        "roughness": 1.0
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.0308,
+         0.2708,
+         0.0828
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#111111",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.098,
+         0.058,
+         0.042
+        ],
+        "r": 0.0364,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#a9784a",
+        "metallic": 0.0,
+        "roughness": 1.0
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0,
+         0.233,
+         0.087
+        ],
+        "r": 0.0308,
+        "squash": [
+         1.2,
+         0.9,
+         0.8
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#d8b48a",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0,
+         0.2428,
+         0.1136
+        ],
+        "r": 0.0112,
+        "squash": [
+         1,
+         1,
+         1
+        ],
+        "segs": 6,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#1a1a1a",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         -0.0308,
+         0.184,
+         0.07
+        ],
+        "r": 0.0252,
+        "squash": [
+         1.4,
+         0.8,
+         0.6
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#c8302b",
+        "metallic": 0.0,
+        "roughness": 0.8
+       },
+       {
+        "bone": "root",
+        "shape": "sphere",
+        "center": [
+         0.0308,
+         0.184,
+         0.07
+        ],
+        "r": 0.0252,
+        "squash": [
+         1.4,
+         0.8,
+         0.6
+        ],
+        "segs": 8,
+        "rotation_deg": [
+         0,
+         0,
+         0
+        ],
+        "color": "#c8302b",
+        "metallic": 0.0,
+        "roughness": 0.8
+       }
+      ]
+     ]
+    }
+   },
    "ref": "docs/ref/chars/IMG_0404.jpeg",
    "attack_anim": "Spell",
-   "height": 1.0,
+   "height": 1.07,
    "keep": [
     "eyebrow001",
     "eyelashes01",
@@ -10416,7 +11276,7 @@
    "name": "エンジェル",
    "ref": "docs/ref/chars/IMG_0405.jpeg",
    "attack_anim": "Spell",
-   "height": 0.9,
+   "height": 1.0,
    "keep": [
     "eyebrow004",
     "eyelashes01",
@@ -11438,6 +12298,346 @@
       0
      ],
      "color": "#f2c94c",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "head",
+     "shape": "extrude",
+     "center": [
+      0,
+      1.855,
+      0.143
+     ],
+     "points2d": [
+      [
+       -0.118,
+       0.0
+      ],
+      [
+       -0.1003,
+       0.0264
+      ],
+      [
+       -0.059,
+       0.036
+      ],
+      [
+       -0.0177,
+       0.0216
+      ],
+      [
+       0.0,
+       0.0096
+      ],
+      [
+       0.0177,
+       0.0216
+      ],
+      [
+       0.059,
+       0.036
+      ],
+      [
+       0.1003,
+       0.0264
+      ],
+      [
+       0.118,
+       0.0
+      ],
+      [
+       0.0944,
+       -0.024
+      ],
+      [
+       0.0531,
+       -0.0312
+      ],
+      [
+       0.0142,
+       -0.0144
+      ],
+      [
+       0.0,
+       -0.0264
+      ],
+      [
+       -0.0142,
+       -0.0144
+      ],
+      [
+       -0.0531,
+       -0.0312
+      ],
+      [
+       -0.0944,
+       -0.024
+      ]
+     ],
+     "depth": 0.012,
+     "rotation_deg": [
+      -6,
+      0,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#d8ae4a",
+     "metallic": 0.7,
+     "roughness": 0.35
+    },
+    {
+     "bone": "head",
+     "shape": "extrude",
+     "center": [
+      0,
+      1.855,
+      0.15
+     ],
+     "points2d": [
+      [
+       -0.1,
+       0.0
+      ],
+      [
+       -0.085,
+       0.022
+      ],
+      [
+       -0.05,
+       0.03
+      ],
+      [
+       -0.015,
+       0.018
+      ],
+      [
+       0.0,
+       0.008
+      ],
+      [
+       0.015,
+       0.018
+      ],
+      [
+       0.05,
+       0.03
+      ],
+      [
+       0.085,
+       0.022
+      ],
+      [
+       0.1,
+       0.0
+      ],
+      [
+       0.08,
+       -0.02
+      ],
+      [
+       0.045,
+       -0.026
+      ],
+      [
+       0.012,
+       -0.012
+      ],
+      [
+       0.0,
+       -0.022
+      ],
+      [
+       -0.012,
+       -0.012
+      ],
+      [
+       -0.045,
+       -0.026
+      ],
+      [
+       -0.08,
+       -0.02
+      ]
+     ],
+     "depth": 0.012,
+     "rotation_deg": [
+      -6,
+      0,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#f7f3ee",
+     "metallic": 0.0,
+     "roughness": 0.4
+    },
+    {
+     "bone": "head",
+     "shape": "sphere",
+     "center": [
+      0.055,
+      1.857,
+      0.157
+     ],
+     "r": 0.012,
+     "squash": [
+      1.4,
+      0.8,
+      0.4
+     ],
+     "segs": 8,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "color": "#2a1a20",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "head",
+     "shape": "extrude",
+     "center": [
+      0.115,
+      1.87,
+      0.11
+     ],
+     "points2d": [
+      [
+       0,
+       0
+      ],
+      [
+       0.0245,
+       0.0385
+      ],
+      [
+       0.056,
+       0.0525
+      ],
+      [
+       0.049,
+       0.035
+      ],
+      [
+       0.07,
+       0.0315
+      ],
+      [
+       0.0525,
+       0.0175
+      ],
+      [
+       0.0665,
+       0.007
+      ],
+      [
+       0.035,
+       0.0035
+      ]
+     ],
+     "depth": 0.008,
+     "rotation_deg": [
+      0,
+      30,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#f7f3ee",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "head",
+     "shape": "sphere",
+     "center": [
+      -0.055,
+      1.857,
+      0.157
+     ],
+     "r": 0.012,
+     "squash": [
+      1.4,
+      0.8,
+      0.4
+     ],
+     "segs": 8,
+     "rotation_deg": [
+      0,
+      0,
+      0
+     ],
+     "color": "#2a1a20",
+     "metallic": 0.0,
+     "roughness": 0.8
+    },
+    {
+     "bone": "head",
+     "shape": "extrude",
+     "center": [
+      -0.115,
+      1.87,
+      0.11
+     ],
+     "points2d": [
+      [
+       0,
+       0
+      ],
+      [
+       -0.0245,
+       0.0385
+      ],
+      [
+       -0.056,
+       0.0525
+      ],
+      [
+       -0.049,
+       0.035
+      ],
+      [
+       -0.07,
+       0.0315
+      ],
+      [
+       -0.0525,
+       0.0175
+      ],
+      [
+       -0.0665,
+       0.007
+      ],
+      [
+       -0.035,
+       0.0035
+      ]
+     ],
+     "depth": 0.008,
+     "rotation_deg": [
+      0,
+      -30,
+      0
+     ],
+     "squash": [
+      1,
+      1,
+      1
+     ],
+     "color": "#f7f3ee",
      "metallic": 0.0,
      "roughness": 0.8
     },
@@ -12640,7 +13840,7 @@
      "roughness": 0.8
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "tube",
      "points": [
       [
@@ -12670,7 +13870,7 @@
      "roughness": 0.3
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "rod",
      "from": [
       0.593,
@@ -12694,7 +13894,7 @@
      "roughness": 0.8
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "rod",
      "from": [
       0.583,
@@ -12718,7 +13918,7 @@
      "roughness": 0.8
     },
     {
-     "bone": "wrist.L",
+     "bone": "lowerarm02.L",
      "shape": "extrude",
      "center": [
       0.243,

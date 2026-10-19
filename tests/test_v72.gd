@@ -197,6 +197,7 @@ func _initialize() -> void:
 	# ---- 4. AIの味方の必殺技にも、斬撃が出る ----
 	var s2: Node = (load(SCENE) as PackedScene).instantiate()
 	s2.ai_enabled = true
+	s2.ai_picks = ["hero_swordsman", "hero_swordsman", "hero_swordsman"]  # 版78：斬撃は剣士の必殺技（ほかのキャラは自分の見た目）
 	root.add_child(s2)
 	if s2.get_node_or_null("Boss") == null:
 		s2._ready()

@@ -141,7 +141,7 @@ func _ai_update(delta: float) -> void:
 	var half := float(b.config["bounds"])
 	if b.round_active():
 		var ctx := {"boss": Vector2(b.boss.position.x, b.boss.position.z), "boss_radius": float(b.config["boss_size"]) * 0.5, "bounds": half,
-			"hazards": b.current_hazards, "cfg": b.ai_cfg, "attack_multiplier": float(b.config["attack_multiplier"]), "rng": ai_rng, "can_hit_boss": not b.phase.invulnerable(),
+			"hazards": b.current_hazards, "cfg": b.ai_cfg, "attack_multiplier": float(b.config["attack_multiplier"]) * b.skills.dealt_mult(), "rng": ai_rng, "can_hit_boss": not b.phase.invulnerable(),
 			"drop_damage": Damage.damage_amount(float(b.attacks_cfg["kinds"]["grab"]["drop_power"]), float(b.attacks_cfg["damage_multiplier"]))}
 		# 版71：ボスのいまの攻撃の先読み（AIの味方が、よける・攻める時刻を決める）
 		var tac: Dictionary = b.ai_cfg.get("tactics", {})
@@ -162,6 +162,19 @@ func _ai_update(delta: float) -> void:
 			for _i in int(a.get("hit_n", 0)) - hit_n0:
 				b.rage.add_hit(b._round_t(), b._dist_to_boss_surface(a["pos"]))
 			_ai_show_action(str(slot), a)
+			# 版78：AIの技の見た目と効果（ビーム・ドーム・回復・呼び出しなど）
+			for oe in a.get("out_events", []):
+				match str(oe["type"]):
+					"fx":
+						b.skills.action_fx(str(slot), oe["spec"], AiAlly.act(a).aim)
+					"effect":
+						b.skills.apply_effect(str(slot), oe["spec"], AiAlly.act(a).aim, float((a["stats"] as Dictionary).get("attack_power", 10.0)))
+					"hitfx":
+						var hf: Dictionary = (oe["hit"]["fx"] as Dictionary).duplicate()
+						hf["hit"] = oe["hit"]
+						if not hf.has("at"):
+							hf["at"] = "hit"
+						b.skills.action_fx(str(slot), hf, AiAlly.act(a).aim)
 			for he in a.get("hit_events", []):
 				b._show_damage(float(he["dmg"]), str(he["action"]), a["pos"])  # 版75：AIの一撃ずつ
 			if dealt > 0.0:
@@ -172,11 +185,11 @@ func _ai_update(delta: float) -> void:
 			var apos: Vector2 = a["pos"]
 			if str(a["banner"]) != "":
 				b.ult_fx_spawn("charge", Vector3(apos.x, b.ground_y, apos.y), ua.aim)
-			if dealt > 0.0 and ua.active == "ultimate":
+			if dealt > 0.0 and ua.active == "ultimate" and ua.def("ultimate").has("fx"):
 				var at := HitArea.closest_on(a.get("ult_from", apos), apos, Vector2(b.boss.position.x, b.boss.position.z))
 				b._ult_slash_fx(Vector3(at.x, b.ground_y, at.y), ua.aim, true, false)
 			var was_held := bool(a.get("held", false))
-			AiAlly.take_hazards(a, str(slot), b.current_hazards, ai_done, float(b.attacks_cfg["damage_multiplier"]))
+			AiAlly.take_hazards(a, str(slot), b.current_hazards, ai_done, float(b.attacks_cfg["damage_multiplier"]) * b.skills.taken_mult())
 			if bool(a.get("held", false)) and not was_held and b.grab_state.is_empty():
 				var gp: Vector2 = a["pos"]
 				b._start_hold(str(slot), gp)

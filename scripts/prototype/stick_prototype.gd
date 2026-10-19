@@ -45,6 +45,8 @@ const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
 const BattleUltFx := preload("res://scripts/prototype/battle_ult_fx.gd")
 const BattleNet := preload("res://scripts/prototype/battle_net.gd")
+const BattleSkills := preload("res://scripts/prototype/battle_skills.gd")
+const SkillHits := preload("res://scripts/combat/skill_hits.gd")
 const BattleAiTeam := preload("res://scripts/prototype/battle_ai_team.gd")
 const BattleGrab := preload("res://scripts/prototype/battle_grab.gd")
 const BattleHud := preload("res://scripts/prototype/battle_hud.gd")
@@ -83,6 +85,19 @@ var phase := BossPhase.new()  ## ボスの体力の2段階（第1形態 → 倒�
 var rage := BossRage.new()  ## 版69：近くからの攻撃が多い間、ボスが怒る（攻撃が速く、つかみ投げが多くなる）
 var ult_fx := BattleUltFx.new(self)  ## 必殺技の見た目（battle_ult_fx.gd）
 var net := BattleNet.new(self)  ## 通信（battle_net.gd）
+var skills := BattleSkills.new(self)  ## 版78：キャラごとの攻撃の効果と見た目（battle_skills.gd）
+## 版78：キャラごとの攻撃の状態（battle_skills.gd が使う）
+var skill_fx: Array = []  ## 出している見た目 [{node, follow}]
+var skill_fx_log: Array = []  ## 出した見た目の種類（テスト用）
+var skill_log: Array = []  ## 起きた効果の種類（テスト用）
+var skill_summons: Array = []  ## 呼び出した物 [{owner, pos, life, next, ...}]
+var skill_speed := {}  ## 枠 → {left, mult}（超高速モード）
+var skill_dome_left := 0.0  ## 全体防御強化（ドーム）の残り秒
+var skill_dome_slot := ""
+var skill_dome_cfg: Dictionary = {}
+var skill_time_stop_left := 0.0  ## 時間停止の残り秒
+var skill_time_stop_resist_until := -999.0  ## この時刻までにまた止めると、ボスの耐性で短くなる
+var boss_freeze_total := 0.0  ## 止まっていた時間の合計（ボスの攻撃の時計から引く）
 var ai_team := BattleAiTeam.new(self)  ## AIの味方・先読み（battle_ai_team.gd）
 var grab := BattleGrab.new(self)  ## つかみ・投げ（battle_grab.gd）
 var hud := BattleHud.new(self)  ## 画面の描画（battle_hud.gd）
@@ -296,6 +311,15 @@ func _build_world() -> void:
 	_attach_character()
 
 
+## 版78：自分のキャラの id（選んでいなければ、既定のキャラ）
+func my_char_id() -> String:
+	if selected_character != "":
+		return selected_character
+	if characters_cfg.is_empty():
+		characters_cfg = CharacterData.load_config()
+	return str(characters_cfg.get("player_character", ""))
+
+
 ## 自分のキャラのモデル（data/characters.json）があれば、箱の代わりに出す。なければ箱のまま
 func _attach_character() -> void:
 	var cfg := CharacterData.load_config()
@@ -478,7 +502,7 @@ func _process(delta: float) -> void:
 		_dormant_update(delta)
 		return
 	var move := Vector2.ZERO if (downed or stun_left > 0.0) else stick_vec * actions.move_scale()
-	player.position = StickMath.step_position(player.position, move, role_value("move_speed"), delta, float(config["bounds"]))
+	player.position = StickMath.step_position(player.position, move, role_value("move_speed") * skills.speed_mult(_my_slot()), delta, float(config["bounds"]))
 	hit_flash = maxf(0.0, hit_flash - delta)
 	damage_numbers().update(delta)
 	banner["left"] = maxf(0.0, float(banner["left"]) - delta)
@@ -690,7 +714,13 @@ func _begin_round(start_ms: float) -> void:
 	boss.visible = true
 	recorder.clear()
 	since_sample = 0.0
+	# 版78：キャラごとの攻撃（data/char_actions.json）。剣士は共通の actions.json のまま
+	var acfg := Actions.config_for(my_char_id())
+	if str(acfg.get("character", "")) != str(actions.cfg.get("character", "")):
+		actions = Actions.new(acfg)
 	actions.reset()
+	skills.reset()
+	boss_freeze_total = 0.0
 	gauge.reset()
 	banner["left"] = 0.0
 	button_flash = {}
@@ -775,6 +805,7 @@ func highlight_data() -> Dictionary:
 func _take_damage(amount: float, ignore_invulnerable: bool = false) -> void:
 	if actions.invulnerable() and not ignore_invulnerable:
 		return
+	amount *= skills.taken_mult()  # 版78：アーマーのドームの間は、受けるダメージが減る
 	if amount > 0.0:
 		_play_sfx("hurt")
 	_set_my_hp(Damage.apply_damage(my_hp, amount))
@@ -791,14 +822,15 @@ func attack() -> bool:
 func perform(id: String) -> bool:
 	if not round_active() or downed or _me_held() or stun_left > 0.0:
 		return false
-	var cooldown := role_value("attack_cooldown_sec") if id == "normal" else -1.0
+	var cooldown := role_value("attack_cooldown_sec") / skills.speed_mult(_my_slot()) if id == "normal" else -1.0
 	if id == "ultimate" and not gauge.is_ready():
 		return false
 	if not actions.start(id, _aim_direction(id), cooldown):
 		return false
+	if bool(actions.def(id).get("sweep_hit", false)):
+		ult_start_pos = Vector2(player.position.x, player.position.z)  # 版72b・78：駆けぬけた道で当たりを調べる（必殺技・ダッシュ技）
 	if id == "ultimate":
 		gauge.consume()
-		ult_start_pos = Vector2(player.position.x, player.position.z)  # 版72b：駆けぬけた道で当たりを調べる
 		ult_last_ghost = Vector3.INF
 		_show_banner(str(actions.def(id).get("name", "")), role_name_of(_my_slot()), float(actions.def(id).get("banner_sec", 1.6)))
 		_play_sfx("ultimate")
@@ -850,6 +882,10 @@ func _handle_action_events(events: Array) -> void:
 				_resolve_hit(ev)
 			"mark":
 				_on_action_mark(str(ev["name"]))
+			"fx":
+				skills.action_fx(_my_slot(), ev["spec"], actions.aim)
+			"effect":
+				skills.apply_effect(_my_slot(), ev["spec"], actions.aim, role_value("attack_power"))
 			"anim":
 				if char_view != null:
 					char_view.play_step(str(ev["anim"]), float(ev["speed"]), bool(ev.get("from_end", false)))
@@ -877,10 +913,22 @@ func _on_action_mark(mark: String) -> void:
 func _resolve_hit(ev: Dictionary) -> void:
 	# 版74：必殺技は、キャラの ultimate_scale 倍（剣士は0.7＝30%減。書いていなければ1倍）
 	var ult_scale := float(role().get("ultimate_scale", 1.0)) if str(ev.get("action", "")) == "ultimate" else 1.0
-	var dmg := Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]) * float(ev["multiplier"]) * ult_scale)
+	var dmg := Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]) * float(ev["multiplier"]) * ult_scale * skills.dealt_mult())
 	var reach := HitArea.reach_of(role_value("attack_reach"), float(ev["radius_scale"]))
 	_play_sfx("slash")
 	var hit_boss := boss.visible and HitArea.hits(player.position, boss.position, reach, float(config["boss_size"]) * 0.5)
+	# 版78：ビーム・爆発・まわりの当たり（skill_hits.gd）。当たった所に、技の見た目（hit の fx）を出す
+	var hspec: Dictionary = ev.get("hit", {})
+	if SkillHits.shape_of(hspec) != "melee":
+		var me := Vector2(player.position.x, player.position.z)
+		var bxz2 := Vector2(boss.position.x, boss.position.z)
+		hit_boss = boss.visible and SkillHits.hits(hspec, me, actions.aim, reach, bxz2, float(config["boss_size"]) * 0.5)
+	if hspec.has("fx"):
+		var fxs: Dictionary = (hspec["fx"] as Dictionary).duplicate()
+		fxs["hit"] = hspec
+		if not fxs.has("at"):
+			fxs["at"] = "hit"
+		skills.action_fx(_my_slot(), fxs, actions.aim)
 	var slash_at := Vector2(player.position.x, player.position.z)
 	if bool(actions.def(str(ev.get("action", ""))).get("sweep_hit", false)):
 		# 版72b：駆けぬけながら斬る：始めた所から今の所までの道の、どこかから届けば当たる。斬撃は、ボスにいちばん近い所に出す
@@ -888,7 +936,7 @@ func _resolve_hit(ev: Dictionary) -> void:
 		hit_boss = boss.visible and HitArea.hits_sweep(ult_start_pos, slash_at, bxz, reach, float(config["boss_size"]) * 0.5)
 		if hit_boss:
 			slash_at = HitArea.closest_on(ult_start_pos, slash_at, bxz)
-	if str(ev.get("action", "")) == "ultimate":
+	if str(ev.get("action", "")) == "ultimate" and actions.def("ultimate").has("fx"):  # 剣士の斬撃（版78：ほかのキャラは自分の見た目）
 		_ult_slash_fx(Vector3(slash_at.x, ground_y, slash_at.y), actions.aim, hit_boss and not phase.invulnerable(), true)
 	if hit_boss and phase.invulnerable():
 		_play_sfx("hit")  # 倒れて覚醒する間は、当たってもダメージは入らない
@@ -1305,7 +1353,21 @@ func combat_update(delta: float) -> void:
 		_show_hazards([])
 		grab_state = {}
 		return
-	var t := (server_now_ms() - round_start_ms) / 1000.0
+	skills.update(delta)
+	# 版78：時間停止の間は、ボスの攻撃の時計を止める（止まっていた時間を、攻撃の時計から引く）
+	if skills.boss_frozen():
+		skill_time_stop_left = maxf(0.0, skill_time_stop_left - delta)
+		boss_freeze_total += delta
+		if phase.tick(delta, _total_boss_damage_counted()) == BossPhase.AWAKE:
+			_on_boss_awake()
+			_recompute_boss_hp()
+		if phase.phase == BossPhase.FALL:
+			boss_hp = phase.hp(_total_boss_damage_counted())
+		current_hazards = []
+		_show_hazards([])
+		_ai_update(delta)
+		return
+	var t := (server_now_ms() - round_start_ms) / 1000.0 - boss_freeze_total
 	# 体力の2段階：倒れて覚醒する演出の進み
 	if phase.tick(delta, _total_boss_damage_counted()) == BossPhase.AWAKE:
 		_on_boss_awake()

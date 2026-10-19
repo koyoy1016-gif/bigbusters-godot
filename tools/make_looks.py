@@ -7,7 +7,13 @@
 """
 import json
 import math
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from make_char_actions import all_anims  # noqa: E402
+
+CHAR_ANIMS = all_anims()
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -168,6 +174,7 @@ def brawler():
         "idle_speed": 1.1,
         "attack_speed": 2.0,
         "attack_anim": "Punch",
+        "height": 1.06,
         "ref": "docs/ref/chars/IMG_0392.jpeg",
         "keep": ["eyebrow001", "eyelashes01", "low-poly", "short04"],
         "skin": "#d99a6c",
@@ -252,7 +259,7 @@ def sprinter():
         "ref": "docs/ref/chars/IMG_0395.jpeg",
         "attack_anim": "Punch",
         "run_anim": "Sprint",
-        "height": 1.03,
+        "height": 1.1,
         "keep": [],
         "skin": "#d9b08c",
         "head_scale": 0.95,
@@ -300,15 +307,15 @@ def gunner():
     back = add(WRIST_L, FOREARM_DIR, -0.17)
     front = add(WRIST_L, FOREARM_DIR, 0.32)
     off = [0.0, -0.02, 0.0]
-    parts.append(rod("wrist.L", add(back, off), add(front, off), 0.072, 0.075, GUN, mirror=True, segs=14, metallic=0.5, rough=0.5, tex="steel"))
-    parts.append(rod("wrist.L", add(front, off), add(add(front, off), FOREARM_DIR, 0.05), 0.085, 0.085, "#2a2c2a", mirror=True, segs=14,
+    parts.append(rod("lowerarm02.L", add(back, off), add(front, off), 0.072, 0.075, GUN, mirror=True, segs=14, metallic=0.5, rough=0.5, tex="steel"))
+    parts.append(rod("lowerarm02.L", add(front, off), add(add(front, off), FOREARM_DIR, 0.05), 0.085, 0.085, "#2a2c2a", mirror=True, segs=14,
                      metallic=0.6, rough=0.4))
-    parts.append(rod("wrist.L", add(add(front, off), FOREARM_DIR, 0.05), add(add(front, off), FOREARM_DIR, 0.055), 0.07, 0.07, "#0c0c0c",
+    parts.append(rod("lowerarm02.L", add(add(front, off), FOREARM_DIR, 0.05), add(add(front, off), FOREARM_DIR, 0.055), 0.07, 0.07, "#0c0c0c",
                      mirror=True, segs=14))
     for k in (0.0, 0.1, 0.2):
         c = add(add(WRIST_L, FOREARM_DIR, k), [0.0, 0.055, 0.0])
-        parts.append(box("wrist.L", c, (0.035, 0.025, 0.06), RED, rot=(35, 40, 0), mirror=True, emission=1.4, tex="none"))
-    parts.append(box("wrist.L", add(add(WRIST_L, FOREARM_DIR, -0.08), [0.0, 0.07, 0.0]), (0.09, 0.05, 0.16), OLIVE_D, rot=(35, 40, 0),
+        parts.append(box("lowerarm02.L", c, (0.035, 0.025, 0.06), RED, rot=(35, 40, 0), mirror=True, emission=1.4, tex="none"))
+    parts.append(box("lowerarm02.L", add(add(WRIST_L, FOREARM_DIR, -0.08), [0.0, 0.07, 0.0]), (0.09, 0.05, 0.16), OLIVE_D, rot=(35, 40, 0),
                      mirror=True, metallic=0.4, tex="steel"))
     # 腕に沿う管（上腕の外側）
     for dz in (-0.02, 0.02):
@@ -331,7 +338,7 @@ def gunner():
         "name": "ガンナー",
         "ref": "docs/ref/chars/IMG_0397.jpeg",
         "attack_anim": "Spell",
-        "height": 1.0,
+        "height": 1.07,
         "keep": [],
         "skin": "#c98e6c",
         "head_scale": 1.0,
@@ -421,7 +428,7 @@ def bomber():
         "name": "ボンバー",
         "ref": "docs/ref/chars/IMG_0398.jpeg",
         "attack_anim": "Punch",
-        "height": 0.97,
+        "height": 1.04,
         "keep": ["eyebrow001", "eyelashes01", "low-poly"],
         "skin": "#f6efe8",
         "head_scale": 1.05,
@@ -563,12 +570,12 @@ def mage():
         rx = 0.165 + (0.45 - 0.165) * min(k, 1.0)
         parts.append(sph("spine05", (rx * math.cos(a) * 1.01, y, rx * 0.91 * math.sin(a) * 1.01), 0.008, "#f2d675", segs=6, emission=0.8, tex="none"))
     # 左手のつえ
-    parts += staff("wrist.L", WRIST_L[0] + 0.03, WRIST_L[2] + 0.02, PUR_D, top_y=1.95)
+    parts += staff("lowerarm02.L", WRIST_L[0] + 0.03, WRIST_L[2] + 0.02, PUR_D, top_y=1.95)
     return {
         "name": "魔法使い",
         "ref": "docs/ref/chars/IMG_0400.jpeg",
         "attack_anim": "Spell",
-        "height": 0.92,
+        "height": 1.0,
         "keep": ["eyebrow004", "eyelashes01", "low-poly"],
         "skin": "#ffe9dc",
         "head_scale": 1.12,
@@ -680,7 +687,7 @@ def guardian():
         "attack_speed": 1.3,
         "ref": "docs/ref/chars/IMG_0401.jpeg",
         "attack_anim": "Sword_Attack",
-        "height": 0.9,
+        "height": 0.98,
         "keep": ["eyebrow001", "eyelashes01", "low-poly"],
         "skin": "#e6b08a",
         "head_scale": 1.1,
@@ -781,9 +788,14 @@ def summoner():
     parts += bunny("spine01", (0.0, 1.4, 0.29), "#f4efe9", "#f2b6c6", "#e46a9a", scale=1.4)
     return {
         "name": "おもちゃの兵隊",
+        # 版78：呼び出すぬいぐるみ部隊の形（くま・うさぎ・青いリボンのくま）。足もとが 0
+        "units": {"plush": {"scale": 2.4, "variants": [
+            teddy("root", (0, 0.1, 0), "#7a5232", "#2f5fb0", scale=1.4),
+            bunny("root", (0, 0.1, 0), "#f4efe9", "#f2b6c6", "#e46a9a", scale=1.4),
+            teddy("root", (0, 0.1, 0), "#a9784a", "#c8302b", scale=1.4)]}},
         "ref": "docs/ref/chars/IMG_0404.jpeg",
         "attack_anim": "Spell",
-        "height": 1.0,
+        "height": 1.07,
         "keep": ["eyebrow001", "eyelashes01", "low-poly", "short04"],
         "skin": "#f4d6c4",
         "tint_short04": "#4a3226",
@@ -825,6 +837,14 @@ def healer():
         parts.append(extrude("head", (0.1 * sx, 1.93, 0.0), [[p[0] * sx, p[1]] for p in wing2d(0.09)], 0.01, WHITE, rot=(0, 0, 0)))
     parts.append(sph("head", (0.1, 1.9, 0.07), 0.026, WHITE, squash=(1, 1, 0.5), segs=8))
     parts.append(sph("head", (0.1, 1.9, 0.085), 0.01, "#f2c94c", segs=6))
+    # 版78：顔の仮面（目をおおう白い仮面、金のふち、両はしに小さな羽）
+    mask = [[-0.1, 0.0], [-0.085, 0.022], [-0.05, 0.03], [-0.015, 0.018], [0.0, 0.008], [0.015, 0.018], [0.05, 0.03], [0.085, 0.022],
+            [0.1, 0.0], [0.08, -0.02], [0.045, -0.026], [0.012, -0.012], [0.0, -0.022], [-0.012, -0.012], [-0.045, -0.026], [-0.08, -0.02]]
+    parts.append(extrude("head", (0, 1.855, 0.143), [[x * 1.18, y * 1.2] for x, y in mask], 0.012, GOLD, rot=(-6, 0, 0), metallic=0.7, rough=0.35))
+    parts.append(extrude("head", (0, 1.855, 0.15), mask, 0.012, WHITE, rot=(-6, 0, 0), rough=0.4))
+    for sx in (1, -1):
+        parts.append(sph("head", (0.055 * sx, 1.857, 0.157), 0.012, "#2a1a20", squash=(1.4, 0.8, 0.4), segs=8))
+        parts.append(extrude("head", (0.115 * sx, 1.87, 0.11), [[p[0] * sx, p[1]] for p in wing2d(0.07)], 0.008, WHITE, rot=(0, 30 * sx, 0)))
     # 背中の大きな白い羽（左右。羽根の形を3枚重ねる）
     for sx in (1, -1):
         for k, (sc, dy, dz) in enumerate([(0.55, 0.0, -0.17), (0.45, -0.05, -0.19), (0.34, -0.1, -0.21)]):
@@ -856,11 +876,11 @@ def healer():
         parts.append(extrude("spine01", tip, heart2d(0.03), 0.012, RED, rot=(0, 90, 180)))
     # 手の金の弓とハートの矢（左手）
     w = WRIST_L
-    parts.append(tube("wrist.L", [add(w, [0.03, 0.3, 0.08]), add(w, [0.12, 0.0, 0.1]), add(w, [0.03, -0.3, 0.08])], 0.011, 0.011, GOLD,
+    parts.append(tube("lowerarm02.L", [add(w, [0.03, 0.3, 0.08]), add(w, [0.12, 0.0, 0.1]), add(w, [0.03, -0.3, 0.08])], 0.011, 0.011, GOLD,
                       smooth=True, steps=8, segs=6, metallic=0.75, rough=0.3))
-    parts.append(rod("wrist.L", add(w, [0.03, 0.3, 0.08]), add(w, [0.03, -0.3, 0.08]), 0.002, 0.002, "#f4e9c8", segs=4))
-    parts.append(rod("wrist.L", add(w, [0.02, 0.0, 0.08]), add(w, [-0.3, 0.0, 0.12]), 0.005, 0.005, RED, segs=5))
-    parts.append(extrude("wrist.L", add(w, [-0.32, 0.0, 0.12]), heart2d(0.035), 0.012, RED, rot=(0, 0, 90)))
+    parts.append(rod("lowerarm02.L", add(w, [0.03, 0.3, 0.08]), add(w, [0.03, -0.3, 0.08]), 0.002, 0.002, "#f4e9c8", segs=4))
+    parts.append(rod("lowerarm02.L", add(w, [0.02, 0.0, 0.08]), add(w, [-0.3, 0.0, 0.12]), 0.005, 0.005, RED, segs=5))
+    parts.append(extrude("lowerarm02.L", add(w, [-0.32, 0.0, 0.12]), heart2d(0.035), 0.012, RED, rot=(0, 0, 90)))
     # ブーツの赤いリボン・金のかかと
     parts.append(sph("lowerleg02.L", (0.2, 0.25, 0.07), 0.018, RED, squash=(1.5, 0.8, 0.6), mirror=True, segs=8))
     parts.append(rod("foot.L", (0.205, 0.07, -0.06), (0.205, 0.0, -0.06), 0.02, 0.014, GOLD, mirror=True, segs=8, metallic=0.7))
@@ -868,7 +888,7 @@ def healer():
         "name": "エンジェル",
         "ref": "docs/ref/chars/IMG_0405.jpeg",
         "attack_anim": "Spell",
-        "height": 0.9,
+        "height": 1.0,
         "keep": ["eyebrow004", "eyelashes01", "low-poly"],
         "skin": "#fff0e6",
         "head_scale": 1.14,
@@ -937,6 +957,11 @@ def main():
             c["animations"] = {"idle": "Idle", "run": lk.get("run_anim", "Run"), "jump": "Jump", "attack": atk, "down": "Death",
                                "swing": atk, "jump_start": "Jump_Start", "land": "Jump_Land", "roll": "Roll", "charge": "Spell", "hit": "Hit"}
             c["anim_oneshot"] = ["attack"]
+            # 版78：キャラ専用の動き（scripts/characters/anim_compose.gd。形は tools/make_char_actions.py）。キーは actions のアニメの名前
+            ca = CHAR_ANIMS.get(c["id"], {})
+            c["built_anims"] = ca
+            for key in ca:
+                c["animations"][key] = key
             # 自然に見える速さ：走りの動きは、移動の速さに合わせる（剣士：7.0m/秒で 1.1倍、体の大きさでも変える）。
             # 重いキャラはゆっくり待ち、軽いキャラは速く待つ（idle_speed）
             mv = float(c["stats"]["move_speed"])

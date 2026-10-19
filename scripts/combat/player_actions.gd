@@ -5,6 +5,8 @@ extends RefCounted
 ## damage.gd（CLAUDE.md ルール4）で計算し、当たりの形は hit_area.gd で調べる。
 
 const PATH := "res://data/actions.json"
+## 版78：キャラごとの攻撃（A・X・Y・必殺）。actions.json の同じ名前の動きを、キャラの分で置きかえる
+const CHAR_PATH := "res://data/char_actions.json"
 
 var cfg: Dictionary = {}
 var active := ""
@@ -20,6 +22,10 @@ var _step_i := 0
 var _mark_i := 0
 var _last_fwd := 0.0
 var _queue: Array = []
+var _fx_i := 0
+var _eff_i := 0
+## 版78：待ち時間の減る速さ（スピードファイターの超高速モードで 1.75）
+var cd_rate := 1.0
 
 
 func _init(config: Dictionary = {}) -> void:
@@ -29,6 +35,24 @@ func _init(config: Dictionary = {}) -> void:
 static func load_config(path: String = PATH) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 	return parsed if parsed is Dictionary else {}
+
+
+## 版78：キャラ char_id の攻撃の設定（共通の actions.json に、data/char_actions.json のキャラの分を上書きした物）。
+## キャラの分がなければ、共通のまま（剣士）
+static func config_for(char_id: String) -> Dictionary:
+	var base := load_config()
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CHAR_PATH)) if FileAccess.file_exists(CHAR_PATH) else null
+	if not (parsed is Dictionary) or not (parsed as Dictionary).get("characters", {}).has(char_id):
+		return base
+	var mine: Dictionary = (parsed as Dictionary)["characters"][char_id]
+	var acts: Dictionary = (base.get("actions", {}) as Dictionary).duplicate(true)
+	for id in mine:
+		if str(id).begins_with("_"):
+			continue
+		acts[id] = (mine[id] as Dictionary).duplicate(true)
+	base["actions"] = acts
+	base["character"] = char_id
+	return base
 
 
 ## ボタンに出す順（通常、サブ、メイン）
@@ -87,6 +111,8 @@ func start(id: String, aim_dir: Vector2, cooldown_override: float = -1.0, force:
 	_hit_i = 0
 	_step_i = 0
 	_mark_i = 0
+	_fx_i = 0
+	_eff_i = 0
 	_last_fwd = 0.0
 	frame_move = Vector2.ZERO
 	height = float(offset_at(d.get("path", []), 0.0).y)
@@ -113,7 +139,7 @@ func reset() -> void:
 ## {"type": "hit", "action", "multiplier", "radius_scale", "cleave"}、 {"type": "anim", "anim", "speed", "from_end"}、 {"type": "mark", "name"}（着地などの印）
 func update(delta: float) -> Array:
 	for id in cooldowns.keys():
-		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
+		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta * cd_rate)
 	frame_move = Vector2.ZERO
 	if not busy():
 		var out := _queue
@@ -138,14 +164,24 @@ func _fire_due() -> void:
 	var d := def(active)
 	var hits: Array = d.get("hits", [])
 	while _hit_i < hits.size() and float(hits[_hit_i]["t"]) <= t:
+		# 版78：当たりの形（shape：melee・beam・blast・self）と、その大きさ。書いていなければ、いままでの近くの当たり
 		_queue.append({"type": "hit", "action": active, "multiplier": float(hits[_hit_i]["multiplier"]),
-			"radius_scale": float(d.get("radius_scale", 1.0)), "cleave": bool(d.get("cleave", false))})
+			"radius_scale": float(d.get("radius_scale", 1.0)), "cleave": bool(d.get("cleave", false)), "hit": hits[_hit_i]})
 		_hit_i += 1
 	var steps: Array = d.get("steps", [])
 	while _step_i < steps.size() and float(steps[_step_i]["t"]) <= t:
 		_queue.append({"type": "anim", "anim": str(steps[_step_i]["anim"]), "speed": float(steps[_step_i]["speed"]),
 			"from_end": bool(steps[_step_i].get("from_end", false))})
 		_step_i += 1
+	# 版78：見た目（fx）と、効果（effects：速くなる・ドーム・回復・時間停止・呼び出しなど）
+	var fxs: Array = d.get("fx_events", [])
+	while _fx_i < fxs.size() and float(fxs[_fx_i]["t"]) <= t:
+		_queue.append({"type": "fx", "action": active, "spec": fxs[_fx_i]})
+		_fx_i += 1
+	var effs: Array = d.get("effects", [])
+	while _eff_i < effs.size() and float(effs[_eff_i]["t"]) <= t:
+		_queue.append({"type": "effect", "action": active, "spec": effs[_eff_i]})
+		_eff_i += 1
 	var marks: Array = d.get("marks", [])
 	while _mark_i < marks.size() and float(marks[_mark_i]["t"]) <= t:
 		_queue.append({"type": "mark", "name": str(marks[_mark_i]["name"])})

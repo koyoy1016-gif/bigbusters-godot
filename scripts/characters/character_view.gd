@@ -6,6 +6,7 @@ const CharacterData := preload("res://scripts/characters/character_data.gd")
 const StyleFx := preload("res://scripts/characters/style_fx.gd")
 const ProceduralAnims := preload("res://scripts/characters/procedural_anims.gd")
 const AnimRetime := preload("res://scripts/characters/anim_retime.gd")
+const AnimCompose := preload("res://scripts/characters/anim_compose.gd")
 const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
 const BodyBuilder := preload("res://scripts/characters/body_builder.gd")
 const ATTACHMENTS_PATH := "res://data/attachments.json"
@@ -348,11 +349,17 @@ static func build_retimed(p: AnimationPlayer, def: Dictionary) -> int:
 	var specs: Dictionary = def.get("built_anims", {})
 	for name in specs:
 		var spec: Dictionary = specs[name]
-		if p.has_animation(str(name)) or not p.has_animation(str(spec.get("from", ""))):
-			continue
-		var anim := AnimRetime.build(p.get_animation(str(spec["from"])), spec.get("map", []), spec.get("tremble", {}))
 		var lib: AnimationLibrary = p.get_animation_library("")
-		if lib == null:
+		if lib == null or p.has_animation(str(name)):
+			continue
+		var anim: Animation
+		if AnimCompose.is_compose(spec):
+			# 版78：切り取り・つなぎ・くり返し・左右反対・骨のひねりで作る動き（anim_compose.gd）
+			var sks := p.get_parent().find_children("*", "Skeleton3D", true, false) if p.get_parent() != null else []
+			anim = AnimCompose.build(lib, spec, sks[0] if not sks.is_empty() else null)
+		elif p.has_animation(str(spec.get("from", ""))):
+			anim = AnimRetime.build(p.get_animation(str(spec["from"])), spec.get("map", []), spec.get("tremble", {}))
+		else:
 			continue
 		lib.add_animation(StringName(str(name)), anim)
 		made += 1

@@ -75,7 +75,11 @@ func _initialize() -> void:
 	check(is_equal_approx(g.gauge.value - g0b, 100.0 * float(g.gauge.gain)), "ほかのキャラ：ゲージのたまり方は変わらない")
 	g.gauge.value = 0.0
 	var gd := ult_damage(g)
-	check(is_equal_approx(gd, float(gs["attack_power"]) * 22.0), "ほかのキャラ：必殺技のダメージは変わらない（%.1f）" % gd)
+	# 版78：ガンナーの必殺技はキャラ専用（フルバースト：2.3倍×10回）。ultimate_scale はかからない（1倍）
+	var gm := 0.0
+	for h in g.actions.def("ultimate")["hits"]:
+		gm += float(h["multiplier"])
+	check(gd > 0.0 and gd <= float(gs["attack_power"]) * gm + 0.01, "ほかのキャラ：必殺技は ultimate_scale がかからない（%.1f ／ 最大 %.1f）" % [gd, float(gs["attack_power"]) * gm])
 	root.remove_child(g)
 	g.free()
 

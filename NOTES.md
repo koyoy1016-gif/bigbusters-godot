@@ -1,9 +1,10 @@
 # 引き継ぎメモ
 
-更新：2026-10-20（版77）
+更新：2026-10-20（版78）
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-20 版78 キャラごとの攻撃と動き】ユーザー：ビームなども全部打てるように／技に合った動きを1キャラずつ／A・X・Yでそれぞれ別の動きとダメージ（剣士とは別）／縦をもっと大きく（意味は「不明」の答え→全員の背を少し高く）／エンジェルに仮面／おもちゃの兵隊のぬいぐるみ部隊。確認：必殺技もキャラごと・呼び出しはぬいぐるみ部隊・ダメージは Claude に任せる。tools/make_char_actions.py → data/char_actions.json（player_actions.gd の config_for がキャラ分で置きかえ、剣士は共通のまま）・docs/char-actions-v78.md（表）。当たりの形 scripts/combat/skill_hits.gd（beam・blast・self）、効果 scripts/prototype/battle_skills.gd（超高速1.75倍・ドーム0.25倍・回復・蘇生・時間停止＋耐性・ぬいぐるみ7体まで）、見た目 scripts/fx/skill_fx.gd。動きは anim_compose.gd（切り取り・つなぎ・腕だけ左右反対・腕をねらった向きへ aim）。武器は前腕に付け直し。テスト test_v78 新規、test_ai_ally・test_v71（剣士で調べる）・test_v72（AIを剣士に）・test_v74 を直した。くわしくは docs/version78.md。未確認：iPhone の重さ、通信中は技の効果が自分の画面だけ
 - 【2026-10-20 版77 味方8人の3Dキャラ】ユーザー：「コードの整理を終えてから、1キャラずつ生成」「自然なアニメーションもつけて、剣士のように全キャラ使えるように」（指示書は8キャラ統合仕様・正規分布クリティカル・3D制作。参考画像8枚は docs/ref/chars/）。Blender は通信が止められて使えないため、剣士と同じ体（MakeHuman CC0）と骨を土台に、scripts/characters/body_builder.gd（体格・塗り・重ね着・部品）でコードで作った。データは tools/make_looks.py → data/character_looks.json、前もって作って assets/models/chars/<id>.scn に保存（tools/bake_looks.gd。xvfb で回す。exports/<id>.glb はリポジトリに入れない）。8方向の確認画像 tools/shot_look.gd、比較画像 docs/ref/chars/<id>_compare.jpg。走りの速さを移動の速さに合わせた（anim_speeds）。強さの数値は変えていない。AIの味方もモデルで出る。くわしくは docs/characters-v77.md（参考画像との差・未対応も書いた）。テスト test_character_looks 新規、test_characters の「モデルのないキャラ」を作ったデータで確かめる形に。Godot 57本・Node 59件 合格。未確認：iPhone での重さ（1人 約3万〜3.6万の三角形、4人で約13万）。指示書の第2〜5部（正規分布・クリティカル・バランス表）は未着手（統合仕様書の全文が見つからない）
 - 【2026-10-20 版76 コードの整理（済み）】stick_prototype.gd（2844行→1593行）を battle_attack_fx・battle_hud・battle_grab・battle_ai_team・battle_net・battle_ult_fx に分けた。1つずつ全テスト合格→コミット（61e0093・4089263・d0702b5・2cc04ff・65c25cd・1be1987）。動きは変えていない
 - 【2026-10-20 03:40 引き継ぎ】アカウント切りかえのため、版69〜76をまとめた引き継ぎ書 `docs/handover-2026-10-20-v76.md` を作った。新しいセッションは、まずそれを読む

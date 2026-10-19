@@ -15,6 +15,7 @@ extends RefCounted
 const Attacks := preload("res://scripts/combat/boss_attacks.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
 const Actions := preload("res://scripts/combat/player_actions.gd")
+const SkillHits := preload("res://scripts/combat/skill_hits.gd")
 const Gauge := preload("res://scripts/combat/ultimate_gauge.gd")
 const HitArea := preload("res://scripts/combat/hit_area.gd")
 const DODGE_HEIGHT := 0.5  ## これより高く跳んでいれば、「ジャンプでよけられる」攻撃は当たらない
@@ -33,7 +34,7 @@ static func make(def: Dictionary, index: int, spawn: Vector2) -> Dictionary:
 		"downed": false, "hits": 0.0, "height": 0.0, "stun": 0.0, "flash": 0.0, "stats": st.duplicate(), "face": Vector2(0, -1),
 		"decided": {}, "think": 0.0, "think_attack": 0.0, "evade": Vector2.ZERO,
 		"window": 99.0, "hold": false, "regroup": 0.0, "hp_prev": float(st.get("hp", 100.0)), "dodges": 0, "evades": 0, "mode": "",
-		"actions": Actions.new(), "gauge": Gauge.new(Actions.load_config()), "events": [], "banner": "", "name": str(def.get("name", "")),
+		"actions": Actions.new(Actions.config_for(str(def.get("id", "")))), "out_events": [], "speed_mult": 1.0, "gauge": Gauge.new(Actions.load_config()), "events": [], "banner": "", "name": str(def.get("name", "")),
 	}
 
 
@@ -75,6 +76,7 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 	a["events"] = []
 	a["banner"] = ""
 	a["hit_events"] = []  # 版75：このコマでボスに当たった一撃ずつ [{dmg, action}]（ダメージの数字に使う）
+	a["out_events"] = []  # 版78：見た目（fx）と効果（effect）。battle_ai_team が出す
 	var cfg: Dictionary = ctx["cfg"]
 	var st: Dictionary = a["stats"]
 	var actions := act(a)
@@ -97,6 +99,8 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 				dealt += _resolve_hit(a, ev, ctx)
 			"anim":
 				(a["events"] as Array).append(ev)
+			"fx", "effect":
+				(a["out_events"] as Array).append(ev)
 			"mark":
 				if str(ev["name"]) == "landed":
 					a["hp"] = maxf(0.0, float(a["hp"]) - float(ctx.get("drop_damage", 0.0)))
@@ -117,7 +121,7 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 	if float(a["stun"]) > 0.0 or actions.busy():
 		return _flush(a, dealt)
 	a["height"] = 0.0
-	var speed := float(st.get("move_speed", 6.0))
+	var speed := float(st.get("move_speed", 6.0)) * float(a.get("speed_mult", 1.0))  # 版78：超高速モード
 	var pos: Vector2 = a["pos"]
 	# 考える間隔（反応の遅れ）
 	a["think"] = float(a["think"]) - delta
@@ -335,12 +339,13 @@ static func _start(a: Dictionary, id: String, ctx: Dictionary) -> bool:
 		return false
 	var cfg: Dictionary = ctx["cfg"]
 	var st: Dictionary = a["stats"]
-	var cooldown := float(st.get("attack_cooldown_sec", 0.4)) if id == "normal" else float(actions.def(id).get("cooldown_sec", 1.0)) * float(cfg["ai_cooldown_scale"])
+	var cooldown := float(st.get("attack_cooldown_sec", 0.4)) / float(a.get("speed_mult", 1.0)) if id == "normal" else float(actions.def(id).get("cooldown_sec", 1.0)) * float(cfg["ai_cooldown_scale"])
 	if id == "ultimate":
 		if not (a["gauge"] as Gauge).consume():
 			return false
-		a["ult_from"] = a["pos"]  # 版72b：駆けぬけた道で当たりを調べる
 		a["banner"] = str(actions.def(id).get("name", ""))
+	if bool(actions.def(id).get("sweep_hit", false)):
+		a["ult_from"] = a["pos"]  # 版72b・78：駆けぬけた道で当たりを調べる（必殺技・ダッシュ技）
 	var boss: Vector2 = ctx["boss"]
 	var to := boss - (a["pos"] as Vector2)
 	var aim := to if to.length() > 0.01 else (a["face"] as Vector2)
@@ -353,6 +358,8 @@ static func _start(a: Dictionary, id: String, ctx: Dictionary) -> bool:
 				pass
 			elif str(ev["type"]) == "anim":
 				(a["events"] as Array).append(ev)
+			elif str(ev["type"]) in ["fx", "effect"]:
+				(a["out_events"] as Array).append(ev)
 		# 始めてすぐ当たる攻撃（通常）は、ここで当てる
 		for ev in first:
 			if str(ev["type"]) == "hit":
@@ -368,7 +375,14 @@ static func _resolve_hit(a: Dictionary, ev: Dictionary, ctx: Dictionary) -> floa
 	var st: Dictionary = a["stats"]
 	var pos: Vector2 = a["pos"]
 	var reach := HitArea.reach_of(float(st.get("attack_reach", 2.0)), float(ev["radius_scale"])) + float(ctx["boss_radius"])
-	if bool(act(a).def(str(ev.get("action", ""))).get("sweep_hit", false)):
+	# 版78：ビーム・爆発・まわりの当たり。当たった所の見た目は、battle_ai_team が出す
+	var hspec: Dictionary = ev.get("hit", {})
+	if hspec.has("fx"):
+		(a["out_events"] as Array).append({"type": "hitfx", "hit": hspec})
+	if SkillHits.shape_of(hspec) != "melee":
+		if not SkillHits.hits(hspec, pos, act(a).aim, 0.0, ctx["boss"], float(ctx["boss_radius"])):
+			return 0.0
+	elif bool(act(a).def(str(ev.get("action", ""))).get("sweep_hit", false)):
 		# 版72b：駆けぬけながら斬る：始めた所から今の所までの道の、どこかから届けば当たる
 		if not HitArea.hits_sweep(a.get("ult_from", pos), pos, ctx["boss"], reach, 0.0):
 			return 0.0

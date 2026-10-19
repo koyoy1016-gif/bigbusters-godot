@@ -46,9 +46,14 @@ func _init() -> void:
 	var one := float(gunner["stats"]["attack_power"]) * float(cfg["damage_scale"])
 	var near := Ai.make(gunner, 0, Vector2(0, -8 + 3.0))
 	near["think_attack"] = 10.0
+	# 版78：ガンナーの通常攻撃（ショット）は、撃って 0.06秒で当たる。最初に当たった1回をくらべる
 	var first := Ai.step(near, 0.05, ctx)
-	check(is_equal_approx(first, one), "最初の通常攻撃のダメージは、攻撃力×倍率")
 	check(not (near["events"] as Array).is_empty() and Ai.act(near).busy(), "攻撃すると、アニメの出来事が出て、動き中になる")
+	for k in 10:
+		if first > 0.0:
+			break
+		first = Ai.step(near, 0.05, ctx)
+	check(is_equal_approx(first, one), "最初の通常攻撃のダメージは、攻撃力×倍率")
 
 	# よけながら動く（輪の中に置いて、考える間隔のあと動く）
 	var b := Ai.make(gunner, 0, Vector2(0, 0))

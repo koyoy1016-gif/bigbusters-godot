@@ -21,7 +21,8 @@ func circle(x: float, z: float, r: float, jumpable: bool, power: float = 10.0) -
 
 func make_ally(cfg: Dictionary, pos: Vector2) -> Dictionary:
 	var ccfg := CharacterData.load_config()
-	return AiAlly.make(CharacterData.find(ccfg, "guardian"), 0, pos)
+	# 版78：Y で跳んでよける判断を調べるので、Y が跳ぶ技（かわし斬り）の剣士で調べる（たての Y は盾の体当たりになった）
+	return AiAlly.make(CharacterData.find(ccfg, "hero_swordsman"), 0, pos)
 
 
 func make_ctx(cfg: Dictionary, forecast: Array, next_in: float = 99.0) -> Dictionary:
