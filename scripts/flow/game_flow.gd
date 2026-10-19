@@ -51,6 +51,8 @@ var selected_character := ""
 var lobby_char: Label
 var formation_stats: Label
 var formation_buttons: Dictionary = {}
+var ai_picks: Array = []
+var ai_buttons: Array = []
 var room_code := ""
 var room_from_url := false
 var account: RefCounted = null
@@ -327,6 +329,19 @@ func _build_panels() -> void:
 	f.add_child(fholder)
 	formation_stats = _make_label("", int(config["formation_stats_font_size"]), text_color)
 	f.add_child(formation_stats)
+	f.add_child(_make_label(str(config["ai_title"]), heading, Color(str(config["title_color"]))))
+	var ai_row := HBoxContainer.new()
+	ai_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	ai_row.add_theme_constant_override("separation", 12)
+	ai_picks = _ai_picks_filled(SaveData.load_ai_picks(str(config["ai_picks_path"])))
+	ai_buttons = []
+	for i in 3:
+		var ab := _make_button("", [200, 110], func(): cycle_ai_pick(i))
+		ab.add_theme_font_size_override("font_size", int(config["ai_button_font_size"]))
+		ai_buttons.append(ab)
+		ai_row.add_child(ab)
+	f.add_child(ai_row)
+	_refresh_ai_buttons()
 	f.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
 
 	# アカウント
@@ -579,6 +594,38 @@ func select_character(id: String) -> void:
 	save["character"] = id
 	_write_save()
 	_refresh_formation()
+
+
+## AIの3人の選びを、3つにそろえる（足りなければ、既定の3人で埋める）
+func _ai_picks_filled(saved: Array) -> Array:
+	var defaults: Array = ["guardian", "gunner", "mage"]
+	var out: Array = []
+	for i in 3:
+		var id := str(saved[i]) if i < saved.size() else ""
+		if CharacterData.find(characters_cfg, id).is_empty():
+			id = str(defaults[i])
+		out.append(id)
+	return out
+
+
+## AIの i 番めの人を、次のキャラにかえる（保存する）
+func cycle_ai_pick(i: int) -> void:
+	var list: Array = characters_cfg.get("characters", [])
+	if list.is_empty() or i < 0 or i >= ai_picks.size():
+		return
+	var idx := 0
+	for k in list.size():
+		if str(list[k]["id"]) == str(ai_picks[i]):
+			idx = k
+	ai_picks[i] = str(list[(idx + 1) % list.size()]["id"])
+	SaveData.write_ai_picks(str(config["ai_picks_path"]), ai_picks)
+	_refresh_ai_buttons()
+
+
+func _refresh_ai_buttons() -> void:
+	for i in ai_buttons.size():
+		var def := CharacterData.find(characters_cfg, str(ai_picks[i]))
+		(ai_buttons[i] as Button).text = (str(def["role"]) + "\n" + str(def["name"])) if not def.is_empty() else "-"
 
 
 func _refresh_formation() -> void:
@@ -1081,6 +1128,8 @@ func _start_battle() -> void:
 	battle = packed.instantiate()
 	battle.flow_mode = true
 	battle.selected_character = selected_character
+	battle.ai_enabled = true
+	battle.ai_picks = ai_picks.duplicate()
 	battle.forced_room_code = room_code
 	if bridge != null:
 		# 入った時点で部屋にあった戦いは、始めない（戦いの最中の人の試合に、あとから入らない）

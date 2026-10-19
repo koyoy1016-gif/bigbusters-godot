@@ -28,3 +28,24 @@ static func write_save(path: String, data: Dictionary) -> bool:
 		return false
 	file.store_string(JSON.stringify({"coins": int(data.get("coins", 0)), "wins": int(data.get("wins", 0)), "quality": str(data.get("quality", "")), "character": str(data.get("character", ""))}))
 	return true
+
+
+## AIの味方の選び（3人のキャラID）。クラウドのセーブとは別に、この端末だけに残す
+static func load_ai_picks(path: String) -> Array:
+	if not FileAccess.file_exists(path):
+		return []
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	var out: Array = []
+	if parsed is Array:
+		for v in parsed:
+			if v is String:
+				out.append(v)
+	return out
+
+
+static func write_ai_picks(path: String, picks: Array) -> bool:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(picks))
+	return true

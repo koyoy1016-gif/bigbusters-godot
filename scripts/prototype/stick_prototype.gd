@@ -18,6 +18,7 @@ const StickMath := preload("res://scripts/prototype/stick_math.gd")
 const Damage := preload("res://scripts/combat/damage.gd")
 const Pattern := preload("res://scripts/combat/boss_pattern.gd")
 const Attacks := preload("res://scripts/combat/boss_attacks.gd")
+const AiAlly := preload("res://scripts/combat/ai_ally.gd")
 const RoomCode := preload("res://scripts/network/room_code.gd")
 const Bridge := preload("res://scripts/network/room_bridge.gd")
 const Sync := preload("res://scripts/network/position_sync.gd")
@@ -71,6 +72,14 @@ var hazard_nodes: Array = []
 var hazard_done := {}
 var grab_locked := {}
 var stun_left := 0.0
+## AIの味方（通信なし、または部屋に自分ひとりのとき、空いた枠を埋める）。テストでは既定でオフ（流れの側がオンにする）
+var ai_enabled := false
+var ai_picks: Array = []
+var ai_cfg: Dictionary = {}
+var ai_allies := {}
+var ai_hits := {}
+var ai_done := {}
+var ai_rng := RandomNumberGenerator.new()
 var current_hazards: Array = []
 var current_attack: Dictionary = {}
 var current_attack_u := 0.0
@@ -574,6 +583,8 @@ func ranking_entries() -> Array:
 			var v: Variant = hits.get(str(slot), null)
 			if v is float or v is int:
 				entries.append({"slot": str(slot), "hits": float(v)})
+	for slot in ai_allies:
+		entries.append({"slot": str(slot), "hits": float(ai_hits.get(slot, 0.0))})
 	entries.sort_custom(func(x, y): return float(x["hits"]) > float(y["hits"]))
 	return entries
 
@@ -582,6 +593,8 @@ func ranking_entries() -> Array:
 func char_def_of(slot: String) -> Dictionary:
 	if characters_cfg.is_empty():
 		characters_cfg = CharacterData.load_config()
+	if ai_allies.has(slot):
+		return CharacterData.find(characters_cfg, str(ai_allies[slot]["id"]))
 	if slot == str(net_state.get("slot", "p1")) or not net_active:
 		return selected_def() if selected_character != "" else CharacterData.find(characters_cfg, str(characters_cfg.get("player_character", "")))
 	var chars: Variant = net_state.get("chars", {})
@@ -592,6 +605,8 @@ func char_def_of(slot: String) -> Dictionary:
 
 ## 役割の名前（枠から）。選んだキャラがあれば、そのキャラの役割（ほかの人は、共有されたキャラ。まだなら「なかま」）
 func role_name_of(slot: String) -> String:
+	if ai_allies.has(slot):
+		return str(char_def_of(slot).get("role", ""))
 	if selected_character != "":
 		if slot == str(net_state.get("slot", "p1")) or not net_active:
 			return str(role().get("name", ""))
@@ -674,6 +689,7 @@ func _begin_round(start_ms: float) -> void:
 	hazard_done = {}
 	grab_locked = {}
 	stun_left = 0.0
+	_ai_reset()
 	if net_active:
 		bridge.send_hits(0.0)
 		bridge.send_hp(my_hp, round_start_ms)
@@ -696,7 +712,7 @@ func _record_highlight(delta: float) -> void:
 	var half := float(config["bounds"])
 	for slot in other_pos:
 		var p: Vector2 = other_pos[slot]
-		var v: Variant = hits.get(str(slot), 0.0) if hits is Dictionary else 0.0
+		var v: Variant = ai_hits.get(str(slot), 0.0) if ai_allies.has(slot) else (hits.get(str(slot), 0.0) if hits is Dictionary else 0.0)
 		recorder.record(str(slot), t, p.x * 2.0 * half - half, p.y * 2.0 * half - half, float(v) if (v is float or v is int) else 0.0)
 
 
@@ -1019,7 +1035,7 @@ func _effective_others_hits() -> float:
 		return 0.0
 	if server_now_ms() - round_start_ms < float(config["round_grace_sec"]) * 1000.0:
 		return 0.0
-	return others_hits
+	return others_hits + _ai_hits_total()
 
 
 ## ボスの体力 = 最大 − 自分の合計 − ほかの人の合計。0になったら倒した（戦いの最中だけ）
@@ -1094,6 +1110,124 @@ func _pose_boss() -> void:
 			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 3.5, 2.0)))
 
 
+## ---- AIの味方 ----
+
+func _ai_active() -> bool:
+	if not ai_enabled:
+		return false
+	if not net_active:
+		return true
+	return (net_state.get("members", []) as Array).size() <= 1
+
+
+func _ai_total() -> int:
+	return (ai_cfg.get("slots", []) as Array).size()
+
+
+func _ai_hits_total() -> float:
+	var t := 0.0
+	for slot in ai_hits:
+		t += float(ai_hits[slot])
+	return t
+
+
+func _ai_all_down() -> bool:
+	for slot in ai_allies:
+		if not bool(ai_allies[slot]["downed"]):
+			return false
+	return true
+
+
+## AIの味方を作りなおす（戦いの始まり、人数や選択が変わったとき）。いまの状況でAIが要らなければ、片づける
+func _ai_reset() -> void:
+	if ai_cfg.is_empty():
+		ai_cfg = AiAlly.load_config()
+	if characters_cfg.is_empty():
+		characters_cfg = CharacterData.load_config()
+	for slot in ai_allies.keys():
+		_ai_remove_node(str(slot))
+	ai_allies = {}
+	ai_hits = {}
+	ai_done = {}
+	if not _ai_active():
+		return
+	ai_rng.seed = int(fmod(maxf(round_start_ms, 1.0), 1000000007.0)) + 99
+	var picks := _ai_picks_resolved()
+	var slots: Array = ai_cfg["slots"]
+	var offs: Array = ai_cfg["spawn_offsets"]
+	var half := float(config["bounds"])
+	for i in slots.size():
+		var def := CharacterData.find(characters_cfg, str(picks[i]))
+		if def.is_empty():
+			continue
+		var o: Array = offs[i % offs.size()]
+		var a := AiAlly.make(def, i, Vector2(float(o[0]), float(o[1])))
+		var slot := str(slots[i])
+		ai_allies[slot] = a
+		ai_hits[slot] = 0.0
+		other_target[slot] = Vector2((a["pos"].x + half) / (2.0 * half), (a["pos"].y + half) / (2.0 * half))
+		other_pos[slot] = other_target[slot]
+
+
+## 選んだ3人（足りなければ、既定で埋める。自分のキャラは重ねても構わない）
+func _ai_picks_resolved() -> Array:
+	var out: Array = []
+	var defaults: Array = ai_cfg.get("default_picks", [])
+	for i in _ai_total():
+		var id := str(ai_picks[i]) if i < ai_picks.size() else ""
+		if CharacterData.find(characters_cfg, id).is_empty():
+			id = str(defaults[i % defaults.size()]) if not defaults.is_empty() else ""
+		out.append(id)
+	return out
+
+
+func _ai_remove_node(slot: String) -> void:
+	other_target.erase(slot)
+	other_pos.erase(slot)
+	if others.has(slot):
+		(others[slot] as Node).queue_free()
+		others.erase(slot)
+	other_views.erase(slot)
+
+
+## 毎コマ：AIを、必要なら作る／片づける。戦いの最中なら動かす
+func _ai_update(delta: float) -> void:
+	if ai_cfg.is_empty():
+		ai_cfg = AiAlly.load_config()
+	var want := _ai_active()
+	var have := not ai_allies.is_empty()
+	if want != have:
+		_ai_reset()
+	if ai_allies.is_empty():
+		return
+	var half := float(config["bounds"])
+	if round_active():
+		var ctx := {"boss": Vector2(boss.position.x, boss.position.z), "boss_radius": float(config["boss_size"]) * 0.5, "bounds": half,
+			"hazards": current_hazards, "cfg": ai_cfg, "attack_multiplier": float(config["attack_multiplier"]), "rng": ai_rng, "can_hit_boss": true}
+		var dealt_total := 0.0
+		for slot in ai_allies:
+			var a: Dictionary = ai_allies[slot]
+			ctx["slot"] = slot
+			var dealt := AiAlly.step(a, delta, ctx)
+			if dealt > 0.0:
+				ai_hits[slot] = float(ai_hits[slot]) + dealt
+				dealt_total += dealt
+			AiAlly.take_hazards(a, str(slot), current_hazards, ai_done, float(attacks_cfg["damage_multiplier"]))
+			var p: Vector2 = a["pos"]
+			other_target[slot] = Vector2((p.x + half) / (2.0 * half), (p.y + half) / (2.0 * half))
+		if dealt_total > 0.0:
+			_recompute_boss_hp()
+	if not net_active:
+		_update_others(delta)
+	_check_wipe_ai_only()
+
+
+## 自分がダウン中で、AIも全員ダウンしたら全滅
+func _check_wipe_ai_only() -> void:
+	if round_active() and downed:
+		_check_wipe()
+
+
 func _my_slot() -> String:
 	return str(net_state.get("slot", "p1")) if net_active else "p1"
 
@@ -1105,6 +1239,9 @@ func _attack_ctx(a: Dictionary, u: float) -> Dictionary:
 	var members: Array = net_state.get("members", []).duplicate() if net_active else []
 	if not members.has(me):
 		members.append(me)
+	for slot in ai_allies:
+		if not members.has(slot):
+			members.append(slot)
 	var positions := {me: Vector2(player.position.x, player.position.z)}
 	for slot in other_pos:
 		var np: Vector2 = other_pos[slot]
@@ -1139,6 +1276,7 @@ func combat_update(delta: float) -> void:
 		_apply_hazards(current_hazards)
 	else:
 		current_attack = {}
+	_ai_update(delta)
 	_show_hazards(current_hazards)
 
 
@@ -1248,7 +1386,12 @@ func _set_my_hp(value: float) -> void:
 ## 部屋にいる全員がダウンしたら、全滅
 func _check_wipe() -> void:
 	if downed and not lost and round_start_ms > 0.0:
-		if BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms):
+		if _ai_active():
+			if _ai_all_down():
+				lost = true
+				round_end_ms = server_now_ms()
+				round_ended.emit(false)
+		elif BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms):
 			lost = true
 			round_end_ms = server_now_ms()
 			round_ended.emit(false)
@@ -1301,7 +1444,7 @@ func apply_net_state(state: Dictionary) -> void:
 	for slot in positions:
 		other_target[slot] = positions[slot]
 	for slot in other_target.keys():
-		if not positions.has(slot):
+		if not positions.has(slot) and not ai_allies.has(slot):
 			other_target.erase(slot)
 			other_pos.erase(slot)
 			if others.has(slot):
@@ -1469,6 +1612,8 @@ func build_team_text() -> String:
 	var text := ""
 	for slot in fighters:
 		text += "  " + str(slot) + _char_tag(str(slot)) + " " + str(ceili(float(fighters[slot])))
+	for slot in ai_allies:
+		text += "  " + str(slot) + _char_tag(str(slot)) + " " + str(ceili(float(ai_allies[slot]["hp"])))
 	if text == "":
 		return ""
 	return str(config["team_label"]) + text

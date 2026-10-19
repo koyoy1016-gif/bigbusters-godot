@@ -3,19 +3,40 @@
   "title_text": "TOKYO",
   "title_loading": "よみこみちゅう",
   "title_sec": 1.5,
-  "portrait_base_size": [648, 1152],
-  "landscape_base_size": [1152, 648],
+  "portrait_base_size": [
+    648,
+    1152
+  ],
+  "landscape_base_size": [
+    1152,
+    648
+  ],
   "lobby_rank_label": "ランク",
   "lobby_coin_label": "コイン",
   "lobby_stage_label": "ステージ",
   "stages": [
-    {"id": "kitasenju", "name": "きたせんじゅ", "open": true},
-    {"id": "locked_2", "name": "？？？", "open": false}
+    {
+      "id": "kitasenju",
+      "name": "きたせんじゅ",
+      "open": true
+    },
+    {
+      "id": "locked_2",
+      "name": "？？？",
+      "open": false
+    }
   ],
   "stage_prev": "＜",
   "stage_next": "＞",
   "play_label": "プレイ",
-  "lobby_buttons": ["へんせい", "そうび", "ガチャ", "キャラ", "フレンド", "アカウント"],
+  "lobby_buttons": [
+    "へんせい",
+    "そうび",
+    "ガチャ",
+    "キャラ",
+    "フレンド",
+    "アカウント"
+  ],
   "friends_label": "フレンド",
   "account_label": "アカウント",
   "formation_button_font_size": 36,
@@ -24,7 +45,13 @@
   "formation_title": "へんせい",
   "formation_selected": "えらんでいる",
   "back_label": "もどる",
-  "stat_labels": {"hp": "たいりょく", "move_speed": "はやさ", "attack_power": "こうげき", "attack_reach": "とどく", "skill": "わざ"},
+  "stat_labels": {
+    "hp": "たいりょく",
+    "move_speed": "はやさ",
+    "attack_power": "こうげき",
+    "attack_reach": "とどく",
+    "skill": "わざ"
+  },
   "lobby_char_label": "キャラ",
   "coming_soon": "じゅんびちゅう",
   "quality_label": "がしつ",
@@ -34,7 +61,10 @@
   "highlight_note": "いちばんかせいだ、6びょう",
   "highlight_best": "ベストアタッカー",
   "highlight_none": "きろくなし",
-  "highlight_replay_size": [560, 560],
+  "highlight_replay_size": [
+    560,
+    560
+  ],
   "replay_cam_distance": 7.0,
   "replay_cam_height": 4.5,
   "replay_cam_follow_per_sec": 6.0,
@@ -78,7 +108,15 @@
   "party_friend_done": "フレンド",
   "party_guest_name": "ゲスト",
   "friends_send_url": "フレンドの URL を おくる",
-  "friend_url_share_labels": {"title": "このURLを、フレンドに なりたい人に おくってね", "message": "BIGバスターズで フレンドに なろう！", "line": "LINEでおくる", "share": "おくる", "copy": "コピー", "copied": "コピーした", "close": "とじる"},
+  "friend_url_share_labels": {
+    "title": "このURLを、フレンドに なりたい人に おくってね",
+    "message": "BIGバスターズで フレンドに なろう！",
+    "line": "LINEでおくる",
+    "share": "おくる",
+    "copy": "コピー",
+    "copied": "コピーした",
+    "close": "とじる"
+  },
   "friend_preview_ask": "と フレンドに なりますか？",
   "friend_preview_add": "ついかする",
   "friend_preview_cancel": "キャンセル",
@@ -91,11 +129,21 @@
   "friend_preview_sent": "もうしこみを おくりました",
   "lobby_invite_join": "のへやに さんか",
   "account_forms": {
-    "title_register": "ログインを つくる", "title_login": "ログイン", "title_recover": "パスワードを わすれたとき",
-    "title_friend": "フレンドコードを いれる", "title_nickname": "なまえを かえる",
-    "password": "パスワード（6もじ いじょう）", "password_again": "もういちど パスワード", "new_password": "あたらしい パスワード（6もじ いじょう）",
-    "login_id": "ID", "recovery_code": "復旧コード", "friend_code": "フレンドコード", "nickname": "なまえ（12もじまで）",
-    "submit": "けってい", "close": "とじる", "mismatch": "パスワードが ちがいます",
+    "title_register": "ログインを つくる",
+    "title_login": "ログイン",
+    "title_recover": "パスワードを わすれたとき",
+    "title_friend": "フレンドコードを いれる",
+    "title_nickname": "なまえを かえる",
+    "password": "パスワード（6もじ いじょう）",
+    "password_again": "もういちど パスワード",
+    "new_password": "あたらしい パスワード（6もじ いじょう）",
+    "login_id": "ID",
+    "recovery_code": "復旧コード",
+    "friend_code": "フレンドコード",
+    "nickname": "なまえ（12もじまで）",
+    "submit": "けってい",
+    "close": "とじる",
+    "mismatch": "パスワードが ちがいます",
     "save_note": "IDと復旧コードは、いま メモして ください。復旧コードは、あとで もういちど 見ることが できません"
   },
   "room_label": "へや",
@@ -103,7 +151,15 @@
   "new_room_label": "へやを ぬける",
   "room_from_url_note": "しょうたいされた へや",
   "invite_offline_note": "ブラウザでだけ使えます",
-  "share_labels": {"title": "このURLを、いっしょにあそぶ人におくってね", "message": "BIGバスターズでいっしょにあそぼう！", "line": "LINEでおくる", "share": "おくる", "copy": "コピー", "copied": "コピーした", "close": "とじる"},
+  "share_labels": {
+    "title": "このURLを、いっしょにあそぶ人におくってね",
+    "message": "BIGバスターズでいっしょにあそぼう！",
+    "line": "LINEでおくる",
+    "share": "おくる",
+    "copy": "コピー",
+    "copied": "コピーした",
+    "close": "とじる"
+  },
   "rematch_wait_text": "みんなをまっています",
   "rematch_resend_sec": 3.0,
   "rematch_timeout_sec": 45.0,
@@ -137,6 +193,15 @@
   "leave_alone_label": "ひとりです",
   "displaced_text": "ほかの画面で ひらかれました。この画面では あそべません",
   "displaced_button": "この画面で つかう",
-  "button_min_size": [420, 110],
-  "small_button_min_size": [300, 90]
+  "button_min_size": [
+    420,
+    110
+  ],
+  "small_button_min_size": [
+    300,
+    90
+  ],
+  "ai_title": "AIの なかま（タップで かえる）",
+  "ai_picks_path": "user://ai_picks.json",
+  "ai_button_font_size": 30
 }

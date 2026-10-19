@@ -95,6 +95,8 @@ func _initialize() -> void:
 		var flow: Node = packed.instantiate()
 		flow.config = Flow.load_config()
 		flow.config["save_path"] = TEMP_SAVE
+		flow.config["ai_picks_path"] = "user://test_ai_picks.json"
+		DirAccess.remove_absolute("user://test_ai_picks.json")
 		root.add_child(flow)
 		if flow.panels.is_empty():
 			flow._ready()
@@ -126,11 +128,15 @@ func _initialize() -> void:
 		check(flow.selected_character == "gunner" and SaveData.load_save(TEMP_SAVE)["character"] == "gunner", "キャラを選ぶと、保存される")
 		check(str(flow.formation_stats.text).contains("シューター じゅうし") and str(flow.formation_stats.text).contains("射撃") and str(flow.formation_stats.text).count("\n") == 2 and flow.formation_buttons["gunner"].disabled, "選んだキャラの性能とわざが出る：" + str(flow.formation_stats.text))
 		flow.select_character("zzz")
+		check(flow.ai_picks == ["guardian", "gunner", "mage"] and flow.ai_buttons.size() == 3, "AIの味方の最初の3人")
+		flow.cycle_ai_pick(0)
+		check(flow.ai_picks[0] == "summoner" and SaveData.load_ai_picks("user://test_ai_picks.json")[0] == "summoner" and str(flow.ai_buttons[0].text).contains("よびだし"), "AIの味方を、タップで次のキャラにかえて保存する")
 		check(flow.selected_character == "gunner", "知らないキャラは選べない")
 		flow.event("back")
 		check(flow.state == "lobby" and str(flow.lobby_char.text).contains("シューター じゅうし"), "ロビーに戻ると、選んだキャラが出る")
 		flow.play()
 		_ensure_ready(flow.battle)
+		check(flow.battle.ai_enabled and flow.battle.ai_picks[0] == "summoner", "戦いに、AIの選びが渡る")
 		check(flow.battle.selected_character == "gunner" and is_equal_approx(flow.battle.role_value("attack_reach"), 7.0) and is_equal_approx(flow.battle.my_hp, 70.0), "戦いは、選んだキャラ（じゅうし）の性能で動く")
 		check(flow.state == "battle" and flow.battle != null and flow.battle.flow_mode, "プレイで、戦いが始まる（流れの中のモード）")
 		check(not flow.panels["lobby"].visible, "戦いの間は、メニューを隠す")
