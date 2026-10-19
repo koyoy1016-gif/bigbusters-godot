@@ -108,7 +108,7 @@ func _initialize() -> void:
 	check(boss.tail_mm != null and boss.tail_mm.multimesh.instance_count == BM.TailSegments, "しっぽの節は、まとめて描く（1回）")
 	var oni := boss.model.find_child("OniCommon", true, false) as MeshInstance3D
 	check(oni != null and oni.skin != null, "鬼の小物（角・髪・袖など）は、骨についていく1つの形（スキン）になる")
-	check(boss.normal_items != null and boss.awake_items != null and boss.awake_items.visible and not boss.normal_items.visible, "覚醒では、バットを消して、はちまき・一升瓶を出す")
+	check(boss.normal_items != null and boss.awake_items != null and boss.awake_items.visible and boss.normal_items.visible, "覚醒では、バットを持ったまま、はちまき・一升瓶を出す")
 	boss._apply_form("normal")
 	boss.set_flash(true)
 	var all_flash := true

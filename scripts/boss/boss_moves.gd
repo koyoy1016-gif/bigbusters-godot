@@ -79,6 +79,10 @@ static func _mul(d: Dictionary, bone: String, b: Basis) -> void:
 
 
 ## 回転を w の割合だけかける（0 で回さない）
+static func arm_out_t(mv: Dictionary) -> float:
+	return float(mv.get("sword_arm_out", 0.45))
+
+
 static func _scale_delta(b: Basis, w: float) -> Basis:
 	if w >= 1.0:
 		return b
@@ -99,7 +103,17 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 	match kind:
 		Attacks.BAT_H:
 			# 横振り：バットを持ち上げながら、体を右へひねって（ため）→ バットを腰の高さに下ろし、体ごと一気に右から左へなぎはらう
-			return _hswing(an, u, float(k["windup_sec"]), float(k["swing_sec"]), 1.0, mv, _fade(u, dur))
+			# フェイント（feint_sec）：ためたあと、一度ふりかけて止め、もう一度ためてから本当に振る
+			var f0 := float(k.get("feint_sec", 0.0))
+			if f0 <= 0.0:
+				return _hswing(an, u, float(k["windup_sec"]), float(k["swing_sec"]), 1.0, mv, _fade(u, dur))
+			var w0 := float(k["feint_at"])
+			var ue := u if u < w0 else (w0 if u < w0 + f0 else u - f0)
+			var hs := _hswing(an, ue, w0, float(k["swing_sec"]), 1.0, mv, _fade(u, dur))
+			if u >= w0 and u < w0 + f0:
+				var twitch := sin(PI * (u - w0) / f0)
+				hs["spin"] = float(hs["spin"]) + deg_to_rad(float(mv.get("hswing_coil_deg", 95.0)) * 0.6 * twitch * twitch)
+			return hs
 		Attacks.BAT_V:
 			# 縦振り：頭の上へふりかぶって、ためる → 前へたたきつける（当たる瞬間に、バットの先が前の地面に来る）
 			var w2 := float(k["windup_sec"])
@@ -135,9 +149,17 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 			hs["spin"] = float(hs["spin"]) + deg_to_rad(float(mv.get("walk_swing_turn_deg", 60.0))) * _fade(u, dur)
 			return hs
 		Attacks.BAT_SPIN:
-			# 回転斬り：ふりかぶって、腕を横にのばしたところで止め、体ごと何回も回る
+			# 回転斬り：ふりかぶって、腕を横にのばしたところで止め、体ごと何回も回る → バットを地面に突き立てて、すき
 			var wind := float(k["windup_sec"])
-			var active_end := dur - float(k["recover_sec"])
+			var finish := float(k.get("finish_sec", 0.0))
+			var active_end := dur - float(k["recover_sec"]) - finish
+			if u >= active_end + 0.15 and finish > 0.0:
+				var fk := smoothstep(active_end + 0.15, active_end + 0.45, u)
+				var plant := an.blend(an.sample("Sword_Attack", arm_out_t(mv)), an.sample("Sword_Attack", float(mv.get("sword_ground", 0.45))), fk)
+				var spin_t0 := active_end - wind
+				var turns0 := maxf(1.0, roundf(float(k["spin_deg_per_sec"]) * spin_t0 / 360.0))
+				return {"pose": plant, "weight": _fade(u, dur), "spin": turns0 * TAU, "full_spin": true,
+					"deltas": {"spine05": BossAnim.lean(22.0 * fk), "spine03": BossAnim.lean(10.0 * fk), "head": BossAnim.lean(-12.0 * fk)}}
 			var arm_out := float(mv.get("sword_arm_out", 0.4))
 			var ct4 := BossAnim.remap(u, [[0.0, 0.0], [wind * 0.6, 0.25], [wind, arm_out], [active_end, arm_out], [dur, 0.0]])
 			var spin_t := active_end - wind
@@ -168,6 +190,49 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 			return {"pose": an.sample("Punch", ct6), "weight": _fade(u, dur),
 				"deltas": {"spine05": BossAnim.lean(bend * 0.6) * BossAnim.yaw(rad_to_deg(ay) * 0.5), "spine03": BossAnim.lean(bend * 0.4) * BossAnim.yaw(rad_to_deg(ay) * 0.5),
 					"upperarm01.L": BossAnim.fwd(-15.0 * smoothstep(f, hf, u))}}
+		Attacks.THRUST:
+			# 前方突き：バットを腰で前へ構え、体をうしろへひねって引く（ため）→ 一気に前へ突き出す → のびたまま止まる（すき）
+			var w8 := float(k["windup_sec"])
+			var level := float(mv.get("sword_level", 0.45))
+			var tw8 := BossAnim.remap(u, [[0.0, 0.0], [w8 - 0.1, float(mv.get("thrust_pull_deg", 25.0)), "linear"], [w8, float(mv.get("thrust_yaw_deg", 12.0))], [w8 + 0.5, float(mv.get("thrust_yaw_deg", 12.0))], [dur, 0.0]])
+			var reach8 := BossAnim.remap(u, [[0.0, 0.0], [w8 - 0.1, 12.0, "linear"], [w8, 30.0], [w8 + 0.5, 30.0], [dur, 0.0]])
+			var ln8 := BossAnim.remap(u, [[0.0, 0.0], [w8 - 0.1, -8.0, "linear"], [w8 + float(k["hit_sec"]), 20.0], [w8 + 0.5, 20.0], [dur, 0.0]])
+			return {"pose": an.sample("Sword_Attack", level), "weight": _fade(u, dur), "spin": deg_to_rad(tw8 * 0.5),
+				"deltas": {"spine02": BossAnim.yaw(tw8 * 0.5), "upperarm01.R": BossAnim.fwd(reach8), "spine05": BossAnim.lean(ln8)}}
+		Attacks.BAT_THROW:
+			# バット投げ：頭の上へふりかぶる（ため）→ 前へ投げる → 手を前へのばしたまま待つ → もどってきたバットを受けとる
+			var w9 := float(k["windup_sec"])
+			var catch := w9 + float(k["out_sec"]) + float(k["back_sec"])
+			var ct9 := BossAnim.remap(u, [[0.0, 0.0], [w9 - 0.15, 0.25, "linear"], [w9 + 0.1, float(mv.get("sword_hit", 0.47))], [w9 + 0.4, 0.62], [catch - 0.2, 0.62], [catch, 0.45], [dur, 0.0]])
+			var tw9 := BossAnim.remap(u, [[0.0, 0.0], [w9 - 0.15, 30.0, "linear"], [w9 + 0.1, -20.0], [catch, 0.0]])
+			return {"pose": an.sample("Sword_Attack", ct9), "weight": _fade(u, dur), "deltas": {"spine02": BossAnim.yaw(tw9), "spine05": BossAnim.lean(BossAnim.remap(u, [[0.0, 0.0], [w9 - 0.15, -10.0], [w9 + 0.1, 15.0], [catch, 5.0], [dur, 0.0]]))}}
+		Attacks.SPIN_CHARGE:
+			# 回転突進：しゃがんでバットを横へ（ため）→ 回りながら走る（体の回りは、道の計算から）→ 止まって、ふらふら（すき）
+			var w10 := float(k["windup_sec"])
+			var run_end := w10 + float(k["run_sec"])
+			var arm := an.sample("Sword_Attack", arm_out_t(mv))
+			if u < w10:
+				var crouch_p := an.sample("Jump_Start", float(mv.get("crouch_t", 0.3)) * smoothstep(0.0, w10 * 0.6, u))
+				return {"pose": an.blend(crouch_p, arm, 0.6, an.upper), "weight": _fade(u, dur)}
+			if u < run_end:
+				return {"pose": arm, "weight": _fade(u, dur), "deltas": {"spine05": BossAnim.lean(12.0)}}
+			var dz := smoothstep(run_end, run_end + 0.3, u) * (1.0 - smoothstep(dur - 0.4, dur, u))
+			var sway := sin((u - run_end) * 7.0)
+			return {"pose": base, "weight": _fade(u, dur), "deltas": {"spine05": BossAnim.roll(14.0 * sway * dz) * BossAnim.lean(10.0 * dz), "head": BossAnim.roll(-18.0 * sway * dz),
+				"upperarm01.L": BossAnim.raise_side("L", 25.0 * dz), "upperarm01.R": BossAnim.raise_side("R", 25.0 * dz)}}
+		Attacks.JUMP_SLAM:
+			# ジャンプ落下：しゃがむ（ため）→ 跳ぶ（ひざを曲げて、バットを頭の上へ）→ 落ちる → 着地でしゃがみこむ（すき）→ 立ち上がる
+			var cr := float(k["crouch_sec"])
+			var land := cr + float(k["air_sec"])
+			if u < cr:
+				return {"pose": an.sample("Jump_Start", float(mv.get("crouch_t", 0.3)) * smoothstep(0.0, cr, u)), "weight": _fade(u, dur)}
+			if u < land:
+				var air := an.sample("Jump", 0.35)
+				var up := an.sample("Sword_Attack", 0.25)
+				return {"pose": an.blend(air, up, 1.0, an.upper), "weight": 1.0}
+			var rec := BossAnim.remap(u, [[land, 0.3], [land + 0.6, 0.3], [dur, 0.0]])
+			var down := an.blend(an.sample("Jump_Start", rec), an.sample("Sword_Attack", float(mv.get("sword_ground", 0.45))), 1.0, an.upper)
+			return {"pose": down, "weight": _fade(u, dur), "deltas": {"spine05": BossAnim.lean(18.0 * (1.0 - smoothstep(land + 0.6, dur, u)))}}
 		Attacks.SAKE_RAIN:
 			# 酒の雨：左手の一升瓶を、うしろ下へ引いて（ため）→ 頭の上へ一気にふり上げる（酒が空へ飛ぶ）→ ゆっくり下ろす
 			var arm := 0.0

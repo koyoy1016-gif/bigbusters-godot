@@ -207,11 +207,16 @@
         "strong": true
       },
       "knockback": "kb_slam",
-      "kb_mode": "forward"
+      "kb_mode": "forward",
+      "wave_len": 8.0,
+      "wave_seg": 1.8,
+      "wave_half_width": 1.2,
+      "wave_sec": 0.6,
+      "wave_power": 11.0
     },
     "bat_spin": {
-      "_memo": "バットの回転斬り：バットを横にのばして、体ごと何回も回る。まわりの輪の中に、続けてダメージ",
-      "duration": 3.8,
+      "_memo": "回転斬り：バットを横にのばして何回も回る。回り終わると、バットを地面に突き立てて、すき（finish_sec）",
+      "duration": 5.0,
       "windup_sec": 1.0,
       "recover_sec": 0.6,
       "radius": 7.8,
@@ -234,7 +239,8 @@
         "strong": true
       },
       "knockback": "kb_heavy",
-      "kb_mode": "sweep"
+      "kb_mode": "sweep",
+      "finish_sec": 1.2
     },
     "tail_spin": {
       "_memo": "しっぽ回し：しっぽをのばして、体ごと1回まわる。体のすぐそば（r_in より内側）は安全",
@@ -319,6 +325,124 @@
       },
       "knockback": "kb_light",
       "kb_mode": "radial"
+    },
+    "thrust": {
+      "_memo": "前方突き「ケンカ突き」：両手で構えて、前へまっすぐ突く。横振りより細く長い。横へよける",
+      "duration": 2.4,
+      "windup_sec": 0.95,
+      "hit_sec": 0.22,
+      "start": 1.0,
+      "length": 8.5,
+      "half_width": 0.9,
+      "power": 16.0,
+      "jumpable": false,
+      "lunge": 2.0,
+      "stop_dist": 7.0,
+      "chase_sec": 0.45,
+      "knockback": "kb_heavy",
+      "kb_mode": "forward",
+      "ai": {
+        "forms": {
+          "normal": 2.5,
+          "awake": 1.0
+        },
+        "range": [
+          5.0,
+          12.0
+        ],
+        "cooldown_sec": 0.0
+      },
+      "pull_back": 1.2
+    },
+    "bat_throw": {
+      "_memo": "バット投げ「ブン投げ」：ふりかぶって、前へ投げる。バットは回りながら distance m 飛んで、もどってくる（ボスが受けとる）。行きと帰りで1回ずつ当たる",
+      "duration": 3.9,
+      "windup_sec": 1.1,
+      "out_sec": 0.9,
+      "back_sec": 0.9,
+      "distance": 13.0,
+      "hand_ahead": 2.0,
+      "radius": 2.0,
+      "power": 16.0,
+      "jumpable": true,
+      "spin_rate": 2.5,
+      "stop_dist": 9.0,
+      "chase_sec": 0.5,
+      "knockback": "kb_heavy",
+      "kb_mode": "travel",
+      "ai": {
+        "forms": {
+          "normal": 1.0,
+          "awake": 1.5
+        },
+        "range": [
+          7.0,
+          25.0
+        ],
+        "cooldown_sec": 6.0
+      }
+    },
+    "spin_charge": {
+      "_memo": "回転突進「暴走スピン」：回りながら、曲がった道を走る（道は始めに決める。追いかけない）。止まったら、ふらついてすきができる",
+      "duration": 5.4,
+      "windup_sec": 1.2,
+      "run_sec": 2.7,
+      "tick_sec": 0.45,
+      "speed": 6.5,
+      "curve_min": 0.4,
+      "curve_max": 0.9,
+      "radius": 3.2,
+      "power": 9.0,
+      "jumpable": false,
+      "tele_len": 9.0,
+      "spin_rate": 2.2,
+      "stop_dist": 8.0,
+      "chase_sec": 0.5,
+      "knockback": "kb_launch",
+      "kb_mode": "travel",
+      "ai": {
+        "forms": {
+          "normal": 1.0,
+          "awake": 2.0
+        },
+        "range": [
+          5.0,
+          20.0
+        ],
+        "cooldown_sec": 8.0,
+        "strong": true
+      }
+    },
+    "jump_slam": {
+      "_memo": "ジャンプ落下「ドスン落とし」：しゃがんで、高く跳び、ねらった所へ落ちる（直撃）。落ちたあと、衝撃の輪が外へ広がる（輪はジャンプでよけられる）。着地のあとは、すき",
+      "duration": 4.4,
+      "crouch_sec": 0.75,
+      "air_sec": 1.0,
+      "hit_sec": 0.2,
+      "wave_sec": 0.75,
+      "radius": 3.2,
+      "power": 18.0,
+      "wave_radius": 11.0,
+      "wave_width": 1.4,
+      "wave_power": 11.0,
+      "height": 7.0,
+      "max_jump": 14.0,
+      "stop_dist": 9.0,
+      "chase_sec": 0.4,
+      "knockback": "kb_slam",
+      "kb_mode": "radial",
+      "ai": {
+        "forms": {
+          "normal": 0.6,
+          "awake": 2.0
+        },
+        "range": [
+          6.0,
+          18.0
+        ],
+        "cooldown_sec": 8.0,
+        "strong": true
+      }
     }
   },
   "damage_multiplier": 1.0,

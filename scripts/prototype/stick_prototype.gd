@@ -993,10 +993,46 @@ func _pose_boss(delta: float = 0.0) -> void:
 	var kind := str(current_attack.get("kind", ""))
 	var kinds: Dictionary = attacks_cfg.get("kinds", {})
 	var st := {"clock": boss_clock, "walk_dist": motion.walk_dist, "walk_speed": motion.speed_now, "kind": kind, "u": current_attack_u,
-		"k": kinds.get(kind, {}), "hit_now": hit_now, "grab": _grab_anim_state(), "aim_yaw": _grab_aim_yaw()}
+		"k": Attacks.kind_cfg(attacks_cfg, current_attack) if kind != "" else {}, "hit_now": hit_now, "airborne": motion.height, "grab": _grab_anim_state(), "aim_yaw": _grab_aim_yaw()}
 	var res: Dictionary = boss_model.animate(delta, boss_clock, st)
-	boss.rotation.y = motion.yaw + float(res.get("spin", 0.0))
+	boss.rotation.y = motion.yaw + float(res.get("spin", 0.0)) + motion.path_spin
 	_pose_sweep_hands()
+	# バット投げ：投げてから受けとるまで、手にバットはない
+	var in_hand := true
+	if kind == Attacks.BAT_THROW:
+		var bk := Attacks.kind_cfg(attacks_cfg, current_attack)
+		var rel := float(bk["windup_sec"])
+		in_hand = current_attack_u < rel or current_attack_u >= rel + float(bk["out_sec"]) + float(bk["back_sec"])
+	if in_hand != boss_model.bat_in_hand:
+		boss_model.set_bat_visible(in_hand)
+	_update_jump_shadow()
+
+
+## 跳んでいるボスの影（地面に、高さに合わせた大きさで）
+var _shadow: MeshInstance3D
+func _update_jump_shadow() -> void:
+	if _shadow == null:
+		_shadow = MeshInstance3D.new()
+		_shadow.name = "BossShadow"
+		var c := CylinderMesh.new()
+		c.top_radius = 1.0
+		c.bottom_radius = 1.0
+		c.height = 0.02
+		c.radial_segments = 20
+		c.rings = 1
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0, 0, 0, 0.45)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		c.material = m
+		_shadow.mesh = c
+		_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_shadow)
+	var h := motion.height
+	_shadow.visible = h > 0.3
+	if _shadow.visible:
+		_shadow.position = Vector3(motion.pos.x, 0.02, motion.pos.y)
+		_shadow.scale = Vector3.ONE * lerpf(3.0, 1.6, clampf(h / 8.0, 0.0, 1.0))
 
 
 ## つかんでいる最中の、ボスの動きに渡す状態（つかんでいなければ {}）
@@ -1338,7 +1374,8 @@ func _attack_ctx(a: Dictionary, u: float) -> Dictionary:
 		positions[slot] = Vector2(np.x * 2.0 * half - half, np.y * 2.0 * half - half)
 	var lk := motion.lock_of(int(a["n"])) if not a.is_empty() else {"pos": motion.pos, "yaw": motion.yaw}
 	var ctx := {"boss": lk["pos"], "yaw": float(lk["yaw"]), "members": members, "positions": positions,
-		"locked": null, "round_start_ms": round_start_ms, "bounds": half}
+		"locked": null, "round_start_ms": round_start_ms, "bounds": half,
+		"target": lk.get("target", lk["pos"]), "curve": float(lk.get("curve", 0.0)), "area": float((attacks_cfg.get("walk", {}) as Dictionary).get("area", 13.0))}
 	if not a.is_empty() and str(a["kind"]) == Attacks.GRAB and u >= float(attacks_cfg["kinds"]["grab"]["follow_sec"]):
 		var n := int(a["n"])
 		if not grab_locked.has(n):
@@ -1374,7 +1411,7 @@ func combat_update(delta: float) -> void:
 	var cur_u := t - float(cur["start"]) if idx >= 0 else 0.0
 	var mctx := _attack_ctx({}, 0.0)
 	motion.update(delta, cur, cur_u, ai.next_attack() if not staggering else {}, attacks_cfg, mctx, staggering)
-	boss.position = Vector3(motion.pos.x, 0.0, motion.pos.y)
+	boss.position = Vector3(motion.pos.x, motion.height, motion.pos.y)
 	if idx >= 0:
 		var a: Dictionary = cur
 		var u := cur_u
@@ -1561,8 +1598,8 @@ func _place_zone(n: MeshInstance3D, h: Dictionary, grow: float, y: float) -> voi
 			# 輪：内側（安全な所）から外へ広がる。外の半径が変わるので、形は段階ごとに作る（20段）
 			var r_in := float(h["r_in"])
 			var outer := r_in + (float(h["r"]) - r_in) * (roundf(g * 20.0) / 20.0 if grow < 1.0 else 1.0)
-			var ratio := r_in / maxf(outer, r_in + 0.01)
-			key = "ring:%.3f" % ratio
+			var ratio := snappedf(r_in / maxf(outer, r_in + 0.01), 0.02)  # 形の種類を増やしすぎない
+			key = "ring:%.2f" % ratio
 			n.mesh = _floor_mesh(key, PI, ratio)
 			n.position = Vector3(float(h["x"]), y, float(h["z"]))
 			n.scale = Vector3.ONE * maxf(outer, r_in + 0.01)
@@ -1603,6 +1640,7 @@ func _show_hazards(hz: Array) -> void:
 	var zc := Color(str(attacks_cfg["zone_color"]))
 	var fill_used := 0
 	var drop_used := 0
+	var bat_used := false
 	for i in hz.size():
 		var h: Dictionary = hz[i]
 		var n := _hazard_node(i)
@@ -1623,6 +1661,15 @@ func _show_hazards(hz: Array) -> void:
 			n.visible = true
 			continue
 		n.set_meta("kind", "zone")
+		if style == "bat":
+			# 投げたバット：回りながら飛ぶ（当たり場所の輪は出さない）
+			var fb := _flying_bat()
+			fb.visible = true
+			fb.global_position = Vector3(float(h["x"]), float(attacks_cfg["kinds"]["bat_throw"].get("fly_height", 2.6)), float(h["z"]))
+			fb.rotation = Vector3(0.0, float(h.get("spin", 0.0)), PI * 0.5)
+			bat_used = true
+			n.visible = false
+			continue
 		if style == "sake":
 			# 酒のしずく：輪の上から落ちてくる（落ちきった瞬間に当たる）。当たったら、床がぬれる
 			if not active:
@@ -1662,6 +1709,26 @@ func _show_hazards(hz: Array) -> void:
 		(hazard_fill_nodes[i] as Node3D).visible = false
 	for i in range(drop_used, drop_nodes.size()):
 		(drop_nodes[i] as Node3D).visible = false
+	if not bat_used and _fly_bat != null:
+		_fly_bat.visible = false
+
+
+## 投げたバット（ボスのバットと同じ形を、大きさをそろえて作る）
+var _fly_bat: Node3D
+func _flying_bat() -> Node3D:
+	if _fly_bat == null:
+		_fly_bat = Node3D.new()
+		_fly_bat.name = "FlyingBat"
+		_fly_bat.top_level = true
+		add_child(_fly_bat)
+		var catalog: Dictionary = (JSON.parse_string(FileAccess.get_file_as_string(CharacterView.ATTACHMENTS_PATH)) as Dictionary).get("items", {})
+		var pivot := Node3D.new()
+		pivot.position = Vector3(0, -0.6, 0) * float(boss_model.cfg["model_scale"]) if boss_model != null else Vector3.ZERO
+		pivot.scale = Vector3.ONE * (float(boss_model.cfg["model_scale"]) if boss_model != null else 4.0)
+		_fly_bat.add_child(pivot)
+		for part in (catalog.get("oni_bat", {}) as Dictionary).get("parts", []):
+			pivot.add_child(CharacterView._make_part(part))
+	return _fly_bat
 
 
 ## ---- 酒のしずく・ぬれた床 ----

@@ -21,7 +21,7 @@ func _initialize() -> void:
 	m.build(BM.load_config(), StandardMaterial3D.new())
 	var cfg := Attacks.load_config()
 	var ctx := {"boss": Vector2.ZERO, "yaw": 0.0, "members": [], "positions": {}, "locked": null, "round_start_ms": 1.0, "bounds": 15.0}
-	for kind in ["bat_h", "bat_v", "bat_spin", "walk_swing", "tail_spin"]:
+	for kind in ["bat_h", "bat_v", "bat_spin", "walk_swing", "tail_spin", "thrust"]:
 		var k: Dictionary = cfg["kinds"][kind]
 		var a := {"n": 1, "kind": kind, "start": 0.0, "end": 99.0}
 		var total := 0
@@ -29,7 +29,8 @@ func _initialize() -> void:
 		var u := 0.0
 		while u < float(k["duration"]):
 			var hz: Array = Attacks.hazards(a, u, cfg, ctx)
-			var act: Array = hz.filter(func(h: Dictionary) -> bool: return bool(h["active"]))
+			# 衝撃波（バットのあとに地面を走る物）は、バットの先とは別なので数えない
+			var act: Array = hz.filter(func(h: Dictionary) -> bool: return bool(h["active"]) and str(h.get("part", "")) != "wave")
 			if not act.is_empty():
 				var res: Dictionary = m.animate(0.0, 1.0, {"kind": kind, "u": u, "k": k})
 				var local: Vector3 = m.tail_tip_local() if kind == "tail_spin" else m.bat_tip_local()

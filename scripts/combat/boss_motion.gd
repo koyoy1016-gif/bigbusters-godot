@@ -16,6 +16,9 @@ var walk_dist := 0.0  ## 歩いた道のりの合計（足の運びの角度に�
 var home := Vector2.ZERO
 var locks := {}  ## 攻撃の番号 → {pos, yaw}（始まったときの位置と向き）
 var _last_step := 0.0  ## 攻撃中に前へ出た分（直前のコマ）
+var height := 0.0  ## 地面からの高さ（跳ぶ攻撃）
+var vel := Vector2.ZERO  ## 歩く速さ（向きつき）。急に動き出したり止まったりしないよう、少しずつ変える
+var path_spin := 0.0  ## 自分で動く攻撃の、体ごとの回転
 
 
 func reset(start: Vector2) -> void:
@@ -26,6 +29,9 @@ func reset(start: Vector2) -> void:
 	walk_dist = 0.0
 	locks = {}
 	_last_step = 0.0
+	height = 0.0
+	vel = Vector2.ZERO
+	path_spin = 0.0
 
 
 ## 1コマ進める。
@@ -34,13 +40,16 @@ func reset(start: Vector2) -> void:
 func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dictionary, ctx: Dictionary, frozen: bool = false) -> void:
 	var w: Dictionary = cfg.get("walk", {})
 	var before := pos
+	height = 0.0
+	path_spin = 0.0
 	if frozen:
 		speed_now = 0.0
+		vel = Vector2.ZERO
 		return
 	if not a.is_empty():
 		var n := int(a["n"])
 		var kind := str(a["kind"])
-		var k: Dictionary = cfg["kinds"][kind]
+		var k: Dictionary = Attacks.kind_cfg(cfg, a)
 		var chase := float(k.get("chase_sec", 0.0))
 		if not locks.has(n) or u < chase:
 			# 攻撃の始まり（と、ねらいを合わせる間）：ねらう人のほうへ歩きながら向きを合わせ、位置と向きを決めなおす。
@@ -57,12 +66,24 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 					p0 = _clamp_area(pos + d.normalized() * minf(d.length() - stop, float(w.get("speed", 4.5)) * float(w.get("chase_speed_ratio", 0.6)) * delta), w)
 			if not locks.has(n):
 				face = _turn(yaw, face, 30.0, delta)
-			locks[n] = {"pos": p0 - Attacks.fwd_of(face) * Attacks.step_forward(kind, u, k), "yaw": face}
+			# 曲がる向き・ねらう場所も、ここで決める（回転突進・ジャンプ）
+			var rng := Attacks.rng_for(float(ctx.get("round_start_ms", 0.0)), n * 17 + 3)
+			var curve := rng.randf_range(float(k.get("curve_min", 0.0)), float(k.get("curve_max", 0.0))) * (1.0 if rng.randf() < 0.5 else -1.0)
+			locks[n] = {"pos": p0 - Attacks.fwd_of(face) * Attacks.step_forward(kind, u, k), "yaw": face, "target": tp if tp is Vector2 else p0 + Attacks.fwd_of(face) * 6.0, "curve": curve}
 		var lk: Dictionary = locks[n]
-		var step := Attacks.step_forward(kind, u, k)
-		pos = _clamp_area((lk["pos"] as Vector2) + Attacks.fwd_of(float(lk["yaw"])) * step, w)
-		yaw = _turn(yaw, float(lk["yaw"]), float(w.get("turn_rate", 7.0)) * 1.6, delta)
-		_last_step = step
+		var path := Attacks.boss_path(kind, u, k, path_ctx(lk, w))
+		if not path.is_empty():
+			# 自分で動く攻撃（回転突進・ジャンプ）：道の上を動く
+			pos = path["pos"]
+			yaw = _turn(yaw, float(path["yaw"]), 14.0, delta)
+			height = float(path.get("y", 0.0))
+			path_spin = float(path.get("spin", 0.0))
+		else:
+			var step := Attacks.step_forward(kind, u, k)
+			pos = _clamp_area((lk["pos"] as Vector2) + Attacks.fwd_of(float(lk["yaw"])) * step, w)
+			yaw = _turn(yaw, float(lk["yaw"]), float(w.get("turn_rate", 7.0)) * 1.6, delta)
+			_last_step = step
+		vel = Vector2.ZERO
 	else:
 		# 攻撃と攻撃の間：次にねらう人のほうへ歩く。もう近ければ、その人のまわりを回りこむように歩き続ける（立ち止まらない）
 		var goal := pos
@@ -81,14 +102,30 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 					# もう近い：その人のまわりを回りこみながら、距離を stop に保つ（立ち止まらない）
 					var side := Vector2(to.y, -to.x).normalized() * (1.0 if int(next_a["n"]) % 2 == 0 else -1.0)
 					goal = pos + side * float(w.get("circle_step", 1.5)) + to.normalized() * (to.length() - stop)
+		# 歩く：少しずつ速くなり、目標の近くでは少しずつ遅くなる（急に動き出さない・急に止まらない）
 		var sp := float(w.get("speed", 4.5))
 		var move := goal - pos
+		var want := Vector2.ZERO
 		if move.length() > 0.05:
-			pos = _clamp_area(pos + move.normalized() * minf(move.length(), sp * delta), w)
+			want = move.normalized() * sp * clampf(move.length() / float(w.get("slow_dist", 1.2)), 0.25, 1.0)
+		var acc := float(w.get("accel", 9.0)) if want.length() >= vel.length() else float(w.get("decel", 12.0))
+		vel = vel.move_toward(want, acc * delta)
+		pos = _clamp_area(pos + vel * delta, w)
+		# ステージの端へ向かって歩きつづけない（端では、その向きの速さを消す）
+		var half := float(w.get("area", 13.0))
+		if absf(pos.x) >= half - 0.01 and signf(vel.x) == signf(pos.x):
+			vel.x = 0.0
+		if absf(pos.y) >= half - 0.01 and signf(vel.y) == signf(pos.y):
+			vel.y = 0.0
 		yaw = _turn(yaw, face, float(w.get("turn_rate", 7.0)), delta)
 	var moved := (pos - before).length()
 	walk_dist += moved
 	speed_now = lerpf(speed_now, moved / maxf(delta, 0.0001), 1.0 - exp(-12.0 * delta))
+
+
+## 自分で動く攻撃に渡す情報（始めの位置・向き・ねらう場所・曲がる向き・動ける広さ）
+static func path_ctx(lk: Dictionary, w: Dictionary) -> Dictionary:
+	return {"boss": lk["pos"], "yaw": float(lk["yaw"]), "target": lk.get("target", lk["pos"]), "curve": float(lk.get("curve", 0.0)), "area": float(w.get("area", 13.0))}
 
 
 ## 攻撃の始めに固定した位置と向き。まだ始まっていなければ、いまの位置と向き

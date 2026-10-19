@@ -36,6 +36,7 @@ var aura_particles: CPUParticles3D
 var aura_ground: MeshInstance3D
 var aura_glow_mat: StandardMaterial3D
 var sweep_hands := {}
+var bat_in_hand := true  ## バットを手に持っているか（バット投げの間は false）
 var spray: CPUParticles3D  ## 酒をまくしぶき（世界に直接置く）  ## 必殺技の大きな手（"L"/"R" → Node3D。世界に直接置く）
 var flinch := 0.0
 var _clock := 0.0
@@ -451,7 +452,7 @@ func _apply_form(name: String) -> void:
 	var awake := name == "awake"
 	skin.albedo_color = Color(str(cfg["skin_awake"] if awake else cfg["skin_normal"]))
 	if normal_items != null:
-		normal_items.visible = not awake
+		normal_items.visible = bat_in_hand  # バットは、覚醒しても持ったまま（投げている間だけ消す）
 	if awake_items != null:
 		awake_items.visible = awake
 	if aura != null:
@@ -459,6 +460,13 @@ func _apply_form(name: String) -> void:
 		aura_particles.emitting = awake
 	if tail_mm != null:
 		_refresh_tail_colors()
+
+
+## バットを手に持つ／持たない（バット投げ）
+func set_bat_visible(on: bool) -> void:
+	bat_in_hand = on
+	if normal_items != null:
+		normal_items.visible = on
 
 
 func skin_color() -> Color:

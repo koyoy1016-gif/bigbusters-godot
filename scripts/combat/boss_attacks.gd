@@ -22,6 +22,10 @@ const BAT_SPIN := "bat_spin"
 const TAIL_SPIN := "tail_spin"
 const WALK_SWING := "walk_swing"
 const SAKE_RAIN := "sake_rain"
+const THRUST := "thrust"
+const BAT_THROW := "bat_throw"
+const SPIN_CHARGE := "spin_charge"
+const JUMP_SLAM := "jump_slam"
 
 
 ## 前の向き（x, z）
@@ -85,8 +89,22 @@ static func grab_target(n: int, members: Array) -> String:
 
 ## 当たり場所の一覧。a は予定表の1件、u はその攻撃が始まってからの秒。
 ## ctx：{boss: Vector2, members: Array, positions: {枠: Vector2}（いま見えている位置）, locked: Vector2 か null（つかみの、決まった位置）, round_start_ms, bounds}
-static func hazards(a: Dictionary, u: float, cfg: Dictionary, ctx: Dictionary) -> Array:
+## 攻撃 a の設定。フェイント（a の feint 秒）があれば、ためを長くして、feint_sec に入れる
+static func kind_cfg(cfg: Dictionary, a: Dictionary) -> Dictionary:
 	var k: Dictionary = cfg["kinds"][str(a["kind"])]
+	var f := float(a.get("feint", 0.0))
+	if f <= 0.0:
+		return k
+	var k2 := k.duplicate()
+	k2["feint_sec"] = f
+	k2["feint_at"] = float(k["windup_sec"])
+	k2["windup_sec"] = float(k["windup_sec"]) + f
+	k2["duration"] = float(k["duration"]) + f
+	return k2
+
+
+static func hazards(a: Dictionary, u: float, cfg: Dictionary, ctx: Dictionary) -> Array:
+	var k: Dictionary = kind_cfg(cfg, a)
 	var out := _hazards_raw(a, u, k, cfg, ctx)
 	# ふっ飛び：当たり場所が自分で決めていなければ、攻撃の設定（knockback・kb_mode）を付ける
 	for h in out:
@@ -142,7 +160,169 @@ static func _hazards_raw(a: Dictionary, u: float, k: Dictionary, cfg: Dictionary
 			return _walk_swing(a, u, k, ctx)
 		SAKE_RAIN:
 			return _sake_rain(a, u, k, ctx)
+		THRUST:
+			return _thrust(a, u, k, ctx)
+		BAT_THROW:
+			return _bat_throw(a, u, k, ctx)
+		SPIN_CHARGE:
+			return _spin_charge(a, u, k, ctx)
+		JUMP_SLAM:
+			return _jump_slam(a, u, k, ctx)
 	return []
+
+
+## ---- ボスが自分で動く攻撃の、位置（攻撃の始めに決めた位置・向き・ねらう場所から、時刻 u だけで決まる） ----
+## 戻り値：{pos: Vector2, yaw: float, y: 高さ, spin: 体ごとの回転} か、ふつうの攻撃なら {}
+static func boss_path(kind: String, u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
+	match kind:
+		SPIN_CHARGE:
+			return spin_charge_at(u, k, ctx)
+		JUMP_SLAM:
+			return jump_at(u, k, ctx)
+	return {}
+
+
+static func _area(p: Vector2, ctx: Dictionary) -> Vector2:
+	var half := float(ctx.get("area", 13.0))
+	return Vector2(clampf(p.x, -half, half), clampf(p.y, -half, half))
+
+
+## ---- 前方突き「ケンカ突き」：両手で構えて、前へまっすぐ突く。細長い帯 ----
+static func _thrust(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
+	var w := float(k["windup_sec"])
+	if u >= w + float(k["hit_sec"]):
+		return []
+	var yaw := float(ctx.get("yaw", 0.0))
+	var f := fwd_of(yaw)
+	var c := boss_at(THRUST, w, k, ctx) + f * (float(k["start"]) + float(k["length"]) * 0.5)
+	return [{"id": "th%d" % int(a["n"]), "shape": "obox", "x": c.x, "z": c.y, "hx": float(k["half_width"]), "hz": float(k["length"]) * 0.5, "yaw": yaw,
+		"active": u >= w, "tele": clampf(u / w, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "zone"}]
+
+
+## ---- バット投げ「ブン投げ」：前へ投げたバットが、回りながら飛んでいき、もどってくる（ボスが受けとる） ----
+## u 秒の時点のバットの位置と、飛んでいる向き。飛んでいなければ {flying: false}
+static func bat_throw_at(u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
+	var w := float(k["windup_sec"])
+	var out_s := float(k["out_sec"])
+	var back_s := float(k["back_sec"])
+	var yaw := float(ctx.get("yaw", 0.0))
+	var f := fwd_of(yaw)
+	var start: Vector2 = (ctx["boss"] as Vector2) + f * float(k["hand_ahead"])
+	var far := start + f * float(k["distance"])
+	if u < w or u >= w + out_s + back_s:
+		return {"flying": false}
+	if u < w + out_s:
+		var p := (u - w) / out_s
+		var e := 1.0 - (1.0 - p) * (1.0 - p)
+		return {"flying": true, "pos": start.lerp(far, e), "dir": f, "leg": 0, "spin": (u - w) * float(k["spin_rate"]) * TAU}
+	var q := (u - w - out_s) / back_s
+	return {"flying": true, "pos": far.lerp(start, q * q), "dir": -f, "leg": 1, "spin": (u - w) * float(k["spin_rate"]) * TAU}
+
+
+static func _bat_throw(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
+	var out: Array = []
+	var w := float(k["windup_sec"])
+	var yaw := float(ctx.get("yaw", 0.0))
+	var f := fwd_of(yaw)
+	var start: Vector2 = (ctx["boss"] as Vector2) + f * float(k["hand_ahead"])
+	if u < w:
+		# 予告：バットが飛ぶ道（帯）
+		var c := start + f * float(k["distance"]) * 0.5
+		out.append({"id": "btl%d" % int(a["n"]), "shape": "obox", "x": c.x, "z": c.y, "hx": float(k["radius"]), "hz": float(k["distance"]) * 0.5 + float(k["radius"]), "yaw": yaw,
+			"active": false, "tele": clampf(u / w, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "zone"})
+		return out
+	var b := bat_throw_at(u, k, ctx)
+	if bool(b["flying"]):
+		var p: Vector2 = b["pos"]
+		var d: Vector2 = b["dir"]
+		out.append({"id": "bt%d" % int(a["n"]), "shape": "circle", "x": p.x, "z": p.y, "r": float(k["radius"]), "active": true, "tele": 1.0, "power": float(k["power"]),
+			"jumpable": bool(k["jumpable"]), "target": "", "tick": int(b["leg"]), "style": "bat", "spin": float(b["spin"]), "kb_mode": "travel", "kb_x": d.x, "kb_z": d.y})
+	return out
+
+
+## ---- 回転突進「暴走スピン」：回りながら、曲がった道を走る（始めに道を決める。追いかけない）→ 止まって、ふらつく ----
+static func spin_charge_at(u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
+	var w := float(k["windup_sec"])
+	var run := float(k["run_sec"])
+	var p0: Vector2 = ctx["boss"]
+	var yaw0 := float(ctx.get("yaw", 0.0))
+	var curve := float(ctx.get("curve", 0.0))
+	var v := float(k["speed"])
+	var t := clampf(u - w, 0.0, run)
+	var h := yaw0 + curve * t
+	var pos: Vector2
+	if absf(curve) < 0.001:
+		pos = p0 + fwd_of(yaw0) * v * t
+	else:
+		pos = p0 + Vector2(-cos(h) + cos(yaw0), sin(h) - sin(yaw0)) * (v / curve)
+	var spin_k := smoothstep(0.0, w, u) * (1.0 - smoothstep(w + run, w + run + 0.5, u))
+	var turns := float(k["spin_rate"]) * TAU
+	return {"pos": _area(pos, ctx), "yaw": h, "y": 0.0, "spin": turns * (u - w * 0.5) * spin_k, "running": u >= w and u < w + run, "dir": fwd_of(h)}
+
+
+static func _spin_charge(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
+	var w := float(k["windup_sec"])
+	var run := float(k["run_sec"])
+	if u >= w + run:
+		return []
+	var st := spin_charge_at(u, k, ctx)
+	var out: Array = []
+	if u < w:
+		# 予告：走りはじめの向きの道（先の方までは出さない＝曲がる）
+		var p0: Vector2 = ctx["boss"]
+		var f := fwd_of(float(ctx.get("yaw", 0.0)))
+		var c := p0 + f * float(k["tele_len"]) * 0.5
+		out.append({"id": "scl%d" % int(a["n"]), "shape": "obox", "x": c.x, "z": c.y, "hx": float(k["radius"]), "hz": float(k["tele_len"]) * 0.5, "yaw": float(ctx.get("yaw", 0.0)),
+			"active": false, "tele": clampf(u / w, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "zone"})
+	var p: Vector2 = st["pos"]
+	var d: Vector2 = st["dir"]
+	var tick := int(floor((u - w) / float(k["tick_sec"]))) if u >= w else -1
+	out.append({"id": "sc%d" % int(a["n"]), "shape": "circle", "x": p.x, "z": p.y, "r": float(k["radius"]), "active": u >= w, "tele": clampf(u / w, 0.0, 1.0), "power": float(k["power"]),
+		"jumpable": bool(k["jumpable"]), "target": "", "tick": tick, "style": "zone", "kb_mode": "travel", "kb_x": d.x, "kb_z": d.y})
+	return out
+
+
+## ---- ジャンプ落下「ドスン落とし」：しゃがむ → 高く跳ぶ（ねらった所へ）→ 落ちる（直撃）→ 衝撃の輪が外へ広がる ----
+static func jump_at(u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
+	var crouch := float(k["crouch_sec"])
+	var air := float(k["air_sec"])
+	var p0: Vector2 = ctx["boss"]
+	var tgt: Vector2 = ctx.get("target", p0)
+	var d := tgt - p0
+	if d.length() > float(k["max_jump"]):
+		d = d.normalized() * float(k["max_jump"])
+	var land := _area(p0 + d, ctx)
+	var p := clampf((u - crouch) / air, 0.0, 1.0)
+	var y := 4.0 * float(k["height"]) * p * (1.0 - p) if u >= crouch and u < crouch + air else 0.0
+	var yaw := atan2(d.x, d.y) if d.length() > 0.3 else float(ctx.get("yaw", 0.0))
+	return {"pos": p0.lerp(land, smoothstep(0.0, 1.0, p)), "yaw": yaw, "y": y, "spin": 0.0, "land": land}
+
+
+static func _jump_slam(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
+	var out: Array = []
+	var land_t := float(k["crouch_sec"]) + float(k["air_sec"])
+	var wave := float(k["wave_sec"])
+	if u >= land_t + wave:
+		return out
+	var land: Vector2 = jump_at(u, k, ctx)["land"]
+	var tele := clampf(u / land_t, 0.0, 1.0)
+	if u < land_t + float(k["hit_sec"]):
+		# 直撃：落ちる所の輪（ジャンプではよけられない）
+		out.append({"id": "jd%d" % int(a["n"]), "shape": "circle", "x": land.x, "z": land.y, "r": float(k["radius"]), "active": u >= land_t, "tele": tele,
+			"power": float(k["power"]), "jumpable": false, "target": "", "tick": -1, "style": "zone", "kb": "kb_slam", "kb_mode": "radial"})
+	# 衝撃の輪：落ちたあと、外へ広がる（ジャンプでよけられる）。予告は、いちばん外まで
+	var r_max := float(k["wave_radius"])
+	var r_in := float(k["radius"])
+	var r_out := r_max
+	var active := false
+	if u >= land_t:
+		var p := clampf((u - land_t) / wave, 0.0, 1.0)
+		r_out = lerpf(float(k["radius"]), r_max, p)
+		r_in = maxf(0.0, r_out - float(k["wave_width"]))
+		active = true
+	out.append({"id": "jw%d" % int(a["n"]), "shape": "ring", "x": land.x, "z": land.y, "r_in": r_in, "r": r_out, "active": active, "tele": tele * 0.6,
+		"power": float(k["wave_power"]), "jumpable": true, "target": "", "tick": -1, "style": "zone", "kb": "kb_heavy", "kb_mode": "radial"})
+	return out
 
 
 ## 酒の雨：throw 回めに投げる時刻
@@ -185,6 +365,11 @@ static func step_forward(kind: String, u: float, k: Dictionary) -> float:
 		BAT_V:
 			var w2 := float(k["windup_sec"])
 			return float(k["lunge"]) * smoothstep(w2 - 0.2, w2, u)
+		THRUST:
+			# ためで少しうしろへ下がり、突くときに一気に前へ出る
+			var w3 := float(k["windup_sec"])
+			var back := -float(k.get("pull_back", 1.2)) * smoothstep(0.0, w3 - 0.12, u)
+			return back + (float(k["lunge"]) + float(k.get("pull_back", 1.2))) * smoothstep(w3 - 0.12, w3 + float(k["hit_sec"]), u)
 		WALK_SWING:
 			var t0 := float(k["first_sec"]) * 0.4
 			var t1 := float(k["duration"]) - 0.35
@@ -229,19 +414,36 @@ static func _bat_h(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> A
 ## バットの縦振り：前へまっすぐの帯 → たたきつける
 static func _bat_v(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
 	var w := float(k["windup_sec"])
-	if u >= w + float(k["hit_sec"]):
+	if u >= w + maxf(float(k["hit_sec"]), float(k.get("wave_sec", 0.0))):
 		return []
 	var yaw := float(ctx.get("yaw", 0.0)) + deg_to_rad(float(k.get("center_deg", 0.0)))
 	var f := fwd_of(yaw)
 	var c := boss_at(BAT_V, w, k, ctx) + f * (float(k["start"]) + float(k["length"]) * 0.5)
-	return [{"id": "bv%d" % int(a["n"]), "shape": "obox", "x": c.x, "z": c.y, "hx": float(k["half_width"]), "hz": float(k["length"]) * 0.5, "yaw": yaw,
-		"active": u >= w, "tele": clampf(u / w, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "zone"}]
+	var out: Array = []
+	if u < w + float(k["hit_sec"]):
+		out.append({"id": "bv%d" % int(a["n"]), "shape": "obox", "x": c.x, "z": c.y, "hx": float(k["half_width"]), "hz": float(k["length"]) * 0.5, "yaw": yaw,
+			"active": u >= w, "tele": clampf(u / w, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "zone"})
+	# 地面を伝う衝撃波：たたいた所から、さらに前へ走る（ジャンプでよけられる）。予告は、走る道
+	var wave_from := float(k["start"]) + float(k["length"])
+	var wl := float(k["wave_len"])
+	var root := boss_at(BAT_V, w, k, ctx)
+	if u < w:
+		var cw := root + f * (wave_from + wl * 0.5)
+		out.append({"id": "bvwl%d" % int(a["n"]), "shape": "obox", "x": cw.x, "z": cw.y, "hx": float(k["wave_half_width"]), "hz": wl * 0.5, "yaw": yaw,
+			"active": false, "tele": clampf(u / w, 0.0, 1.0) * 0.5, "power": 0.0, "jumpable": true, "target": "", "tick": -1, "style": "zone"})
+	elif u < w + float(k["wave_sec"]):
+		var p := (u - w) / float(k["wave_sec"])
+		var seg := float(k["wave_seg"])
+		var cw2 := root + f * (wave_from + (wl - seg) * p + seg * 0.5)
+		out.append({"id": "bvw%d" % int(a["n"]), "shape": "obox", "x": cw2.x, "z": cw2.y, "hx": float(k["wave_half_width"]), "hz": seg * 0.5, "yaw": yaw,
+			"active": true, "tele": 1.0, "power": float(k["wave_power"]), "jumpable": true, "target": "", "tick": -1, "style": "zone", "kb": "kb_light", "kb_mode": "forward", "part": "wave"})
+	return out
 
 
 ## バットの回転斬り：まわりの輪。回っている間は、tick_sec ごとにダメージ
 static func _bat_spin(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
 	var wind := float(k["windup_sec"])
-	var end_active := float(k["duration"]) - float(k["recover_sec"])
+	var end_active := float(k["duration"]) - float(k["recover_sec"]) - float(k.get("finish_sec", 0.0))
 	if u >= end_active:
 		return []
 	var boss: Vector2 = ctx["boss"]
