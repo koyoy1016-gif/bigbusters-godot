@@ -30,6 +30,9 @@
 ## 自作の効果音（assets/audio/sfx/）
 - 15個の .wav：`tools/make_sfx.py` が、計算（ノイズと音程の変化）で作った。他の作品の音は使っていない。CC0として扱う。
 
+## 自作のBGM（assets/audio/bgm/）
+- `menu.wav`（16秒のループ）：`tools/make_bgm.py` が、計算（矩形波・サイン波・ノイズ）で作った。他の作品の曲・旋律は使っていない。CC0として扱う。
+
 ## 動きの素材（assets/anims/hero_ual.res）
 - Quaternius「Universal Animation Library [Standard]」（https://quaternius.com/packs/universalanimationlibrary.html）。ライセンス：CC0 1.0（パブリックドメイン）。配布のzipの License.txt で確認済み（2026-10-19）。
 - 元の動き（UAL1_Standard.glb）から、一部の動き（待ち・走り・ジャンプ・こうげき・たおれる・ダメージ・ころがり・技・パンチ）を、`tools/retarget_ual.gd` で主人公（MPFBの骨）に移して保存した。元のファイルは、リポジトリには入れていない。

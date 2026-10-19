@@ -1,0 +1,5 @@
+{
+  "_memo": "メニューのBGM（自作。tools/make_bgm.py が作る）。戦いの最中は止める。ループして流す",
+  "file": "res://assets/audio/bgm/menu.wav",
+  "volume_db": -14.0
+}

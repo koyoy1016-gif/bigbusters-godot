@@ -14,6 +14,8 @@ const RoomCode := preload("res://scripts/network/room_code.gd")
 const Bridge := preload("res://scripts/network/room_bridge.gd")
 const AccountBridge := preload("res://scripts/network/account_bridge.gd")
 const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
+const SfxPlayer := preload("res://scripts/audio/sfx.gd")
+const BgmPlayer := preload("res://scripts/audio/bgm.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -32,6 +34,8 @@ var toast_time := 0.0
 var last_reward := 0
 var last_won := false
 var best_text := ""
+var menu_sfx: Node = null  # ボタンのクリック音
+var bgm: Node = null  # メニューのBGM（戦いの最中は止める）
 
 var title_label: Label
 var lobby_info: Label
@@ -116,6 +120,12 @@ func _ready() -> void:
 	layer.name = "Menus"
 	layer.layer = 10
 	add_child(layer)
+	menu_sfx = SfxPlayer.new()
+	menu_sfx.name = "MenuSfx"
+	add_child(menu_sfx)
+	bgm = BgmPlayer.new()
+	bgm.name = "Bgm"
+	add_child(bgm)
 	init_room()
 	_build_panels()
 	join_room()
@@ -156,8 +166,17 @@ func _make_button(text: String, min_size: Array, callback: Callable) -> Button:
 	button.custom_minimum_size = Vector2(min_size[0], min_size[1])
 	button.add_theme_font_override("font", font)
 	button.add_theme_font_size_override("font_size", int(config["button_font_size"]))
+	button.pressed.connect(_on_menu_press)
 	button.pressed.connect(callback)
 	return button
+
+
+## ボタンを押したとき：クリック音を鳴らし、BGMが止まっていれば流す（ブラウザは最初のタップのあとに音を鳴らせる）
+func _on_menu_press() -> void:
+	if menu_sfx != null:
+		menu_sfx.play("click")
+	if bgm != null and state != Logic.BATTLE:
+		bgm.start()
 
 
 ## 画面いっぱいの背景と、真ん中に縦に並べる入れ物を作る
@@ -451,6 +470,11 @@ func goto(new_state: String) -> void:
 		waiting_ready = false
 	state = new_state
 	state_time = 0.0
+	if bgm != null:
+		if new_state == Logic.BATTLE:
+			bgm.stop()
+		else:
+			bgm.start()
 	for key in panels:
 		(panels[key] as Control).visible = (key == new_state)
 	if new_state == Logic.BATTLE:
@@ -1226,4 +1250,6 @@ func _process(delta: float) -> void:
 ## タイトルは、タッチで飛ばせる
 func _unhandled_input(ev: InputEvent) -> void:
 	if state == Logic.TITLE and (ev is InputEventScreenTouch or ev is InputEventMouseButton) and ev.is_pressed():
+		if bgm != null:
+			bgm.start()
 		event("loaded")
