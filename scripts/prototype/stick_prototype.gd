@@ -72,6 +72,10 @@ var hazard_nodes: Array = []
 var hazard_done := {}
 var grab_locked := {}
 var stun_left := 0.0
+var grab_state := {}
+var grab_hand := Vector3.ZERO
+var grab_last_target := Vector3.ZERO
+var other_lift := {}
 ## AIの味方（通信なし、または部屋に自分ひとりのとき、空いた枠を埋める）。テストでは既定でオフ（流れの側がオンにする）
 var ai_enabled := false
 var ai_picks: Array = []
@@ -534,7 +538,7 @@ func handle_release(index: int) -> void:
 
 ## 地面にいるときだけ跳ぶ。ダウン中は跳べない
 func jump() -> void:
-	if downed:
+	if downed or _me_held():
 		return
 	if is_equal_approx(player.position.y, ground_y):
 		velocity_y = role_value("jump_speed")
@@ -689,6 +693,7 @@ func _begin_round(start_ms: float) -> void:
 	hazard_done = {}
 	grab_locked = {}
 	stun_left = 0.0
+	grab_state = {}
 	_ai_reset()
 	if net_active:
 		bridge.send_hits(0.0)
@@ -733,7 +738,7 @@ func highlight_data() -> Dictionary:
 ## こうげき：戦いの最中で、ボスに届く距離にいて、待ち時間が終わっていれば当たる。
 ## 与えた合計ダメージ（my_hits）を、部屋の全員に送る
 func attack() -> bool:
-	if not round_active() or downed or attack_cooldown > 0.0:
+	if not round_active() or downed or _me_held() or attack_cooldown > 0.0:
 		return false
 	var reach := role_value("attack_reach") + float(config["boss_size"]) * 0.5
 	if not Damage.in_reach(player.position, boss.position, reach):
@@ -786,7 +791,7 @@ func _round_t() -> float:
 
 ## Xの技を使う。使えたら true
 func use_skill() -> bool:
-	if not round_active() or downed or skill_cooldown > 0.0:
+	if not round_active() or downed or _me_held() or skill_cooldown > 0.0:
 		return false
 	var sc := _skill_def()
 	if sc.is_empty():
@@ -1073,41 +1078,210 @@ func build_result_lines() -> Array:
 
 ## ボスの腕：攻撃ごとの動き（ふだんは、ゆらゆら）
 func _pose_boss() -> void:
-	if current_attack.is_empty() or current_hazards.is_empty() and str(current_attack.get("kind", "")) != Attacks.FLYER_STORM:
+	var kind := str(current_attack.get("kind", ""))
+	for side in ["L", "R"]:
+		boss_model.set_hand_scale(side, 1.0)
+		boss_model.set_curl(side, 0.0)
+	if kind != Attacks.TYPHOON:
+		boss.rotation.y = 0.0
+	if kind == "":
 		boss_model.pose_idle(boss_clock)
 		return
 	var u := current_attack_u
-	var k: Dictionary = attacks_cfg["kinds"][str(current_attack["kind"])]
+	var k: Dictionary = attacks_cfg["kinds"][kind]
 	var bp := Vector3(boss.position.x, 0.0, boss.position.z)
-	var reach := 7.0
-	match str(current_attack["kind"]):
+	match kind:
 		Attacks.GRAB:
-			var h: Dictionary = current_hazards[0]
-			var tgt := Vector3(float(h["x"]), float(k["hand_height"]), float(h["z"]))
-			boss_model.set_hand("R", boss_model.to_local(tgt))
-			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 1.0, 3.0)))
+			_pose_grab(u, k, bp)
 		Attacks.TYPHOON:
-			var wind := float(k["windup_sec"])
-			var rad := lerpf(2.0, minf(float(k["radius"]) * 0.9, reach), clampf(u / wind, 0.0, 1.0))
-			var ang := deg_to_rad(float(k["spin_deg_per_sec"])) * maxf(u - wind, 0.0) + u * 2.0
-			for side in ["L", "R"]:
-				var a := ang + (0.0 if side == "L" else PI)
-				var w := bp + Vector3(cos(a) * rad, float(k["hand_height"]), sin(a) * rad)
-				boss_model.set_hand(side, boss_model.to_local(w))
+			_pose_typhoon(u, k)
 		Attacks.FLYERS:
 			var pulse := sin(u * 9.0)
 			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 1.8, 3.5 + 2.0 * maxf(pulse, 0.0))))
 			boss_model.set_hand("R", boss_model.to_local(bp + Vector3(2.5, 1.8, 3.5 + 2.0 * maxf(-pulse, 0.0))))
+			boss_model.set_curl("L", 0.5 + 0.5 * pulse)
+			boss_model.set_curl("R", 0.5 - 0.5 * pulse)
 		Attacks.FLYER_STORM:
 			var shake := sin(u * 14.0) * 0.6
 			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5 + shake, 7.0, 0.5)))
 			boss_model.set_hand("R", boss_model.to_local(bp + Vector3(2.5 - shake, 7.0, 0.5)))
+			boss_model.set_curl("L", 0.6)
+			boss_model.set_curl("R", 0.6)
 		Attacks.HAND_SWEEP:
-			var h: Dictionary = current_hazards[0]
-			var x := clampf(float(h["x"]), bp.x - reach, bp.x + reach)
-			var z := clampf(float(h["z"]), bp.z - reach, bp.z + reach)
-			boss_model.set_hand("R", boss_model.to_local(Vector3(x, 1.0, z)))
-			boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 3.5, 2.0)))
+			_pose_sweep(u, k, bp)
+
+
+## つかみ：目標の上でねらう → 下ろす → つかんで持ち上げる（つかめなければ、地面をたたいて開く）
+func _pose_grab(u: float, k: Dictionary, bp: Vector3) -> void:
+	var follow := float(k["follow_sec"])
+	var lock := float(k["lock_sec"])
+	var hit_from := follow + lock
+	var target := Vector3(boss.position.x, 0.0, boss.position.z + 6.0)
+	if not current_hazards.is_empty():
+		var h: Dictionary = current_hazards[0]
+		target = Vector3(float(h["x"]), 0.0, float(h["z"]))
+		grab_last_target = target
+	elif u >= hit_from:
+		target = grab_last_target
+	var hand := target
+	var curl := 0.0
+	if not grab_state.is_empty():
+		hand = grab_hand
+		curl = 1.0
+	elif u < follow:
+		hand.y = 3.2 + 0.25 * sin(u * 7.0)
+	elif u < hit_from:
+		hand.y = lerpf(3.2, 1.6, (u - follow) / lock)
+		curl = 0.25
+	elif u < hit_from + 0.4:
+		hand.y = 0.9
+		curl = 0.0
+	else:
+		var back := clampf((u - hit_from - 0.4) / 1.0, 0.0, 1.0)
+		hand = hand.lerp(bp + Vector3(2.5, 1.5, 3.5), back)
+		hand.y = lerpf(0.9, 1.5, back)
+	boss_model.set_hand("R", boss_model.to_local(hand))
+	boss_model.set_curl("R", curl)
+	boss_model.set_hand("L", boss_model.to_local(bp + Vector3(-2.5, 1.2, 3.0)))
+
+
+## 台風：両腕をまっすぐ横にのばして、体ごと回る（回りおわりは、正面にもどる）
+func _pose_typhoon(u: float, k: Dictionary) -> void:
+	var wind := float(k["windup_sec"])
+	var active_end := float(k["duration"]) - float(k["recover_sec"])
+	var reach := float(k["arm_reach"])
+	var rad := lerpf(2.2, reach, smoothstep(0.0, wind, u))
+	if u > active_end:
+		rad = lerpf(reach, 2.2, smoothstep(active_end, float(k["duration"]), u))
+	var spin_t := active_end - wind
+	var turns := roundf(float(k["spin_deg_per_sec"]) * spin_t / 360.0)
+	var p := clampf((u - wind) / spin_t, 0.0, 1.0)
+	boss.rotation.y = turns * TAU * smoothstep(0.0, 1.0, p)
+	var speed := sin(PI * p) if p > 0.0 and p < 1.0 else 0.0
+	var trail := 2.2 * speed
+	var y := float(k["arm_height"])
+	boss_model.set_hand("L", Vector3(rad, y, 0.0), Vector3(0.0, 0.0, trail))
+	boss_model.set_hand("R", Vector3(-rad, y, 0.0), Vector3(0.0, 0.0, -trail))
+	boss_model.set_curl("L", 0.15)
+	boss_model.set_curl("R", 0.15)
+
+
+## 手のなぎはらい：ほんものの手（大きくして、ひらいたまま）が、画面のはしからはしへ走る。腕はのびる
+func _pose_sweep(u: float, k: Dictionary, bp: Vector3) -> void:
+	var sc := float(k["hand_scale"])
+	var used := {"L": false, "R": false}
+	for h in current_hazards:
+		if str(h["style"]) != "hand":
+			continue
+		var side := "R" if float(h["dir"]) > 0.0 else "L"
+		used[side] = true
+		boss_model.set_hand_scale(side, sc)
+		boss_model.set_hand(side, boss_model.to_local(Vector3(float(h["x"]), 1.1, float(h["z"]))), Vector3(0.0, 0.0, 1.5))
+	for side in ["L", "R"]:
+		if not used[side]:
+			var out := 1.0 if side == "L" else -1.0
+			boss_model.set_hand(side, boss_model.to_local(bp + Vector3(out * 2.8, 5.0, 1.0)))
+			boss_model.set_curl(side, 0.3)
+
+
+## ---- つかみ：持ち上げる・動けない・助ける ----
+
+func _me_held() -> bool:
+	return not grab_state.is_empty() and str(grab_state["slot"]) == _my_slot()
+
+
+## ボスに与えた合計ダメージ（自分＋ほかの人＋AI）
+func _total_boss_damage() -> float:
+	return my_hits + others_hits + _ai_hits_total()
+
+
+func _start_hold(slot: String, from: Vector2) -> void:
+	if not grab_state.is_empty():
+		return
+	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0}
+	if slot == _my_slot():
+		stun_left = maxf(stun_left, 0.1)
+	grab_hand = Vector3(from.x, 0.9, from.y)
+
+
+func _release_hold(freed: bool) -> void:
+	var k: Dictionary = attacks_cfg["kinds"]["grab"]
+	var slot := str(grab_state["slot"])
+	grab_state = {}
+	if slot == _my_slot():
+		if freed:
+			stun_left = maxf(stun_left, float(k["free_stun_sec"]))
+		else:
+			_take_damage(Damage.damage_amount(float(k["drop_power"]), float(attacks_cfg["damage_multiplier"])))
+			player_hit_flash = float(config["hit_flash_sec"])
+			stun_left = maxf(stun_left, float(k["drop_stun_sec"]))
+		velocity_y = 0.0
+	elif ai_allies.has(slot):
+		var a: Dictionary = ai_allies[slot]
+		a["held"] = false
+		other_lift[slot] = 0.0
+		if not freed:
+			a["hp"] = maxf(0.0, float(a["hp"]) - Damage.damage_amount(float(k["drop_power"]), float(attacks_cfg["damage_multiplier"])))
+			if float(a["hp"]) <= 0.0:
+				a["downed"] = true
+			a["stun"] = float(k["drop_stun_sec"])
+		else:
+			a["stun"] = float(k["free_stun_sec"])
+
+
+func _grab_update(delta: float) -> void:
+	if grab_state.is_empty():
+		return
+	var k: Dictionary = attacks_cfg["kinds"]["grab"]
+	var slot := str(grab_state["slot"])
+	var mult := float(attacks_cfg["damage_multiplier"])
+	grab_state["t"] = float(grab_state["t"]) + delta
+	var t := float(grab_state["t"])
+	# 助ける：つかまれてから、みんなで与えたダメージが、決めた量を超えると外れる
+	var grip := _total_boss_damage() - float(grab_state["base"])
+	var is_me := slot == _my_slot()
+	var target_down := downed if is_me else (not ai_allies.has(slot) or bool(ai_allies[slot]["downed"]))
+	if target_down or not round_active():
+		_release_hold(true)
+		return
+	if grip >= float(k["free_damage"]):
+		_release_hold(true)
+		return
+	if t >= float(k["hold_sec"]):
+		_release_hold(false)
+		return
+	# 手の位置：つかんだ場所から、持ち上げた位置へ
+	var lift := clampf(t / float(k["lift_sec"]), 0.0, 1.0)
+	var from: Vector2 = grab_state["from"]
+	var hold_xz := Vector2(boss.position.x, boss.position.z + 3.2)
+	var xz := from.lerp(hold_xz, lift)
+	var y := lerpf(0.9, float(k["hold_height"]), lift)
+	grab_hand = Vector3(xz.x, y, xz.y)
+	# しめつけのダメージ
+	grab_state["squeeze"] = float(grab_state["squeeze"]) + delta
+	if float(grab_state["squeeze"]) >= float(k["squeeze_tick_sec"]):
+		grab_state["squeeze"] = float(grab_state["squeeze"]) - float(k["squeeze_tick_sec"])
+		var sq := Damage.damage_amount(float(k["squeeze_power"]), mult)
+		if is_me:
+			_take_damage(sq)
+			player_hit_flash = float(config["hit_flash_sec"])
+		else:
+			var a2: Dictionary = ai_allies[slot]
+			a2["hp"] = maxf(0.0, float(a2["hp"]) - sq)
+			a2["flash"] = 0.15
+			if float(a2["hp"]) <= 0.0:
+				a2["downed"] = true
+	if is_me:
+		stun_left = maxf(stun_left, 0.1)
+		velocity_y = 0.0
+		player.position = Vector3(xz.x, y, xz.y)
+	elif ai_allies.has(slot):
+		var a3: Dictionary = ai_allies[slot]
+		a3["pos"] = xz
+		other_lift[slot] = y
+		var half := float(config["bounds"])
+		other_target[slot] = Vector2((xz.x + half) / (2.0 * half), (xz.y + half) / (2.0 * half))
+		other_pos[slot] = other_target[slot]
 
 
 ## ---- AIの味方 ----
@@ -1149,6 +1323,7 @@ func _ai_reset() -> void:
 	ai_allies = {}
 	ai_hits = {}
 	ai_done = {}
+	other_lift = {}
 	if not _ai_active():
 		return
 	ai_rng.seed = int(fmod(maxf(round_start_ms, 1.0), 1000000007.0)) + 99
@@ -1212,7 +1387,13 @@ func _ai_update(delta: float) -> void:
 			if dealt > 0.0:
 				ai_hits[slot] = float(ai_hits[slot]) + dealt
 				dealt_total += dealt
+			var was_held := bool(a.get("held", false))
 			AiAlly.take_hazards(a, str(slot), current_hazards, ai_done, float(attacks_cfg["damage_multiplier"]))
+			if bool(a.get("held", false)) and not was_held and grab_state.is_empty():
+				var gp: Vector2 = a["pos"]
+				_start_hold(str(slot), gp)
+			elif bool(a.get("held", false)) and not was_held:
+				a["held"] = false
 			var p: Vector2 = a["pos"]
 			other_target[slot] = Vector2((p.x + half) / (2.0 * half), (p.y + half) / (2.0 * half))
 		if dealt_total > 0.0:
@@ -1239,8 +1420,10 @@ func _attack_ctx(a: Dictionary, u: float) -> Dictionary:
 	var members: Array = net_state.get("members", []).duplicate() if net_active else []
 	if not members.has(me):
 		members.append(me)
+	if downed:
+		members.erase(me)
 	for slot in ai_allies:
-		if not members.has(slot):
+		if not members.has(slot) and not bool(ai_allies[slot]["downed"]):
 			members.append(slot)
 	var positions := {me: Vector2(player.position.x, player.position.z)}
 	for slot in other_pos:
@@ -1264,6 +1447,7 @@ func combat_update(delta: float) -> void:
 	current_hazards = []
 	if not round_active():
 		_show_hazards([])
+		grab_state = {}
 		return
 	var t := (server_now_ms() - round_start_ms) / 1000.0
 	var idx := Attacks.active_index(attack_schedule, t)
@@ -1277,12 +1461,13 @@ func combat_update(delta: float) -> void:
 	else:
 		current_attack = {}
 	_ai_update(delta)
+	_grab_update(delta)
 	_show_hazards(current_hazards)
 
 
 ## 当たり場所の中にいれば、ダメージ（自分の分だけ調べる）。同じ当たりは1回だけ
 func _apply_hazards(hz: Array) -> void:
-	if downed or dash_left > 0.0:
+	if downed or dash_left > 0.0 or _me_held():
 		return
 	var me := _my_slot()
 	var airborne := player.position.y > ground_y + float(attacks_cfg["dodge_height"])
@@ -1304,6 +1489,8 @@ func _apply_hazards(hz: Array) -> void:
 		_take_damage(Damage.damage_amount(float(h["power"]), float(attacks_cfg["damage_multiplier"])))
 		if h.has("stun"):
 			stun_left = maxf(stun_left, float(h["stun"]))
+		if bool(h.get("grab", false)) and not downed:
+			_start_hold(me, Vector2(float(h["x"]), float(h["z"])))
 		if downed:
 			return
 
@@ -1362,9 +1549,8 @@ func _show_hazards(hz: Array) -> void:
 		else:
 			# 手（動いているあいだ）と、予告の帯
 			if active:
-				n.position = Vector3(float(h["x"]), 0.8, float(h["z"]))
-				n.scale = Vector3(float(h["hx"]) * 2.0, 1.4, float(h["hz"]) * 2.0)
-				m.albedo_color = Color(str(attacks_cfg["hand_color"]))
+				n.visible = false
+				continue
 			else:
 				n.position = Vector3(0.0, 0.03, float(h["band_z"]))
 				n.scale = Vector3(float(h["band_half"]) * 2.0, 0.04, float(h["hz"]) * 2.0)
@@ -1463,7 +1649,7 @@ func _update_others(delta: float) -> void:
 		other_pos[slot] = current
 		var node := _other_node(str(slot))
 		var old_pos := node.position
-		node.position = Vector3(current.x * 2.0 * half - half, ground_y, current.y * 2.0 * half - half)
+		node.position = Vector3(current.x * 2.0 * half - half, ground_y + float(other_lift.get(slot, 0.0)), current.y * 2.0 * half - half)
 		_update_other_view(str(slot), node, node.position - old_pos, delta)
 
 

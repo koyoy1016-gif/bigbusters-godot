@@ -192,9 +192,21 @@ func _initialize() -> void:
 		now[0] = t0 + first_ms + lock_ms + 50.0
 		s2.combat_update(0.016)
 		check(is_equal_approx(s2.my_hp, hp_full - float(gk["power"])), "つかまれると、ダメージを受ける")
-		check(s2.stun_left > 0.0, "つかまれると、しばらく動けない")
+		check(s2._me_held() and s2.stun_left > 0.0, "つかまれると、持ち上げられて動けない")
 		s2.combat_update(0.016)
 		check(is_equal_approx(s2.my_hp, hp_full - float(gk["power"])), "同じ一撃は、1回しか当たらない")
+		# 持ち上げ：ボスの前の高いところに上がる。こうげき・ジャンプはできない。しめつけでダメージ
+		for i in 20:
+			now[0] += 50.0
+			s2.combat_update(0.05)
+		check(s2.player.position.y > float(gk["hold_height"]) - 0.5, "つかまれると、高く持ち上げられる")
+		check(not s2.attack() and s2.my_hp < hp_full - float(gk["power"]), "つかまれている間は、こうげきできない。しめつけでダメージ")
+		# 助ける：ボスに十分なダメージが入ると、外れる
+		s2.my_hits = float(gk["free_damage"]) + 1.0
+		s2.combat_update(0.05)
+		check(not s2._me_held() and s2.stun_left > 0.0, "みんなでダメージを与えると、外れる")
+		s2.player.position.y = s2.ground_y
+		s2.grab_state = {}
 		now[0] = t0 + first_ms + float(gk["duration"]) * 1000.0 + 100.0
 		s2.combat_update(0.016)
 		check(not (s2.hazard_nodes[0] as Node3D).visible, "つかみが終わると、輪が消える")
@@ -202,6 +214,8 @@ func _initialize() -> void:
 		s2.my_hp = hp_full
 		s2.hazard_done = {}
 		s2.stun_left = 0.0
+		s2.grab_state = {}
+		s2.player.position.y = s2.ground_y
 		var sched: Array = s2.attack_schedule
 		var fl: Dictionary = sched[1]
 		check(str(fl["kind"]) == "flyers", "予定表の2番めは、チラシ")
@@ -226,6 +240,8 @@ func _initialize() -> void:
 		s2.stun_left = 0.0
 		s2.player.position = Vector3(0.0, s2.ground_y, float(cfg2["boss_position"][1]) + 2.0)
 		s2.my_hp = 5.0
+		s2.grab_state = {}
+		s2.my_hits = 0.0
 		s2.hazard_done = {}
 		var gt: Dictionary = sched[0]
 		s2.player.position = Vector3(0.0, s2.ground_y, 6.0)

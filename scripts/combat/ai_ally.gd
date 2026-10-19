@@ -61,7 +61,7 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 	a["air"] = maxf(0.0, float(a["air"]) - delta)
 	a["stun"] = maxf(0.0, float(a["stun"]) - delta)
 	a["cd"] = maxf(0.0, float(a["cd"]) - delta)
-	if bool(a["downed"]) or float(a["stun"]) > 0.0:
+	if bool(a["downed"]) or float(a["stun"]) > 0.0 or bool(a.get("held", false)):
 		return 0.0
 	var cfg: Dictionary = ctx["cfg"]
 	var st: Dictionary = a["stats"]
@@ -113,7 +113,7 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 
 ## ボスの当たりを受ける。受けたダメージの合計を返す。done：すでに当たった印（キー → true）
 static func take_hazards(a: Dictionary, slot: String, hazards: Array, done: Dictionary, multiplier: float) -> float:
-	if bool(a["downed"]):
+	if bool(a["downed"]) or bool(a.get("held", false)):
 		return 0.0
 	var total := 0.0
 	var pos: Vector2 = a["pos"]
@@ -136,6 +136,8 @@ static func take_hazards(a: Dictionary, slot: String, hazards: Array, done: Dict
 		a["flash"] = 0.15
 		if h.has("stun"):
 			a["stun"] = maxf(float(a["stun"]), float(h["stun"]))
+		if bool(h.get("grab", false)):
+			a["held"] = true
 	if total > 0.0:
 		a["hp"] = maxf(0.0, float(a["hp"]) - total)
 		if float(a["hp"]) <= 0.0:

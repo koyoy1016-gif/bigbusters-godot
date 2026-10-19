@@ -70,6 +70,12 @@ func _init() -> void:
 	check(bool(c3["downed"]) and float(c3["hp"]) == 0.0, "体力が0で、ダウン")
 	check(Ai.step(c3, 0.1, ctx) == 0.0, "ダウン中は何もしない")
 
+	# つかまれたAIは動けない
+	var gh := {"id": "g1", "shape": "circle", "x": 0.0, "z": 0.0, "r": 3.0, "active": true, "tele": 1.0, "power": 8.0, "jumpable": true, "target": "p2", "tick": -1, "stun": 0.0, "grab": true}
+	var g := Ai.make(gunner, 0, Vector2(0, 0))
+	Ai.take_hazards(g, "p2", [gh], {}, 1.0)
+	check(bool(g["held"]) and Ai.step(g, 0.1, ctx) == 0.0 and (g["pos"] as Vector2) == Vector2(0, 0), "つかまれたAIは、動けない")
+
 	# 戦いへの組み込み
 	var packed := load(SCENE) as PackedScene
 	var s: Node = packed.instantiate()
@@ -103,6 +109,24 @@ func _init() -> void:
 	check(s.boss_hp < hp0 and s._ai_hits_total() > 0.0, "AIがボスにダメージを与える")
 	check(s.ranking_entries().size() == 4, "ランキングは4人")
 	check(s.char_def_of("p3").get("id", "") == "brawler" and s.role_name_of("p3") != "", "AIのキャラが分かる")
+	# AIがつかまれる：持ち上がる → 時間がたつと落ちてダメージ／ダメージを与えれば外れる
+	s.grab_state = {}
+	var kk: Dictionary = s.attacks_cfg["kinds"]["grab"]
+	var ally: Dictionary = s.ai_allies["p2"]
+	var hp_a: float = ally["hp"]
+	ally["held"] = true
+	s._start_hold("p2", ally["pos"])
+	for i in 30:
+		s._grab_update(0.05)
+	check(float(s.other_lift.get("p2", 0.0)) > float(kk["hold_height"]) - 0.5 and float(ally["hp"]) < hp_a, "AIが持ち上がり、しめつけられる")
+	for i in 80:
+		s._grab_update(0.05)
+	check(s.grab_state.is_empty() and not bool(ally["held"]) and float(s.other_lift["p2"]) == 0.0, "時間がたつと、はなされる")
+	ally["held"] = true
+	s._start_hold("p2", ally["pos"])
+	s.ai_hits["p3"] = float(s.ai_hits["p3"]) + float(kk["free_damage"]) + 1.0
+	s._grab_update(0.05)
+	check(s.grab_state.is_empty() and not bool(ally["held"]), "みんなのダメージで、助けられる")
 	# 自分がダウンしても、AIが生きていれば続く。AIが全員ダウンすれば全滅
 	s.downed = true
 	s._check_wipe()

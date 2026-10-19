@@ -10,6 +10,8 @@ var skin: StandardMaterial3D
 var dark: StandardMaterial3D
 var arm_nodes := {"L": [], "R": []}
 var hand_nodes := {}
+var finger_pivots := {}
+var hand_bend := {"L": Vector3.ZERO, "R": Vector3.ZERO}
 var shoulder := {"L": Vector3(1.35, 0.8, 0.0), "R": Vector3(-1.35, 0.8, 0.0)}
 var hand_target := {"L": Vector3.ZERO, "R": Vector3.ZERO}
 var cfg: Dictionary = {}
@@ -102,20 +104,64 @@ func build(config: Dictionary, skin_material: StandardMaterial3D) -> void:
 			arm_nodes[side].append(seg)
 		var hand := Node3D.new()
 		add_child(hand)
-		hand.add_child(_sphere(float(config["hand_radius"]), skin, Vector3.ZERO))
-		for k in 4:
-			var f := MeshInstance3D.new()
-			var fcm := CapsuleMesh.new()
-			fcm.radius = float(config["hand_radius"]) * 0.22
-			fcm.height = float(config["hand_radius"]) * 1.7
-			fcm.material = skin
-			f.mesh = fcm
-			var a := (float(k) - 1.5) * 0.42
-			f.position = Vector3(sin(a) * float(config["hand_radius"]) * 0.8, -float(config["hand_radius"]) * 0.9, cos(a) * float(config["hand_radius"]) * 0.4)
-			f.rotation = Vector3(0, 0, -a * 0.5)
-			hand.add_child(f)
+		var hr := float(config["hand_radius"])
+		# てのひら（平たい丸）
+		var palm := _sphere(hr, skin, Vector3.ZERO)
+		palm.scale = Vector3(1.0, 1.0, 0.55)
+		hand.add_child(palm)
+		# 指4本（2つの節。曲げられる）と、親指
+		finger_pivots[side] = []
+		for k in 5:
+			var thumb := k == 4
+			var a := (float(k) - 1.5) * 0.4 if not thumb else 0.0
+			var base := Vector3(sin(a) * hr * 0.85, -hr * 0.75, 0.0) if not thumb else Vector3(hr * 0.9, -hr * 0.1, 0.0)
+			var len1 := hr * (0.75 if not thumb else 0.6)
+			var len2 := hr * (0.65 if not thumb else 0.5)
+			var rad := hr * (0.2 if not thumb else 0.24)
+			var p1 := Node3D.new()
+			p1.position = base
+			if thumb:
+				p1.rotation = Vector3(0, 0, 1.0)
+			else:
+				p1.rotation = Vector3(0, 0, -a * 0.6)
+			hand.add_child(p1)
+			p1.add_child(_finger_seg(rad, len1))
+			var p2 := Node3D.new()
+			p2.position = Vector3(0, -len1, 0)
+			p1.add_child(p2)
+			p2.add_child(_sphere(rad * 1.05, skin, Vector3.ZERO))
+			p2.add_child(_finger_seg(rad * 0.85, len2))
+			(finger_pivots[side] as Array).append([p1, p2])
 		hand_nodes[side] = hand
 	pose_idle(0.0)
+
+
+func _finger_seg(radius: float, length: float) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = radius
+	cm.height = length + radius * 1.2
+	cm.radial_segments = 8
+	cm.rings = 2
+	cm.material = skin
+	mi.mesh = cm
+	mi.position = Vector3(0, -length * 0.5, 0)
+	return mi
+
+
+## 手をにぎる／ひらく。k：0（ひらく）〜 1（にぎる）。親指は、半分だけ曲げる
+func set_curl(side: String, k: float) -> void:
+	var list: Array = finger_pivots.get(side, [])
+	for i in list.size():
+		var pair: Array = list[i]
+		var f := 0.5 if i == 4 else 1.0
+		(pair[0] as Node3D).rotation.x = -k * 1.25 * f
+		(pair[1] as Node3D).rotation.x = -k * 1.7 * f
+
+
+## 手の大きさを変える（1.0 がふつう）
+func set_hand_scale(side: String, s: float) -> void:
+	(hand_nodes[side] as Node3D).scale = Vector3.ONE * s
 
 
 func _mat(color: Color) -> StandardMaterial3D:
@@ -140,8 +186,9 @@ func _sphere(radius: float, mat: StandardMaterial3D, pos: Vector3) -> MeshInstan
 
 
 ## 手の先の位置を決めて、節を並べなおす。target は、胴体から見た座標
-func set_hand(side: String, target: Vector3) -> void:
+func set_hand(side: String, target: Vector3, bend: Vector3 = Vector3.ZERO) -> void:
 	hand_target[side] = target
+	hand_bend[side] = bend
 	_layout_arm(side)
 
 
@@ -149,7 +196,7 @@ func _layout_arm(side: String) -> void:
 	var s: Vector3 = shoulder[side]
 	var h: Vector3 = hand_target[side]
 	var out := 1.0 if side == "L" else -1.0
-	var control := (s + h) * 0.5 + Vector3(out * float(cfg["arm_bow"]), -float(cfg["arm_sag"]) * clampf((h - s).length() / float(cfg["arm_length"]), 0.2, 1.0), 0.0)
+	var control := (s + h) * 0.5 + Vector3(out * float(cfg["arm_bow"]), -float(cfg["arm_sag"]) * clampf((h - s).length() / float(cfg["arm_length"]), 0.2, 1.0), 0.0) + (hand_bend[side] as Vector3)
 	var pts: Array = []
 	for i in ARM_SEGMENTS + 1:
 		var t := float(i) / float(ARM_SEGMENTS)

@@ -22,15 +22,25 @@
  "hand_color": "#8f2e3d",
  "kinds": {
   "grab": {
-   "duration": 4.0,
+   "duration": 7.2,
    "follow_sec": 1.5,
    "lock_sec": 0.5,
    "hit_sec": 0.3,
    "hit_radius": 1.7,
-   "power": 30.0,
-   "stun_sec": 1.0,
+   "power": 8.0,
+   "stun_sec": 0.0,
    "jumpable": true,
-   "hand_height": 0.6
+   "hand_height": 0.6,
+   "hold_sec": 3.5,
+   "lift_sec": 0.5,
+   "hold_height": 4.2,
+   "squeeze_power": 6.0,
+   "squeeze_tick_sec": 0.8,
+   "free_damage": 160.0,
+   "drop_power": 8.0,
+   "drop_stun_sec": 0.8,
+   "free_stun_sec": 0.4,
+   "grab": true
   },
   "typhoon": {
    "duration": 5.5,
@@ -41,7 +51,9 @@
    "power": 10.0,
    "jumpable": true,
    "spin_deg_per_sec": 520.0,
-   "hand_height": 0.8
+   "hand_height": 0.8,
+   "arm_height": 0.1,
+   "arm_reach": 7.0
   },
   "flyers": {
    "duration": 6.0,
@@ -89,7 +101,8 @@
     3.0,
     -1.0,
     6.0
-   ]
+   ],
+   "hand_scale": 2.4
   }
  },
  "damage_multiplier": 1.0
