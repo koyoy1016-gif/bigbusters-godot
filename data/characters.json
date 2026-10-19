@@ -302,16 +302,22 @@
       "archetype": "magic",
       "weapon": "まほう",
       "note": "魔法っぽいもので戦う",
-      "model": "",
+      "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 1.794,
       "animations": {
         "idle": "Idle",
         "run": "Run",
         "jump": "Jump",
-        "attack": "Attack",
-        "down": "Death"
+        "attack": "Spell",
+        "down": "Death",
+        "swing": "Spell",
+        "jump_start": "Jump_Start",
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell",
+        "hit": "Hit"
       },
       "skill": "魔法",
       "break_power": 1.0,
@@ -321,7 +327,13 @@
         "attack_power": 18.0,
         "attack_cooldown_sec": 0.5,
         "attack_reach": 7.0
-      }
+      },
+      "look": "mage",
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "procedural_anims": true,
+      "anim_oneshot": [
+        "attack"
+      ]
     },
     {
       "id": "guardian",
@@ -331,16 +343,22 @@
       "archetype": "shield",
       "weapon": "たて",
       "note": "盾で守る。味方をかばう",
-      "model": "",
+      "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 1.755,
       "animations": {
         "idle": "Idle",
         "run": "Run",
         "jump": "Jump",
-        "attack": "Attack",
-        "down": "Death"
+        "attack": "Sword_Attack",
+        "down": "Death",
+        "swing": "Sword_Attack",
+        "jump_start": "Jump_Start",
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell",
+        "hit": "Hit"
       },
       "skill": "バリア",
       "break_power": 3.0,
@@ -350,7 +368,13 @@
         "attack_power": 10.5,
         "attack_cooldown_sec": 0.5,
         "attack_reach": 2.0
-      }
+      },
+      "look": "guardian",
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "procedural_anims": true,
+      "anim_oneshot": [
+        "attack"
+      ]
     },
     {
       "id": "summoner",

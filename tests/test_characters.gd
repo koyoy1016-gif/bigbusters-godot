@@ -23,8 +23,10 @@ func _initialize() -> void:
 	var hero := CharacterData.find(cfg, str(cfg["player_character"]))
 	check(not hero.is_empty() and hero["name"] == "けんし", "主人公（けんし）がいる")
 	check(CharacterData.find(cfg, "zzz").is_empty(), "知らないidは空")
-	var no_model := CharacterData.find(cfg, "guardian")
-	check(not CharacterData.has_model(no_model), "モデルのファイルがまだないキャラ（たて）は、箱のまま")
+	# 2026-10-20：8人の味方は、みんな見た目（剣士と同じ体＋服・装備）を持つようになった。モデルのないキャラは、作って確かめる
+	var no_model := CharacterData.find(cfg, "guardian").duplicate(true)
+	no_model["model"] = ""
+	check(not CharacterData.has_model(no_model), "モデルのファイルがないキャラは、箱のまま")
 	check(CharacterData.has_model(hero), "主人公（けんし）は、本物のモデルのファイルがある")
 	check(float(hero["tri_budget"]) <= float(cfg["budgets"]["ally"]), "面の数の予算が、味方の上限以内")
 	var font := load("res://assets/fonts/NotoSansJP-Regular-subset.ttf") as Font

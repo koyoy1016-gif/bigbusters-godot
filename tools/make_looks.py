@@ -588,12 +588,317 @@ def mage():
     }
 
 
+def heater2d(w, h):
+    """騎士の盾の形（上は平ら、下はとがる）"""
+    pts = [[-w / 2, h * 0.45], [w / 2, h * 0.45]]
+    n = 10
+    for i in range(1, n + 1):
+        t = i / n
+        pts.append([w / 2 * (1 - t ** 1.6), h * 0.45 - h * t])
+    for i in range(n - 1, 0, -1):
+        t = i / n
+        pts.append([-w / 2 * (1 - t ** 1.6), h * 0.45 - h * t])
+    return pts
+
+
+def spikes_on_sphere(bone, c, r, color, n=10, length=0.05):
+    ps = []
+    golden = math.pi * (3 - math.sqrt(5))
+    for i in range(n):
+        y = 1 - 2 * (i + 0.5) / n
+        rr = math.sqrt(1 - y * y)
+        a = golden * i
+        d = (rr * math.cos(a), y, rr * math.sin(a))
+        ps.append(rod(bone, add(c, d, r * 0.9), add(c, d, r + length), 0.018, 0.001, color, segs=6, metallic=0.7, rough=0.35))
+    return ps
+
+
+# ============================================================== アーマー（たて）
+def guardian():
+    STEEL = "#59606b"
+    STEEL_D = "#3c424b"
+    GOLD = "#c9a240"
+    FUR = "#7d6c58"
+    BLACK = "#1c1d22"
+    BLUE = "#26437e"
+    parts = []
+    # かぶと：頭のおおい・金のふち・てっぺんのとげ・鼻あて
+    parts.append(sph("head", (0, 1.9, 0.02), 0.128, STEEL_D, squash=(1.0, 0.85, 1.05), segs=16, metallic=0.7, rough=0.35, tex="steel"))
+    parts.append(torus("head", (0, 1.87, 0.025), 0.125, 0.012, GOLD, squash=(1.0, 1.0, 1.06), segs=18, metallic=0.8, rough=0.3))
+    parts.append(rod("head", (0, 1.99, 0.0), (0, 2.08, -0.01), 0.025, 0.002, STEEL_D, segs=8, metallic=0.7))
+    for a in (-60, -30, 30, 60):
+        r = math.radians(a)
+        parts.append(rod("head", (0.1 * math.sin(r), 1.96, 0.1 * math.cos(r) * 0.3 - 0.02), (0.15 * math.sin(r), 2.02, 0.12 * math.cos(r) * 0.3 - 0.03),
+                         0.014, 0.001, STEEL_D, segs=6, metallic=0.7))
+    parts.append(box("head", (0, 1.83, 0.155), (0.022, 0.09, 0.02), STEEL_D, metallic=0.7, rough=0.35))
+    parts.append(sph("head", (0.115, 1.81, 0.04), 0.04, STEEL_D, squash=(0.4, 1.3, 1.0), mirror=True, metallic=0.7))
+    # 毛皮のえり（首から肩へ、もこもこ）
+    for i in range(16):
+        a = 2 * math.pi * i / 16
+        parts.append(sph("spine01", (0.2 * math.sin(a), 1.66 + 0.02 * math.cos(2 * a), 0.0 + 0.16 * math.cos(a) - 0.02), 0.07, FUR,
+                         squash=(1.2, 0.8, 1.2), segs=8, rough=1.0))
+    # 肩当て（丸い大きな板、金のふち、小さなとげ）
+    sh = add(SHOULDER_L, UPPERARM_DIR, 0.06)
+    parts.append(sph("upperarm01.L", add(sh, [0.02, 0.03, 0]), 0.13, STEEL, squash=(1.0, 0.8, 1.05), mirror=True, segs=14, metallic=0.7, rough=0.35, tex="steel"))
+    parts.append(torus("upperarm01.L", add(sh, [0.02, -0.02, 0]), 0.12, 0.01, GOLD, rot=(0, 0, -20), mirror=True, metallic=0.8, rough=0.3))
+    parts.append(rod("upperarm01.L", add(sh, [0.08, 0.1, 0]), add(sh, [0.12, 0.16, 0]), 0.02, 0.001, STEEL_D, mirror=True, segs=6, metallic=0.7))
+    # 胸のライオンの紋章・腰の留め金
+    parts.append(extrude("spine01", (0, 1.45, 0.215), circle2d(0.055, 16), 0.015, GOLD, metallic=0.8, rough=0.3))
+    parts.append(extrude("spine05", (0, 1.12, 0.215), circle2d(0.045, 16, 1.2, 1.0), 0.015, GOLD, metallic=0.8, rough=0.3))
+    # くさりのすそ（腰から、ももの中ほどまで）
+    parts.append(loft("spine05", [((0, 1.1, 0.0), 0.25, 0.22), ((0, 0.95, 0.0), 0.29, 0.25), ((0, 0.8, 0.0), 0.31, 0.27)], "#585e66",
+                      segs=20, caps=False, double=True, metallic=0.6, rough=0.5, tex="steel"))
+    for x in (0.16, -0.16):
+        parts.append(box("spine05", (x, 0.96, 0.17), (0.15, 0.2, 0.03), STEEL, rot=(-10, 0, 8 if x > 0 else -8), metallic=0.7, tex="steel"))
+    # 黒いマント（背中、地面の近くまで）
+    cape = [((0, 1.66, -0.04), 0.23, 0.12), ((0, 1.3, -0.07), 0.27, 0.15), ((0, 0.8, -0.09), 0.31, 0.17), ((0, 0.3, -0.1), 0.34, 0.18)]
+    parts.append(loft("spine01", cape, BLACK, segs=18, arc=(15, 165), caps=False, double=True, rough=0.9))
+    # 右手のとげ鉄球の棍棒
+    wr = [-WRIST_L[0], WRIST_L[1], WRIST_L[2]]
+    fd = [-FOREARM_DIR[0], FOREARM_DIR[1], FOREARM_DIR[2]]
+    grip_a = add(wr, [0, -1, 0], -0.08)
+    grip_b = add(wr, [0, -1, 0], 0.42)
+    parts.append(rod("wrist.R", add(grip_a, fd, 0.06), add(grip_b, fd, 0.06), 0.022, 0.026, "#4a3424", segs=8, tex="leather"))
+    mace_c = add(add(grip_b, fd, 0.06), [0, -1, 0], 0.07)
+    parts.append(sph("wrist.R", mace_c, 0.09, STEEL_D, segs=12, metallic=0.75, rough=0.35, tex="steel"))
+    parts += spikes_on_sphere("wrist.R", mace_c, 0.09, STEEL_D, n=12, length=0.06)
+    # 左腕の盾（青に金のふちとライオン）
+    mid = add(ELBOW_L, FOREARM_DIR, 0.13)
+    sc = add(mid, [0.06, 0.02, 0.12])
+    parts.append(extrude("lowerarm01.L", sc, heater2d(0.46, 0.58), 0.03, GOLD, rot=(0, 15, 0), metallic=0.8, rough=0.3))
+    parts.append(extrude("lowerarm01.L", add(sc, [0.002, 0, 0.012]), heater2d(0.4, 0.52), 0.03, BLUE, rot=(0, 15, 0), rough=0.5))
+    parts.append(extrude("lowerarm01.L", add(sc, [0.004, 0.02, 0.026]), circle2d(0.1, 18, 1.0, 1.1), 0.02, GOLD, rot=(0, 15, 0), metallic=0.85, rough=0.3))
+    parts.append(extrude("lowerarm01.L", add(sc, [0.006, 0.0, 0.034]), circle2d(0.05, 12, 1.0, 1.2), 0.02, "#a8812e", rot=(0, 15, 0), metallic=0.8))
+    return {
+        "name": "アーマー",
+        "ref": "docs/ref/chars/IMG_0401.jpeg",
+        "attack_anim": "Sword_Attack",
+        "height": 0.9,
+        "keep": ["eyebrow001", "eyelashes01", "low-poly"],
+        "skin": "#e6b08a",
+        "head_scale": 1.1,
+        "bulk": {"neck": 1.5, "chest": [1.5, 1.4], "belly": [1.48, 1.4], "hips": [1.3, 1.25],
+                 "upperarm": 1.6, "forearm": 1.6, "thigh": 1.6, "shin": 1.5},
+        "paint": [
+            region(STEEL, metallic=0.7, rough=0.35, tex="steel"),
+            # 顔は肌（ひげは茶色）
+            region("skin", groups=["head"], mesh=["body"]),
+            region("#5a3a28", groups=["head"], mesh=["body"], y=[1.68, 1.775], z=[0.0, 0.3], nz=[-0.3, 1.0], rough=0.95),
+            region("#5a3a28", groups=["head"], mesh=["body"], y=[1.775, 1.79], x_abs=[0.02, 0.06], z=[0.1, 0.3], rough=0.95),
+            # 胸板の段（濃い線）
+            region(STEEL_D, groups=["chest", "belly"], y=[1.3, 1.32], metallic=0.7, tex="steel"),
+            region(STEEL_D, groups=["belly"], y=[1.2, 1.22], metallic=0.7, tex="steel"),
+            # 金のふち（胸の中心・腰）
+            region(GOLD, groups=["chest", "belly"], x_abs=[0.0, 0.01], nz=[0.4, 1.0], y=[1.2, 1.55], metallic=0.8, rough=0.3),
+            region("#4a3424", groups=["hips", "belly"], y=[1.08, 1.15], tex="leather"),
+            region(STEEL_D, groups=["hand"], metallic=0.7, tex="steel"),
+        ],
+        "hide": [],
+        "shells": [
+            region(STEEL_D, groups=["foot"], mesh=["shoes"], offset=0.015, puff={"foot": [1.35, 1.25]}, hide_under=True, metallic=0.7, tex="steel"),
+        ],
+        "parts": parts,
+    }
+
+
+def teddy(bone, c, fur, bow, scale=1.0):
+    """くまのぬいぐるみ（体・頭・耳・鼻・目・リボン）。c は体の中心"""
+    k = scale
+    ps = [sph(bone, c, 0.07 * k, fur, squash=(1.0, 1.1, 0.9), segs=10, rough=1.0, tex="cloth")]
+    h = add(c, [0, 0.11 * k, 0.01])
+    ps.append(sph(bone, h, 0.06 * k, fur, segs=10, rough=1.0, tex="cloth"))
+    for sx in (1, -1):
+        ps.append(sph(bone, add(h, [0.045 * k * sx, 0.045 * k, -0.005]), 0.022 * k, fur, segs=8, rough=1.0))
+        ps.append(sph(bone, add(h, [0.022 * k * sx, 0.012 * k, 0.052 * k]), 0.008 * k, "#111111", segs=6))
+        ps.append(sph(bone, add(c, [0.07 * k * sx, -0.03 * k, 0.03 * k]), 0.026 * k, fur, segs=8, rough=1.0))
+    ps.append(sph(bone, add(h, [0, -0.015 * k, 0.055 * k]), 0.022 * k, "#d8b48a", squash=(1.2, 0.9, 0.8), segs=8))
+    ps.append(sph(bone, add(h, [0, -0.008 * k, 0.074 * k]), 0.008 * k, "#1a1a1a", segs=6))
+    ps.append(sph(bone, add(c, [-0.022 * k, 0.06 * k, 0.05 * k]), 0.018 * k, bow, squash=(1.4, 0.8, 0.6), segs=8))
+    ps.append(sph(bone, add(c, [0.022 * k, 0.06 * k, 0.05 * k]), 0.018 * k, bow, squash=(1.4, 0.8, 0.6), segs=8))
+    return ps
+
+
+def bunny(bone, c, fur, inner, bow, scale=1.0):
+    k = scale
+    ps = [sph(bone, c, 0.068 * k, fur, squash=(1.0, 1.15, 0.9), segs=10, rough=1.0, tex="cloth")]
+    h = add(c, [0, 0.115 * k, 0.01])
+    ps.append(sph(bone, h, 0.058 * k, fur, segs=10, rough=1.0, tex="cloth"))
+    for sx in (1, -1):
+        ps.append(rod(bone, add(h, [0.02 * k * sx, 0.04 * k, 0]), add(h, [0.035 * k * sx, 0.17 * k, -0.01]), 0.018 * k, 0.014 * k, fur,
+                      squash=(1.0, 0.5), segs=8))
+        ps.append(rod(bone, add(h, [0.02 * k * sx, 0.05 * k, 0.006]), add(h, [0.035 * k * sx, 0.16 * k, -0.002]), 0.01 * k, 0.008 * k, inner,
+                      squash=(1.0, 0.4), segs=6))
+        ps.append(sph(bone, add(h, [0.022 * k * sx, 0.012 * k, 0.05 * k]), 0.008 * k, "#1a1a1a", segs=6))
+    ps.append(sph(bone, add(h, [0, -0.01 * k, 0.057 * k]), 0.008 * k, "#e58aa6", segs=6))
+    ps.append(sph(bone, add(c, [-0.022 * k, 0.065 * k, 0.05 * k]), 0.02 * k, bow, squash=(1.4, 0.8, 0.6), segs=8))
+    ps.append(sph(bone, add(c, [0.022 * k, 0.065 * k, 0.05 * k]), 0.02 * k, bow, squash=(1.4, 0.8, 0.6), segs=8))
+    return ps
+
+
+# ============================================================== おもちゃの兵隊（よびだし）
+def summoner():
+    RED = "#c3262d"
+    BLACK = "#15161a"
+    GOLD = "#d4a838"
+    WHITE = "#ece7dc"
+    parts = []
+    # 筒形の軍帽（赤）：黒いつば・金の帯・前の金の飾り・上の黒いふち
+    parts.append(loft("head", [((0, 1.9, 0.02), 0.108, 0.118), ((0, 2.02, 0.015), 0.112, 0.122), ((0, 2.1, 0.01), 0.116, 0.126)], RED, segs=18))
+    parts.append(loft("head", [((0, 2.095, 0.01), 0.118, 0.128), ((0, 2.11, 0.01), 0.118, 0.128)], BLACK, segs=18, caps=False, double=True))
+    parts.append(loft("head", [((0, 1.9, 0.02), 0.11, 0.12), ((0, 1.925, 0.02), 0.111, 0.121)], BLACK, segs=18, caps=False, double=True))
+    parts.append(loft("head", [((0, 1.925, 0.02), 0.111, 0.121), ((0, 1.94, 0.02), 0.112, 0.122)], GOLD, segs=18, caps=False, double=True, metallic=0.8))
+    parts.append(extrude("head", (0, 1.9, 0.13), [[-0.09, 0], [0.09, 0], [0.07, 0.06], [-0.07, 0.06]], 0.012, BLACK, rot=(-80, 0, 0), metallic=0.3, rough=0.2))
+    parts.append(extrude("head", (0, 2.03, 0.14), [[0, 0.07], [0.025, 0.0], [0.0, -0.04], [-0.025, 0.0]], 0.02, GOLD, metallic=0.8, rough=0.3))
+    parts.append(sph("head", (0, 1.965, 0.14), 0.016, GOLD, metallic=0.8, rough=0.3))
+    # 金の肩章（房つき）
+    sh = add(SHOULDER_L, UPPERARM_DIR, 0.0)
+    parts.append(box("upperarm01.L", add(sh, [0.0, 0.055, 0]), (0.12, 0.02, 0.1), GOLD, rot=(0, 0, -25), mirror=True, metallic=0.8, rough=0.3))
+    for i in range(6):
+        z = -0.04 + 0.016 * i
+        parts.append(rod("upperarm01.L", add(sh, [0.06, 0.03, z]), add(sh, [0.085, -0.02, z]), 0.007, 0.007, GOLD, mirror=True, segs=5, metallic=0.7))
+    # 黒い襟・黒い袖口・ベルトの留め金
+    parts.append(loft("neck01", [((0, 1.63, 0.0), 0.075, 0.082), ((0, 1.7, 0.012), 0.065, 0.07)], BLACK, segs=14, caps=False))
+    parts.append(box("spine05", (0, 1.075, 0.19), (0.07, 0.05, 0.02), "#c9ccd1", metallic=0.9, rough=0.25))
+    # 上着のすそ（腰からももの上まで、金のふち）
+    parts.append(loft("spine05", [((0, 1.07, 0.0), 0.2, 0.17), ((0, 0.95, 0.0), 0.22, 0.19), ((0, 0.88, 0.0), 0.225, 0.195)], RED, segs=20,
+                      arc=(-80, 260), caps=False, double=True))
+    parts.append(loft("spine05", [((0, 0.885, 0.0), 0.226, 0.196), ((0, 0.875, 0.0), 0.227, 0.197)], GOLD, segs=20, arc=(-80, 260),
+                      caps=False, double=True, metallic=0.7))
+    # ブーツの外側の金ボタン
+    for k in range(6):
+        y = 0.12 + 0.065 * k
+        parts.append(sph("lowerleg01.L", (0.23 - 0.07 * (y - 0.12) / 0.4 + 0.0, y, 0.01), 0.011, GOLD, mirror=True, segs=6, metallic=0.8))
+    # 胸にだいたぬいぐるみ（くま2つ・うさぎ1つ）
+    parts += teddy("spine01", (0.15, 1.36, 0.25), "#7a5232", "#2f5fb0", scale=1.4)
+    parts += teddy("spine01", (-0.15, 1.36, 0.25), "#7a5232", "#2f5fb0", scale=1.4)
+    parts += bunny("spine01", (0.0, 1.4, 0.29), "#f4efe9", "#f2b6c6", "#e46a9a", scale=1.4)
+    return {
+        "name": "おもちゃの兵隊",
+        "ref": "docs/ref/chars/IMG_0404.jpeg",
+        "attack_anim": "Spell",
+        "height": 1.0,
+        "keep": ["eyebrow001", "eyelashes01", "low-poly", "short04"],
+        "skin": "#f4d6c4",
+        "tint_short04": "#4a3226",
+        "head_scale": 0.98,
+        "bulk": {"neck": 0.95, "chest": [1.02, 1.0], "belly": [0.95, 0.95], "upperarm": 1.0, "forearm": 0.98, "thigh": 0.98, "shin": 0.96},
+        "paint": [
+            region(RED, groups=["chest", "belly", "upperarm", "forearm", "neck"], rough=0.7),
+            region(BLACK, groups=["forearm"], y=[0.0, 1.27], rough=0.6),
+            region(GOLD, groups=["chest", "belly"], x_abs=[0.0, 0.012], nz=[0.4, 1.0], y=[1.08, 1.62], metallic=0.7, rough=0.35),
+            # 白いズボンと、外側の金の線
+            region(WHITE, groups=["hips", "thigh", "shin"], y=[0.0, 1.0], rough=0.75),
+            region(RED, groups=["hips", "belly"], y=[1.0, 1.3], rough=0.7),
+            region(BLACK, groups=["hips", "belly"], y=[1.05, 1.1], rough=0.4),
+            region(GOLD, groups=["thigh", "shin"], rx_out=[0.975, 1.0], y=[0.5, 0.95], metallic=0.6, rough=0.4),
+            region("skin", groups=["hand"]),
+            region("skin", groups=["neck"], mesh=["body"], y=[1.7, 1.8]),
+        ],
+        "hide": [region(groups=["forearm", "hand"], mesh=["suit"])],
+        "shells": [
+            # ひざ下までの黒い長ぐつ
+            region(BLACK, groups=["shin", "foot"], y=[0.0, 0.5], offset=0.01, puff={"shin": 1.12, "foot": [1.15, 1.1]}, hide_under=True,
+                   metallic=0.2, rough=0.25),
+        ],
+        "parts": parts,
+    }
+
+
+# ============================================================== エンジェル（いやし）
+def healer():
+    WHITE = "#f7f3ee"
+    CREAM = "#efe6da"
+    GOLD = "#d8ae4a"
+    RED = "#d9505a"
+    HAIR = "#e6d8b8"
+    parts = long_hair(HAIR, length_y=1.08, width=0.15)
+    # 天使の輪（光る金）と、頭の小さな羽・白い花
+    parts.append(torus("head", (0, 2.08, 0.0), 0.09, 0.008, "#ffd56a", segs=20, emission=1.6, tex="none"))
+    for sx in (1, -1):
+        parts.append(extrude("head", (0.1 * sx, 1.93, 0.0), [[p[0] * sx, p[1]] for p in wing2d(0.09)], 0.01, WHITE, rot=(0, 0, 0)))
+    parts.append(sph("head", (0.1, 1.9, 0.07), 0.026, WHITE, squash=(1, 1, 0.5), segs=8))
+    parts.append(sph("head", (0.1, 1.9, 0.085), 0.01, "#f2c94c", segs=6))
+    # 背中の大きな白い羽（左右）
+    for sx in (1, -1):
+        base = (0.06 * sx, 1.47, -0.14)
+        for k, (ln, ang) in enumerate([(0.42, 18), (0.36, 0), (0.3, -18), (0.24, -36)]):
+            a = math.radians(ang)
+            tip = (base[0] + sx * ln * math.cos(a), base[1] + ln * math.sin(a) + 0.04, base[2] - 0.06 - 0.03 * k)
+            parts.append(tube("spine01", [base, ((base[0] + tip[0]) / 2, (base[1] + tip[1]) / 2 + 0.05, (base[2] + tip[2]) / 2), tip],
+                              0.055 - 0.006 * k, 0.012, WHITE, smooth=True, steps=6, squash=0.35, segs=8, rough=0.9))
+    # 胸のリボン（赤）・胸のふち（金）
+    parts.append(sph("spine01", (-0.03, 1.58, 0.12), 0.022, RED, squash=(1.4, 0.8, 0.6), segs=8))
+    parts.append(sph("spine01", (0.03, 1.58, 0.12), 0.022, RED, squash=(1.4, 0.8, 0.6), segs=8))
+    # ふくらんだ袖（ひじから先、白いベル）
+    ea = add(ELBOW_L, UPPERARM_DIR, -0.06)
+    eb = add(ELBOW_L, FOREARM_DIR, 0.14)
+    parts.append(loft("upperarm02.L", [(tuple(ea), 0.06, 0.06), (tuple(add(ea, UPPERARM_DIR, 0.05)), 0.08, 0.08), (tuple(ELBOW_L), 0.075, 0.075)],
+                      WHITE, segs=12, side=(0, 1, 0), caps=False, double=True, mirror=True))
+    parts.append(loft("lowerarm01.L", [(tuple(add(ELBOW_L, FOREARM_DIR, 0.02)), 0.06, 0.06), (tuple(eb), 0.1, 0.1)], WHITE, segs=12,
+                      side=(0, 1, 0), caps=False, double=True, mirror=True))
+    # 3段のふわふわの短いスカート（金のふち）
+    tiers = [(1.12, 0.92, 0.17, 0.3), (1.0, 0.85, 0.2, 0.36), (0.93, 0.79, 0.24, 0.41)]
+    for top, bot, rt, rb in tiers:
+        parts.append(loft("spine05", [((0, top, 0.0), rt, rt * 0.86), ((0, (top + bot) / 2, 0.0), (rt + rb) / 2 * 1.05, (rt + rb) / 2 * 0.92),
+                                      ((0, bot, 0.0), rb, rb * 0.88)], WHITE, segs=24, caps=False, double=True, rough=0.85))
+        parts.append(loft("spine05", [((0, bot + 0.004, 0.0), rb * 1.003, rb * 0.883), ((0, bot - 0.006, 0.0), rb * 1.01, rb * 0.89)], GOLD, segs=24,
+                          caps=False, double=True, metallic=0.6, rough=0.4))
+    # 背中の矢筒（金と白、ハートの矢）
+    parts.append(rod("spine01", (0.06, 1.18, -0.17), (0.12, 1.55, -0.2), 0.045, 0.05, CREAM, segs=10))
+    parts.append(torus("spine01", (0.12, 1.55, -0.2), 0.05, 0.007, GOLD, rot=(0, 0, -9), metallic=0.7))
+    for k in range(3):
+        tip = (0.1 + 0.03 * k, 1.66, -0.21)
+        parts.append(rod("spine01", (0.11 + 0.02 * k, 1.5, -0.2), tip, 0.005, 0.005, GOLD, segs=5))
+        parts.append(extrude("spine01", tip, heart2d(0.03), 0.012, RED, rot=(0, 90, 180)))
+    # 手の金の弓とハートの矢（左手）
+    w = WRIST_L
+    parts.append(tube("wrist.L", [add(w, [0.03, 0.3, 0.08]), add(w, [0.12, 0.0, 0.1]), add(w, [0.03, -0.3, 0.08])], 0.011, 0.011, GOLD,
+                      smooth=True, steps=8, segs=6, metallic=0.75, rough=0.3))
+    parts.append(rod("wrist.L", add(w, [0.03, 0.3, 0.08]), add(w, [0.03, -0.3, 0.08]), 0.002, 0.002, "#f4e9c8", segs=4))
+    parts.append(rod("wrist.L", add(w, [0.02, 0.0, 0.08]), add(w, [-0.3, 0.0, 0.12]), 0.005, 0.005, RED, segs=5))
+    parts.append(extrude("wrist.L", add(w, [-0.32, 0.0, 0.12]), heart2d(0.035), 0.012, RED, rot=(0, 0, 90)))
+    # ブーツの赤いリボン・金のかかと
+    parts.append(sph("lowerleg02.L", (0.2, 0.25, 0.07), 0.018, RED, squash=(1.5, 0.8, 0.6), mirror=True, segs=8))
+    parts.append(rod("foot.L", (0.205, 0.07, -0.06), (0.205, 0.0, -0.06), 0.02, 0.014, GOLD, mirror=True, segs=8, metallic=0.7))
+    return {
+        "name": "エンジェル",
+        "ref": "docs/ref/chars/IMG_0405.jpeg",
+        "attack_anim": "Spell",
+        "height": 0.9,
+        "keep": ["eyebrow004", "eyelashes01", "low-poly"],
+        "skin": "#fff0e6",
+        "head_scale": 1.14,
+        "bulk": {"neck": 0.8, "chest": [0.86, 0.86], "belly": [0.8, 0.8], "hips": [0.98, 0.98],
+                 "upperarm": 0.76, "forearm": 0.76, "hand": 0.88, "thigh": 0.88, "shin": 0.8},
+        "paint": [
+            # 胸までの白いドレス（肩は出す）・金のふち・白いニーハイ
+            region(WHITE, groups=["chest", "belly", "hips"], rough=0.8),
+            region("skin", groups=["chest", "neck", "upperarm"], y=[1.55, 1.8]),
+            region(GOLD, groups=["chest"], y=[1.535, 1.555], metallic=0.6, rough=0.4),
+            region(GOLD, groups=["chest", "belly"], x_abs=[0.0, 0.01], nz=[0.4, 1.0], y=[1.15, 1.54], metallic=0.6, rough=0.4),
+            region("skin", groups=["upperarm", "forearm", "hand"]),
+            region(WHITE, groups=["thigh", "shin", "foot"], y=[0.0, 0.78], rough=0.7),
+            region("skin", groups=["thigh", "hips"], y=[0.78, 1.0]),
+        ],
+        "hide": [region(groups=["forearm", "hand"], mesh=["suit"])],
+        "shells": [
+            # ニーハイのふち（ひだ）と、白いヒールのブーツ
+            region(CREAM, groups=["thigh"], y=[0.74, 0.79], offset=0.01, puff={"thigh": 1.08}, rough=0.9),
+            region(WHITE, groups=["foot", "shin"], y=[0.0, 0.28], offset=0.01, puff={"foot": [1.08, 1.05], "shin": 1.1}, hide_under=True, rough=0.4),
+        ],
+        "parts": parts,
+    }
+
+
 LOOKS = {
     "brawler": brawler,
     "sprinter": sprinter,
     "gunner": gunner,
     "bomber": bomber,
     "mage": mage,
+    "guardian": guardian,
+    "summoner": summoner,
+    "healer": healer,
 }
 
 
