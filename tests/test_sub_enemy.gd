@@ -48,7 +48,7 @@ func _initialize() -> void:
 	s.player.position = Vector3(target.x, s.ground_y, target.z)
 	var hp0: float = s.boss_hp
 	check(s.attack(), "サブ敵のそばで、こうげきが当たる")
-	check(is_equal_approx(s.crowd_state.hp[0], float(s.config["sub_enemy_hp"]) - s.role_value("attack_power")), "サブ敵の体力が、攻撃力のぶん減る")
+	check(is_equal_approx(s.crowd_state.hp[0], maxf(0.0, float(s.config["sub_enemy_hp"]) - s.role_value("attack_power"))), "サブ敵の体力が、攻撃力のぶん減る")
 	check(s.boss_hp == hp0 and s.my_hits == 0.0, "サブ敵へのダメージは、ボスの体力にも合計ダメージにも数えない")
 	s.actions.reset()
 	s.attack()

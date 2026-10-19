@@ -68,7 +68,7 @@ func _init() -> void:
 	c2["height"] = 2.0
 	check(Ai.take_hazards(c2, "p2", [hit], {}, 1.0) == 0.0, "跳んでいれば、よけられる")
 	var c3 := Ai.make(gunner, 0, Vector2(0, 0))
-	for k in 5:
+	for k in 20:  # 体力が0になるまで当て続ける（体力の値が変わってもよいように）
 		hit["id"] = "y%d" % k
 		Ai.take_hazards(c3, "p2", [hit], done, 1.0)
 	check(bool(c3["downed"]) and float(c3["hp"]) == 0.0, "体力が0で、ダウン")

@@ -36,7 +36,7 @@ func _initialize() -> void:
 	# ゲージ
 	var g := Gauge.new(cfg)
 	check(not g.is_ready() and g.ratio() == 0.0, "ゲージは空で始まる")
-	g.charge(float(cfg["ultimate_gauge"]["max"]) * 0.5)
+	g.charge(float(cfg["ultimate_gauge"]["max"]) * 0.5 / float(cfg["ultimate_gauge"]["gain_per_damage"]))
 	check(is_equal_approx(g.ratio(), 0.5) and not g.consume(), "半分では、使えない")
 	g.charge(99999.0)
 	check(g.is_ready() and g.ratio() == 1.0, "いっぱいになる（あふれない）")
