@@ -1,7 +1,7 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_bottle_ride.gd
 ## 必殺技「巨大酒瓶ライド」（版63で作り直し）：4〜6回、8方向（左右・上下・ななめ）から、ステージの外から反対の外まで突っこむか。
-## 速さは前の0.75倍か。走る前から道を予告するか。突入1回に酒瓶を5本投げ、予告の所に落ちるか。ボスが瓶の上に座る高さか。最後はステージの中にもどるか。
+## 速さは版65の値（版63の36 m/秒の1.2倍）か。走る前から道を予告するか。突入1回に酒瓶を12本投げ、予告の所に落ちるか（落ちる範囲は半径2.5＝前の1.25倍）。ボスが瓶の上に座る高さか。最後はステージの中にもどるか。
 
 const Attacks := preload("res://scripts/combat/boss_attacks.gd")
 const BossAI := preload("res://scripts/combat/boss_ai.gd")
@@ -25,8 +25,9 @@ func _initialize() -> void:
 	check(float(k["power"]) >= 20.0 and float(k["power"]) <= 25.0, "瓶に当たるダメージは 20〜25（%s）" % k["power"])
 	check(str(k["knockback"]) == "kb_launch" and str(k["kb_mode"]) == "travel", "大きくはね飛ばす（走る向き）")
 	check(bool((k["ai"] as Dictionary).get("ultimate", false)) and float((k["ai"]["forms"] as Dictionary).get("normal", 0.0)) <= 0.0, "覚醒のときだけの必殺技")
-	check(is_equal_approx(float(k["ride_speed"]), 48.0 * 0.75), "速さは、前（48 m/秒）の0.75倍（%.1f m/秒）" % float(k["ride_speed"]))
-	check(int(k["bottles_per_pass"]) == 5 and is_equal_approx(float(k["throw_power"]), 12.0), "突入1回に酒瓶5本、1本12ダメージ")
+	check(is_equal_approx(float(k["ride_speed"]), 36.0 * 1.2), "速さは、版63（36 m/秒）の1.2倍（%.1f m/秒）" % float(k["ride_speed"]))
+	check(int(k["bottles_per_pass"]) == 12 and is_equal_approx(float(k["throw_power"]), 12.0), "突入1回に酒瓶12本、1本12ダメージ")
+	check(is_equal_approx(float(k["throw_radius"]), 2.0 * 1.25), "投げた酒瓶の落ちる範囲は、前（半径2.0）の1.25倍（%.2f）" % float(k["throw_radius"]))
 	check(not bool(cfg.get("puddles_enabled", true)), "酒だまりは残さない")
 
 	var all_dirs := {}
@@ -72,9 +73,9 @@ func _initialize() -> void:
 				ok = ok and lane.size() == 1 and float(lane[0]["tele"]) > 0.8 and str(lane[0]["shape"]) == "obox"
 				var lane_mid := mid.filter(func(h: Dictionary) -> bool: return str(h["style"]) == "ride_lane" and str(h["id"]).ends_with("_%d" % int(ps["i"])))
 				ok = ok and lane_mid.size() == 1
-				# 酒瓶：5本。投げる時刻は突入の間。落ちる所はステージの中、道からはなれた所。予告と落ちる所が同じ
+				# 酒瓶：12本。投げる時刻は突入の間。落ちる所はステージの中、道からはなれた所。予告と落ちる所が同じ
 				var bs := Attacks.ride_throws(ps, k, ctx)
-				var tok := bs.size() == 5
+				var tok := bs.size() == 12
 				for bi in bs.size():
 					var b: Dictionary = bs[bi]
 					var to: Vector2 = b["to"]
@@ -103,7 +104,7 @@ func _initialize() -> void:
 	check(all_ok, "4〜6回、外から外へ・同じ向きが続かない・速さ・予告・当たり・もどり（6つの乱数×5つの番号）")
 	check(count_seen.has(4) and count_seen.has(5) and count_seen.has(6), "突入の回数は 4・5・6 回のどれも出る（%s）" % str(count_seen.keys()))
 	check(all_dirs.size() == 8, "左右・上下・ななめの8方向がどれも出る（%d 方向）" % all_dirs.size())
-	check(throws_ok, "酒瓶：5本・突入の間に投げる・ステージの中で道からはなれた所に落ちる・予告の所に12ダメージ")
+	check(throws_ok, "酒瓶：12本・突入の間に投げる・ステージの中で道からはなれた所に落ちる・予告の所に12ダメージ")
 	check(gap_fail * 10 <= gap_total, "酒瓶の落ちる所は、ほとんどが %.0fm 以上はなれている（近すぎ %d / %d）" % [float(k["throw_min_gap"]), gap_fail, gap_total])
 
 	# 座る高さ：ボスの腰が、瓶の上の面（＋おしり）に来る
@@ -196,7 +197,7 @@ func _initialize() -> void:
 		if vis > 0:
 			saw_throw = true
 	check(seat_frames > 30 and seat_ok, "画面：乗っている間ずっと、ボスは瓶の上の同じ所に、同じ向きで座っている（%d コマ）" % seat_frames)
-	check(saw_throw and max_bottles <= 12, "画面：酒瓶が飛ぶ（同時に最大 %d 本。多すぎない）" % max_bottles)
+	check(saw_throw and max_bottles <= 26, "画面：酒瓶が飛ぶ（同時に最大 %d 本。多すぎない）" % max_bottles)
 	check(str(sc2.current_attack.get("kind", "")) != "bottle_ride" and sc2.motion.height < 0.01 and not sc2._ride_bottle.visible, "画面：ライドが終わると、地面にもどって、ふつうの動きにもどる")
 	check(sc2.field.alive(t).is_empty(), "画面：酒だまりは残らない")
 	sc2._exit_tree()

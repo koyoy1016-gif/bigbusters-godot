@@ -331,47 +331,46 @@ static func ride_at(u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
 
 
 ## 突入1回で投げる酒瓶（bottles_per_pass 本）：[{id, throw, land, from: Vector3, to: Vector2}]
-## 投げる時刻：瓶がステージの中にいる間に、等しい間をあけて。落ちる所：ステージの中で、走る道から離れた所。
-## 1本めは道の近くのねらう人のほう（ねらう人がいれば）、ほかは乱数。おたがい min_gap m 以上はなす（予告が重なりすぎないように）
+## 投げる時刻：突入の始めから終わりまで、等しい間をあけて（版65）。落ちる所：ステージの中で、走る道から離れた所（乱数）。
+## おたがい throw_min_gap m 以上はなす（予告が重なりすぎないように）
 static func ride_throws(ps: Dictionary, k: Dictionary, ctx: Dictionary = {}) -> Array:
 	var out: Array = []
 	var half := ride_half(k, ctx)
 	var d: Vector2 = ps["d"]
 	var from: Vector2 = ps["from"]
 	var to: Vector2 = ps["to"]
-	var total := from.distance_to(to)
-	# ステージの中にいる区間（道のりの割合）
 	var c: Vector2 = ps["c"]
-	var back := c.distance_to(from)
-	var enter := (back - _exit_dist(c, -d, half)) / total
-	var leave := (back + _exit_dist(c, d, half)) / total
 	var cnt := int(k["bottles_per_pass"])
 	var dur := float(ps["end"]) - float(ps["start"])
 	var rng := rng_for(float(ps["start"]) * 1000.0 + float(ps["dir_i"]), int(ps["i"]) * 41 + 9)
 	var hs := ride_heights(k, 0.0)
 	var placed: Array = []
 	var perp := Vector2(-d.y, d.x)
+	# 版65：投げる時刻は、突入の始めから終わりまで等しい間（ステージの外から投げた瓶も、ステージの中へ飛んでくる）
 	for j in cnt:
-		var f := lerpf(enter, leave, (float(j) + 0.5) / float(cnt))
+		var f := (float(j) + 0.5) / float(cnt)
 		var throw := float(ps["start"]) + f * dur
 		var bc := from.lerp(to, f)
 		var hand := bc - d * float(k["seat_back"]) + perp * 1.2
 		var land := Vector2.ZERO
-		var ok := false
-		for tries in 24:
-			var side := 1.0 if rng.randf() < 0.5 else -1.0
-			var off := rng.randf_range(float(k["throw_min_side"]), float(k["throw_max_side"]))
-			var along := rng.randf_range(-6.0, 10.0)
-			land = bc + d * along + perp * side * off
-			var lim := half - 1.5
-			land = Vector2(clampf(land.x, -lim, lim), clampf(land.y, -lim, lim))
-			# 道から離す（瓶の帯と重ねない）・ほかの瓶から離す
-			var from_lane := absf((land - c).dot(perp))
-			ok = from_lane >= float(k["half_width"]) + float(k["throw_radius"]) + 0.5
+		var best_gap := -1.0
+		var lim := half - 1.5
+		for tries in 40:
+			# 落ちる所：ステージの中のどこか。道からは必ず離す。ほかの瓶とは throw_min_gap 以上離す（足りなければ、いちばん離れた所）
+			var cand := Vector2(rng.randf_range(-lim, lim), rng.randf_range(-lim, lim))
+			if absf((cand - c).dot(perp)) < float(k["half_width"]) + float(k["throw_radius"]) + 0.5:
+				continue
+			var gap := 999.0
 			for q in placed:
-				ok = ok and (q as Vector2).distance_to(land) >= float(k["throw_min_gap"])
-			if ok:
+				gap = minf(gap, (q as Vector2).distance_to(cand))
+			if gap > best_gap:
+				best_gap = gap
+				land = cand
+			if gap >= float(k["throw_min_gap"]):
 				break
+		if best_gap < 0.0:
+			# 道のそばしかない（ふつうは起きない）：道の横へずらす
+			land = c + perp * (float(k["half_width"]) + float(k["throw_radius"]) + 1.0)
 		placed.append(land)
 		out.append({"id": "rb%d_%d_%d" % [int(ctx.get("n", 0)), int(ps["i"]), j], "i": j, "throw": throw, "land": throw + float(k["throw_flight"]),
 			"from": Vector3(hand.x, float(hs["center"]) + float(k["throw_hand_up"]), hand.y), "to": land})
@@ -602,7 +601,8 @@ static func _bat_throw(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) 
 	if u < w:
 		# 予告：バットが飛ぶ道（帯）
 		var c := start + f * float(k["distance"]) * 0.5
-		out.append({"id": "btl%d" % int(a["n"]), "shape": "obox", "x": c.x, "z": c.y, "hx": float(k["radius"]), "hz": float(k["distance"]) * 0.5 + float(k["radius"]), "yaw": yaw,
+		# 版65：予告は、投げる向きにまっすぐな細い線だけ（円は出さない）
+		out.append({"id": "btl%d" % int(a["n"]), "shape": "obox", "x": c.x, "z": c.y, "hx": float(k.get("tele_line_half_width", 0.3)), "hz": float(k["distance"]) * 0.5 + float(k["radius"]), "yaw": yaw,
 			"active": false, "tele": clampf(u / w, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "zone"})
 		return out
 	var b := bat_throw_at(u, k, ctx)

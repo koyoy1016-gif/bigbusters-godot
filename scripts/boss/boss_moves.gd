@@ -214,8 +214,14 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 			var arm_out11 := float(mv.get("sword_arm_out", 0.4))
 			var ct11 := BossAnim.remap(u, [[0.0, 0.0], [w11 * 0.7, arm_out11], [run_end11, arm_out11], [dur, 0.0]])
 			var lean11 := 10.0 * smoothstep(0.0, w11, u) * (1.0 - smoothstep(run_end11, run_end11 + 0.4, u))
-			return {"pose": an.sample("Sword_Attack", ct11), "weight": _fade(u, dur),
-				"deltas": {"spine05": BossAnim.roll(-lean11), "upperarm01.R": BossAnim.raise_side("R", 25.0 * smoothstep(0.0, w11, u) * (1.0 - smoothstep(run_end11, dur, u)))}}
+			# 版65：脚は閉じたまま（まっすぐ立った形。歩く・開く動きは入れない）。上半身だけ、腕を横にのばしてバットを持つ形
+			var closed := an.blend(an.rest_pose(), an.sample("Sword_Attack", ct11), 1.0, an.upper)
+			# 回っている間は、歩きの脚とまぜない（weight 1）。ためと止まったあとだけ、ふつうの形となめらかにつなぐ
+			var w_in := smoothstep(0.0, minf(0.25, w11), u)
+			var w_out := 1.0 - smoothstep(run_end11 + 0.2, dur, u)
+			return {"pose": closed, "weight": minf(w_in, w_out),
+				"deltas": {"spine05": BossAnim.roll(-lean11), "upperarm01.R": BossAnim.raise_side("R", 25.0 * smoothstep(0.0, w11, u) * (1.0 - smoothstep(run_end11, dur, u))),
+					"upperleg01.L": BossAnim.raise_side("L", -float(mv.get("spin_legs_in", 5.0))), "upperleg01.R": BossAnim.raise_side("R", -float(mv.get("spin_legs_in", 5.0)))}}
 		Attacks.SPIN_CHARGE:
 			# 回転突進：しゃがんでバットを横へ（ため）→ 回りながら走る（体の回りは、道の計算から）→ 止まって、ふらふら（すき）
 			var w10 := float(k["windup_sec"])

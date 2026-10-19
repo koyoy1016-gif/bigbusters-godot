@@ -4,6 +4,7 @@
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-19 版65】ユーザーの「ボス戦の追加修正指示（今回の変更箇所のみ）」：①巨大酒瓶ライドの速さ 36→43.2 m/秒（1.2倍）、突入1回の酒瓶 5→12本（突入の始めから終わりまで等しい間。落ちる所はステージの中の道から離れた所、おたがい4.5m以上。足りないときも道の上には落とさない）②酒瓶の落ちる範囲の半径 2.0→2.5（酒瓶落とし sake_drop.radius と、ライドの throw_radius。予告の円と当たりは同じ値）③回転バット移動は脚を閉じたまま（boss_moves.gd：休みの姿勢の脚＋spin_legs_in 5度、歩きとまぜない）。姿勢が変わりバットの先が 7.63→8.12m になったので、当たりの丸 radius も 8.1 に④バット投げの予告を細い線だけに（tele_line_half_width 0.3）。テスト `tests/test_v65.gd` 新規、`test_bottle_ride.gd` 更新、Godot全47本 合格。sim_fight 3戦3勝（82〜87秒）。xvfb の画面撮影で4つとも確認。**未確認**：iPhone実機の重さ（ライド中、飛んでいる瓶は最大11本）
 - 【2026-10-19 版64】ユーザー：覚醒の体力を1.5倍、体力が4分の1減るごとに必ず「酒瓶ライド」（ユーザーの文は音声入力で「小便ライド」）、それ以外でもランダム。→ `prototype_stick.json` の boss_hp_awake 6000・awake_ride_every 0.25。`boss_phase.gd` の awake_steps、`boss_ai.gd` の request／forced（次の攻撃を入れかえる。ライド中なら足りたことにする）、`stick_prototype.gd` の awake_rides_done。ランダムの出方は今までどおり（必殺技の重み2.0・待ち24秒）。あわせて `test_bgm` がまれに落ちる件を直した（`bgm.gd` の is_playing を「流すように指示したか」に。前は15回中3回失敗 → 30回すべて合格）。テスト `tests/test_awake_rides.gd` 新規、Godot全46本 合格。sim_fight 3戦3勝（82〜104秒）。**未確認**：通信中、区切りを越える時刻が画面ごとに少しずれると、ライドの始まりもずれるかもしれない
 - 【2026-10-19 版61〜63】ユーザーの「ボス戦の追加修正指示書（最終版）」を3段で実装（docs/boss-attacks.md に一覧と表）。
   - 版61：大きな手・台風・火祭りを AI から外す（`ai.forms` を空・`removed`）。酒だまりを残さない（`boss_attacks.json` の puddles_enabled: false）。つかみは近いときだけ重み1.5倍（`near_mult`。boss_ai.gd）。覚醒のオーラを消して色だけ（`boss_model.json` aura.enabled: false）

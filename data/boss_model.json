@@ -78,6 +78,8 @@
   "sword_hit": 0.47,
   "sword_arm_out": 0.45,
   "ride_thigh_spread": 50.0,
+  "spin_legs_in": 5.0,
+  "spin_legs_note": "版65：回転バット移動で、脚を閉じる角度（足をそろえる）",
   "ride_thigh_fwd": 10.0,
   "ride_knee_back": 20.0,
   "ride_note": "版63：巨大酒瓶にまたがる脚。ももを横へ ride_thigh_spread 度開き、少し前へ（ride_thigh_fwd）。すねは下へたらし、少しうしろへ（ride_knee_back）。tools/measure_seat.gd で、脚が瓶に埋まらないことを確かめた",
