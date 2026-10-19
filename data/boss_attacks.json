@@ -17,7 +17,11 @@
     "stripe_width": 0.7,
     "rim_width": 0.22,
     "arrow_spacing": 3.2,
-    "arrow_speed": 1.4
+    "arrow_speed": 1.4,
+    "safe": {
+      "fill": "#38d27e4a",
+      "rim": "#c8ffdef2"
+    }
   },
   "puddles_enabled": false,
   "puddles_enabled_note": "版61：床に酒だまりを残すか。ユーザーの指示で、どの攻撃でも残さない（false）",
@@ -66,7 +70,8 @@
         ],
         "cooldown_sec": 6.0,
         "near_mult": 1.5,
-        "_note": "版61：ねらう人が range の中（近い）なら重み1.5倍（near_mult）。遠いときは今までどおり（far_mult）"
+        "_note": "版68：ねらう人が range の中（近い）なら、近いほど重みを上げる。range の外側の端で near_mult（1.5）、ボスのすぐそば（0m）で near_mult_max（2.5）。遠いときは今までどおり（far_mult）。使ったあと cooldown_sec は使わない",
+        "near_mult_max": 2.5
       },
       "knockback": "none",
       "kb_mode": "radial",
@@ -74,7 +79,9 @@
       "collide_height": 4.0,
       "collide_power": 8.0,
       "collide_note": "版67：投げられた人が、ほかの人にぶつかる判定。体の中心どうしが collide_radius m 以内、投げられた人の高さが collide_height m 以下（キャラの背の高さ。頭の上を飛びこすときは当たらない）。ぶつかった人と投げられた人の両方に collide_power（＝着地のダメージ drop_power と同じ）。ぶつかった人は kb_heavy で転ぶ。1回の投げで、1人には1回だけ",
-      "throw_far_note": "版67：投げる向きは、投げる時点でボスからいちばん遠い人（投げられる人は除く。同じ距離なら枠の名前の順で先の人）のほう。だれもいなければ、ボスの正面"
+      "throw_far_note": "版67：投げる向きは、投げる時点でボスからいちばん遠い人（投げられる人は除く。同じ距離なら枠の名前の順で先の人）のほう。だれもいなければ、ボスの正面",
+      "quick_hold_sec": 0.25,
+      "quick_note": "版68：剣士をつかんですぐ投げる版。つかんでから quick_hold_sec 秒で投げる（逃げる時間はない）。ほかは、ふつうのつかみ投げと同じ（投げる向き・ぶつかり・ダメージ）"
     },
     "typhoon": {
       "duration": 5.5,
@@ -135,7 +142,7 @@
         -9.0,
         13.0
       ],
-      "_memo": "必殺技A：空から、酒が雨のように降ってくる（落ちる所に、先に輪が出る。落ちた所はぬれる）",
+      "_memo": "必殺技A「酒の大雨」（版68で作り直し）：ステージ全体に酒が降る。安全地帯の円が safe_count か所（半径 safe_radius）出て、その中にいればダメージを受けない。外にいると、waves 回の雨の波ごとに power ダメージ。時間（duration）とダメージ（power）は前のまま",
       "ai": {
         "forms": {
           "awake": 0.8
@@ -145,7 +152,13 @@
       "knockback": "kb_light",
       "kb_mode": "radial",
       "puddle_r": 1.6,
-      "puddle_life": 5.0
+      "puddle_life": 5.0,
+      "waves": 3,
+      "safe_count": 6,
+      "safe_radius": 3.0,
+      "safe_radius_note": "安全地帯の半径。剣士の攻撃が届く範囲（半径2.0m）の1.5倍（このゲームにはキャラの足もとの円がないので、いちばん近い「剣士の円」としてこれを基準にした）",
+      "safe_min_gap": 2.0,
+      "safe_margin": 2.0
     },
     "hand_sweep": {
       "duration": 10.0,
@@ -571,7 +584,7 @@
       "ride_recover": 1.4,
       "offscreen": 9.0,
       "sky": 22.0,
-      "half_width": 2.3,
+      "half_width": 2.645,
       "half_len": 7.2,
       "power": 22.0,
       "jumpable": false,
@@ -603,16 +616,17 @@
       "bottles_per_pass": 12,
       "throw_flight": 1.1,
       "throw_hit_sec": 0.15,
-      "throw_radius": 3.125,
+      "throw_radius": 3.90625,
       "throw_power": 12.0,
       "throw_arc": 6.0,
       "throw_min_side": 4.0,
       "throw_max_side": 11.0,
-      "throw_min_gap": 5.625,
+      "throw_min_gap": 6.0,
       "throw_hand_up": 2.5,
       "neck_color": "#2f6a3c",
       "bottle_note": "版63：瓶の大きさ。胴の半径 bottle_radius、長さ half_len×2（実物の一升瓶の比率：長さ≒胴の半径×7.6）。当たりの帯の幅は half_width",
-      "throw_note": "版67：突入1回に12本（版66の18本から戻した）。投げる時刻は突入の始めから終わりまで等しい間（約0.1〜0.2秒ごと）。落ちる範囲の半径 3.125（版65の2.5の1.25倍。予告の円と当たりは同じ値）。瓶どうしの間 throw_min_gap も同じ割合で 4.5→5.625 に広げた（予告が重なりすぎないように）。足りないときは、いちばん離れた所"
+      "throw_note": "版68：突入1回に12本。落ちる範囲の半径 3.90625（版67の3.125の1.25倍。予告の円と当たりは同じ値）。瓶どうしの間 throw_min_gap 6.0m（半径に合わせて7mにすると、12本では置けないことが12%と多いので6mにした。足りないときは、いちばん離れた所）",
+      "half_width_note": "版68：瓶にひかれる帯（当たり・ピンクの予告の帯とも）の半分の幅 2.3→2.645（1.15倍）"
     }
   },
   "damage_multiplier": 1.0,
@@ -622,7 +636,8 @@
     "hold_max_sec",
     "free_stun_sec",
     "drop_stun_sec",
-    "squeeze_tick_sec"
+    "squeeze_tick_sec",
+    "quick_hold_sec"
   ],
   "walk": {
     "_memo": "攻撃と攻撃の間に、次にねらう人のほうへ歩く（近ければ、まわりを回りこむ。立ち止まらない）。speed：m/秒、stop_dist：ねらう人の手前で止まる距離（攻撃ごとの stop_dist があれば、そちら）、turn_rate：向きを変える速さ。攻撃ごとの chase_sec：攻撃の始めから、この秒まではねらう人へ歩きながら向きを合わせる（予告もついてくる）",

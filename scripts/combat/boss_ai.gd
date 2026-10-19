@@ -3,7 +3,7 @@ extends RefCounted
 ## 決まった順番はやめ、使える攻撃の中から、重みでくじ引きする。
 ## 版67：形態ごとに、この戦いでまだ出していない攻撃があり、いま出せる（待ち時間・必殺技の間かくを守る）なら、その中から選ぶ（全部の攻撃が最低1回は出る）。重みは data/boss_attacks.json の各攻撃の "ai"：
 ##   forms：{normal: 重み, awake: 重み}（0 や書いていない形態では使わない）
-##   range：[近い, 遠い]（ねらう人までの距離 m がこの間なら、重みに near_mult をかける（書いていなければ1）。外なら far_mult 倍）
+##   range：[近い, 遠い]（ねらう人までの距離 m がこの間なら、重みに near_mult〜near_mult_max をかける（近いほど大きい。書いていなければ1）。外なら far_mult 倍）
 ##   cooldown_sec：一度使ったら、この秒は使わない
 ##   strong：強い攻撃（続くと重みを下げる）
 ##   ultimate：必殺技（覚醒のときだけ。ultimate_first_sec・ultimate_cooldown_sec を守る）
@@ -46,15 +46,29 @@ func reset(config: Dictionary, start_ms: float) -> void:
 
 ## kind を、いまの攻撃が終わったら必ず出す（必殺技の待ち時間は無視する）。
 ## いまその攻撃の最中なら、それで足りたことにする（続けて2回出さない）。もう決まっている次の攻撃は、入れかえる
-func request(kind: String) -> void:
-	if not cur.is_empty() and str(cur["kind"]) == kind:
+## extra：その攻撃に付ける情報（版68：target＝ねらう枠、quick＝すぐ投げるつかみ）
+func request(kind: String, extra: Dictionary = {}) -> void:
+	if not cur.is_empty() and str(cur["kind"]) == kind and extra.is_empty():
 		return
-	if forced.has(kind):
-		return
-	forced.append(kind)
-	if not nxt.is_empty():
-		nxt["kind"] = forced.pop_front()
-		nxt["feint"] = 0.0
+	for f in forced:
+		if str((f as Dictionary)["kind"]) == kind and extra.is_empty():
+			return
+	var entry := extra.duplicate()
+	entry["kind"] = kind
+	forced.append(entry)
+	# まだ始まっていない次の攻撃が、くじで決めた物なら、必ず出す攻撃に入れかえる（必ず出す攻撃どうしは入れかえない）
+	if not nxt.is_empty() and not bool(nxt.get("forced", false)):
+		_apply_forced(nxt, forced.pop_front())
+
+
+## 次の攻撃 a を、必ず出す攻撃 f にする
+func _apply_forced(a: Dictionary, f: Dictionary) -> void:
+	for key in ["target", "quick"]:
+		a.erase(key)
+	for key in f:
+		a[key] = f[key]
+	a["feint"] = 0.0
+	a["forced"] = true
 
 
 ## いまの攻撃をやめ、次の攻撃を delay 秒後からにする（ボスが倒れたとき・覚醒したとき）
@@ -78,7 +92,8 @@ func update(t: float, form: String, dist_of: Callable) -> void:
 	if cur.is_empty() and nxt.is_empty():
 		if not forced.is_empty():
 			n += 1
-			nxt = {"n": n, "kind": str(forced.pop_front()), "start": maxf(next_start, 0.0), "feint": 0.0}
+			nxt = {"n": n, "start": maxf(next_start, 0.0)}
+			_apply_forced(nxt, forced.pop_front())
 		else:
 			nxt = choose(maxf(next_start, 0.0), form, dist_of)
 	if cur.is_empty() and not nxt.is_empty() and t >= float(nxt["start"]):
@@ -178,7 +193,10 @@ func candidate_weights(start: float, form: String, dist: float) -> Dictionary:
 		if dist >= 0.0 and (dist < float(r[0]) or dist > float(r[1])):
 			w *= float(ai.get("far_mult", g.get("far_mult", 0.3)))
 		elif dist >= 0.0:
-			w *= float(ai.get("near_mult", 1.0))
+			# 範囲の中：近いほど重みを上げる（範囲の外側の端で near_mult、0m で near_mult_max。near_mult_max がなければ near_mult のまま）
+			var nm := float(ai.get("near_mult", 1.0))
+			var close := 1.0 - clampf(dist / maxf(float(r[1]), 0.01), 0.0, 1.0)
+			w *= lerpf(nm, float(ai.get("near_mult_max", nm)), close)
 		if kind == last:
 			w *= float(g.get("repeat_mult", 0.4))
 		if bool(ai.get("strong", false)) and strong_streak >= int(g.get("strong_streak", 2)):

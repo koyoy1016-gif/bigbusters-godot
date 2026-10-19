@@ -95,6 +95,14 @@ static func rng_for(round_start_ms: float, n: int) -> RandomNumberGenerator:
 	return rng
 
 
+## 攻撃 a でねらう人。攻撃に target（版68：剣士をすぐ投げるつかみ など）があり、その人がいれば、その人。なければ人数でまわす
+static func attack_target(a: Dictionary, members: Array) -> String:
+	var t := str(a.get("target", ""))
+	if t != "" and members.has(t):
+		return t
+	return grab_target(int(a.get("n", 0)), members)
+
+
 ## つかみの的になる人（人数でまわす）。members は枠の名前の配列（並び順は全員で同じにする）
 static func grab_target(n: int, members: Array) -> String:
 	if members.is_empty():
@@ -891,7 +899,7 @@ static func _walk_swing(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary)
 
 
 static func _grab(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
-	var target := grab_target(int(a["n"]), ctx["members"])
+	var target := attack_target(a, ctx["members"])
 	if target == "":
 		return []
 	var follow := float(k["follow_sec"])
@@ -965,17 +973,58 @@ static func storm_spot(a: Dictionary, i: int, k: Dictionary, ctx: Dictionary) ->
 	return {"pos": Vector2(rng.randf_range(float(ax[0]), float(ax[1])), rng.randf_range(float(az[0]), float(az[1]))), "start": s}
 
 
+## ---- 酒の大雨（版68で作り直し）：ステージ全体に酒が降る。安全地帯の円 safe_count か所の中にいればダメージなし ----
+## 安全地帯：ステージの中に、おたがい離して置く（戦いの開始の時刻と攻撃の番号から決まる。全員の画面で同じ）。[Vector2, ...]
+static func storm_safe(a: Dictionary, k: Dictionary, ctx: Dictionary) -> Array:
+	var half := float(ctx.get("bounds", 15.0))
+	var r := float(k["safe_radius"])
+	var lim := half - r - float(k.get("safe_margin", 1.0))
+	var rng := rng_for(float(ctx.get("round_start_ms", 0.0)), int(a["n"]) * 53 + 29)
+	var out: Array = []
+	var tries := 0
+	while out.size() < int(k["safe_count"]) and tries < 400:
+		tries += 1
+		var p := Vector2(rng.randf_range(-lim, lim), rng.randf_range(-lim, lim))
+		var ok := true
+		for q in out:
+			ok = ok and (q as Vector2).distance_to(p) >= 2.0 * r + float(k.get("safe_min_gap", 1.0))
+		if ok:
+			out.append(p)
+	return out
+
+
+## 雨の波 w（0〜waves−1）が当たる時刻
+static func storm_wave_time(w: int, k: Dictionary) -> float:
+	var waves := maxi(int(k["waves"]), 1)
+	var first := float(k["start_sec"]) + float(k["telegraph_sec"])
+	return first + float(k["spread_sec"]) * (float(w) / float(maxi(waves - 1, 1)) if waves > 1 else 0.0)
+
+
 static func _storm(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
 	var out: Array = []
-	var tele := float(k["telegraph_sec"])
-	for i in int(k["count"]):
-		var sp := storm_spot(a, i, k, ctx)
-		var s: float = sp["start"]
-		if u < s or u >= s + tele + float(k["hit_sec"]):
+	var safe := storm_safe(a, k, ctx)
+	var safe_list: Array = []
+	for p in safe:
+		safe_list.append([(p as Vector2).x, (p as Vector2).y])
+	var waves := int(k["waves"])
+	var end := storm_wave_time(waves - 1, k) + float(k["hit_sec"])
+	if u >= end:
+		return out
+	# 安全地帯の円（見せるだけ。ダメージなし）：雨が始まる少し前から、最後の波まで
+	if u >= float(k["windup_sec"]) * 0.5:
+		for i in safe.size():
+			var p: Vector2 = safe[i]
+			out.append({"id": "ss%d_%d" % [int(a["n"]), i], "shape": "circle", "x": p.x, "z": p.y, "r": float(k["safe_radius"]), "active": false, "tele": 1.0,
+				"power": 0.0, "jumpable": false, "target": "", "tick": -1, "style": "safe"})
+	# 雨の波：安全地帯の外、ステージ全体に当たる（波ごとに1回）
+	for w in waves:
+		var wt := storm_wave_time(w, k)
+		var tele := float(k["telegraph_sec"])
+		if u < wt - tele or u >= wt + float(k["hit_sec"]):
 			continue
-		var p: Vector2 = sp["pos"]
-		out.append({"id": "st%d_%d" % [int(a["n"]), i], "shape": "circle", "x": p.x, "z": p.y, "r": float(k["radius"]), "active": u >= s + tele,
-			"tele": clampf((u - s) / tele, 0.0, 1.0), "power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "sake"})
+		out.append({"id": "sr%d_%d" % [int(a["n"]), w], "shape": "rain", "x": 0.0, "z": 0.0, "half": float(ctx.get("bounds", 15.0)) + 1.0, "safe": safe_list,
+			"safe_r": float(k["safe_radius"]), "active": u >= wt, "tele": clampf((u - (wt - tele)) / tele, 0.0, 1.0), "power": float(k["power"]),
+			"jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "rain"})
 	return out
 
 
@@ -1023,6 +1072,14 @@ static func inside(h: Dictionary, x: float, z: float) -> bool:
 			return absf(f.angle_to(d)) <= float(h["half"])
 		"ring":
 			return d.length() <= float(h["r"]) and d.length() >= float(h["r_in"])
+		"rain":
+			# ステージ全体。ただし安全地帯の円の中は当たらない
+			if absf(d.x) > float(h["half"]) or absf(d.y) > float(h["half"]):
+				return false
+			for c in h["safe"]:
+				if Vector2(x - float(c[0]), z - float(c[1])).length() <= float(h["safe_r"]):
+					return false
+			return true
 	return d.length() <= float(h["r"])
 
 
@@ -1046,6 +1103,20 @@ static func escape_of(h: Dictionary, x: float, z: float, margin: float) -> Dicti
 	var dl := d.length()
 	var radial := d / dl if dl > 0.01 else Vector2(1, 0)
 	match str(h["shape"]):
+		"rain":
+			# 酒の大雨：いちばん近い安全地帯の円の中（ふちから margin 内側）へ入る
+			var best := Vector2.ZERO
+			var bd := 1e9
+			for c in h["safe"]:
+				var cp := Vector2(float(c[0]), float(c[1]))
+				var dd := cp.distance_to(Vector2(x, z))
+				if dd < bd:
+					bd = dd
+					best = cp
+			var room := float(h["safe_r"]) - minf(margin, float(h["safe_r"]) * 0.5)
+			if bd <= room or bd >= 1e8:
+				return {"depth": -1.0, "dir": Vector2.ZERO}
+			return {"depth": 100.0 + bd, "dir": (best - Vector2(x, z)).normalized()}
 		"box":
 			var hz := float(h["hz"]) + margin
 			return {"depth": hz - absf(d.y) if absf(d.x) <= float(h["hx"]) + margin else -1.0, "dir": Vector2(0.0, 1.0 if d.y >= 0.0 else -1.0)}

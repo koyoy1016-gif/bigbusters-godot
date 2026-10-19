@@ -27,7 +27,7 @@ func _initialize() -> void:
 	check(bool((k["ai"] as Dictionary).get("ultimate", false)) and float((k["ai"]["forms"] as Dictionary).get("normal", 0.0)) <= 0.0, "覚醒のときだけの必殺技")
 	check(is_equal_approx(float(k["ride_speed"]), 36.0 * 1.2), "速さは、版63（36 m/秒）の1.2倍（%.1f m/秒）" % float(k["ride_speed"]))
 	check(int(k["bottles_per_pass"]) == 12 and is_equal_approx(float(k["throw_power"]), 12.0), "突入1回に酒瓶12本（版67で18本から戻した）、1本12ダメージ")
-	check(is_equal_approx(float(k["throw_radius"]), 2.5 * 1.25), "投げた酒瓶の落ちる範囲は、版66（半径2.5）の1.25倍（%.3f）" % float(k["throw_radius"]))
+	check(is_equal_approx(float(k["throw_radius"]), 3.125 * 1.25), "投げた酒瓶の落ちる範囲は、版67（半径3.125）の1.25倍（%.3f）" % float(k["throw_radius"]))
 	check(not bool(cfg.get("puddles_enabled", true)), "酒だまりは残さない")
 
 	var all_dirs := {}

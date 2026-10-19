@@ -113,14 +113,14 @@ func _initialize() -> void:
 
 	# ---- 巨大酒瓶ライドの瓶 ----
 	var rk: Dictionary = cfg["kinds"]["bottle_ride"]
-	check(int(rk["bottles_per_pass"]) == 12 and is_equal_approx(float(rk["throw_radius"]), 3.125), "巨大酒瓶ライド：突入ごとに12本、落ちる範囲は半径3.125（2.5の1.25倍）")
+	check(int(rk["bottles_per_pass"]) == 12 and is_equal_approx(float(rk["throw_radius"]), 3.90625), "巨大酒瓶ライド：突入ごとに12本、落ちる範囲は半径3.906（版67の3.125の1.25倍。版68）")
 	var ctx := {"n": 3, "round_start_ms": 9.0, "bounds": 15.0, "boss": Vector2.ZERO, "area": 13.0}
 	var a := {"kind": "bottle_ride", "n": 3}
 	var ps: Dictionary = Attacks.ride_plan(rk, ctx)[0]
 	var b: Dictionary = Attacks.ride_throws(ps, rk, ctx)[0]
 	var hz: Array = Attacks.hazards(a, float(b["land"]) + 0.01, cfg, ctx).filter(func(h: Dictionary) -> bool: return str(h["id"]) == str(b["id"]))
 	var to: Vector2 = b["to"]
-	check(hz.size() == 1 and is_equal_approx(float(hz[0]["r"]), 3.125) and Attacks.inside(hz[0], to.x + 3.0, to.y) and not Attacks.inside(hz[0], to.x + 3.3, to.y), "巨大酒瓶ライド：予告の円と当たりの半径が同じ（3.0m は当たり、3.3m は外れ）")
+	check(hz.size() == 1 and is_equal_approx(float(hz[0]["r"]), 3.90625) and Attacks.inside(hz[0], to.x + 3.8, to.y) and not Attacks.inside(hz[0], to.x + 4.0, to.y), "巨大酒瓶ライド：予告の円と当たりの半径が同じ（3.8m は当たり、4.0m は外れ）")
 	check(is_equal_approx(float(cfg["kinds"]["sake_drop"]["radius"]), 2.5), "酒瓶落としの範囲（2.5）は変えていない（6番は確認待ち）")
 
 	# ---- 戦いの画面：全部の攻撃が出る前に倒しても、ふつうに勝って終わる ----
@@ -136,7 +136,7 @@ func _initialize() -> void:
 	var tt := 0.5
 	now[0] = s.round_start_ms + tt * 1000.0
 	s.combat_update(0.05)
-	s.my_hits = 4000.0
+	s.my_hits = float(s.phase.max1)
 	s._recompute_boss_hp()
 	while not s.phase.is_awake() and tt < 10.0:
 		tt += 0.05
@@ -144,7 +144,7 @@ func _initialize() -> void:
 		s.combat_update(0.05)
 		s._pose_boss(0.05)
 	check(not s.ai.unused_in("awake").is_empty(), "画面：覚醒した直後は、まだ出していない攻撃が残っている")
-	s.my_hits = 4000.0 + 9000.0
+	s.my_hits = float(s.phase.max1) + float(s.phase.max2)
 	s._recompute_boss_hp()
 	check(s.won and not s.round_active(), "画面：まだの攻撃が残っていても、倒せば勝って終わる")
 	s._exit_tree()

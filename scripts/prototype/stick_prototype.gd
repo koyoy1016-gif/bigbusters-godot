@@ -687,6 +687,10 @@ func _begin_round(start_ms: float) -> void:
 	boss_hp = float(config["boss_hp"])
 	phase.reset(float(config["boss_hp"]), float(config.get("boss_hp_awake", config["boss_hp"])), _trans_sec(), float(config.get("boss_hp_refill_sec", 1.2)))
 	awake_rides_done = 0
+	awake_storms_done = {}
+	quick_grab_done = false
+	var qw: Array = config.get("quick_grab_window", [])
+	quick_grab_at = Attacks.rng_for(round_start_ms, 7331).randf_range(float(qw[0]), float(qw[1])) if qw.size() == 2 else -1.0
 	phase_text = {"text": "", "left": 0.0}
 	if boss_model != null:
 		boss_model.reset_form()
@@ -937,6 +941,9 @@ func _effective_others_hits() -> float:
 
 
 var awake_rides_done := 0  ## 覚醒の体力の区切りで入れた巨大酒瓶ライドの数（版64）
+var awake_storms_done := {}  ## 版68：必ず入れた酒の大雨（awake_storm_at の番号 → true）
+var quick_grab_at := -1.0  ## 版68：剣士をすぐ投げるつかみを入れる時刻（戦いの秒）
+var quick_grab_done := false
 
 
 ## ボスの体力 = 最大 − 自分の合計 − ほかの人の合計。0になったら倒した（戦いの最中だけ）
@@ -952,6 +959,14 @@ func _recompute_boss_hp() -> void:
 	if steps > awake_rides_done and not won and not lost:
 		awake_rides_done = steps
 		ai.request(Attacks.BOTTLE_RIDE)
+	# 版68：覚醒の体力が決めた割合（4分の1・4分の3）減ったら、必ず酒の大雨（区切りごとに1回）
+	if phase.is_awake() and not won and not lost:
+		var lost_frac := clampf((total - phase.awake_base) / maxf(phase.max2, 1.0), 0.0, 1.0)
+		var marks: Array = config.get("awake_storm_at", [])
+		for i in marks.size():
+			if lost_frac >= float(marks[i]) - 0.000001 and not awake_storms_done.has(i):
+				awake_storms_done[i] = true
+				ai.request(Attacks.FLYER_STORM)
 	if ev == BossPhase.FALL:
 		_on_boss_fall()
 	if round_start_ms > 0.0 and ev == BossPhase.DEAD and not won and not lost:
@@ -1145,6 +1160,8 @@ func _start_hold(slot: String, from: Vector2) -> void:
 	var rate := ai_rng.randf_range(float(ai_cfg.get("escape_taps_min", 2.5)), float(ai_cfg.get("escape_taps_max", 4.5))) if slot != _my_slot() else 0.0
 	var n := int(current_attack.get("n", 0))
 	var hold := Attacks.grab_hold_sec(attacks_cfg, round_start_ms, n)
+	if bool(current_attack.get("quick", false)):
+		hold = float(attacks_cfg["kinds"]["grab"].get("quick_hold_sec", 0.25))  # 版68：すぐ投げるつかみ
 	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0, "mash": 0.0, "ai_rate": rate, "hold": hold}
 	if slot == _my_slot():
 		stun_left = maxf(stun_left, 0.1)
@@ -1185,6 +1202,35 @@ func _release_hold(freed: bool) -> void:
 			(AiAlly.act(a) as Actions).start("thrown", away, 0.0, true)
 		else:
 			a["stun"] = float(k["free_stun_sec"])
+
+
+## ---- 版68：剣士をつかんですぐ投げる（1戦に1回、決めたランダムな時刻のあと） ----
+## 剣士の枠：自分が剣士（キャラを選んでいない＝ファイター、または hero_swordsman）なら自分。AIの味方の剣士も。倒れていない人だけ
+func swordsman_slots() -> Array:
+	var out: Array = []
+	var me := _my_slot()
+	var mine := selected_character
+	if not downed and (mine == "" or mine == "hero_swordsman"):
+		out.append(me)
+	var names: Array = ai_allies.keys()
+	names.sort()
+	for slot in names:
+		var a: Dictionary = ai_allies[slot]
+		if str(a.get("id", "")) == "hero_swordsman" and not bool(a["downed"]):
+			out.append(str(slot))
+	return out
+
+
+func _quick_grab_check(t: float) -> void:
+	if quick_grab_done or quick_grab_at < 0.0 or t < quick_grab_at or won or lost or not phase.can_attack():
+		return
+	if not grab_state.is_empty() or str(current_attack.get("kind", "")) == Attacks.GRAB:
+		return
+	var targets := swordsman_slots()
+	if targets.is_empty():
+		return  # 剣士がいない・倒れている：無理に出さない（できるようになるまで待つ）
+	quick_grab_done = true
+	ai.request(Attacks.GRAB, {"target": str(targets[0]), "quick": true})
 
 
 ## ---- 版67：つかみ投げの、投げる向きと、ぶつかり ----
@@ -1572,7 +1618,7 @@ func _attack_ctx(a: Dictionary, u: float) -> Dictionary:
 	if not a.is_empty() and str(a["kind"]) == Attacks.GRAB and u >= float(attacks_cfg["kinds"]["grab"]["follow_sec"]):
 		var n := int(a["n"])
 		if not grab_locked.has(n):
-			var target := Attacks.grab_target(n, members)
+			var target := Attacks.attack_target(a, members)
 			grab_locked[n] = positions.get(target, (ctx["boss"] as Vector2) + Attacks.fwd_of(float(ctx["yaw"])) * 6.0)
 		ctx["locked"] = grab_locked[n]
 	return ctx
@@ -1597,6 +1643,7 @@ func combat_update(delta: float) -> void:
 		boss_hp = phase.hp(_total_boss_damage_counted())
 	var staggering: bool = not phase.can_attack() or (boss_model != null and boss_model.is_staggering())
 	var cur: Dictionary = {}
+	_quick_grab_check(t)
 	if not staggering:
 		ai.update(t, "awake" if phase.is_awake() else "normal", _target_dist)
 		cur = ai.current()
@@ -1835,7 +1882,8 @@ func _place_zone(n: MeshInstance3D, h: Dictionary, grow: float, y: float) -> voi
 	var zm: ShaderMaterial = n.get_meta("zmat")
 	var zs: Dictionary = attacks_cfg.get("zone_style", {})
 	var ride := str(h.get("style", "")) == "ride_lane"
-	var look: Dictionary = zs.get("ride" if ride else "attack", {})
+	var safe := str(h.get("style", "")) == "safe"
+	var look: Dictionary = zs.get("ride" if ride else ("safe" if safe else "attack"), {})
 	zm.set_shader_parameter("fill_color", Color(str(look.get("fill", "#ff6b2852"))))
 	zm.set_shader_parameter("rim_color", Color(str(look.get("rim", "#ffcfa0f2"))))
 	zm.set_shader_parameter("mode", 2 if ride else (1 if key == "box" else 0))
@@ -1859,6 +1907,7 @@ func _show_hazards(hz: Array) -> void:
 	var bat_used := false
 	var bottle_used := 0
 	var lighter_used := false
+	rain_seen = false
 	for i in hz.size():
 		var h: Dictionary = hz[i]
 		var n := _hazard_node(i)
@@ -1925,6 +1974,11 @@ func _show_hazards(hz: Array) -> void:
 		if style == "hand" and active:
 			n.visible = false
 			continue
+		if style == "rain":
+			# 酒の大雨：ステージ全体なので、床の面は出さない（雨のしずくを全体に降らせる。安全地帯は style "safe" の円）
+			rain_seen = true
+			n.visible = false
+			continue
 		if style == "ride":
 			# 走っている瓶そのものが見えるので、当たり場所の面は出さない（道の予告は ride_lane）
 			n.visible = false
@@ -1935,7 +1989,7 @@ func _show_hazards(hz: Array) -> void:
 		zm.set_shader_parameter("progress", tele)
 		zm.set_shader_parameter("active", 1.0 if active else 0.0)
 		# 害のない予告（酒の大雨の落ちる前など）はうすく
-		zm.set_shader_parameter("strength", float(attacks_cfg["kinds"]["flyers"].get("tele_alpha", 0.3)) * (0.5 + 0.5 * tele) / 0.3 if float(h.get("power", 1.0)) <= 0.0 else 1.0)
+		zm.set_shader_parameter("strength", float(attacks_cfg["kinds"]["flyers"].get("tele_alpha", 0.3)) * (0.5 + 0.5 * tele) / 0.3 if float(h.get("power", 1.0)) <= 0.0 and style != "safe" else 1.0)
 		n.visible = true
 	for i in range(hz.size(), hazard_nodes.size()):
 		(hazard_nodes[i] as Node3D).visible = false
@@ -1947,8 +2001,44 @@ func _show_hazards(hz: Array) -> void:
 		_fly_bat.visible = false
 	for i in range(bottle_used, _bottle_nodes.size()):
 		(_bottle_nodes[i] as Node3D).visible = false
+	_rain_fx_update(rain_seen)
 	if not lighter_used and _lighter != null:
 		_lighter.visible = false
+
+
+## ---- 版68：酒の大雨の雨（ステージ全体に、酒のしずくが降る。見た目だけ。当たりは style "rain" の当たり場所） ----
+var rain_seen := false
+var _rain_fx: CPUParticles3D
+func _rain_fx_update(on: bool) -> void:
+	if not on:
+		if _rain_fx != null:
+			_rain_fx.emitting = false
+		return
+	if _rain_fx == null:
+		var half := float(config["bounds"]) + 2.0
+		_rain_fx = CPUParticles3D.new()
+		_rain_fx.name = "SakeRain"
+		_rain_fx.amount = int(attacks_cfg["kinds"]["flyer_storm"].get("rain_drops", 220))
+		_rain_fx.lifetime = 0.9
+		_rain_fx.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		_rain_fx.emission_box_extents = Vector3(half, 0.5, half)
+		_rain_fx.position = Vector3(0, 18.0, 0)
+		_rain_fx.direction = Vector3(0, -1, 0)
+		_rain_fx.spread = 4.0
+		_rain_fx.gravity = Vector3(0, -30, 0)
+		_rain_fx.initial_velocity_min = 8.0
+		_rain_fx.initial_velocity_max = 12.0
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.08, 0.7, 0.08)
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(str(attacks_cfg.get("sake_color", "#f2e6b8")), 0.75)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		bm.material = m
+		_rain_fx.mesh = bm
+		_rain_fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(_rain_fx)
+	_rain_fx.emitting = true
 
 
 ## ---- 巨大酒瓶ライドの酒瓶：ボスがまたがる、横だおしの大きな一升瓶（単色の形の組み合わせ。素材は使わない）----

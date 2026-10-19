@@ -58,7 +58,7 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 			# この間は、予告の範囲もボスについてくる。chase_sec を過ぎたら固定（予告と当たりがずれない）
 			var face := yaw if not locks.has(n) else float(locks[n]["yaw"])
 			var p0 := pos
-			var tp: Variant = target_pos(n, ctx)
+			var tp: Variant = target_pos_of(a, ctx)
 			if tp is Vector2:
 				var d: Vector2 = (tp as Vector2) - pos
 				if d.length() > 0.3:
@@ -93,7 +93,7 @@ func update(delta: float, a: Dictionary, u: float, next_a: Dictionary, cfg: Dict
 		var goal := pos
 		var face := yaw
 		if not next_a.is_empty():
-			var tp2: Variant = target_pos(int(next_a["n"]), ctx)
+			var tp2: Variant = target_pos_of(next_a, ctx)
 			if tp2 is Vector2:
 				var to: Vector2 = (tp2 as Vector2) - pos
 				if to.length() > 0.3:
@@ -137,6 +137,14 @@ static func path_ctx(lk: Dictionary, w: Dictionary, ctx: Dictionary = {}, n: int
 ## 攻撃の始めに固定した位置と向き。まだ始まっていなければ、いまの位置と向き
 func lock_of(n: int) -> Dictionary:
 	return locks.get(n, {"pos": pos, "yaw": yaw})
+
+
+## 攻撃 a でねらう人の位置（攻撃に target があれば、その人。版68）
+static func target_pos_of(a: Dictionary, ctx: Dictionary) -> Variant:
+	var target := Attacks.attack_target(a, ctx.get("members", []))
+	if target == "":
+		return null
+	return (ctx.get("positions", {}) as Dictionary).get(target, null)
 
 
 ## 攻撃 n でねらう人の位置（いない／わからなければ null）

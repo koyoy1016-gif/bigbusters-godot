@@ -403,7 +403,7 @@ func _initialize() -> void:
 		s4.net_state = {"slot": "p2"}
 		var hp_p2: float = s4.role_value("hp")
 		s4.net_state = {"slot": "p1"}
-		check(is_equal_approx(hp_p2, 240.0) and is_equal_approx(s4.role_value("hp"), 262.5), "p2（ガーディアン）240、p1（ファイター＝剣士）262.5（版66で剣士を1.75倍にしたので、剣士のほうが多い）")
+		check(is_equal_approx(hp_p2, 240.0) and is_equal_approx(s4.role_value("hp"), 288.75), "p2（ガーディアン）240、p1（ファイター＝剣士）288.75（版66・版68で剣士を増やしたので、剣士のほうが多い）")
 		check(roles["p1"]["attack_power"] > roles["p2"]["attack_power"], "p1（ファイター）は、p2（ガーディアン）よりこうげきが強い")
 		check(roles["p3"]["attack_reach"] > float(s4.config["attack_reach"]) * 2.0 and roles["p3"]["hp"] < roles["p1"]["hp"], "p3（シューター）は、遠くからこうげきできるが、体力は少ない")
 		check(roles["p2"]["hp"] > roles["p4"]["hp"] and roles["p4"]["attack_reach"] > float(s4.config["attack_reach"]), "p2（ガーディアン）は p4（サポート）より体力が多い。p4（サポート）は、少し離れてもこうげきできる")

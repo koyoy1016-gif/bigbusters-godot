@@ -45,6 +45,8 @@ static func evade_dir(pos: Vector2, hazards: Array, margin: float, me: String) -
 		var target := str(h["target"])
 		if target != "" and target != me:
 			continue
+		if str(h.get("style", "")) == "safe":
+			continue  # 酒の大雨の安全地帯（よける物ではない。入る所）
 		var e := Attacks.escape_of(h, pos.x, pos.y, margin)
 		var depth := float(e["depth"])
 		var dir: Vector2 = e["dir"]

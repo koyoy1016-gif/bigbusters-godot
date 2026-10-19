@@ -19,7 +19,7 @@ func _initialize() -> void:
 	# ---- 1. 剣士の体力：150 の1.75倍。ほかの味方は変えない ----
 	var ccfg := CharacterData.load_config()
 	var hero := CharacterData.find(ccfg, "hero_swordsman")
-	check(is_equal_approx(float(hero["stats"]["hp"]), 150.0 * 1.75), "剣士の体力は 150 の1.75倍（%.1f）" % float(hero["stats"]["hp"]))
+	check(is_equal_approx(float(hero["stats"]["hp"]), 150.0 * 1.75 * 1.1), "剣士の体力は 150 の1.75倍（版66）のさらに1.1倍（版68。%.2f）" % float(hero["stats"]["hp"]))
 	var others := {"sprinter": 105.0, "brawler": 135.0, "gunner": 105.0, "bomber": 112.5, "mage": 97.5, "guardian": 240.0, "summoner": 120.0, "healer": 127.5}
 	var same := true
 	for id in others:
@@ -27,7 +27,7 @@ func _initialize() -> void:
 	check(same, "ほかの味方8人の体力は変わらない")
 	var cfg: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/prototype_stick.json"))
 	var roles: Dictionary = cfg["roles"]
-	check(is_equal_approx(float(roles["p1"]["hp"]), 262.5) and is_equal_approx(float(roles["p2"]["hp"]), 240.0) and is_equal_approx(float(roles["p3"]["hp"]), 105.0) and is_equal_approx(float(roles["p4"]["hp"]), 135.0), "キャラを選ばないときの剣士（ファイター）も 262.5。ほかの役は変わらない")
+	check(is_equal_approx(float(roles["p1"]["hp"]), 288.75) and is_equal_approx(float(roles["p2"]["hp"]), 240.0) and is_equal_approx(float(roles["p3"]["hp"]), 105.0) and is_equal_approx(float(roles["p4"]["hp"]), 135.0), "キャラを選ばないときの剣士（ファイター）も 288.75。ほかの役は変わらない")
 
 	var s: Node = (load(SCENE) as PackedScene).instantiate()
 	root.add_child(s)
@@ -38,34 +38,34 @@ func _initialize() -> void:
 	s.sfx = null
 	s.ai_enabled = false
 	s.start_round()
-	check(is_equal_approx(s.my_hp, 262.5) and is_equal_approx(s.role_value("hp"), 262.5), "画面：剣士は体力 262.5 で始まる")
+	check(is_equal_approx(s.my_hp, 288.75) and is_equal_approx(s.role_value("hp"), 288.75), "画面：剣士は体力 288.75 で始まる")
 	s.selected_character = "hero_swordsman"
-	check(is_equal_approx(s.role_value("hp"), 262.5), "画面：剣士を選んだときも 262.5")
+	check(is_equal_approx(s.role_value("hp"), 288.75), "画面：剣士を選んだときも 288.75")
 	s.selected_character = ""
 
 	# ---- 2. ボスの体力：平常 4000、覚醒 9000 ----
-	check(is_equal_approx(float(cfg["boss_hp"]), 4000.0) and is_equal_approx(float(cfg["boss_hp_awake"]), 9000.0), "データ：平常 4000、覚醒 9000")
-	check(is_equal_approx(s.phase.max_hp(), 4000.0), "画面：平常の体力の最大は 4000")
+	check(is_equal_approx(float(cfg["boss_hp"]), 6000.0) and is_equal_approx(float(cfg["boss_hp_awake"]), 11250.0), "データ：平常 6000、覚醒 11250（版68）")
+	check(is_equal_approx(s.phase.max_hp(), 6000.0), "画面：平常の体力の最大は 6000")
 	var t := 0.5
 	now[0] = s.round_start_ms + t * 1000.0
-	s.my_hits = 4000.0
+	s.my_hits = 6000.0
 	s._recompute_boss_hp()
 	while not s.phase.is_awake() and t < 10.0:
 		t += 0.05
 		now[0] = s.round_start_ms + t * 1000.0
 		s.combat_update(0.05)
 		s._pose_boss(0.05)
-	check(s.phase.is_awake() and is_equal_approx(s.phase.max_hp(), 9000.0) and is_equal_approx(s.boss_hp, 9000.0), "画面：覚醒すると、体力は満タンの 9000")
-	s.my_hits = 4000.0 + 4500.0
+	check(s.phase.is_awake() and is_equal_approx(s.phase.max_hp(), 11250.0) and is_equal_approx(s.boss_hp, 11250.0), "画面：覚醒すると、体力は満タンの 11250")
+	s.my_hits = 6000.0 + 5625.0
 	s._recompute_boss_hp()
-	check(is_equal_approx(s.boss_hp, 4500.0) and is_equal_approx(s.boss_hp_ratio(), 0.5), "画面：覚醒の体力ゲージは 9000 を満タンとして減る（4500 で半分）")
-	check(s.awake_rides_done == 2, "画面：必ず入るライドは、覚醒の体力 2250 ごと（4500 減って2回）")
-	s.my_hits = 4000.0 + 8999.0
+	check(is_equal_approx(s.boss_hp, 5625.0) and is_equal_approx(s.boss_hp_ratio(), 0.5), "画面：覚醒の体力ゲージは 11250 を満タンとして減る（5625 で半分）")
+	check(s.awake_rides_done == 2, "画面：必ず入るライドは、覚醒の体力の4分の1ごと（半分減って2回）")
+	s.my_hits = 6000.0 + 11249.0
 	s._recompute_boss_hp()
 	check(not s.won and s.boss_hp > 0.0, "画面：覚醒の体力が残っていれば、まだ勝ちではない")
-	s.my_hits = 4000.0 + 9000.0
+	s.my_hits = 6000.0 + 11250.0
 	s._recompute_boss_hp()
-	check(s.won, "画面：覚醒の体力 9000 を削りきると勝ち")
+	check(s.won, "画面：覚醒の体力 11250 を削りきると勝ち")
 	s._exit_tree()
 
 	# ---- 3. 回転バット移動：どちらの形態でも選ばれない（データからも削除） ----

@@ -121,10 +121,15 @@ func _initialize() -> void:
 	var gai: Dictionary = cfg["kinds"]["grab"]["ai"]
 	var near_w := float(ga.candidate_weights(20.0, "normal", 2.0).get("grab", 0.0))
 	var far_w := float(ga.candidate_weights(20.0, "normal", 12.0).get("grab", 0.0))
-	check(is_equal_approx(near_w, float(gai["forms"]["normal"]) * 1.5), "近いと、つかみの重みは1.5倍（%.2f）" % near_w)
+	var close_k: float = lerpf(float(gai["near_mult"]), float(gai["near_mult_max"]), 1.0 - 2.0 / float(gai["range"][1]))
+	check(is_equal_approx(near_w, float(gai["forms"]["normal"]) * close_k), "近い（2m）と、つかみの重みは %.2f 倍（版68：近いほど上がる）" % close_k)
 	check(is_equal_approx(far_w, float(gai["forms"]["normal"]) * float(cfg["ai"]["far_mult"])), "遠いと、つかみの重みは今までどおり（%.2f）" % far_w)
 	var near_aw := float(ga.candidate_weights(20.0, "awake", 2.0).get("grab", 0.0))
-	check(is_equal_approx(near_aw, float(gai["forms"]["awake"]) * 1.5), "覚醒でも、近いとつかみは1.5倍")
+	check(is_equal_approx(near_aw, float(gai["forms"]["awake"]) * close_k), "覚醒でも、近いとつかみの重みが上がる")
+	var w0 := float(ga.candidate_weights(20.0, "normal", 0.5).get("grab", 0.0))
+	var w5 := float(ga.candidate_weights(20.0, "normal", 5.0).get("grab", 0.0))
+	check(w0 > near_w and near_w > w5 and w5 > far_w, "つかみの重みは、近いほど大きい（0.5m %.2f ＞ 2m %.2f ＞ 5m %.2f ＞ 遠い %.2f）" % [w0, near_w, w5, far_w])
+	check(ga.candidate_weights(20.0, "normal", 0.5).size() >= 8, "近くても、ほかの攻撃も候補に残る")
 	# 使える攻撃がないときは、代わりの攻撃
 	check(BossAI.pick({}, 0.5) == "", "候補がなければ空")
 	var ai := BossAI.new()

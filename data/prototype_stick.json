@@ -46,7 +46,7 @@
   "hint": "左のスティックで動く。右のボタンでこうげき。サブ（跳ぶ）で輪をよけられる",
   "boss_hp_label": "BOSS HP",
   "win_text": "たおした",
-  "boss_hp": 4000.0,
+  "boss_hp": 6000.0,
   "boss_size": 5.2,
   "boss_color": "#8a9098",
   "boss_hit_color": "#ffffff",
@@ -115,11 +115,11 @@
   "roles": {
     "p1": {
       "name": "ファイター",
-      "hp": 262.5,
+      "hp": 288.75,
       "move_speed": 7.0,
-      "attack_power": 18.0,
+      "attack_power": 22.5,
       "attack_cooldown_sec": 0.35,
-      "hp_note": "版66：剣士（ファイター）の体力は、前の150の1.75倍"
+      "hp_note": "版68：剣士（ファイター）の体力 262.5→288.75（1.1倍）、攻撃力 18→22.5（1.25倍）"
     },
     "p2": {
       "name": "ガーディアン",
@@ -164,7 +164,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "67",
+  "build_id": "68",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -295,9 +295,19 @@
   "banner_sec_default": 1.6,
   "banner_y_portrait": 0.58,
   "banner_y": 0.4,
-  "boss_hp_awake": 9000.0,
+  "boss_hp_awake": 11250.0,
   "awake_ride_every": 0.25,
-  "awake_ride_note": "覚醒の体力は9000（版66。版64の6000の1.5倍）。覚醒の体力が awake_ride_every（4分の1＝2250）減るたびに、必ず巨大酒瓶ライドを入れる（残り75%・50%・25%の3回）。それ以外でも、ふつうの必殺技としてランダムに出る",
+  "awake_storm_at": [
+    0.25,
+    0.75
+  ],
+  "awake_ride_note": "覚醒の体力は11250（版68。版67の9000の1.25倍）。覚醒の体力が awake_ride_every（4分の1）減るたびに、必ず巨大酒瓶ライドを入れる。awake_storm_at（減った割合）では、必ず酒の大雨を入れる",
+  "boss_hp_note": "版68：平常の体力 6000（版67の4000の1.5倍）、覚醒 11250（9000の1.25倍）",
+  "quick_grab_window": [
+    25.0,
+    70.0
+  ],
+  "quick_grab_note": "版68：戦いが始まってから、この秒の間のランダムな時刻（戦いの開始の時刻から決まる。全員の画面で同じ）に1回だけ、剣士をつかんですぐ投げる（つかみ投げの速い版）。剣士が倒れているなどでできない間は待つ",
   "boss_hp_label_awake": "覚醒 BOSS HP",
   "boss_hp_refill_sec": 1.2,
   "bossbar_color_awake": "#c43aff",

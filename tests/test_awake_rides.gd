@@ -17,7 +17,7 @@ func check(cond: bool, msg: String) -> void:
 
 func _initialize() -> void:
 	var cfg: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/prototype_stick.json"))
-	check(is_equal_approx(float(cfg["boss_hp_awake"]), 9000.0) and is_equal_approx(float(cfg["boss_hp"]), 4000.0), "覚醒の体力は 9000、平常は 4000")
+	check(is_equal_approx(float(cfg["boss_hp_awake"]), 11250.0) and is_equal_approx(float(cfg["boss_hp"]), 6000.0), "覚醒の体力は 11250、平常は 6000（版68）")
 	check(is_equal_approx(float(cfg["awake_ride_every"]), 0.25), "区切りは4分の1")
 
 	# 区切りの数
@@ -35,10 +35,12 @@ func _initialize() -> void:
 	var ai := BossAI.new()
 	ai.reset(acfg, 1.0)
 	ai.on_awake(0.0)
+	for k0 in acfg["kinds"]:
+		ai.used["awake"][k0] = true  # 「まだの攻撃を先に」（版67）は、ここでは関係しないので、全部出したことにする
 	ai.last_ult_end = 20.0  # 必殺技を使ったばかり（ふつうなら24秒は出ない）
 	ai.update(21.0, "awake", func(_n: int) -> float: return 5.0)
 	ai.request(Attacks.BOTTLE_RIDE)
-	check(str(ai.next_attack().get("kind", "")) == Attacks.BOTTLE_RIDE or ai.forced.has(Attacks.BOTTLE_RIDE), "いまの攻撃の次に、巨大酒瓶ライドが入る（必殺技の待ち時間があっても）")
+	check(str(ai.next_attack().get("kind", "")) == Attacks.BOTTLE_RIDE or ai.forced.any(func(f): return str(f["kind"]) == Attacks.BOTTLE_RIDE), "いまの攻撃の次に、巨大酒瓶ライドが入る（必殺技の待ち時間があっても）")
 	var t := 21.0
 	var saw := false
 	while t < 40.0 and not saw:
@@ -66,7 +68,7 @@ func _initialize() -> void:
 	s.start_round()
 	var tt := 0.5
 	now[0] = s.round_start_ms + tt * 1000.0
-	s.my_hits = 4000.0
+	s.my_hits = float(s.phase.max1)
 	s._recompute_boss_hp()
 	# 覚醒の演出を進める
 	while not s.phase.is_awake() and tt < 10.0:
@@ -74,11 +76,11 @@ func _initialize() -> void:
 		now[0] = s.round_start_ms + tt * 1000.0
 		s.combat_update(0.05)
 		s._pose_boss(0.05)
-	check(s.phase.is_awake() and is_equal_approx(s.phase.max_hp(), 9000.0), "画面：覚醒すると、体力の最大は 9000")
+	check(s.phase.is_awake() and is_equal_approx(s.phase.max_hp(), 11250.0), "画面：覚醒すると、体力の最大は 11250")
 	var rides := 0
 	var was_riding := false
 	for q in 3:
-		s.my_hits = 4000.0 + 2250.0 * float(q + 1) + 1.0
+		s.my_hits = float(s.phase.max1) + float(s.phase.max2) * 0.25 * float(q + 1) + 1.0
 		s._recompute_boss_hp()
 		var started := false
 		var limit := tt + 40.0
@@ -95,6 +97,14 @@ func _initialize() -> void:
 				started = true
 			if started and not riding:
 				was_riding = false
+				# 版68：4分の1と4分の3では、ライドのあとに酒の大雨も入るので、それも終わるまで進める
+				while tt < limit and (str(s.current_attack.get("kind", "")) == Attacks.FLYER_STORM or s.ai.forced.size() > 0 or str(s.ai.next_attack().get("kind", "")) == Attacks.FLYER_STORM):
+					tt += 0.05
+					now[0] = s.round_start_ms + tt * 1000.0
+					s.my_hp = 150.0
+					s.downed = false
+					s.combat_update(0.05)
+					s._pose_boss(0.05)
 				break
 			was_riding = riding
 		if started:
