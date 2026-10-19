@@ -301,3 +301,21 @@ test('ゲストは、端末（uid）ごとに1つ。べつの人どうしは外�
   assert.equal(a.acc.state.displaced, false);
   assert.equal(b.acc.state.displaced, false);
 });
+
+test('ログインを切りかえる前に、ゲストの席を空ける（同じ人が2人に数えられない）。失敗したら入り直す', async () => {
+  const world = makeWorld();
+  const a = device(world);
+  await a.acc.init(CFG);
+  await a.acc.register('mypass');
+  const g = device(world);
+  await g.acc.init(CFG);
+  await g.bb.joinRoom(CFG, '4321');
+  assert.ok(world.store.has('rooms/4321/players/p1'));
+  const bad = await g.acc.login('1', 'wrong-pass');
+  assert.equal(bad.ok, false);
+  await settle();
+  assert.ok(world.store.has('rooms/4321/players/p1'), 'パスワードをまちがえたら、席にもどる');
+  const ok = await g.acc.login('1', 'mypass');
+  assert.equal(ok.ok, true);
+  assert.equal(world.store.has('rooms/4321/players/p1'), false, 'ログインに成功したら、ゲストの席は空いている');
+});

@@ -494,9 +494,10 @@ func _refresh_play_button() -> void:
 	else:
 		play_button.text = str(config["play_label"])
 		play_button.disabled = not stage_open
+	var full := Logic.party_full(room_state, int(config["max_party"]))
 	var party := Logic.other_members(room_state).size() > 0
-	invite_button.disabled = party
-	invite_button.text = str(config["invite_locked_label"]) if party else str(config["invite_label"])
+	invite_button.disabled = full
+	invite_button.text = str(config["invite_locked_label"]) if full else str(config["invite_label"])
 	leave_button.disabled = not party
 	leave_button.text = str(config["new_room_label"]) if party else str(config["leave_alone_label"])
 
@@ -686,7 +687,7 @@ func _poll_account(delta: float) -> void:
 		save_applied = true
 		_apply_server_save(st["save"])
 	_refresh_invite_button()
-	var sig := JSON.stringify([st.get("signedIn"), st.get("loginId"), st.get("nickname"), st.get("friendCode"), st.get("friends"), st.get("inbox"), st.get("message"), Logic.other_members(room_state).size()])
+	var sig := JSON.stringify([st.get("signedIn"), st.get("loginId"), st.get("nickname"), st.get("friendCode"), st.get("friends"), st.get("inbox"), st.get("message"), Logic.party_full(room_state, int(config["max_party"]))])
 	if sig != account_signature:
 		account_signature = sig
 		if state == Logic.ACCOUNT:
@@ -790,7 +791,7 @@ func _refresh_friends() -> void:
 		if fnick == "":
 			fnick = str(config["friends_no_name"])
 		var invite_btn := _small_button(fnick + "：" + str(config["friends_invite"]), func(): account.invite(fsid, room_code))
-		if not Logic.other_members(room_state).is_empty():
+		if Logic.party_full(room_state, int(config["max_party"])):
 			invite_btn.disabled = true
 			invite_btn.text = fnick + "：" + str(config["invite_locked_label"])
 		friends_box.add_child(invite_btn)
@@ -821,6 +822,9 @@ func join_invite_of(from: String, room: String) -> void:
 	if account != null:
 		account.remove_inbox(from)
 	if battle != null:
+		return
+	if room == room_code and str(room_state.get("status", "")) == "in_room":
+		# もう この部屋にいる：入り直さない（同じ人が2人に数えられない）
 		return
 	room_code = room
 	room_from_url = true
@@ -913,7 +917,7 @@ func new_room() -> void:
 
 ## しょうたい：この部屋のURLを作って、ブラウザ側の「おくる」画面を出す
 func invite() -> void:
-	if not Logic.other_members(room_state).is_empty():
+	if Logic.party_full(room_state, int(config["max_party"])):
 		toast_label.text = str(config["invite_locked_label"])
 		toast_time = 2.0
 		return

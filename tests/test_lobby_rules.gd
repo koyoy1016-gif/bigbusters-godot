@@ -87,9 +87,13 @@ func _initialize() -> void:
 	check(flow.play_button.disabled and flow.play_button.text == str(flow.config["play_busy_label"]), "ほかの人が戦い中：プレイは押せず、おまちくださいと出る")
 	flow.play()
 	check(flow.state == "lobby" and not flow.waiting_ready, "戦い中は、プレイを押しても入れない")
-	check(flow.invite_button.disabled and flow.leave_button.disabled == false, "ふたり：しょうたいは押せない／ぬけるは押せる")
+	check(flow.invite_button.disabled == false and flow.leave_button.disabled == false, "ふたり：しょうたいも ぬけるも押せる（4人まで呼べる）")
+	state["members"] = ["p1", "p2", "p3", "p4"]
+	flow._poll_room(1.0)
+	check(flow.invite_button.disabled and flow.invite_button.text == str(flow.config["invite_locked_label"]), "4人そろうと、しょうたいは押せない")
 	flow.invite()
-	check(_count("window.bbShare") == 0, "ふたりのとき、しょうたいの画面は出ない")
+	check(_count("window.bbShare") == 0, "4人のとき、しょうたいの画面は出ない")
+	state["members"] = ["p1", "p2"]
 
 	# 戦いが終わって、相手がロビーに戻った → 押すと「まっています」
 	state["phases"] = {"p2": {"v": "lobby", "t": 2}}

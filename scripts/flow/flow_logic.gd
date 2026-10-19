@@ -128,3 +128,8 @@ static func phase_of(state_name: String, waiting_ready: bool) -> String:
 		LOBBY:
 			return "ready" if waiting_ready else "lobby"
 	return "lobby"
+
+
+## 部屋が、いっぱいか（max は、部屋の定員）
+static func party_full(room: Dictionary, max_players: int) -> bool:
+	return str(room.get("status", "")) == "in_room" and (room.get("members", []) as Array).size() >= max_players
