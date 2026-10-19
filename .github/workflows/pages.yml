@@ -80,7 +80,8 @@ jobs:
             code=$?
             echo "$out" | tail -n 5
             if [ "$code" -ne 0 ] || ! echo "$out" | grep -q '^失敗: 0$' || echo "$out" | grep -q '^FAIL'; then
-              echo "::error file=$t::テスト失敗（終了コード $code）"
+              why="$(echo "$out" | grep -m 3 -E '^FAIL|^失敗|SCRIPT ERROR' | tr '\n' ' ')"
+              echo "::error file=$t::テスト失敗（終了コード $code）$why"
               failed=1
             fi
           done
