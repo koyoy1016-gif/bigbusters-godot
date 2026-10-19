@@ -257,8 +257,8 @@ static func _bottle_ride(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary
 	var edge := ride_edge(k, c2)
 	for ps in ride_plan(k, c2):
 		var dir := float(ps["dir"])
-		if u >= float(ps["tele_from"]) and u < float(ps["start"]):
-			# 予告：これから走る道（ステージの端から端までの帯）
+		if u >= float(ps["tele_from"]) and u < float(ps["end"]):
+			# 予告：これから走る道（ステージの端から端までの帯）。走っている間も、通り抜けるまで出しておく（版60）
 			out.append({"id": "rdl%d_%d" % [int(a["n"]), int(ps["i"])], "shape": "box", "x": 0.0, "z": float(ps["z"]), "hx": float(ctx.get("bounds", 15.0)), "hz": float(k["half_width"]),
 				"active": false, "tele": clampf((u - float(ps["tele_from"])) / float(k["ride_tele"]), 0.0, 1.0), "power": float(k["power"]), "jumpable": false, "target": "", "tick": -1, "style": "ride_lane",
 				"band_z": float(ps["z"]), "band_half": float(ctx.get("bounds", 15.0)), "dir": dir})

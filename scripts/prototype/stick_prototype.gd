@@ -39,6 +39,7 @@ const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 const BossMotion := preload("res://scripts/combat/boss_motion.gd")
 const BossPhase := preload("res://scripts/combat/boss_phase.gd")
 const BossAI := preload("res://scripts/combat/boss_ai.gd")
+const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
 const SakeField := preload("res://scripts/combat/sake_field.gd")
 
 var config: Dictionary = {}
@@ -1575,6 +1576,9 @@ func _hazard_node(i: int, pool: Array = hazard_nodes, prefix: String = "Hazard")
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		n.set_meta("mat", m)
+		var zm := ShaderMaterial.new()
+		zm.shader = WARNING_SHADER
+		n.set_meta("zmat", zm)
 		n.visible = false
 		n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(n)
@@ -1657,6 +1661,22 @@ func _place_zone(n: MeshInstance3D, h: Dictionary, grow: float, y: float) -> voi
 			n.position = Vector3(float(h["x"]), y, float(h["z"]))
 			n.scale = Vector3.ONE * float(h["r"]) * g
 	n.material_override = m
+	# 予告の見た目（版60）：丸はオレンジの円、帯はオレンジの帯、ライドの道はピンクの帯＋矢印
+	var zm: ShaderMaterial = n.get_meta("zmat")
+	var zs: Dictionary = attacks_cfg.get("zone_style", {})
+	var ride := str(h.get("style", "")) == "ride_lane"
+	var look: Dictionary = zs.get("ride" if ride else "attack", {})
+	zm.set_shader_parameter("fill_color", Color(str(look.get("fill", "#ff6b2852"))))
+	zm.set_shader_parameter("rim_color", Color(str(look.get("rim", "#ffcfa0f2"))))
+	zm.set_shader_parameter("mode", 2 if ride else (1 if key == "box" else 0))
+	zm.set_shader_parameter("grow_axis", 1 if shape == "obox" else 0)
+	zm.set_shader_parameter("inner", snappedf(float(h["r_in"]) / maxf(float(h["r"]), 0.01), 0.001) if shape == "ring" else 0.0)
+	zm.set_shader_parameter("size", Vector2(n.scale.x, n.scale.z))
+	zm.set_shader_parameter("dir", signf(float(h.get("dir", 1.0))) if float(h.get("dir", 1.0)) != 0.0 else 1.0)
+	for sk in ["stripe_width", "rim_width", "arrow_spacing", "arrow_speed"]:
+		if zs.has(sk):
+			zm.set_shader_parameter(sk, float(zs[sk]))
+	n.material_override = zm
 
 
 var hazard_fill_nodes: Array = []
@@ -1664,7 +1684,6 @@ var hazard_fill_nodes: Array = []
 
 ## 当たり場所の見た目：予告は、うすい全体の面＋中から広がる濃い面（広がりきったら当たる）。当たる瞬間は、明るい色
 func _show_hazards(hz: Array) -> void:
-	var zc := Color(str(attacks_cfg["zone_color"]))
 	var fill_used := 0
 	var drop_used := 0
 	var bat_used := false
@@ -1731,24 +1750,17 @@ func _show_hazards(hz: Array) -> void:
 		if style == "hand" and active:
 			n.visible = false
 			continue
+		if style == "ride":
+			# 走っている瓶そのものが見えるので、当たり場所の面は出さない（道の予告は ride_lane）
+			n.visible = false
+			continue
 		var tele := float(h["tele"])
 		_place_zone(n, h, 1.0, 0.03)
-		if active:
-			m.albedo_color = Color(1.0, 0.55, 0.2, 0.75)
-		else:
-			# うすい全体の面（どこまで当たるか）
-			var base_a := float(attacks_cfg["zone_min_alpha"]) + 0.1
-			if float(h.get("power", 1.0)) <= 0.0:
-				base_a = float(attacks_cfg["kinds"]["flyers"].get("tele_alpha", 0.3)) * (0.5 + 0.5 * tele)
-			m.albedo_color = Color(zc.r, zc.g, zc.b, base_a)
-			# 中から広がる濃い面（いつ当たるか）
-			if float(h.get("power", 1.0)) > 0.0:
-				var f := _hazard_node(fill_used, hazard_fill_nodes, "HazardFill")
-				fill_used += 1
-				var fm: StandardMaterial3D = f.get_meta("mat")
-				_place_zone(f, h, tele, 0.045)
-				fm.albedo_color = Color(zc.r, zc.g, zc.b, lerpf(0.35, float(attacks_cfg["zone_max_alpha"]), tele))
-				f.visible = true
+		var zm: ShaderMaterial = n.get_meta("zmat")
+		zm.set_shader_parameter("progress", tele)
+		zm.set_shader_parameter("active", 1.0 if active else 0.0)
+		# 害のない予告（酒の大雨の落ちる前など）はうすく
+		zm.set_shader_parameter("strength", float(attacks_cfg["kinds"]["flyers"].get("tele_alpha", 0.3)) * (0.5 + 0.5 * tele) / 0.3 if float(h.get("power", 1.0)) <= 0.0 else 1.0)
 		n.visible = true
 	for i in range(hz.size(), hazard_nodes.size()):
 		(hazard_nodes[i] as Node3D).visible = false

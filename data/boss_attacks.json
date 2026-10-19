@@ -4,6 +4,21 @@
   "gap_sec": 0.9,
   "dodge_height": 0.5,
   "zone_color": "#ff3030",
+  "zone_style": {
+    "_note": "版60：攻撃の予告の見た目（shaders/warning_zone.gdshader）。attack＝ふつうの攻撃（オレンジの円・帯）、ride＝巨大酒瓶ライドの道（ピンクの帯＋矢印）。色は #RRGGBBAA",
+    "attack": {
+      "fill": "#ff6b2852",
+      "rim": "#ffcfa0f2"
+    },
+    "ride": {
+      "fill": "#e83cc45c",
+      "rim": "#ffa6f2f2"
+    },
+    "stripe_width": 0.7,
+    "rim_width": 0.22,
+    "arrow_spacing": 3.2,
+    "arrow_speed": 1.4
+  },
   "zone_min_alpha": 0.12,
   "zone_max_alpha": 0.6,
   "paper_color": "#f4f1e6",
