@@ -233,15 +233,27 @@ static func _attack(an: BossAnim, kind: String, u: float, k: Dictionary, st: Dic
 			var rec := BossAnim.remap(u, [[land, 0.3], [land + 0.6, 0.3], [dur, 0.0]])
 			var down := an.blend(an.sample("Jump_Start", rec), an.sample("Sword_Attack", float(mv.get("sword_ground", 0.45))), 1.0, an.upper)
 			return {"pose": down, "weight": _fade(u, dur), "deltas": {"spine05": BossAnim.lean(18.0 * (1.0 - smoothstep(land + 0.6, dur, u)))}}
-		Attacks.SAKE_RAIN:
-			# 酒の雨：左手の一升瓶を、うしろ下へ引いて（ため）→ 頭の上へ一気にふり上げる（酒が空へ飛ぶ）→ ゆっくり下ろす
+		Attacks.SAKE_RAIN, Attacks.SAKE_DROP, Attacks.FIRE_FEST:
+			# 酒瓶を投げる：左手の一升瓶を、うしろ下へ引いて（ため）→ 下から上へ一気にふり上げて放る → 下ろす
+			# 火祭りは、瓶のあとにライターも同じように放る。最後はライターをしまって、構え直す
+			var times: Array = []
+			if kind == Attacks.SAKE_RAIN:
+				for t in int(k["throws"]):
+					times.append(Attacks.sake_throw_time(t, k))
+			else:
+				for i in int(k["bottles"]):
+					times.append(float(k["first_sec"]) + float(i) * float(k["every_sec"]))
+				if kind == Attacks.FIRE_FEST:
+					times.append(float(k["lighter_throw_sec"]))
 			var arm := 0.0
 			var lean_b := 0.0
-			for t in int(k["throws"]):
-				var lt := u - Attacks.sake_throw_time(t, k)
-				if lt > -0.45 and lt < 0.9:
-					arm = BossAnim.remap(lt, [[-0.45, 0.0], [-0.12, -45.0, "linear"], [0.0, 170.0], [0.35, 150.0], [0.9, 0.0]])
-					lean_b = BossAnim.remap(lt, [[-0.45, 0.0], [-0.12, 10.0, "linear"], [0.0, -14.0], [0.9, 0.0]])
+			var short := float(k.get("every_sec", 1.0)) < 0.5
+			for t0 in times:
+				var lt := u - float(t0)
+				var pre := 0.2 if short else 0.45
+				if lt > -pre and lt < 0.9:
+					arm = BossAnim.remap(lt, [[-pre, 0.0], [-pre * 0.3, -45.0, "linear"], [0.0, 160.0], [0.3, 140.0], [0.9, 0.0]])
+					lean_b = BossAnim.remap(lt, [[-pre, 0.0], [-pre * 0.3, 10.0, "linear"], [0.0, -14.0], [0.9, 0.0]])
 			return {"pose": base, "weight": _fade(u, dur),
 				"deltas": {"upperarm01.L": BossAnim.fwd(arm) * BossAnim.raise_side("L", 15.0), "lowerarm01.L": BossAnim.fwd(clampf(arm * 0.15, 0.0, 30.0)),
 					"spine05": BossAnim.lean(lean_b), "head": BossAnim.lean(-0.1 * maxf(arm, 0.0))}}

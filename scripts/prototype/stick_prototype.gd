@@ -39,6 +39,7 @@ const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 const BossMotion := preload("res://scripts/combat/boss_motion.gd")
 const BossPhase := preload("res://scripts/combat/boss_phase.gd")
 const BossAI := preload("res://scripts/combat/boss_ai.gd")
+const SakeField := preload("res://scripts/combat/sake_field.gd")
 
 var config: Dictionary = {}
 var player: MeshInstance3D
@@ -669,9 +670,9 @@ func _begin_round(start_ms: float) -> void:
 	grab_locked = {}
 	ai.reset(attacks_cfg, start_ms)
 	puddle_seen = {}
-	for p in puddles:
-		(p["node"] as Node3D).visible = false
-	puddles = []
+	field.clear()
+	_landed = {}
+	_ignited = {}
 	motion.reset(motion.home)
 	boss.position = Vector3(motion.pos.x, 0.0, motion.pos.y)
 	boss.rotation.y = 0.0
@@ -916,6 +917,7 @@ func _recompute_boss_hp() -> void:
 	if ev == BossPhase.FALL:
 		_on_boss_fall()
 	if round_start_ms > 0.0 and ev == BossPhase.DEAD and not won and not lost:
+		field.clear()  # 倒したら、残っている火・酒だまりを消す
 		won = true
 		round_end_ms = server_now_ms()
 		_play_sfx("win")
@@ -949,6 +951,7 @@ func _on_boss_fall() -> void:
 	if boss_model != null:
 		boss_model.begin_fall()
 	ai.interrupt(_round_t(), 999.0)
+	field.clear()  # 倒れたら、燃えている火や酒だまりも消す
 	phase_text = {"text": str(config.get("boss_down_text", "")), "left": 2.0}
 	_play_sfx("thud")
 
@@ -1421,9 +1424,13 @@ func combat_update(delta: float) -> void:
 			last_attack_n = int(a["n"])
 			_play_sfx(str((sfx.cfg if sfx != null and not sfx.cfg.is_empty() else {}).get("attack_sounds", {}).get(str(a["kind"]), "")))
 		current_hazards = Attacks.hazards(a, u, attacks_cfg, _attack_ctx(a, u))
-		_apply_hazards(current_hazards)
 	else:
 		current_attack = {}
+	_sake_field_update()
+	# 燃えている酒だまり（攻撃が終わっても、燃えている間は当たる）
+	if attacks_cfg["kinds"].has("fire_fest"):
+		current_hazards.append_array(Attacks.fire_hazards(field, t, attacks_cfg["kinds"]["fire_fest"]))
+	_apply_hazards(current_hazards)
 	_ai_update(delta)
 	_grab_update(delta)
 	_show_hazards(current_hazards)
@@ -1641,6 +1648,8 @@ func _show_hazards(hz: Array) -> void:
 	var fill_used := 0
 	var drop_used := 0
 	var bat_used := false
+	var bottle_used := 0
+	var lighter_used := false
 	for i in hz.size():
 		var h: Dictionary = hz[i]
 		var n := _hazard_node(i)
@@ -1680,7 +1689,25 @@ func _show_hazards(hz: Array) -> void:
 				d.visible = true
 			elif not puddle_seen.has(str(h["id"])):
 				puddle_seen[str(h["id"])] = true
-				_add_puddle(Vector3(float(h["x"]), 0.0, float(h["z"])), float(h["r"]))
+				_add_puddle(Vector3(float(h["x"]), 0.0, float(h["z"])), float(h["r"]), str(h["id"]))
+		if style == "bottle" and h.has("bottle"):
+			# 飛んでいる酒瓶（回りながら）
+			var bn := _bottle_node(bottle_used)
+			bottle_used += 1
+			bn.position = h["bottle"]
+			bn.rotation = Vector3(float(h.get("spin", 0.0)), 0.0, float(h.get("spin", 0.0)) * 0.6)
+			bn.scale = Vector3.ONE * 1.4
+			bn.visible = true
+		if style == "lighter" and h.has("lighter"):
+			var ln := _lighter_node()
+			ln.position = h["lighter"]
+			ln.rotation = Vector3(_round_t() * 8.0, 0.0, 0.0)
+			ln.visible = true
+			lighter_used = true
+		if style == "fire":
+			# 燃えている所：炎は _update_fires。当たり場所の面は出さない（炎が見えるので）
+			n.visible = false
+			continue
 		if style == "hand" and active:
 			n.visible = false
 			continue
@@ -1711,6 +1738,10 @@ func _show_hazards(hz: Array) -> void:
 		(drop_nodes[i] as Node3D).visible = false
 	if not bat_used and _fly_bat != null:
 		_fly_bat.visible = false
+	for i in range(bottle_used, _bottle_nodes.size()):
+		(_bottle_nodes[i] as Node3D).visible = false
+	if not lighter_used and _lighter != null:
+		_lighter.visible = false
 
 
 ## 投げたバット（ボスのバットと同じ形を、大きさをそろえて作る）
@@ -1733,7 +1764,7 @@ func _flying_bat() -> Node3D:
 
 ## ---- 酒のしずく・ぬれた床 ----
 var drop_nodes: Array = []
-var puddles: Array = []  ## [{node, left}]
+var puddles: Array = []  ## ぬれた丸の見た目（使いまわす）
 var puddle_seen := {}  ## もう床をぬらした当たりのid
 var _sake_mat: StandardMaterial3D
 var _wet_mesh: CylinderMesh
@@ -1762,21 +1793,54 @@ func _drop_node(i: int) -> MeshInstance3D:
 	return drop_nodes[i]
 
 
-## 床に、ぬれたあと（しばらくすると、かわいて消える）
-func _add_puddle(pos: Vector3, r: float) -> void:
-	if _wet_mesh == null:
-		_wet_mesh = CylinderMesh.new()
-		_wet_mesh.top_radius = 1.0
-		_wet_mesh.bottom_radius = 1.0
-		_wet_mesh.height = 0.02
-		_wet_mesh.radial_segments = 16
-		_wet_mesh.rings = 1
-	var node: MeshInstance3D = null
-	if puddles.size() >= int(attacks_cfg.get("wet_max", 40)):
-		node = (puddles.pop_front() as Dictionary)["node"]
-	else:
-		node = MeshInstance3D.new()
-		node.name = "Wet"
+## 床に酒だまりを作る（場所・広さは、酒の雨・大雨のしずく）
+func _add_puddle(pos: Vector3, r: float, id: String = "") -> void:
+	var k: Dictionary = attacks_cfg["kinds"].get("flyer_storm", {})
+	var key := id if id != "" else "p%d_%d" % [int(pos.x * 10.0), int(pos.z * 10.0)]
+	field.add(key, Vector2(pos.x, pos.z), r * 1.1, _round_t(), float(k.get("puddle_life", 4.0)), 0.2)
+
+
+## 酒だまりの見た目：床の酒だまり（field）に合わせて、ぬれた丸を置く。燃えているものには、炎
+func _update_puddles(_delta: float) -> void:
+	var t := _round_t()
+	field.prune(t)
+	var wet := Color(str(attacks_cfg.get("wet_color", "#1d2a2a")))
+	var live := field.alive(t)
+	var max_n := int(attacks_cfg.get("wet_max", 40))
+	var used := 0
+	for p in live:
+		if used >= max_n:
+			break
+		var node := _wet_node(used)
+		used += 1
+		var pos: Vector2 = p["pos"]
+		var r := SakeField.radius_at(p, t)
+		var sx := 0.9 + 0.2 * fposmod(pos.x * 7.3 + pos.y * 3.1, 1.0)
+		node.position = Vector3(pos.x, 0.015, pos.y)
+		node.rotation.y = fposmod(pos.x * 1.7 - pos.y * 2.3, TAU)
+		node.scale = Vector3(r * sx, 1.0, r * (2.0 - sx))
+		var left := float(p["expire"]) - t
+		var mat := node.material_override as StandardMaterial3D
+		var burnt := float(p["burn_end"]) >= 0.0 and t >= float(p["burn_end"])
+		var col := Color(0.12, 0.1, 0.09) if burnt else wet
+		mat.albedo_color = Color(col.r, col.g, col.b, 0.6 * clampf(left / 1.5, 0.0, 1.0))
+		node.visible = true
+	for i in range(used, puddles.size()):
+		(puddles[i] as Node3D).visible = false
+	_update_fires(t)
+
+
+func _wet_node(i: int) -> MeshInstance3D:
+	while puddles.size() <= i:
+		if _wet_mesh == null:
+			_wet_mesh = CylinderMesh.new()
+			_wet_mesh.top_radius = 1.0
+			_wet_mesh.bottom_radius = 1.0
+			_wet_mesh.height = 0.02
+			_wet_mesh.radial_segments = 16
+			_wet_mesh.rings = 1
+		var node := MeshInstance3D.new()
+		node.name = "Wet%d" % puddles.size()
 		node.mesh = _wet_mesh
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var m := StandardMaterial3D.new()
@@ -1784,32 +1848,216 @@ func _add_puddle(pos: Vector3, r: float) -> void:
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		node.material_override = m
 		add_child(node)
-	# 形を少しずつ変える（同じ丸ばかりにならないように）
-	var sx := 0.9 + 0.25 * fposmod(pos.x * 7.3 + pos.z * 3.1, 1.0)
-	node.position = Vector3(pos.x, 0.015, pos.z)
-	node.rotation.y = fposmod(pos.x * 1.7 - pos.z * 2.3, TAU)
-	node.set_meta("r", r * Vector2(sx, 2.0 - sx))
-	node.visible = true
-	puddles.append({"node": node, "left": float(attacks_cfg.get("wet_sec", 4.0)), "age": 0.0})
+		puddles.append(node)
+	return puddles[i]
 
 
-func _update_puddles(delta: float) -> void:
-	var wet := Color(str(attacks_cfg.get("wet_color", "#1d2a2a")))
-	var total := float(attacks_cfg.get("wet_sec", 4.0))
-	for p in puddles.duplicate():
-		p["left"] = float(p["left"]) - delta
-		p["age"] = float(p["age"]) + delta
-		var node: MeshInstance3D = p["node"]
-		if float(p["left"]) <= 0.0:
-			node.visible = false
-			puddles.erase(p)
-			continue
-		# 落ちた瞬間に広がって、だんだんうすくなる
-		var grow := 0.6 + 0.4 * smoothstep(0.0, 0.2, float(p["age"]))
-		var rs: Vector2 = node.get_meta("r")
-		node.scale = Vector3(rs.x * grow, 1.0, rs.y * grow)
-		var mat := node.material_override as StandardMaterial3D
-		mat.albedo_color = Color(wet.r, wet.g, wet.b, 0.55 * clampf(float(p["left"]) / (total * 0.5), 0.0, 1.0))
+## ---- 酒瓶・ライター・火（見た目） ----
+var field := SakeField.new()  ## 床の酒だまり（ゲームの物）
+var _bottle_nodes: Array = []
+var _fire_nodes: Array = []
+var _fx_pool: Array = []
+var _fx_next := 0
+var _lighter: Node3D
+var _landed := {}  ## 割れた瓶の id
+var _ignited := {}  ## 火をつけた攻撃の番号
+
+
+## 戦いの進みに合わせて、瓶が割れた所に酒だまりを作り、火祭りのライターが落ちたら火をつける
+func _sake_field_update() -> void:
+	if current_attack.is_empty():
+		return
+	var kind := str(current_attack["kind"])
+	if kind != Attacks.SAKE_DROP and kind != Attacks.FIRE_FEST:
+		return
+	var k := Attacks.kind_cfg(attacks_cfg, current_attack)
+	var ctx := _attack_ctx(current_attack, current_attack_u)
+	ctx["n"] = int(current_attack["n"])
+	var start := float(current_attack["start"])
+	for b in Attacks.sake_bottles(current_attack, k, ctx):
+		if current_attack_u >= float(b["land"]) and not _landed.has(str(b["id"])):
+			_landed[str(b["id"])] = true
+			var to: Vector2 = b["to"]
+			field.add(str(b["id"]), to, float(k["puddle_r"]), start + float(b["land"]), float(k["puddle_life"]))
+			_burst_fx(Vector3(to.x, 0.3, to.y), "glass")
+			_play_sfx("thud")
+	if kind == Attacks.FIRE_FEST and not _ignited.has(int(current_attack["n"])):
+		var l := Attacks.lighter_at(current_attack_u, k, ctx)
+		if current_attack_u >= float(l["land"]):
+			_ignited[int(current_attack["n"])] = true
+			var tg: Vector2 = l["target"]
+			field.ignite("f%d" % int(current_attack["n"]), tg, start + float(l["land"]), float(k["ignite_reach"]), float(k["fire_hop"]), float(k["fire_burn"]), float(k["link_gap"]))
+			_burst_fx(Vector3(tg.x, 0.3, tg.y), "spark")
+			_play_sfx("ultimate")
+
+
+func _bottle_node(i: int) -> Node3D:
+	while _bottle_nodes.size() <= i:
+		var n := Node3D.new()
+		n.name = "Bottle%d" % _bottle_nodes.size()
+		var green := StandardMaterial3D.new()
+		green.albedo_color = Color(str(attacks_cfg.get("bottle_color", "#3f7a44")))
+		green.roughness = 0.3
+		var label := StandardMaterial3D.new()
+		label.albedo_color = Color("#f4f1ea")
+		for part in [[0.32, 1.0, 0.0, green], [0.34, 0.4, 0.0, label], [0.12, 0.5, 0.72, green]]:
+			var c := CylinderMesh.new()
+			c.top_radius = float(part[0])
+			c.bottom_radius = float(part[0])
+			c.height = float(part[1])
+			c.radial_segments = 10
+			c.rings = 1
+			c.material = part[3]
+			var mi := MeshInstance3D.new()
+			mi.mesh = c
+			mi.position = Vector3(0, float(part[2]), 0)
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			n.add_child(mi)
+		n.visible = false
+		add_child(n)
+		_bottle_nodes.append(n)
+	return _bottle_nodes[i]
+
+
+func _lighter_node() -> Node3D:
+	if _lighter == null:
+		_lighter = MeshInstance3D.new()
+		_lighter.name = "Lighter"
+		var b := BoxMesh.new()
+		b.size = Vector3(0.45, 0.75, 0.25)
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color("#d22c2c")
+		m.emission_enabled = true
+		m.emission = Color("#ff7a1a")
+		m.emission_energy_multiplier = 0.8
+		b.material = m
+		(_lighter as MeshInstance3D).mesh = b
+		_lighter.visible = false
+		add_child(_lighter)
+	return _lighter
+
+
+## 一回だけ飛び散る粒（ガラスとしぶき／火花）。何こかを使いまわす
+func _burst_fx(pos: Vector3, kind: String) -> void:
+	if not is_inside_tree():
+		return
+	while _fx_pool.size() < 6:
+		var p := CPUParticles3D.new()
+		p.one_shot = true
+		p.emitting = false
+		p.explosiveness = 0.95
+		p.amount = 24
+		p.lifetime = 0.8
+		p.direction = Vector3.UP
+		p.spread = 70.0
+		p.initial_velocity_min = 4.0
+		p.initial_velocity_max = 9.0
+		p.gravity = Vector3(0, -18, 0)
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.18, 0.18, 0.06)
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.vertex_color_use_as_albedo = true
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		bm.material = mat
+		p.mesh = bm
+		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(p)
+		_fx_pool.append(p)
+	var e: CPUParticles3D = _fx_pool[_fx_next % _fx_pool.size()]
+	_fx_next += 1
+	e.global_position = pos
+	var g := Gradient.new()
+	if kind == "spark":
+		g.set_color(0, Color("#fff2a0"))
+		g.set_color(1, Color(1.0, 0.35, 0.05, 0.0))
+	else:
+		# ガラス（緑）と、酒のしぶき（白っぽい）
+		g.set_color(0, Color("#7fd18a"))
+		g.add_point(0.5, Color(str(attacks_cfg.get("sake_color", "#f2e6b8")), 0.9))
+		g.set_color(g.get_point_count() - 1, Color(1, 1, 1, 0.0))
+	e.color_ramp = g
+	e.restart()
+
+
+## 燃えている酒だまりに、炎の粒と、赤い光
+func _update_fires(t: float) -> void:
+	var burning := field.burning(t)
+	for i in burning.size():
+		var p: Dictionary = burning[i]
+		var f := _fire_node(i)
+		var pos: Vector2 = p["pos"]
+		var r := SakeField.radius_at(p, t)
+		f.position = Vector3(pos.x, 0.0, pos.y)
+		var em := f.get_child(0) as CPUParticles3D
+		em.emission_sphere_radius = r * 0.8
+		em.emitting = true
+		var glow := f.get_child(1) as MeshInstance3D
+		glow.scale = Vector3(r, 1.0, r)
+		var left := float(p["burn_end"]) - t
+		(glow.material_override as StandardMaterial3D).albedo_color.a = 0.55 * clampf(left / 0.5, 0.0, 1.0)
+		f.visible = true
+	for i in range(burning.size(), _fire_nodes.size()):
+		var f2: Node3D = _fire_nodes[i]
+		f2.visible = false
+		(f2.get_child(0) as CPUParticles3D).emitting = false
+
+
+func _fire_node(i: int) -> Node3D:
+	while _fire_nodes.size() <= i:
+		var n := Node3D.new()
+		n.name = "Fire%d" % _fire_nodes.size()
+		var p := CPUParticles3D.new()
+		p.amount = 22
+		p.lifetime = 0.7
+		p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+		p.emission_sphere_radius = 1.5
+		p.direction = Vector3.UP
+		p.spread = 15.0
+		p.gravity = Vector3(0, 6, 0)
+		p.initial_velocity_min = 1.5
+		p.initial_velocity_max = 3.5
+		p.scale_amount_min = 1.0
+		p.scale_amount_max = 2.2
+		var q := QuadMesh.new()
+		q.size = Vector2(0.9, 1.4)
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		m.vertex_color_use_as_albedo = true
+		q.material = m
+		p.mesh = q
+		var g := Gradient.new()
+		g.set_color(0, Color("#ffe066"))
+		g.add_point(0.4, Color("#ff6a1a"))
+		g.set_color(g.get_point_count() - 1, Color(0.3, 0.3, 0.3, 0.0))
+		p.color_ramp = g
+		p.position = Vector3(0, 0.4, 0)
+		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.add_child(p)
+		var glow := MeshInstance3D.new()
+		var c := CylinderMesh.new()
+		c.top_radius = 1.0
+		c.bottom_radius = 1.0
+		c.height = 0.02
+		c.radial_segments = 16
+		c.rings = 1
+		glow.mesh = c
+		var gm := StandardMaterial3D.new()
+		gm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		gm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		gm.albedo_color = Color(1.0, 0.45, 0.1, 0.55)
+		glow.material_override = gm
+		glow.position = Vector3(0, 0.03, 0)
+		glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.add_child(glow)
+		n.visible = false
+		add_child(n)
+		_fire_nodes.append(n)
+	return _fire_nodes[i]
 
 
 func _set_my_hp(value: float) -> void:

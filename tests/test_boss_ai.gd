@@ -51,7 +51,7 @@ func _initialize() -> void:
 			if str(a[i]["kind"]) == str(a[i - 1]["kind"]):
 				repeats += 1
 	check(seen.size() >= 5, "いろいろな攻撃が出る（%d種類）" % seen.size())
-	check(not seen.has("sake_rain") and not seen.has("flyer_storm") and not seen.has("hand_sweep"), "平常時は、覚醒の攻撃・必殺技を出さない")
+	check(not seen.has("sake_drop") and not seen.has("fire_fest") and not seen.has("flyer_storm") and not seen.has("hand_sweep"), "平常時は、覚醒の攻撃・必殺技を出さない")
 	check(repeats < 12, "同じ攻撃が続きすぎない（%d回）" % repeats)
 	# たくさんの種で、強い攻撃が3回続くことは少ない
 	var streak3 := 0
@@ -94,7 +94,7 @@ func _initialize() -> void:
 				ult_ok = false
 			last_ult = float(x["end"])
 	check(ults >= 1 and ult_ok, "覚醒の必殺技は、覚醒してしばらくしてから・間をあけて出る（%d回）" % ults)
-	check(aw_seen.has("sake_rain") and not aw_seen.has("bat_spin"), "覚醒では、覚醒用の攻撃が出る")
+	check(aw_seen.has("sake_drop") and not aw_seen.has("bat_spin") and not aw_seen.has("sake_rain"), "覚醒では、覚醒用の攻撃が出る（酒の雨は使わない）")
 	# 使える攻撃がないときは、代わりの攻撃
 	check(BossAI.pick({}, 0.5) == "", "候補がなければ空")
 	var ai := BossAI.new()

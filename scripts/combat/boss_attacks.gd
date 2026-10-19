@@ -26,6 +26,8 @@ const THRUST := "thrust"
 const BAT_THROW := "bat_throw"
 const SPIN_CHARGE := "spin_charge"
 const JUMP_SLAM := "jump_slam"
+const SAKE_DROP := "sake_drop"
+const FIRE_FEST := "fire_fest"
 
 
 ## 前の向き（x, z）
@@ -168,7 +170,127 @@ static func _hazards_raw(a: Dictionary, u: float, k: Dictionary, cfg: Dictionary
 			return _spin_charge(a, u, k, ctx)
 		JUMP_SLAM:
 			return _jump_slam(a, u, k, ctx)
+		SAKE_DROP:
+			return _bottle_hazards(a, u, k, ctx)
+		FIRE_FEST:
+			return _fire_fest(a, u, k, ctx)
 	return []
+
+
+## ---- 酒瓶：ボスが下から上へ放り投げ、放物線で落ちて、地面で割れる（割れた所に酒だまり） ----
+## 投げる瓶の一覧：[{id, i, throw, land, from: Vector3（手の位置）, to: Vector2（落ちる所）}]。同じ攻撃なら全員の画面で同じ
+## 酒瓶落とし：1本めは、ねらう人の所。ほかは、ボスの前の扇の中。火祭り：ボスの前に、つながるように並べる
+static func sake_bottles(a: Dictionary, k: Dictionary, ctx: Dictionary) -> Array:
+	var out: Array = []
+	var boss: Vector2 = ctx["boss"]
+	var yaw := float(ctx.get("yaw", 0.0))
+	var f := fwd_of(yaw)
+	var hand := Vector3(boss.x + f.x * float(k.get("hand_ahead", 1.5)), float(k.get("hand_height", 5.0)), boss.y + f.y * float(k.get("hand_ahead", 1.5)))
+	var count := int(k["bottles"])
+	for i in count:
+		var rng := rng_for(float(ctx["round_start_ms"]), int(a["n"]) * 1000 + i * 37 + 11)
+		var t0 := float(k["first_sec"]) + float(i) * float(k["every_sec"])
+		var to: Vector2
+		if str(a["kind"]) == FIRE_FEST:
+			# 扇の中に、となりの瓶の酒だまりとつながるくらいの間で並べる（扇の外は安全）
+			var ang := deg_to_rad(lerpf(-float(k["angle_deg"]), float(k["angle_deg"]), float(i) / float(maxi(count - 1, 1))) + rng.randf_range(-6.0, 6.0))
+			var dist := float(k["dist"]) + rng.randf_range(-1.2, 1.2)
+			to = boss + Vector2(sin(yaw + ang), cos(yaw + ang)) * dist
+		elif i == 0 and ctx.get("target") is Vector2:
+			to = ctx["target"]
+		else:
+			var ang2 := deg_to_rad(rng.randf_range(-float(k["angle_deg"]), float(k["angle_deg"])))
+			to = boss + Vector2(sin(yaw + ang2), cos(yaw + ang2)) * rng.randf_range(float(k["min_dist"]), float(k["max_dist"]))
+		to = _area(to, ctx)
+		out.append({"id": "b%d_%d" % [int(a["n"]), i], "i": i, "throw": t0, "land": t0 + float(k["flight_sec"]), "from": hand, "to": to})
+	return out
+
+
+## 瓶の、u 秒の時点の位置（空中）。飛んでいなければ null
+static func bottle_pos(b: Dictionary, u: float, k: Dictionary) -> Variant:
+	if u < float(b["throw"]) or u >= float(b["land"]):
+		return null
+	var p := (u - float(b["throw"])) / (float(b["land"]) - float(b["throw"]))
+	var from: Vector3 = b["from"]
+	var to: Vector2 = b["to"]
+	var y := lerpf(from.y, 0.3, p) + 4.0 * float(k["arc_height"]) * p * (1.0 - p)
+	return Vector3(lerpf(from.x, to.x, p), y, lerpf(from.z, to.y, p))
+
+
+static func _bottle_hazards(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
+	var out: Array = []
+	for b in sake_bottles(a, k, ctx):
+		if u < float(b["throw"]) or u >= float(b["land"]) + float(k["hit_sec"]):
+			continue
+		var to: Vector2 = b["to"]
+		var h := {"id": str(b["id"]), "shape": "circle", "x": to.x, "z": to.y, "r": float(k["radius"]), "active": u >= float(b["land"]),
+			"tele": clampf((u - float(b["throw"])) / (float(b["land"]) - float(b["throw"])), 0.0, 1.0), "power": float(k["power"]), "jumpable": false,
+			"target": "", "tick": -1, "style": "bottle", "spin": (u - float(b["throw"])) * 9.0}
+		var bp: Variant = bottle_pos(b, u, k)
+		if bp is Vector3:
+			h["bottle"] = bp
+		out.append(h)
+	return out
+
+
+## ---- 火祭り（必殺技）：酒瓶を並べて投げ、酒だまりを作る → ライターを投げる（落ちる所に予告）→ 火がつき、つながった酒だまりへ燃えうつる ----
+## 燃えている所の当たりは fire_hazards（酒だまりの状態から作る。攻撃が終わっても、燃えている間は当たる）
+static func lighter_at(u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
+	var t0 := float(k["lighter_throw_sec"])
+	var t1 := t0 + float(k["lighter_flight_sec"])
+	var boss: Vector2 = ctx["boss"]
+	var tgt := lighter_target(k, ctx)
+	if u < t0 or u >= t1:
+		return {"flying": false, "target": tgt, "land": t1}
+	var p := (u - t0) / (t1 - t0)
+	var y := lerpf(5.0, 0.2, p) + 4.0 * 4.0 * p * (1.0 - p)
+	return {"flying": true, "pos": Vector3(lerpf(boss.x, tgt.x, p), y, lerpf(boss.y, tgt.y, p)), "target": tgt, "land": t1}
+
+
+## ライターを落とす所：ボスにいちばん近い酒瓶の所（火祭りで投げた瓶）
+static func lighter_target(k: Dictionary, ctx: Dictionary) -> Vector2:
+	var boss: Vector2 = ctx["boss"]
+	var bs := sake_bottles({"n": int(ctx.get("n", 0)), "kind": FIRE_FEST}, k, ctx)
+	var best: Vector2 = boss + fwd_of(float(ctx.get("yaw", 0.0))) * float(k["dist"])
+	var bd := 1e9
+	for b in bs:
+		var d := (b["to"] as Vector2).distance_to(boss)
+		if d < bd:
+			bd = d
+			best = b["to"]
+	return best
+
+
+static func _fire_fest(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
+	var c2 := ctx.duplicate()
+	c2["n"] = int(a["n"])
+	var out := _bottle_hazards(a, u, k, c2)
+	var l := lighter_at(u, k, c2)
+	var t0 := float(k["lighter_throw_sec"])
+	if u >= t0 and u < float(l["land"]):
+		var tg: Vector2 = l["target"]
+		var h := {"id": "lt%d" % int(a["n"]), "shape": "circle", "x": tg.x, "z": tg.y, "r": float(k["lighter_radius"]), "active": false,
+			"tele": clampf((u - t0) / float(k["lighter_flight_sec"]), 0.0, 1.0), "power": 0.0, "jumpable": false, "target": "", "tick": -1, "style": "lighter"}
+		if bool(l["flying"]):
+			h["lighter"] = l["pos"]
+		out.append(h)
+	return out
+
+
+## 燃えている酒だまりの当たり（1つの火の事件では、ダメージは1回だけ：id を事件ごとに同じにする）。
+## これから燃える酒だまりには、予告（当たらない）を出す
+static func fire_hazards(field: RefCounted, t: float, k: Dictionary) -> Array:
+	var out: Array = []
+	for p in field.burning(t):
+		var pos: Vector2 = p["pos"]
+		out.append({"id": "fire_" + str(p["fire"]), "shape": "circle", "x": pos.x, "z": pos.y, "r": field.radius_at(p, t), "active": true, "tele": 1.0,
+			"power": float(k["fire_power"]), "jumpable": false, "target": "", "tick": -1, "style": "fire", "kb": "kb_light", "kb_mode": "radial",
+			"burn": clampf((t - float(p["burn_start"])) / maxf(float(p["burn_end"]) - float(p["burn_start"]), 0.01), 0.0, 1.0)})
+	for p in field.about_to_burn(t):
+		var pos2: Vector2 = p["pos"]
+		out.append({"id": "firew_" + str(p["id"]), "shape": "circle", "x": pos2.x, "z": pos2.y, "r": field.radius_at(p, t), "active": false,
+			"tele": 0.8, "power": 0.0, "jumpable": false, "target": "", "tick": -1, "style": "zone"})
+	return out
 
 
 ## ---- ボスが自分で動く攻撃の、位置（攻撃の始めに決めた位置・向き・ねらう場所から、時刻 u だけで決まる） ----

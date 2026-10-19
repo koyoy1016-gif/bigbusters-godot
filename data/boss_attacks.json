@@ -125,7 +125,9 @@
         "ultimate": true
       },
       "knockback": "kb_light",
-      "kb_mode": "radial"
+      "kb_mode": "radial",
+      "puddle_r": 1.6,
+      "puddle_life": 5.0
     },
     "hand_sweep": {
       "duration": 10.0,
@@ -297,7 +299,7 @@
       "kb_mode": "sweep"
     },
     "sake_rain": {
-      "_memo": "酒の雨（覚醒）：一升瓶をふり上げて、酒を空へばらまく（throws 回、1回に per_throw 粒）。fall_sec 後に、ボスの前の扇（angle_deg、min_dist〜max_dist m）へ降ってくる。落ちる所に先に輪が出る。落ちた所は、しばらくぬれる（見た目だけ）",
+      "_memo": "（使っていない。酒瓶落とし sake_drop に置きかえた）酒の雨（覚醒）：一升瓶をふり上げて、酒を空へばらまく（throws 回、1回に per_throw 粒）。fall_sec 後に、ボスの前の扇（angle_deg、min_dist〜max_dist m）へ降ってくる。落ちる所に先に輪が出る。落ちた所は、しばらくぬれる（見た目だけ）",
       "duration": 6.0,
       "throws": 3,
       "per_throw": 5,
@@ -314,14 +316,7 @@
       "jumpable": false,
       "chase_sec": 0.5,
       "ai": {
-        "forms": {
-          "awake": 3.0
-        },
-        "range": [
-          3.0,
-          14.0
-        ],
-        "cooldown_sec": 3.0
+        "forms": {}
       },
       "knockback": "kb_light",
       "kb_mode": "radial"
@@ -442,6 +437,77 @@
         ],
         "cooldown_sec": 8.0,
         "strong": true
+      }
+    },
+    "sake_drop": {
+      "_memo": "酒瓶落とし（酒の雨の代わり）：一升瓶を下から上へ放り投げる（bottles 本）。放物線で飛んで、落ちる所に先に輪が出る。地面で割れて、ガラスとしぶき。割れた所に酒だまり（puddle_r m、puddle_life 秒。火祭りで燃える）。1本めはねらう人の所",
+      "duration": 6.0,
+      "bottles": 4,
+      "first_sec": 0.9,
+      "every_sec": 0.9,
+      "flight_sec": 1.35,
+      "hit_sec": 0.2,
+      "arc_height": 8.0,
+      "hand_ahead": 1.5,
+      "hand_height": 5.0,
+      "angle_deg": 60.0,
+      "min_dist": 4.0,
+      "max_dist": 13.0,
+      "radius": 2.0,
+      "power": 12.0,
+      "jumpable": false,
+      "puddle_r": 2.6,
+      "puddle_life": 7.0,
+      "stop_dist": 7.0,
+      "chase_sec": 0.5,
+      "knockback": "kb_light",
+      "kb_mode": "radial",
+      "ai": {
+        "forms": {
+          "awake": 3.0
+        },
+        "range": [
+          3.0,
+          16.0
+        ],
+        "cooldown_sec": 2.0
+      }
+    },
+    "fire_fest": {
+      "_memo": "必殺技「火祭り」：酒瓶を5本、扇に並べて投げ、つながった酒だまりを作る → ライターを投げる（落ちる所に予告）→ 火がつき、つながった酒だまりへ fire_hop 秒ずつ燃えうつる（fire_burn 秒燃える）。扇の外は安全。同じ火では、ダメージは1回だけ",
+      "duration": 10.5,
+      "bottles": 5,
+      "first_sec": 0.6,
+      "every_sec": 0.45,
+      "flight_sec": 1.2,
+      "hit_sec": 0.2,
+      "arc_height": 8.0,
+      "hand_ahead": 1.5,
+      "hand_height": 5.0,
+      "angle_deg": 50.0,
+      "dist": 7.5,
+      "radius": 2.0,
+      "power": 10.0,
+      "jumpable": false,
+      "puddle_r": 2.8,
+      "puddle_life": 9.0,
+      "lighter_throw_sec": 4.2,
+      "lighter_flight_sec": 1.5,
+      "lighter_radius": 1.6,
+      "ignite_reach": 3.5,
+      "fire_hop": 0.25,
+      "fire_burn": 2.2,
+      "link_gap": 1.6,
+      "fire_power": 20.0,
+      "stop_dist": 6.0,
+      "chase_sec": 0.4,
+      "knockback": "kb_light",
+      "kb_mode": "radial",
+      "ai": {
+        "forms": {
+          "awake": 2.5
+        },
+        "ultimate": true
       }
     }
   },
