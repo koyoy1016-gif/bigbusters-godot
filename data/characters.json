@@ -220,16 +220,22 @@
       "archetype": "gun",
       "weapon": "じゅう",
       "note": "はなれて撃つ遠距離",
-      "model": "",
+      "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 1.95,
       "animations": {
         "idle": "Idle",
         "run": "Run",
         "jump": "Jump",
-        "attack": "Attack",
-        "down": "Death"
+        "attack": "Spell",
+        "down": "Death",
+        "swing": "Spell",
+        "jump_start": "Jump_Start",
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell",
+        "hit": "Hit"
       },
       "skill": "射撃",
       "break_power": 1.0,
@@ -239,7 +245,13 @@
         "attack_power": 13.5,
         "attack_cooldown_sec": 0.3,
         "attack_reach": 7.0
-      }
+      },
+      "look": "gunner",
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "procedural_anims": true,
+      "anim_oneshot": [
+        "attack"
+      ]
     },
     {
       "id": "bomber",
@@ -249,16 +261,22 @@
       "archetype": "bomb",
       "weapon": "しゅりゅうだん・ばくだん",
       "note": "投げて、範囲にダメージ",
-      "model": "",
+      "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 1.8915,
       "animations": {
         "idle": "Idle",
         "run": "Run",
         "jump": "Jump",
-        "attack": "Attack",
-        "down": "Death"
+        "attack": "Punch",
+        "down": "Death",
+        "swing": "Punch",
+        "jump_start": "Jump_Start",
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell",
+        "hit": "Hit"
       },
       "skill": "投げ",
       "break_power": 2.0,
@@ -268,7 +286,13 @@
         "attack_power": 16.5,
         "attack_cooldown_sec": 0.6,
         "attack_reach": 6.0
-      }
+      },
+      "look": "bomber",
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "procedural_anims": true,
+      "anim_oneshot": [
+        "attack"
+      ]
     },
     {
       "id": "mage",

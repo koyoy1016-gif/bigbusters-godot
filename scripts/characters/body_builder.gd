@@ -383,6 +383,12 @@ static func _pick_color(r: Dictionary, ids: Array, info: Dictionary) -> int:
 			x = c.z
 		"angle":
 			x = atan2(c.x, c.z) / TAU
+		"diamond":
+			# ひし形のつぎはぎ（2方向のしまの組み合わせ）
+			var p := float(s.get("period", 0.1))
+			var k1 := int(floor((c.x + c.y) / p))
+			var k2 := int(floor((c.x - c.y) / p))
+			return ids[posmod(k1 + 2 * k2, ids.size())]
 		_:
 			x = c.x
 	var k := int(floor((x + float(s.get("offset", 0.0))) / float(s.get("period", 0.1))))
