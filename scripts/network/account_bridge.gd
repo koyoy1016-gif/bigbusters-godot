@@ -42,6 +42,11 @@ static func build_invite_call(friend_sid: String, room: String) -> String:
 	return "window.bbAccount.invite(%s, %s)" % [JSON.stringify(friend_sid), JSON.stringify(room)]
 
 
+## この画面を、いま使う画面にする（同じ人が、ほかの画面で使っていたら、そちらは外れる）
+static func build_claim_call() -> String:
+	return "window.bbAccount.claimSession()"
+
+
 static func build_logout_call() -> String:
 	return "window.bbAccount.logout()"
 
@@ -83,6 +88,10 @@ func remove_inbox(from_sid: String) -> void:
 
 func invite(friend_sid: String, room: String) -> void:
 	js_eval.call(build_invite_call(friend_sid, room))
+
+
+func claim_session() -> void:
+	js_eval.call(build_claim_call())
 
 
 func logout() -> void:

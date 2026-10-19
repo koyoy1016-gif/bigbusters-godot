@@ -84,3 +84,47 @@ static func vote_count(votes: Dictionary, members: Array) -> int:
 		if str(votes.get(str(slot), "")) == "rematch":
 			n += 1
 	return n
+
+
+## 自分以外の、部屋にいる人の枠（部屋につながっていなければ空）
+static func other_members(room: Dictionary) -> Array:
+	if str(room.get("status", "")) != "in_room":
+		return []
+	var mine := str(room.get("slot", ""))
+	var out: Array = []
+	for m in room.get("members", []):
+		if str(m) != mine:
+			out.append(str(m))
+	return out
+
+
+## 部屋のだれかが、戦い中か結果の画面か（そのあいだは、あとから来た人は戦いに入れない）
+static func others_busy(room: Dictionary) -> bool:
+	var phases: Dictionary = room.get("phases", {}) if room.get("phases") is Dictionary else {}
+	for m in other_members(room):
+		var p: Variant = phases.get(m)
+		if p is Dictionary and str(p.get("v", "")) in ["battle", "result"]:
+			return true
+	return false
+
+
+## 部屋の全員が、「プレイ」を押したか（ひとりのときも、true）
+static func all_ready(room: Dictionary) -> bool:
+	var phases: Dictionary = room.get("phases", {}) if room.get("phases") is Dictionary else {}
+	for m in other_members(room):
+		var p: Variant = phases.get(m)
+		if not (p is Dictionary and str(p.get("v", "")) in ["ready", "battle"]):
+			return false
+	return true
+
+
+## 画面の状態から、部屋のみんなに見せる状態の名前にする
+static func phase_of(state_name: String, waiting_ready: bool) -> String:
+	match state_name:
+		BATTLE:
+			return "battle"
+		HIGHLIGHT, REWARD, NEXT:
+			return "result"
+		LOBBY:
+			return "ready" if waiting_ready else "lobby"
+	return "lobby"

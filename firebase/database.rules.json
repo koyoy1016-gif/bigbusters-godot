@@ -108,6 +108,21 @@
               ".validate": false
             }
           }
+        },
+        "phase": {
+          "$slot": {
+            ".write": "auth != null && root.child('rooms/' + $code + '/players/' + $slot + '/uid').val() === auth.uid",
+            ".validate": "$slot.matches(/^p[1-4]$/) && (!newData.exists() || newData.hasChildren(['v', 't']))",
+            "v": {
+              ".validate": "newData.isString() && newData.val().matches(/^(lobby|ready|battle|result)$/)"
+            },
+            "t": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
         }
       }
     },
@@ -179,7 +194,7 @@
     "ids": {
       "$id": {
         ".read": "auth != null",
-        ".validate": "$id.matches(/^[A-Z2-9]{10}$/) && newData.hasChildren(['sid', 'gen'])",
+        ".validate": "($id.matches(/^[A-Z2-9]{10}$/) || $id.matches(/^[0-9]{1,9}$/)) && newData.hasChildren(['sid', 'gen'])",
         ".write": "auth != null && newData.exists() && ((!data.exists() && root.child('saves/' + newData.child('sid').val() + '/owners/' + auth.uid).exists()) || (data.exists() && root.child('saves/' + data.child('sid').val() + '/owners/' + auth.uid).exists()))",
         "sid": {
           ".validate": "newData.isString() && newData.val().matches(/^[A-Z2-9]{12}$/) && (!data.exists() || newData.val() === data.val())"
@@ -238,6 +253,28 @@
           }
         },
         ".validate": "$target.matches(/^[A-Z2-9]{12}$/)"
+      }
+    },
+    "active": {
+      "$key": {
+        ".read": "auth != null && ($key === auth.uid || root.child('links/' + auth.uid).val() === $key)",
+        ".write": "auth != null && ($key === auth.uid || root.child('links/' + auth.uid).val() === $key)",
+        ".validate": "$key.matches(/^[A-Za-z0-9]{12,40}$/) && newData.hasChildren(['token', 't'])",
+        "token": {
+          ".validate": "newData.isString() && newData.val().length >= 8 && newData.val().length <= 40"
+        },
+        "t": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "counter": {
+      "ids": {
+        ".write": "auth != null && newData.isNumber() && newData.val() === (data.exists() ? data.val() + 1 : 1)",
+        ".validate": "newData.isNumber()"
       }
     }
   }

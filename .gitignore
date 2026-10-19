@@ -1,7 +1,8 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
-web/
+web/*
+!web/head/
 # Firebaseの秘密情報（絶対にコミットしない）
 *firebase-adminsdk*.json
 *service-account*.json

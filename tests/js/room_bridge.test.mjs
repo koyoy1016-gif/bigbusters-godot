@@ -594,6 +594,18 @@ test('ルールが未更新で、キャラが書けなくても、入室は失�
   assert.equal(bb.state.status, 'in_room');
 });
 
+test('いまの状態（phase）を書く。ほかの人のも届く。退出で消える', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  bb.sendPhase('battle');
+  assert.equal(sdk.store.get('rooms/1234/phase/p1').v, 'battle');
+  await sdk.db.set({ path: 'rooms/1234/phase/p2' }, { v: 'lobby', t: 1 });
+  assert.equal(JSON.stringify(Object.keys(bb.state.phases).sort()), JSON.stringify(['p1', 'p2']));
+  await bb.leaveRoom();
+  assert.equal(sdk.store.has('rooms/1234/phase/p1'), false);
+});
+
 // ---- しょうたいの「おくる」画面（window.bbShare）：偽のDOMで動かす ----
 test('bbShare：おくる画面を作り、LINEのURLとコピーができ、とじると消える', async () => {
   const mkEl = (tag) => {

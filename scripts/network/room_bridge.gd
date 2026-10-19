@@ -53,6 +53,11 @@ static func build_send_effect_call(type: String, t_ms: float, value: float, roun
 	return "window.bbFirebase.sendEffect(%s, %s, %s, %s)" % [JSON.stringify(type), str(t_ms), str(value), str(round_ms)]
 
 
+## いまの状態（lobby / ready / battle / result）を送る
+static func build_send_phase_call(phase: String) -> String:
+	return "window.bbFirebase.sendPhase(%s)" % JSON.stringify(phase)
+
+
 ## 戦いを始める（開始の時刻を、部屋に書く）
 static func build_start_round_call() -> String:
 	return "window.bbFirebase.startRound()"
@@ -104,6 +109,10 @@ func send_vote(vote: String, round_ms: float) -> void:
 
 func send_effect(type: String, t_ms: float, value: float, round_ms: float) -> void:
 	js_eval.call(build_send_effect_call(type, t_ms, value, round_ms))
+
+
+func send_phase(phase: String) -> void:
+	js_eval.call(build_send_phase_call(phase))
 
 
 func start_round() -> void:

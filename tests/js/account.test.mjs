@@ -76,6 +76,12 @@ function makeSdk(world) {
       getDatabase: () => ({}),
       ref: (db, p) => ({ path: p }),
       get: async (ref) => snapOf(ref),
+      runTransaction: async (ref, fn) => {
+        const v = fn(store.has(ref.path) ? store.get(ref.path) : null);
+        store.set(ref.path, v);
+        notify();
+        return { committed: true, snapshot: { val: () => v } };
+      },
       set: async (ref, v) => { store.set(ref.path, v); notify(); },
       remove: async (ref) => {
         store.delete(ref.path);
@@ -117,7 +123,7 @@ test('ログインを作る：記録の持ち主・ID・復旧コード・フレ
   assert.equal(short.ok, false, '短いパスワードは断る');
   const r = await a.acc.register('secret-pass');
   assert.equal(r.ok, true, a.acc.state.message);
-  assert.match(r.loginId, /^[A-Z2-9]{10}$/);
+  assert.equal(r.loginId, '1', 'IDは1番から順の数字');
   assert.match(r.recoveryCode, /^[A-Z2-9]{20}$/);
   assert.equal(a.acc.state.signedIn, true);
   const sid = a.acc.state.sid;
@@ -238,4 +244,60 @@ test('ゲスト（ログインなし）は、フレンドの操作ができな�
   assert.match(a.acc.state.message, /メール\/パスワード/);
   assert.equal(a.sdk.auth.getAuth().currentUser.isAnonymous, true, '失敗しても、ゲストのまま');
   sdk.auth.createUserWithEmailAndPassword = orig;
+});
+
+test('IDは1番から順に配る。使われている番号は飛ばす。かんたんすぎるパスワードは断る', async () => {
+  const world = makeWorld();
+  world.store.set('ids/2', { sid: 'AAAAAAAAAAAA', gen: '1' });
+  const a = device(world);
+  await a.acc.init(CFG);
+  assert.equal((await a.acc.register('111111')).ok, false, '同じ文字だけは断る');
+  assert.equal((await a.acc.register('123456')).ok, false, 'よくある並びは断る');
+  assert.equal((await a.acc.register('abc')).ok, false);
+  const r1 = await a.acc.register('mypass');
+  assert.equal(r1.ok, true, a.acc.state.message);
+  assert.equal(r1.loginId, '1');
+  const b = device(world);
+  await b.acc.init(CFG);
+  const r2 = await b.acc.register('otherpass');
+  assert.equal(r2.loginId, '3', '2番は使われているので飛ばす');
+  const c = device(world);
+  await c.acc.init(CFG);
+  assert.equal((await c.acc.login('1', 'mypass')).ok, true, '数字のIDでログインできる');
+});
+
+test('同じ人が使える画面は1つだけ。あとから開いた画面が使える', async () => {
+  const world = makeWorld();
+  const a = device(world);
+  await a.acc.init(CFG);
+  await a.acc.register('mypass');
+  await a.acc.claimSession();
+  assert.equal(a.acc.state.displaced, false);
+  // 同じアカウントで、別の端末がログイン
+  const b = device(world);
+  await b.acc.init(CFG);
+  await b.sdk.auth.signInWithEmailAndPassword(b.sdk.auth.getAuth(), '1.1@bb.example.com', 'mypass');
+  await b.acc.init(CFG);
+  assert.equal(b.acc.state.sid, a.acc.state.sid);
+  await b.acc.claimSession();
+  await settle();
+  assert.equal(a.acc.state.displaced, true, '先の画面は外される');
+  assert.equal(b.acc.state.displaced, false);
+  await a.acc.claimSession();
+  await settle();
+  assert.equal(b.acc.state.displaced, true, 'この画面でつかう、で取りもどせる');
+  assert.equal(a.acc.state.displaced, false);
+});
+
+test('ゲストは、端末（uid）ごとに1つ。べつの人どうしは外し合わない', async () => {
+  const world = makeWorld();
+  const a = device(world);
+  const b = device(world);
+  await a.acc.init(CFG);
+  await b.acc.init(CFG);
+  await a.acc.claimSession();
+  await b.acc.claimSession();
+  await settle();
+  assert.equal(a.acc.state.displaced, false);
+  assert.equal(b.acc.state.displaced, false);
 });

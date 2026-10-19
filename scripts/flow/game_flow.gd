@@ -63,6 +63,15 @@ var invite_join_button: Button
 var invite_join_from := ""
 var invite_join_room := ""
 var room_label: Label
+var invite_button: Button
+var leave_button: Button
+var waiting_ready := false
+var phase_sent := ""
+var phase_slot := ""
+var displaced_box: Control
+var displaced_shown := false
+var claimed_key := ""
+var claim_grace := 0.0
 ## ロビーから入っている部屋（戦いを出入りしても、部屋は続く）
 var bridge: RefCounted = null
 var room_state: Dictionary = {}
@@ -161,6 +170,53 @@ func _make_panel(panel_name: String, separation: int = 28) -> VBoxContainer:
 	return box
 
 
+## ロビー用：中身がはみ出したら、縦にスクロールできる入れ物
+func _make_lobby_panel(panel_name: String, separation: int) -> VBoxContainer:
+	var root := Control.new()
+	root.name = panel_name
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bg := ColorRect.new()
+	bg.color = Color(str(config["bg_color"]))
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(bg)
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	root.add_child(scroll)
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", separation)
+	scroll.add_child(box)
+	layer.add_child(root)
+	panels[panel_name] = root
+	return box
+
+
+## 色つきの四角い枠（中身は、子として足す）。横は、ほかの部品と同じ幅にそろえる
+func _make_card(color: Color) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(int(config["lobby_card_width"]), 0)
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var box := StyleBoxFlat.new()
+	box.bg_color = color
+	box.set_corner_radius_all(18)
+	box.set_content_margin_all(14)
+	card.add_theme_stylebox_override("panel", box)
+	return card
+
+
+## ボタンに色をつける（ふだん・おしている・おせない）
+func _paint_button(button: Button, color: Color) -> void:
+	for pair in [["normal", color], ["hover", color.lightened(0.1)], ["pressed", color.darkened(0.2)], ["disabled", color.darkened(0.45)]]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = pair[1]
+		sb.set_corner_radius_all(18)
+		sb.set_content_margin_all(8)
+		button.add_theme_stylebox_override(pair[0], sb)
+
+
 func _build_panels() -> void:
 	var text_color := Color(str(config["text_color"]))
 	var heading := int(config["heading_font_size"])
@@ -174,37 +230,49 @@ func _build_panels() -> void:
 	t.add_child(title_label)
 	t.add_child(_make_label(str(config["title_loading"]), text_size, text_color))
 
-	# ロビー
-	var l := _make_panel(Logic.LOBBY, int(config["lobby_separation"]))
-	l.add_child(_make_label(str(config["title_text"]), heading, Color(str(config["title_color"]))))
+	# ロビー（上：ランク・コイン／まんなか：ステージとプレイ／下：ボタンの並び）。縦が足りないときは、スクロールできる
+	var l := _make_lobby_panel(Logic.LOBBY, int(config["lobby_separation"]))
+	var top_card := _make_card(Color(str(config["lobby_card_color"])))
+	var top_box := VBoxContainer.new()
+	top_box.add_theme_constant_override("separation", 6)
+	top_card.add_child(top_box)
 	lobby_info = _make_label("", text_size, text_color)
-	l.add_child(lobby_info)
+	top_box.add_child(lobby_info)
+	room_label = _make_label("", int(config["lobby_small_font_size"]), Color(str(config["lobby_sub_color"])))
+	top_box.add_child(room_label)
+	l.add_child(top_card)
+	var stage_card := _make_card(Color(str(config["lobby_card_color"])))
 	var stage_row := HBoxContainer.new()
 	stage_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	stage_row.add_theme_constant_override("separation", 20)
-	stage_row.add_child(_make_button(str(config["stage_prev"]), [110, 90], func(): change_stage(-1)))
+	stage_row.add_theme_constant_override("separation", 12)
+	stage_row.add_child(_make_button(str(config["stage_prev"]), [100, 90], func(): change_stage(-1)))
 	stage_label = _make_label("", heading, text_color)
-	stage_label.custom_minimum_size = Vector2(360, 0)
+	stage_label.custom_minimum_size = Vector2(316, 0)
 	stage_row.add_child(stage_label)
-	stage_row.add_child(_make_button(str(config["stage_next"]), [110, 90], func(): change_stage(1)))
-	l.add_child(stage_row)
-	play_button = _make_button(str(config["play_label"]), big, play)
+	stage_row.add_child(_make_button(str(config["stage_next"]), [100, 90], func(): change_stage(1)))
+	stage_card.add_child(stage_row)
+	l.add_child(stage_card)
+	play_button = _make_button(str(config["play_label"]), [int(config["lobby_card_width"]), 150], play)
+	play_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_paint_button(play_button, Color(str(config["lobby_play_color"])))
 	l.add_child(play_button)
-	room_label = _make_label("", text_size, text_color)
-	l.add_child(room_label)
 	var room_row := HBoxContainer.new()
 	room_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	room_row.add_theme_constant_override("separation", 16)
-	room_row.add_child(_make_button(str(config["invite_label"]), [280, 80], invite))
-	room_row.add_child(_make_button(str(config["new_room_label"]), [280, 80], new_room))
+	invite_button = _make_button(str(config["invite_label"]), [292, 84], invite)
+	leave_button = _make_button(str(config["new_room_label"]), [292, 84], new_room)
+	_paint_button(invite_button, Color(str(config["lobby_nav_color"])))
+	_paint_button(leave_button, Color(str(config["lobby_nav_color"])))
+	room_row.add_child(invite_button)
+	room_row.add_child(leave_button)
 	l.add_child(room_row)
 	invite_join_button = _make_button("", big, join_invite)
 	invite_join_button.visible = false
 	l.add_child(invite_join_button)
 	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 20)
-	grid.add_theme_constant_override("v_separation", 20)
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
 	var grid_holder := CenterContainer.new()
 	grid_holder.add_child(grid)
 	for name_text in config["lobby_buttons"]:
@@ -215,13 +283,17 @@ func _build_panels() -> void:
 			cb = func(): event("account")
 		elif str(name_text) == str(config["friends_label"]):
 			cb = func(): event("friends")
-		grid.add_child(_make_button(str(name_text), small, cb))
+		var nav := _make_button(str(name_text), [196, 96], cb)
+		nav.add_theme_font_size_override("font_size", int(config["lobby_nav_font_size"]))
+		_paint_button(nav, Color(str(config["lobby_nav_color"])))
+		grid.add_child(nav)
 	l.add_child(grid_holder)
-	quality_button = _make_button("", small, change_quality)
+	quality_button = _make_button("", [400, 80], change_quality)
 	var quality_holder := CenterContainer.new()
+	_paint_button(quality_button, Color(str(config["lobby_card_color"])))
 	quality_holder.add_child(quality_button)
 	l.add_child(quality_holder)
-	lobby_char = _make_label("", text_size, text_color)
+	lobby_char = _make_label("", int(config["lobby_small_font_size"]), Color(str(config["lobby_sub_color"])))
 	l.add_child(lobby_char)
 	toast_label = _make_label("", text_size, Color(1.0, 0.85, 0.4))
 	l.add_child(toast_label)
@@ -300,6 +372,25 @@ func _build_panels() -> void:
 	n.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
 
 
+	# 「ほかの画面で ひらかれました」（同じ人は、同時に1つの画面でしか遊べない）
+	displaced_box = Control.new()
+	displaced_box.name = "Displaced"
+	displaced_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	displaced_box.mouse_filter = Control.MOUSE_FILTER_STOP
+	var d_bg := ColorRect.new()
+	d_bg.color = Color(0.05, 0.07, 0.1, 0.96)
+	d_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	displaced_box.add_child(d_bg)
+	var d_col := VBoxContainer.new()
+	d_col.set_anchors_preset(Control.PRESET_FULL_RECT)
+	d_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	d_col.add_theme_constant_override("separation", 40)
+	displaced_box.add_child(d_col)
+	d_col.add_child(_info(str(config["displaced_text"])))
+	d_col.add_child(_small_button(str(config["displaced_button"]), reclaim_session))
+	displaced_box.visible = false
+	layer.add_child(displaced_box)
+
 ## 状態を切り替える：その画面だけ出す。戦いに入るときは戦いを作り、出るときは片づける
 func goto(new_state: String) -> void:
 	if new_state == Logic.HIGHLIGHT:
@@ -309,6 +400,8 @@ func goto(new_state: String) -> void:
 		if rematch_button_reward != null:
 			rematch_button_reward.visible = true
 			rematch_button_next.visible = true
+	if new_state != Logic.LOBBY:
+		waiting_ready = false
 	state = new_state
 	state_time = 0.0
 	for key in panels:
@@ -368,7 +461,57 @@ func play() -> void:
 	if not bool(config["stages"][stage_index]["open"]):
 		show_toast()
 		return
-	event("play")
+	if waiting_ready:
+		# もういちど おすと、まつのをやめる
+		waiting_ready = false
+		_refresh_play_button()
+		return
+	if Logic.others_busy(room_state):
+		_refresh_play_button()
+		return
+	if Logic.other_members(room_state).is_empty():
+		event("play")
+		return
+	# ほかの人がいるときは、全員が「プレイ」を押すまで待つ（いっしょに、戦いに入る）
+	waiting_ready = true
+	_refresh_play_button()
+
+
+## 部屋の人と、ロビーの「プレイ」「しょうたい」「へやを ぬける」の表示を、いまの状態に合わせる
+func _refresh_play_button() -> void:
+	if play_button == null:
+		return
+	var stage_open := bool(config["stages"][stage_index]["open"])
+	var busy := Logic.others_busy(room_state)
+	if waiting_ready and busy:
+		waiting_ready = false
+	if waiting_ready:
+		play_button.text = str(config["play_waiting_label"])
+		play_button.disabled = false
+	elif busy:
+		play_button.text = str(config["play_busy_label"])
+		play_button.disabled = true
+	else:
+		play_button.text = str(config["play_label"])
+		play_button.disabled = not stage_open
+	var party := Logic.other_members(room_state).size() > 0
+	invite_button.disabled = party
+	invite_button.text = str(config["invite_locked_label"]) if party else str(config["invite_label"])
+	leave_button.disabled = not party
+	leave_button.text = str(config["new_room_label"]) if party else str(config["leave_alone_label"])
+
+
+## 部屋の状態を、みんなに見せる（ロビー／まっている／戦い中／結果）。変わったときだけ送る
+func _sync_phase() -> void:
+	if bridge == null or str(room_state.get("status", "")) != "in_room":
+		return
+	var slot := str(room_state.get("slot", ""))
+	var want := Logic.phase_of(state, waiting_ready)
+	if want == phase_sent and slot == phase_slot:
+		return
+	phase_sent = want
+	phase_slot = slot
+	bridge.send_phase(want)
 
 
 func change_stage(step: int) -> void:
@@ -430,8 +573,8 @@ func _refresh_lobby() -> void:
 	stage_label.text = str(stage["name"])
 	var cdef := CharacterData.find(characters_cfg, selected_character)
 	lobby_char.text = (str(config["lobby_char_label"]) + "：" + str(cdef["role"]) + " " + str(cdef["name"])) if not cdef.is_empty() else ""
-	play_button.disabled = not bool(stage["open"])
 	_refresh_room_label()
+	_refresh_play_button()
 	quality_button.text = str(config["quality_label"]) + "：" + Quality.label_of(quality_name, quality_config)
 
 
@@ -499,6 +642,26 @@ func init_account() -> void:
 	account.set_save(save)
 
 
+func _on_displaced() -> void:
+	displaced_shown = true
+	waiting_ready = false
+	leave_room()
+	phase_sent = ""
+	if state in [Logic.BATTLE, Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT]:
+		goto(Logic.LOBBY)
+	displaced_box.visible = true
+
+
+## この画面を、いま使う画面に取りもどす（部屋にも入り直す）
+func reclaim_session() -> void:
+	displaced_shown = false
+	claim_grace = 3.0
+	displaced_box.visible = false
+	if account != null:
+		account.claim_session()
+	join_room()
+
+
 func _poll_account(delta: float) -> void:
 	if account == null:
 		return
@@ -510,11 +673,20 @@ func _poll_account(delta: float) -> void:
 	if st.is_empty():
 		return
 	account_state = st
+	claim_grace = maxf(0.0, claim_grace - float(config["account_poll_sec"]))
+	if str(st.get("status", "")) == "ok":
+		var key := str(st.get("sid", "")) if bool(st.get("signedIn", false)) else "guest"
+		if key != claimed_key:
+			claimed_key = key
+			claim_grace = 3.0
+			account.claim_session()
+	if bool(st.get("displaced", false)) and not displaced_shown and claim_grace <= 0.0:
+		_on_displaced()
 	if bool(st.get("signedIn", false)) and st.get("save") is Dictionary and not save_applied:
 		save_applied = true
 		_apply_server_save(st["save"])
 	_refresh_invite_button()
-	var sig := JSON.stringify([st.get("signedIn"), st.get("loginId"), st.get("nickname"), st.get("friendCode"), st.get("friends"), st.get("inbox"), st.get("message")])
+	var sig := JSON.stringify([st.get("signedIn"), st.get("loginId"), st.get("nickname"), st.get("friendCode"), st.get("friends"), st.get("inbox"), st.get("message"), Logic.other_members(room_state).size()])
 	if sig != account_signature:
 		account_signature = sig
 		if state == Logic.ACCOUNT:
@@ -617,7 +789,11 @@ func _refresh_friends() -> void:
 		var fnick := str(f.get("nickname", ""))
 		if fnick == "":
 			fnick = str(config["friends_no_name"])
-		friends_box.add_child(_small_button(fnick + "：" + str(config["friends_invite"]), func(): account.invite(fsid, room_code)))
+		var invite_btn := _small_button(fnick + "：" + str(config["friends_invite"]), func(): account.invite(fsid, room_code))
+		if not Logic.other_members(room_state).is_empty():
+			invite_btn.disabled = true
+			invite_btn.text = fnick + "：" + str(config["invite_locked_label"])
+		friends_box.add_child(invite_btn)
 
 
 ## ロビーに、フレンドからのしょうたいがあれば、「◯◯のへやに さんか」を出す
@@ -692,8 +868,13 @@ func _poll_room(delta: float) -> void:
 		var st: Dictionary = bridge.read_state()
 		if not st.is_empty():
 			room_state = st
+	_sync_phase()
 	if state == Logic.LOBBY:
 		_refresh_room_label()
+		_refresh_play_button()
+		if waiting_ready and Logic.all_ready(room_state):
+			waiting_ready = false
+			event("play")
 
 
 func _refresh_room_label() -> void:
@@ -723,6 +904,8 @@ func new_room() -> void:
 	rng.randomize()
 	room_code = RoomLink.generate_code(digits, rng)
 	room_from_url = false
+	waiting_ready = false
+	phase_sent = ""
 	leave_room()
 	join_room()
 	_refresh_lobby()
@@ -730,6 +913,10 @@ func new_room() -> void:
 
 ## しょうたい：この部屋のURLを作って、ブラウザ側の「おくる」画面を出す
 func invite() -> void:
+	if not Logic.other_members(room_state).is_empty():
+		toast_label.text = str(config["invite_locked_label"])
+		toast_time = 2.0
+		return
 	if str(js_eval.call("typeof window")) != "object":
 		toast_label.text = str(config["invite_offline_note"])
 		toast_time = 2.5
