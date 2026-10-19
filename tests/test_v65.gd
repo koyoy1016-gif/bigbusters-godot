@@ -1,6 +1,6 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_v65.gd
-## 版65の変更：酒瓶の落ちる範囲が1.25倍（予告と当たりが同じ）・回転バット移動は脚を閉じてまっすぐ進む・バット投げの予告は細い線だけ。
+## 版65の変更：酒瓶の落ちる範囲が1.25倍（予告と当たりが同じ）（回転バット移動は版66で削除）・バット投げの予告は細い線だけ。
 ## （巨大酒瓶ライドの速さ1.2倍・12本は tests/test_bottle_ride.gd）
 
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -56,43 +56,6 @@ func _initialize() -> void:
 	check(bool(res.get(2.3, false)) and not bool(res.get(2.7, true)), "画面：円の中（2.3m）は当たり、外（2.7m）は当たらない")
 	s._show_hazards([{"id": "c1", "shape": "circle", "x": 0.0, "z": 0.0, "r": 2.5, "active": false, "tele": 0.5, "power": 12.0, "style": "bottle"}])
 	check(is_equal_approx((s.hazard_nodes[0] as Node3D).scale.x, 2.5), "画面：予告の円の見た目の半径も 2.5")
-
-	# ---- 回転バット移動：脚を閉じたまま、まっすぐ進む。9／ヒット、予告なし ----
-	var bk: Dictionary = kinds["spin_bat"]
-	check(is_equal_approx(float(bk["power"]), 9.0), "回転バット移動：ダメージは9のまま")
-	var m: Node3D = BM.new()
-	root.add_child(m)
-	m.build(BM.load_config(), StandardMaterial3D.new())
-	var sc := float(m.cfg["model_scale"])
-	var w := float(bk["windup_sec"])
-	var run := float(bk["run_sec"])
-	var feet_ok := true
-	var max_gap := 0.0
-	var u := w
-	while u < w + run:
-		# 歩いているとき（歩きの速さあり）でも、脚は閉じたまま
-		m.animate(0.0, u, {"kind": "spin_bat", "u": u, "k": bk, "walk_speed": 3.0, "walk_dist": u * 3.0, "clock": u})
-		var fl: Vector3 = m.anim.bone_model_pos(m.pose, "foot.L") * sc
-		var fr: Vector3 = m.anim.bone_model_pos(m.pose, "foot.R") * sc
-		max_gap = maxf(max_gap, fl.distance_to(fr))
-		feet_ok = feet_ok and absf(fl.z - fr.z) < 0.15 and fl.y < 0.6 and fr.y < 0.6
-		u += 0.1
-	check(feet_ok and max_gap < 1.2, "回転バット移動：回っている間、足はそろえて閉じたまま（足の間 最大 %.2f m）" % max_gap)
-	var tip: Vector3 = m.bat_tip_local()
-	check(absf(Vector2(tip.x, tip.z).length() - float(bk["radius"])) < 0.15, "回転バット移動：当たりの丸の半径（%.1f）は、バットの先までの長さ（%.2f）と同じ" % [float(bk["radius"]), Vector2(tip.x, tip.z).length()])
-	m.free()
-	var c2 := {"boss": Vector2(1, -2), "yaw": 0.3, "target": Vector2(-4, 9), "round_start_ms": 5.0, "n": 4, "area": 13.0}
-	var p0: Vector2 = Attacks.spin_bat_at(w, bk, c2)["pos"]
-	var p1: Vector2 = Attacks.spin_bat_at(w + run, bk, c2)["pos"]
-	var dir := (Vector2(-4, 9) - Vector2(1, -2)).normalized()
-	var straight := true
-	u = w
-	while u <= w + run:
-		var p: Vector2 = Attacks.spin_bat_at(u, bk, c2)["pos"]
-		straight = straight and absf((p - p0).cross(dir)) < 0.01
-		u += 0.1
-	check(straight and (p1 - p0).normalized().dot(dir) > 0.999, "回転バット移動：はじめにねらった人の方向へ、まっすぐ進む（曲がらない・追いかけない）")
-	check(Attacks.hazards({"kind": "spin_bat", "n": 4}, w * 0.5, cfg, c2).is_empty(), "回転バット移動：事前の予告はない")
 
 	# ---- バット投げ：予告は、投げる向きにまっすぐな細い線だけ ----
 	var tk: Dictionary = kinds["bat_throw"]

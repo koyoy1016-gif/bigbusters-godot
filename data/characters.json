@@ -70,7 +70,7 @@
       "skill": "斬る",
       "break_power": 1.5,
       "stats": {
-        "hp": 150.0,
+        "hp": 262.5,
         "move_speed": 7.0,
         "attack_power": 18.0,
         "attack_cooldown_sec": 0.35,

@@ -422,36 +422,6 @@
         "strong": true
       }
     },
-    "spin_bat": {
-      "_memo": "版61 回転バット移動「ぶんまわし行進」：腕を横にのばしてバットを持ち、体ごとぐるぐる回りながら、ねらう人のほうへまっすぐ進む。予告なし。当たり（バットの先までの丸）は回っている間だけ。同じ人に当たるのは tick_sec ごと・最大 max_ticks 回。回転突進（曲がって走る・予告あり・はね飛ばし）とは別。時間は attack_speed で割る前の値",
-      "duration": 6.3,
-      "windup_sec": 0.9,
-      "run_sec": 4.2,
-      "tick_sec": 0.75,
-      "max_ticks": 3,
-      "speed": 2.0,
-      "spin_deg_per_sec": 360.0,
-      "radius": 8.1,
-      "power": 9.0,
-      "jumpable": true,
-      "stop_dist": 7.0,
-      "chase_sec": 0.5,
-      "knockback": "kb_heavy",
-      "kb_mode": "sweep",
-      "ai": {
-        "forms": {
-          "normal": 1.0,
-          "awake": 1.2
-        },
-        "range": [
-          3.0,
-          14.0
-        ],
-        "cooldown_sec": 8.0,
-        "strong": true
-      },
-      "radius_note": "バットの先までの長さ（tools/measure_reach.gd で 8.12 m。版65で脚を閉じた姿勢にしたため 7.63→8.12）"
-    },
     "jump_slam": {
       "_memo": "ジャンプ落下「ドスン落とし」：しゃがんで、高く跳び、ねらった所へ落ちる（直撃）。落ちたあと、衝撃の輪が外へ広がる（輪はジャンプでよけられる）。着地のあとは、すき",
       "duration": 4.4,
@@ -625,7 +595,7 @@
       "seat_butt": 0.45,
       "seat_back": 1.4,
       "seat_note": "座る高さ：ボスの腰（足もとから seat_hip m。tools/measure_seat.gd で測った）が、瓶の上の面＋seat_butt に来る。ボスは瓶の中心より seat_back m うしろに座る",
-      "bottles_per_pass": 12,
+      "bottles_per_pass": 18,
       "throw_flight": 1.1,
       "throw_hit_sec": 0.15,
       "throw_radius": 2.5,
@@ -637,7 +607,7 @@
       "throw_hand_up": 2.5,
       "neck_color": "#2f6a3c",
       "bottle_note": "版63：瓶の大きさ。胴の半径 bottle_radius、長さ half_len×2（実物の一升瓶の比率：長さ≒胴の半径×7.6）。当たりの帯の幅は half_width",
-      "throw_note": "版65：突入1回に12本。投げる時刻は突入の始めから終わりまで等しい間（約0.1〜0.2秒ごと）。落ちる所はステージの中の、道からはなれた所。落ちる範囲の半径は 2.0→2.5（1.25倍。予告の円と当たりは同じ半径）"
+      "throw_note": "版66：突入1回に18本（版65は12本）。投げる時刻は突入の始めから終わりまで等しい間（約0.07〜0.13秒ごと）。落ちる所はステージの中の、道からはなれた所、おたがい throw_min_gap m 以上（足りないときは、いちばん離れた所）。落ちる範囲の半径 2.5"
     }
   },
   "damage_multiplier": 1.0,

@@ -685,7 +685,7 @@ func _refresh_formation() -> void:
 	var labels: Dictionary = config["stat_labels"]
 	var st: Dictionary = def["stats"]
 	formation_stats.text = str(config["formation_selected"]) + "：" + str(def["role"]) + " " + str(def["name"]) + "\n" \
-		+ str(labels["hp"]) + " " + str(int(st["hp"])) + "  " + str(labels["move_speed"]) + " " + str(int(st["move_speed"])) + "\n" \
+		+ str(labels["hp"]) + " " + str(ceili(float(st["hp"]))) + "  " + str(labels["move_speed"]) + " " + str(int(st["move_speed"])) + "\n" \
 		+ str(labels["attack_power"]) + " " + str(int(st["attack_power"])) + "  " + str(labels["attack_reach"]) + " " + str(int(st["attack_reach"])) \
 		+ "  " + str(labels["skill"]) + "：" + str(def["skill"])
 

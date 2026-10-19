@@ -1774,10 +1774,6 @@ func _show_hazards(hz: Array) -> void:
 			# 燃えている所：炎は _update_fires。当たり場所の面は出さない（炎が見えるので）
 			n.visible = false
 			continue
-		if style == "spin_bat":
-			# 回転バット移動（版61）：予告なし。回るバットそのものが見えるので、床の面も出さない
-			n.visible = false
-			continue
 		if style == "hand" and active:
 			n.visible = false
 			continue
@@ -2456,7 +2452,7 @@ func _draw_overlay() -> void:
 		overlay.draw_rect(Rect2(bar_rect.position + Vector2(bar_rect.size.x - 6.0, 0.0), Vector2(6.0, bar_rect.size.y)), Color(str(config["bossbar_color_awake"])))
 	var hp_text := str(config["boss_hp_label_awake"] if second else config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(phase.max_hp()))
 	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + (("（" + str(role()["character_name"]) + "）") if role().has("character_name") else "") + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(role_value("hp")))
+	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + (("（" + str(role()["character_name"]) + "）") if role().has("character_name") else "") + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(ceili(role_value("hp")))
 	if downed:
 		my_text += "  " + str(config["down_text"])
 	overlay.draw_string(font, Vector2(16, fs * 4.4), my_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)

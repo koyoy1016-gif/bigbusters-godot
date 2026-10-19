@@ -1,6 +1,6 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_awake_rides.gd
-## 版64：覚醒の体力は前の1.5倍（6000）。覚醒の体力が4分の1減るたびに、必ず巨大酒瓶ライドが入る（3回）。それ以外でもランダムに出る。
+## 版64・版66：覚醒の体力は9000（版66で6000の1.5倍）。覚醒の体力が4分の1減るたびに、必ず巨大酒瓶ライドが入る（3回）。それ以外でもランダムに出る。
 
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const BossPhase := preload("res://scripts/combat/boss_phase.gd")
@@ -17,18 +17,18 @@ func check(cond: bool, msg: String) -> void:
 
 func _initialize() -> void:
 	var cfg: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/prototype_stick.json"))
-	check(is_equal_approx(float(cfg["boss_hp_awake"]), 6000.0) and is_equal_approx(float(cfg["boss_hp_awake"]), float(cfg["boss_hp"]) * 1.5), "覚醒の体力は 6000（第1形態 4000 の1.5倍）")
+	check(is_equal_approx(float(cfg["boss_hp_awake"]), 9000.0) and is_equal_approx(float(cfg["boss_hp"]), 4000.0), "覚醒の体力は 9000、平常は 4000")
 	check(is_equal_approx(float(cfg["awake_ride_every"]), 0.25), "区切りは4分の1")
 
 	# 区切りの数
 	var ph := BossPhase.new()
-	ph.reset(4000.0, 6000.0, 3.4, 1.2)
+	ph.reset(4000.0, 9000.0, 3.4, 1.2)
 	check(ph.awake_steps(500.0, 0.25) == 0, "第1形態では数えない")
 	ph.on_total(4000.0)
 	ph.tick(9.0, 4000.0)
-	var ok := ph.awake_steps(4000.0 + 1499.0, 0.25) == 0 and ph.awake_steps(4000.0 + 1500.0, 0.25) == 1
-	ok = ok and ph.awake_steps(4000.0 + 3000.0, 0.25) == 2 and ph.awake_steps(4000.0 + 4500.0, 0.25) == 3 and ph.awake_steps(4000.0 + 5999.0, 0.25) == 3
-	check(ok, "覚醒の体力が 1500 減るごとに1つ（残り75%・50%・25%の3回。倒した所は数えない）")
+	var ok := ph.awake_steps(4000.0 + 2249.0, 0.25) == 0 and ph.awake_steps(4000.0 + 2250.0, 0.25) == 1
+	ok = ok and ph.awake_steps(4000.0 + 4500.0, 0.25) == 2 and ph.awake_steps(4000.0 + 6750.0, 0.25) == 3 and ph.awake_steps(4000.0 + 8999.0, 0.25) == 3
+	check(ok, "覚醒の体力が 2250 減るごとに1つ（残り75%・50%・25%の3回。倒した所は数えない）")
 
 	# AI：必ず次に出す。必殺技の待ち時間も無視する
 	var acfg := Attacks.load_config()
@@ -74,11 +74,11 @@ func _initialize() -> void:
 		now[0] = s.round_start_ms + tt * 1000.0
 		s.combat_update(0.05)
 		s._pose_boss(0.05)
-	check(s.phase.is_awake() and is_equal_approx(s.phase.max_hp(), 6000.0), "画面：覚醒すると、体力の最大は 6000")
+	check(s.phase.is_awake() and is_equal_approx(s.phase.max_hp(), 9000.0), "画面：覚醒すると、体力の最大は 9000")
 	var rides := 0
 	var was_riding := false
 	for q in 3:
-		s.my_hits = 4000.0 + 1500.0 * float(q + 1) + 1.0
+		s.my_hits = 4000.0 + 2250.0 * float(q + 1) + 1.0
 		s._recompute_boss_hp()
 		var started := false
 		var limit := tt + 40.0

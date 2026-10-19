@@ -11,7 +11,7 @@ NAMES = {"bat_h": "横振り", "bat_v": "縦振り＋衝撃波", "bat_spin": "�
          "grab": "つかみ投げ", "thrust": "前方突き", "bat_throw": "バット投げ", "spin_charge": "回転突進", "jump_slam": "ジャンプ落下",
          "typhoon": "台風", "sake_drop": "酒瓶落とし", "fire_fest": "火祭り（必殺）", "bottle_ride": "巨大酒瓶ライド（必殺）",
          "flyer_storm": "酒の大雨（必殺）", "hand_sweep": "大きな手（必殺）",
-         "jump_move": "移動ジャンプ落下", "spin_bat": "回転バット移動"}
+         "jump_move": "移動ジャンプ落下"}
 
 
 def ride_total(k):
@@ -48,8 +48,6 @@ for kind, k in d["kinds"].items():
         power = "%s（火 %s）" % (power, k.get("fire_power"))
     if kind == "bottle_ride":
         power = "%s（投げた瓶 %s×%d本／突入）" % (power, k.get("throw_power"), k.get("bottles_per_pass"))
-    if kind == "spin_bat":
-        tele = None  # 予告なし
     print("| %s | %s | %s | %.1f | %s | %s | %s | %s | %s |" % (
         NAMES.get(kind, kind), forms.get("normal", "-"), forms.get("awake", "-"), dur,
         "%.2f" % tele if tele is not None else "-", power, k.get("knockback", "-"),

@@ -30,7 +30,6 @@ const SAKE_DROP := "sake_drop"
 const FIRE_FEST := "fire_fest"
 const BOTTLE_RIDE := "bottle_ride"
 const JUMP_MOVE := "jump_move"  ## 版61：移動ジャンプ落下
-const SPIN_BAT := "spin_bat"  ## 版61：回転バット移動
 
 
 ## 攻撃の長さ（秒）。巨大酒瓶ライドは道の長さで変わるので、攻撃の番号と戦いの開始の時刻から計算する（全員の画面で同じ）
@@ -188,8 +187,6 @@ static func _hazards_raw(a: Dictionary, u: float, k: Dictionary, cfg: Dictionary
 			return _jump_slam(a, u, k, ctx)
 		JUMP_MOVE:
 			return _jump_move(a, u, k, ctx)
-		SPIN_BAT:
-			return _spin_bat(a, u, k, ctx)
 		SAKE_DROP:
 			return _bottle_hazards(a, u, k, ctx)
 		FIRE_FEST:
@@ -543,8 +540,6 @@ static func boss_path(kind: String, u: float, k: Dictionary, ctx: Dictionary) ->
 			return jump_at(u, k, ctx)
 		JUMP_MOVE:
 			return jump_move_at(u, k, ctx)
-		SPIN_BAT:
-			return spin_bat_at(u, k, ctx)
 		BOTTLE_RIDE:
 			var r := ride_at(u, k, ctx)
 			var out := {"pos": r["pos"], "yaw": float(r["yaw"]), "y": float(r["y"]), "spin": 0.0, "riding": bool(r["riding"]), "phase": r["phase"], "phase_t": float(r.get("phase_t", 0.0))}
@@ -737,50 +732,6 @@ static func _jump_move(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) 
 	# 直撃だけ（1回。id が1つなので、二重に当たらない）。衝撃波は出さない
 	return [{"id": "jm%d" % int(a["n"]), "shape": "circle", "x": land.x, "z": land.y, "r": float(k["radius"]), "active": u >= land_t, "tele": clampf(u / land_t, 0.0, 1.0),
 		"power": float(k["power"]), "jumpable": bool(k["jumpable"]), "target": "", "tick": -1, "style": "zone"}]
-
-
-## ---- 回転バット移動「ぶんまわし行進」（版61）：腕を横にのばし、体ごと回りながら、ねらう人のほうへまっすぐ進む（予告なし） ----
-## 道は攻撃の始めに決める（ねらう人の方向へまっすぐ。曲がらない・追いかけない）。回転は、ため（windup）で速くなり、終わりにゆっくり止まる
-static func spin_bat_at(u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
-	var w := float(k["windup_sec"])
-	var run := float(k["run_sec"])
-	var p0: Vector2 = ctx["boss"]
-	var yaw0 := float(ctx.get("yaw", 0.0))
-	var tgt: Vector2 = ctx.get("target", p0 + fwd_of(yaw0))
-	var d := tgt - p0
-	var dir := d.normalized() if d.length() > 0.3 else fwd_of(yaw0)
-	var t := clampf(u - w, 0.0, run)
-	# 進む道のり：始めと終わりはゆっくり（急に動き出さない・急に止まらない）。平均の速さは speed
-	var dist := float(k["speed"]) * run * smoothstep(0.0, 1.0, t / run) if run > 0.0 else 0.0
-	var pos := _area(p0 + dir * dist, ctx)
-	# 体の回り：度/秒。ためで0から上がり、走りの終わり0.5秒で止まる
-	var rate := deg_to_rad(float(k["spin_deg_per_sec"]))
-	var spin := 0.0
-	var ramp := w
-	if u < w:
-		spin = rate * u * u / (2.0 * ramp)
-	else:
-		spin = rate * ramp * 0.5 + rate * (minf(u, w + run) - w)
-		if u > w + run:
-			var slow := 0.5
-			var tt := minf(u - w - run, slow)
-			spin += rate * (tt - tt * tt / (2.0 * slow))
-	var face := atan2(dir.x, dir.y)
-	return {"pos": pos, "yaw": face, "y": 0.0, "spin": spin, "running": u >= w and u < w + run, "dir": dir}
-
-
-static func _spin_bat(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
-	var w := float(k["windup_sec"])
-	var run := float(k["run_sec"])
-	# 予告なし：回っている間だけ、当たりを出す（ため・止まったあとは出さない）
-	if u < w or u >= w + run:
-		return []
-	var st := spin_bat_at(u, k, ctx)
-	var p: Vector2 = st["pos"]
-	# 同じ人へは tick_sec ごと、最大 max_ticks 回まで（それ以上は同じ id なので、もう当たらない）
-	var tick := mini(int(floor((u - w) / float(k["tick_sec"]))), int(k.get("max_ticks", 3)) - 1)
-	return [{"id": "sb%d" % int(a["n"]), "shape": "circle", "x": p.x, "z": p.y, "r": float(k["radius"]), "active": true, "tele": 1.0, "power": float(k["power"]),
-		"jumpable": bool(k["jumpable"]), "target": "", "tick": tick, "style": "spin_bat", "sweep_sign": 1.0}]
 
 
 ## 酒の雨：throw 回めに投げる時刻
