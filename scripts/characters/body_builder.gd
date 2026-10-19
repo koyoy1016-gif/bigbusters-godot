@@ -95,7 +95,7 @@ static func apply(model: Node, look: Dictionary) -> int:
 			base_mat = _material(sc.to_html(false), 0.0, 0.75, 0.0, "none")
 		mats.append(base_mat)
 		tris += _build_body(mi, sk, rest, tails, look, mats, keys, mats.size() - 1)
-	tris += _attach_parts(sk, rest, look.get("parts", []))
+	tris += _attach_parts(sk, rest, look.get("parts", []), float(look.get("head_scale", 1.0)), _head_pivot(sk, rest))
 	return tris
 
 
@@ -535,7 +535,7 @@ static func _tri_count(mesh: Mesh) -> int:
 # ---------------------------------------------------------------- 部品
 
 ## parts を骨に付ける（Item_look_* の BoneAttachment3D。あとで character_view.bake_items が1つにまとめる）。三角形の数を返す
-static func _attach_parts(sk: Skeleton3D, rest: Array, parts: Array) -> int:
+static func _attach_parts(sk: Skeleton3D, rest: Array, parts: Array, head_scale: float = 1.0, head_pivot: Vector3 = Vector3.ZERO) -> int:
 	var holders := {}
 	var tris := 0
 	var all: Array = []
@@ -561,7 +561,11 @@ static func _attach_parts(sk: Skeleton3D, rest: Array, parts: Array) -> int:
 		var mi := MeshInstance3D.new()
 		mi.mesh = mesh
 		var inv := (rest[bi] as Transform3D).affine_inverse()
-		mi.transform = inv * part_transform(part)
+		var xf := part_transform(part)
+		if group_of(bone) == "head" and absf(head_scale - 1.0) > 0.0001:
+			# 頭につく部品（髪・帽子）は、頭の大きさに合わせて、同じ点を中心に大きくする
+			xf = Transform3D(Basis.from_scale(Vector3.ONE * head_scale), head_pivot * (1.0 - head_scale)) * xf
+		mi.transform = inv * xf
 		(holders[bone] as Node3D).add_child(mi)
 		tris += _tri_count(mesh)
 	return tris

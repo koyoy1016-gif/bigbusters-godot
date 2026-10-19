@@ -130,7 +130,8 @@ func _initialize() -> void:
 	check(b.other_views["p2"].current_action == "run", "動いていれば走る")
 	b._update_other_view("p2", n2, Vector3.ZERO, 0.1)
 	check(b.other_views["p2"].current_action == "idle", "止まれば待つ")
-	b.net_state["chars"] = {"p2": "healer"}
+	# 2026-10-20：味方8人はみんなモデルを持つので、一覧にないキャラ（モデルなし）で確かめる
+	b.net_state["chars"] = {"p2": "no_such_character"}
 	b._update_other_view("p2", n2, Vector3.ZERO, 0.1)
 	check(not b.other_views.has("p2") and n2.mesh != null, "モデルのないキャラに変わったら、箱にもどる")
 	b.net_active = false

@@ -384,16 +384,22 @@
       "archetype": "summon",
       "weapon": "よびだし",
       "note": "Xボタンで、味方をもう1人出す（操作系）",
-      "model": "",
+      "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 1.95,
       "animations": {
         "idle": "Idle",
         "run": "Run",
         "jump": "Jump",
-        "attack": "Attack",
-        "down": "Death"
+        "attack": "Spell",
+        "down": "Death",
+        "swing": "Spell",
+        "jump_start": "Jump_Start",
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell",
+        "hit": "Hit"
       },
       "skill": "召喚",
       "break_power": 1.0,
@@ -403,7 +409,13 @@
         "attack_power": 9.0,
         "attack_cooldown_sec": 0.4,
         "attack_reach": 5.0
-      }
+      },
+      "look": "summoner",
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "procedural_anims": true,
+      "anim_oneshot": [
+        "attack"
+      ]
     },
     {
       "id": "healer",
@@ -413,16 +425,22 @@
       "archetype": "heal",
       "weapon": "つえ",
       "note": "味方を回復する",
-      "model": "",
+      "model": "res://assets/models/hero_swordsman.glb",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.0,
+      "model_scale": 1.755,
       "animations": {
         "idle": "Idle",
         "run": "Run",
         "jump": "Jump",
-        "attack": "Attack",
-        "down": "Death"
+        "attack": "Spell",
+        "down": "Death",
+        "swing": "Spell",
+        "jump_start": "Jump_Start",
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell",
+        "hit": "Hit"
       },
       "skill": "回復",
       "break_power": 1.0,
@@ -432,7 +450,13 @@
         "attack_power": 7.5,
         "attack_cooldown_sec": 0.4,
         "attack_reach": 5.0
-      }
+      },
+      "look": "healer",
+      "anim_library": "res://assets/anims/hero_ual.res",
+      "procedural_anims": true,
+      "anim_oneshot": [
+        "attack"
+      ]
     }
   ],
   "budgets": {

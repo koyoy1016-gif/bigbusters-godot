@@ -481,7 +481,8 @@ def staff(bone, x, z, color, top_y=2.0):
 
 def long_hair(color, length_y=1.05, width=0.15, depth=0.1, waves=True):
     """背中まで届く長い髪（頭の骨につく）：頭の上の帽子形と、後ろの幕と、横の房"""
-    ps = [sph("head", (0, 1.88, 0.0), 0.122, color, squash=(1.05, 0.95, 1.08), segs=16, rough=0.7)]
+    ps = [sph("head", (0, 1.88, 0.0), 0.122, color, squash=(1.05, 0.95, 1.08), segs=16, rough=0.7),
+          sph("head", (0, 1.915, 0.035), 0.112, color, squash=(1.05, 0.85, 1.05), segs=16, rough=0.7)]
     rings = []
     n = 6
     for i in range(n + 1):
@@ -810,7 +811,7 @@ def healer():
     CREAM = "#efe6da"
     GOLD = "#d8ae4a"
     RED = "#d9505a"
-    HAIR = "#e6d8b8"
+    HAIR = "#d8c49a"
     parts = long_hair(HAIR, length_y=1.08, width=0.15)
     # 天使の輪（光る金）と、頭の小さな羽・白い花
     parts.append(torus("head", (0, 2.08, 0.0), 0.09, 0.008, "#ffd56a", segs=20, emission=1.6, tex="none"))
@@ -818,14 +819,11 @@ def healer():
         parts.append(extrude("head", (0.1 * sx, 1.93, 0.0), [[p[0] * sx, p[1]] for p in wing2d(0.09)], 0.01, WHITE, rot=(0, 0, 0)))
     parts.append(sph("head", (0.1, 1.9, 0.07), 0.026, WHITE, squash=(1, 1, 0.5), segs=8))
     parts.append(sph("head", (0.1, 1.9, 0.085), 0.01, "#f2c94c", segs=6))
-    # 背中の大きな白い羽（左右）
+    # 背中の大きな白い羽（左右。羽根の形を3枚重ねる）
     for sx in (1, -1):
-        base = (0.06 * sx, 1.47, -0.14)
-        for k, (ln, ang) in enumerate([(0.42, 18), (0.36, 0), (0.3, -18), (0.24, -36)]):
-            a = math.radians(ang)
-            tip = (base[0] + sx * ln * math.cos(a), base[1] + ln * math.sin(a) + 0.04, base[2] - 0.06 - 0.03 * k)
-            parts.append(tube("spine01", [base, ((base[0] + tip[0]) / 2, (base[1] + tip[1]) / 2 + 0.05, (base[2] + tip[2]) / 2), tip],
-                              0.055 - 0.006 * k, 0.012, WHITE, smooth=True, steps=6, squash=0.35, segs=8, rough=0.9))
+        for k, (sc, dy, dz) in enumerate([(0.55, 0.0, -0.17), (0.45, -0.05, -0.19), (0.34, -0.1, -0.21)]):
+            parts.append(extrude("spine01", (0.05 * sx, 1.47 + dy, dz), [[p[0] * sx, p[1] - sc * 0.3] for p in wing2d(sc)], 0.02,
+                                 WHITE if k != 1 else CREAM, rot=(0, -25 * sx, 10 * sx), rough=0.9, double=True))
     # 胸のリボン（赤）・胸のふち（金）
     parts.append(sph("spine01", (-0.03, 1.58, 0.12), 0.022, RED, squash=(1.4, 0.8, 0.6), segs=8))
     parts.append(sph("spine01", (0.03, 1.58, 0.12), 0.022, RED, squash=(1.4, 0.8, 0.6), segs=8))
