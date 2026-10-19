@@ -56,34 +56,6 @@ static func apply_speed(cfg: Dictionary) -> Dictionary:
 	return out
 
 
-## 攻撃の予定表。[{n, kind, start, end}]。ultimates は、決まった時刻を過ぎた最初の枠で出る。
-## cycle_key："cycle"（平常時。必殺技なし）か "awake_cycle"（覚醒時。必殺技あり）。n は、平常 1〜、覚醒 10001〜（乱数の種を分ける）
-static func build_schedule(cfg: Dictionary, cycle_key: String = "cycle") -> Array:
-	var out: Array = []
-	var t := float(cfg["first_delay_sec"])
-	var total := float(cfg["schedule_total_sec"])
-	var cycle: Array = cfg[cycle_key]
-	var ults: Array = cfg["ultimates"] if cycle_key == "awake_cycle" else []
-	var next_ult := float(cfg["ultimate_first_sec"])
-	var ult_i := 0
-	var cyc_i := 0
-	var n := 0 if cycle_key == "cycle" else 10000
-	while t < total:
-		n += 1
-		var kind: String
-		if not ults.is_empty() and t >= next_ult:
-			kind = str(ults[ult_i % ults.size()])
-			ult_i += 1
-			next_ult += float(cfg["ultimate_interval_sec"])
-		else:
-			kind = str(cycle[cyc_i % cycle.size()])
-			cyc_i += 1
-		var dur := float((cfg["kinds"][kind] as Dictionary)["duration"])
-		out.append({"n": n, "kind": kind, "start": t, "end": t + dur})
-		t += dur + float(cfg["gap_sec"])
-	return out
-
-
 ## t 秒のときに行われている攻撃の番号（予定表の位置）。なければ -1
 static func active_index(schedule: Array, t: float) -> int:
 	for i in schedule.size():

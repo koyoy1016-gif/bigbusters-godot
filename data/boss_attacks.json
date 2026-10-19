@@ -1,22 +1,7 @@
 {
-  "_memo": "ボスの攻撃。平常時はバット中心（横振り・縦振り・回転斬り・しっぽ回し・歩きながら振る）＋つかみ。覚醒時はチラシ・台風・つかみ・しっぽ回し＋必殺技2つ。数字は仮。時間は「戦いが始まってからの秒」で決まるので、全員の画面で同じ攻撃が同じときに出る。attack_speed で、攻撃の時間（*_sec と duration）をまとめて速くする（speed_exempt にある物は変えない）",
+  "_memo": "ボスの攻撃。順番は決めず、使える攻撃の中から重みでくじ引き（scripts/combat/boss_ai.gd）。各攻撃の ai：forms（形態ごとの重み）、range（ねらう人までの距離がこの間なら重みそのまま、外なら far_mult 倍）、cooldown_sec、strong（強い攻撃）、ultimate（必殺技：覚醒のときだけ）、not_after（すぐあとに出さない攻撃）、feint_chance。attack_speed で、攻撃の時間（*_sec と duration）をまとめて速くする（speed_exempt にある物は変えない）",
   "first_delay_sec": 3.0,
   "gap_sec": 0.9,
-  "cycle": [
-    "bat_h",
-    "grab",
-    "bat_v",
-    "tail_spin",
-    "walk_swing",
-    "bat_spin"
-  ],
-  "ultimates": [
-    "flyer_storm",
-    "hand_sweep"
-  ],
-  "ultimate_first_sec": 45.0,
-  "ultimate_interval_sec": 40.0,
-  "schedule_total_sec": 600.0,
   "dodge_height": 0.5,
   "zone_color": "#ff3030",
   "zone_min_alpha": 0.12,
@@ -52,7 +37,18 @@
       "hang_below": 2.6,
       "reach": 3.4,
       "stop_dist": 3.0,
-      "chase_sec": 0.9
+      "chase_sec": 0.9,
+      "ai": {
+        "forms": {
+          "normal": 1.5,
+          "awake": 1.0
+        },
+        "range": [
+          0.0,
+          6.0
+        ],
+        "cooldown_sec": 6.0
+      }
     },
     "typhoon": {
       "duration": 5.5,
@@ -67,7 +63,18 @@
       "arm_height": 0.1,
       "arm_reach": 3.8,
       "stop_dist": 3.5,
-      "chase_sec": 0.6
+      "chase_sec": 0.6,
+      "ai": {
+        "forms": {
+          "awake": 1.5
+        },
+        "range": [
+          0.0,
+          6.0
+        ],
+        "cooldown_sec": 5.0,
+        "strong": true
+      }
     },
     "flyers": {
       "duration": 6.0,
@@ -80,7 +87,10 @@
       "life_sec": 2.2,
       "angle_deg": 60.0,
       "jumpable": false,
-      "tele_alpha": 0.22
+      "tele_alpha": 0.22,
+      "ai": {
+        "forms": {}
+      }
     },
     "flyer_storm": {
       "duration": 10.0,
@@ -101,7 +111,13 @@
         -9.0,
         13.0
       ],
-      "_memo": "必殺技A：空から、酒が雨のように降ってくる（落ちる所に、先に輪が出る。落ちた所はぬれる）"
+      "_memo": "必殺技A：空から、酒が雨のように降ってくる（落ちる所に、先に輪が出る。落ちた所はぬれる）",
+      "ai": {
+        "forms": {
+          "awake": 0.8
+        },
+        "ultimate": true
+      }
     },
     "hand_sweep": {
       "duration": 10.0,
@@ -118,7 +134,13 @@
         -1.0,
         6.0
       ],
-      "hand_scale": 2.4
+      "hand_scale": 2.4,
+      "ai": {
+        "forms": {
+          "awake": 0.8
+        },
+        "ultimate": true
+      }
     },
     "bat_h": {
       "_memo": "バットの横振り：右うしろから左前へ、腰の高さでなぎはらう（ジャンプでよけられる）。sweep_from_deg〜sweep_to_deg はバットの先が通る角度（tools/trace_tip.gd で測った値）。振っている間は、通りすぎた所までが当たる",
@@ -132,7 +154,20 @@
       "stop_dist": 5.0,
       "sweep_from_deg": -95.0,
       "sweep_to_deg": 65.0,
-      "chase_sec": 0.45
+      "chase_sec": 0.45,
+      "ai": {
+        "forms": {
+          "normal": 3.0,
+          "awake": 1.0
+        },
+        "range": [
+          0.0,
+          8.5
+        ],
+        "cooldown_sec": 0.0,
+        "feint_chance": 0.3,
+        "feint_sec": 0.45
+      }
     },
     "bat_v": {
       "_memo": "バットの縦振り：頭の上から、前へまっすぐたたきつける。細長い帯。ジャンプではよけられない",
@@ -146,7 +181,19 @@
       "jumpable": false,
       "lunge": 0.8,
       "stop_dist": 6.0,
-      "chase_sec": 0.5
+      "chase_sec": 0.5,
+      "ai": {
+        "forms": {
+          "normal": 2.5,
+          "awake": 1.0
+        },
+        "range": [
+          3.0,
+          9.0
+        ],
+        "cooldown_sec": 0.0,
+        "strong": true
+      }
     },
     "bat_spin": {
       "_memo": "バットの回転斬り：バットを横にのばして、体ごと何回も回る。まわりの輪の中に、続けてダメージ",
@@ -159,7 +206,19 @@
       "jumpable": true,
       "spin_deg_per_sec": 600.0,
       "stop_dist": 5.0,
-      "chase_sec": 0.6
+      "chase_sec": 0.6,
+      "ai": {
+        "forms": {
+          "normal": 1.5,
+          "awake": 0.0
+        },
+        "range": [
+          0.0,
+          7.5
+        ],
+        "cooldown_sec": 5.0,
+        "strong": true
+      }
     },
     "tail_spin": {
       "_memo": "しっぽ回し：しっぽをのばして、体ごと1回まわる。体のすぐそば（r_in より内側）は安全",
@@ -171,7 +230,18 @@
       "power": 12.0,
       "jumpable": true,
       "stop_dist": 4.0,
-      "chase_sec": 0.5
+      "chase_sec": 0.5,
+      "ai": {
+        "forms": {
+          "normal": 1.2,
+          "awake": 1.2
+        },
+        "range": [
+          0.0,
+          6.0
+        ],
+        "cooldown_sec": 2.0
+      }
     },
     "walk_swing": {
       "_memo": "歩きながら振る：前へ歩きながら、バットを左右交互に swings 回振る。振る前に、当たる扇が出る",
@@ -187,7 +257,18 @@
       "jumpable": true,
       "stop_dist": 6.0,
       "sweep_from_deg": -100.0,
-      "sweep_to_deg": 55.0
+      "sweep_to_deg": 55.0,
+      "ai": {
+        "forms": {
+          "normal": 1.5,
+          "awake": 0.0
+        },
+        "range": [
+          5.0,
+          14.0
+        ],
+        "cooldown_sec": 4.0
+      }
     },
     "sake_rain": {
       "_memo": "酒の雨（覚醒）：一升瓶をふり上げて、酒を空へばらまく（throws 回、1回に per_throw 粒）。fall_sec 後に、ボスの前の扇（angle_deg、min_dist〜max_dist m）へ降ってくる。落ちる所に先に輪が出る。落ちた所は、しばらくぬれる（見た目だけ）",
@@ -205,7 +286,17 @@
       "hit_sec": 0.2,
       "power": 12.0,
       "jumpable": false,
-      "chase_sec": 0.5
+      "chase_sec": 0.5,
+      "ai": {
+        "forms": {
+          "awake": 3.0
+        },
+        "range": [
+          3.0,
+          14.0
+        ],
+        "cooldown_sec": 3.0
+      }
     }
   },
   "damage_multiplier": 1.0,
@@ -216,12 +307,6 @@
     "free_stun_sec",
     "drop_stun_sec",
     "squeeze_tick_sec"
-  ],
-  "awake_cycle": [
-    "sake_rain",
-    "grab",
-    "typhoon",
-    "tail_spin"
   ],
   "walk": {
     "_memo": "攻撃と攻撃の間に、次にねらう人のほうへ歩く（近ければ、まわりを回りこむ。立ち止まらない）。speed：m/秒、stop_dist：ねらう人の手前で止まる距離（攻撃ごとの stop_dist があれば、そちら）、turn_rate：向きを変える速さ。攻撃ごとの chase_sec：攻撃の始めから、この秒まではねらう人へ歩きながら向きを合わせる（予告もついてくる）",
@@ -237,5 +322,20 @@
   "wet_color": "#1d2a2a",
   "wet_sec": 4.0,
   "wet_max": 40,
-  "drop_height": 14.0
+  "drop_height": 14.0,
+  "ai": {
+    "_memo": "くじの共通の設定。history：覚えておく直前の攻撃の数。repeat_mult：直前と同じ攻撃の重みの倍率（0にはしない）。strong_streak 回続けて強い攻撃なら、強い攻撃の重みを strong_streak_mult 倍。far_mult：距離が合わないときの重みの倍率。ultimate_first_sec：覚醒してから必殺技を使えるまでの秒。ultimate_cooldown_sec：必殺技のあと、次の必殺技まで。fallback：使える攻撃がないときの代わり",
+    "history": 4,
+    "repeat_mult": 0.4,
+    "strong_streak": 2,
+    "strong_streak_mult": 0.25,
+    "far_mult": 0.3,
+    "ultimate_first_sec": 8.0,
+    "ultimate_cooldown_sec": 24.0,
+    "after_awake_delay_sec": 0.8,
+    "fallback": {
+      "normal": "bat_h",
+      "awake": "tail_spin"
+    }
+  }
 }

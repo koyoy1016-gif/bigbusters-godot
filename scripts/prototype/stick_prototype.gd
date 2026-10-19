@@ -37,6 +37,8 @@ const HitArea := preload("res://scripts/combat/hit_area.gd")
 const Gauge := preload("res://scripts/combat/ultimate_gauge.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 const BossMotion := preload("res://scripts/combat/boss_motion.gd")
+const BossPhase := preload("res://scripts/combat/boss_phase.gd")
+const BossAI := preload("res://scripts/combat/boss_ai.gd")
 
 var config: Dictionary = {}
 var player: MeshInstance3D
@@ -62,10 +64,10 @@ var touch_timer := 0.0
 var since_sample := 0.0
 var boss_material: StandardMaterial3D
 var attacks_cfg: Dictionary = {}
-var attack_schedule: Array = []  ## 平常時の攻撃の予定表
-var awake_schedule: Array = []  ## 覚醒時の攻撃の予定表（必殺技あり）
-var awake_from_t := -1.0  ## 覚醒して攻撃を変えた時刻（戦いの秒）。まだなら -1
+var ai := BossAI.new()  ## ボスの攻撃の選び方（重み付きランダム）
 var motion := BossMotion.new()  ## ボスの歩き（位置と向き）
+var phase := BossPhase.new()  ## ボスの体力の2段階（第1形態 → 倒れて覚醒 → 第2形態）
+var phase_text := {"text": "", "left": 0.0}  ## 形態が変わったときに、画面に出す文字
 var hazard_nodes: Array = []
 var hazard_done := {}
 var grab_locked := {}
@@ -262,8 +264,6 @@ func _build_world() -> void:
 
 	# ボスの攻撃の見た目（予告の輪、帯、チラシ、手）は、使うときに作って使いまわす
 	attacks_cfg = Attacks.load_config()
-	attack_schedule = Attacks.build_schedule(attacks_cfg)
-	awake_schedule = Attacks.build_schedule(attacks_cfg, "awake_cycle")
 	motion.reset(Vector2(float(bp[0]), float(bp[1])))
 
 
@@ -651,11 +651,13 @@ func _begin_round(start_ms: float) -> void:
 	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
 	touch_timer = 0.0
 	boss_hp = float(config["boss_hp"])
+	phase.reset(float(config["boss_hp"]), float(config.get("boss_hp_awake", config["boss_hp"])), _trans_sec(), float(config.get("boss_hp_refill_sec", 1.2)))
+	phase_text = {"text": "", "left": 0.0}
 	if boss_model != null:
 		boss_model.reset_form()
 	hazard_done = {}
 	grab_locked = {}
-	awake_from_t = -1.0
+	ai.reset(attacks_cfg, start_ms)
 	puddle_seen = {}
 	for p in puddles:
 		(p["node"] as Node3D).visible = false
@@ -818,7 +820,9 @@ func _resolve_hit(ev: Dictionary) -> void:
 	var reach := HitArea.reach_of(role_value("attack_reach"), float(ev["radius_scale"]))
 	_play_sfx("slash")
 	var hit_boss := boss.visible and HitArea.hits(player.position, boss.position, reach, float(config["boss_size"]) * 0.5)
-	if hit_boss:
+	if hit_boss and phase.invulnerable():
+		_play_sfx("hit")  # 倒れて覚醒する間は、当たってもダメージは入らない
+	elif hit_boss:
 		_play_sfx("hit")
 		hit_flash = float(config["hit_flash_sec"])
 		_damage_boss(dmg)
@@ -893,12 +897,15 @@ func _effective_others_hits() -> float:
 
 ## ボスの体力 = 最大 − 自分の合計 − ほかの人の合計。0になったら倒した（戦いの最中だけ）
 func _recompute_boss_hp() -> void:
-	var mine := my_hits if round_start_ms > 0.0 else 0.0
-	var new_hp := BossSync.boss_hp(float(config["boss_hp"]), mine, _effective_others_hits())
-	if new_hp < boss_hp - 0.001:
+	var total := _total_boss_damage_counted()
+	var ev := phase.on_total(total) if round_start_ms > 0.0 and not won and not lost else ""
+	var new_hp := phase.hp(total)
+	if new_hp < boss_hp - 0.001 and phase.phase != BossPhase.FALL:
 		hit_flash = float(config["hit_flash_sec"])
 	boss_hp = new_hp
-	if round_start_ms > 0.0 and boss_hp <= 0.0 and not won and not lost:
+	if ev == BossPhase.FALL:
+		_on_boss_fall()
+	if round_start_ms > 0.0 and ev == BossPhase.DEAD and not won and not lost:
 		won = true
 		round_end_ms = server_now_ms()
 		_play_sfx("win")
@@ -906,9 +913,46 @@ func _recompute_boss_hp() -> void:
 		boss.visible = false
 
 
-## ボスの体力の割合（1.0 が満タン）
+## ボスの体力の割合（1.0 が満タン。いまの形態の最大に対して）
 func boss_hp_ratio() -> float:
-	return clampf(boss_hp / maxf(1.0, float(config["boss_hp"])), 0.0, 1.0)
+	return clampf(boss_hp / maxf(1.0, phase.max_hp()), 0.0, 1.0)
+
+
+## ボスに与えたダメージの合計（自分＋ほかの人＋AI。戦いの始まりの直後は、ほかの人の分を数えない）
+func _total_boss_damage_counted() -> float:
+	var mine := my_hits if round_start_ms > 0.0 else 0.0
+	return mine + _effective_others_hits()
+
+
+## 倒れて覚醒するまでの秒（ボスのモデルの stagger_sec）
+func _trans_sec() -> float:
+	return float(boss_model.cfg["stagger_sec"]) if boss_model != null else 3.4
+
+
+## 第1形態の体力が0：攻撃をやめ、つかんでいれば放し、倒れる
+func _on_boss_fall() -> void:
+	current_attack = {}
+	current_hazards = []
+	_show_hazards([])
+	if not grab_state.is_empty():
+		_release_hold(true)
+	if boss_model != null:
+		boss_model.begin_fall()
+	ai.interrupt(_round_t(), 999.0)
+	phase_text = {"text": str(config.get("boss_down_text", "")), "left": 2.0}
+	_play_sfx("thud")
+
+
+## 覚醒の演出が終わった：第2形態の攻撃を始める
+func _on_boss_awake() -> void:
+	phase_text = {"text": str(config.get("boss_awake_text", "")), "left": 1.6}
+	_play_sfx("ultimate")
+	_on_awake_started()
+
+
+## 第2形態が始まったときの、攻撃の準備（攻撃のしくみが使う）
+func _on_awake_started() -> void:
+	ai.on_awake(_round_t())
 
 
 ## ボスが、いかりの状態か（戦いの最中で、いかりの時刻を過ぎている）
@@ -935,7 +979,7 @@ func build_result_lines() -> Array:
 func _pose_boss(delta: float = 0.0) -> void:
 	var hit_now := hit_flash > 0.0 and not boss_was_hit
 	boss_was_hit = hit_flash > 0.0
-	boss_model.update_form(boss_hp_ratio(), delta)
+	boss_model.update_form(delta)
 	var kind := str(current_attack.get("kind", ""))
 	var kinds: Dictionary = attacks_cfg.get("kinds", {})
 	var st := {"clock": boss_clock, "walk_dist": motion.walk_dist, "walk_speed": motion.speed_now, "kind": kind, "u": current_attack_u,
@@ -1213,7 +1257,7 @@ func _ai_update(delta: float) -> void:
 	var half := float(config["bounds"])
 	if round_active():
 		var ctx := {"boss": Vector2(boss.position.x, boss.position.z), "boss_radius": float(config["boss_size"]) * 0.5, "bounds": half,
-			"hazards": current_hazards, "cfg": ai_cfg, "attack_multiplier": float(config["attack_multiplier"]), "rng": ai_rng, "can_hit_boss": true,
+			"hazards": current_hazards, "cfg": ai_cfg, "attack_multiplier": float(config["attack_multiplier"]), "rng": ai_rng, "can_hit_boss": not phase.invulnerable(),
 			"drop_damage": Damage.damage_amount(float(attacks_cfg["kinds"]["grab"]["drop_power"]), float(attacks_cfg["damage_multiplier"]))}
 		var dealt_total := 0.0
 		for slot in ai_allies:
@@ -1304,17 +1348,22 @@ func combat_update(delta: float) -> void:
 		grab_state = {}
 		return
 	var t := (server_now_ms() - round_start_ms) / 1000.0
-	var sched := _schedule_now(t)
-	var idx := Attacks.active_index(sched, t)
-	if idx >= 0 and awake_from_t >= 0.0 and float(sched[idx]["start"]) < awake_from_t:
-		idx = -1  # 覚醒した時点で、もう始まっていた攻撃は出さない
-	var staggering: bool = boss_model != null and boss_model.is_staggering()
-	if staggering:
-		idx = -1  # よろけて倒れている間は、攻撃しない
-	var cur: Dictionary = sched[idx] if idx >= 0 else {}
+	# 体力の2段階：倒れて覚醒する演出の進み
+	if phase.tick(delta, _total_boss_damage_counted()) == BossPhase.AWAKE:
+		_on_boss_awake()
+		_recompute_boss_hp()
+	phase_text["left"] = maxf(0.0, float(phase_text["left"]) - delta)
+	if phase.phase == BossPhase.FALL:
+		boss_hp = phase.hp(_total_boss_damage_counted())
+	var staggering: bool = not phase.can_attack() or (boss_model != null and boss_model.is_staggering())
+	var cur: Dictionary = {}
+	if not staggering:
+		ai.update(t, "awake" if phase.is_awake() else "normal", _target_dist)
+		cur = ai.current()
+	var idx := 0 if not cur.is_empty() else -1
 	var cur_u := t - float(cur["start"]) if idx >= 0 else 0.0
 	var mctx := _attack_ctx({}, 0.0)
-	motion.update(delta, cur, cur_u, _next_attack(sched, t), attacks_cfg, mctx, staggering)
+	motion.update(delta, cur, cur_u, ai.next_attack() if not staggering else {}, attacks_cfg, mctx, staggering)
 	boss.position = Vector3(motion.pos.x, 0.0, motion.pos.y)
 	if idx >= 0:
 		var a: Dictionary = cur
@@ -1335,14 +1384,20 @@ func combat_update(delta: float) -> void:
 	_sake_spray_update()
 
 
-## いまの姿の予定表。覚醒したら、覚醒の予定表に切りかえる（切りかえた時刻を控える）
-func _schedule_now(t: float) -> Array:
-	if boss_model != null and boss_model.is_awake():
-		if awake_from_t < 0.0:
-			awake_from_t = t
-		return awake_schedule
-	awake_from_t = -1.0
-	return attack_schedule
+## 攻撃 n でねらう人までの距離（攻撃の選び方が使う。わからなければ -1）
+func _target_dist(n: int) -> float:
+	var tp: Variant = BossMotion.target_pos(n, _attack_ctx({}, 0.0))
+	return (tp as Vector2).distance_to(motion.pos) if tp is Vector2 else -1.0
+
+
+## テスト・道具用：いまの時刻から、決めた攻撃を出す
+func force_attack(kind: String) -> Dictionary:
+	var t := _round_t()
+	ai.n += 1
+	var k: Dictionary = attacks_cfg["kinds"][kind]
+	ai.cur = {"n": ai.n, "kind": kind, "start": t, "end": t + float(k["duration"]), "feint": 0.0}
+	ai.nxt = {}
+	return ai.cur
 
 
 ## 酒の雨：一升瓶をふり上げた瞬間に、しぶきを空へまく（必殺技の大雨は、始めに1回）
@@ -1367,14 +1422,6 @@ func _sake_spray_update() -> void:
 		_last_spray_key = key
 		if boss_model.has_method("spray_sake") and boss_model.is_inside_tree():
 			boss_model.spray_sake()
-
-
-## t 秒より後に始まる、次の攻撃（なければ {}）
-func _next_attack(sched: Array, t: float) -> Dictionary:
-	for a in sched:
-		if float(a["start"]) > t and (awake_from_t < 0.0 or float(a["start"]) >= awake_from_t):
-			return a
-	return {}
 
 
 ## 当たり場所の中にいれば、ダメージ（自分の分だけ調べる）。同じ当たりは1回だけ
@@ -1925,9 +1972,13 @@ func _draw_overlay() -> void:
 	var bs: Array = _layout("bossbar_size", screen)
 	var bar_rect := Rect2(Vector2(screen.x * bp[0], screen.y * bp[1]), Vector2(screen.x * bs[0], maxf(10.0, screen.y * bs[1])))
 	overlay.draw_rect(bar_rect, Color(str(config["bossbar_back_color"])))
-	var frac := clampf(boss_hp / float(config["boss_hp"]), 0.0, 1.0)
-	overlay.draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * frac, bar_rect.size.y)), Color(str(config["bossbar_color"])))
-	var hp_text := str(config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(config["boss_hp"]))
+	var frac := boss_hp_ratio()
+	var second := phase.phase != BossPhase.NORMAL
+	overlay.draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * frac, bar_rect.size.y)), Color(str(config["bossbar_color_awake"] if second else config["bossbar_color"])))
+	# 第1形態の間は、右はしに「第2形態がある」ことを示す小さな印
+	if not second:
+		overlay.draw_rect(Rect2(bar_rect.position + Vector2(bar_rect.size.x - 6.0, 0.0), Vector2(6.0, bar_rect.size.y)), Color(str(config["bossbar_color_awake"])))
+	var hp_text := str(config["boss_hp_label_awake"] if second else config["boss_hp_label"]) + "  " + str(ceili(boss_hp)) + " / " + str(int(phase.max_hp()))
 	overlay.draw_string(font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 	var my_text := str(config["role_label"]) + "：" + str(role().get("name", "")) + (("（" + str(role()["character_name"]) + "）") if role().has("character_name") else "") + "  " + str(config["player_hp_label"]) + "  " + str(ceili(my_hp)) + " / " + str(int(role_value("hp")))
 	if downed:
@@ -1952,6 +2003,8 @@ func _draw_overlay() -> void:
 			_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.22 + fs * (2.2 + 1.5 * i)), str(lines[i]), text_color)
 	if is_enraged() and int(Time.get_ticks_msec() / 400) % 2 == 0:
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.12), str(config["enrage_text"]), Color(str(config["enrage_color"])), 1.4)
+	if float(phase_text["left"]) > 0.0 and str(phase_text["text"]) != "":
+		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(phase_text["text"]), Color(str(config.get("bossbar_color_awake", "#ffffff"))), 1.8)
 	_draw_banner(screen)
 
 

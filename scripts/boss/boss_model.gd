@@ -478,20 +478,20 @@ func is_awake() -> bool:
 	return form == "awake"
 
 
-## 体力の割合（1.0 が満タン）を見て、姿を変える。60%でよろけ始め（倒れて）、起き上がるとき覚醒する。50%以下なら、必ず覚醒の姿
-func update_form(hp_ratio: float, delta: float) -> void:
-	if form == "normal" and stagger_t < 0.0 and hp_ratio <= float(cfg["stagger_at"]) and hp_ratio > float(cfg["awake_at"]) - 0.02:
+## 第1形態の体力が0になった：よろけて倒れる（倒れたまま → 起き上がるときに覚醒の姿へ）。体力の管理は scripts/combat/boss_phase.gd
+func begin_fall() -> void:
+	if stagger_t < 0.0 and form == "normal":
 		stagger_t = 0.0
-	if form == "normal" and hp_ratio <= float(cfg["awake_at"]) and stagger_t < 0.0:
-		_apply_form("awake")
+
+
+## 1コマ進める（倒れる演出の進み）。起き上がるときに覚醒の姿へ変わる
+func update_form(delta: float) -> void:
 	if stagger_t >= 0.0:
 		stagger_t += delta
 		if form == "normal" and stagger_t >= float(cfg["stagger_swap_sec"]):
 			_apply_form("awake")
 		if stagger_t >= float(cfg["stagger_sec"]):
 			stagger_t = -1.0
-	if form == "awake" and hp_ratio > float(cfg["stagger_at"]) + 0.05 and stagger_t < 0.0:
-		reset_form()
 
 
 ## 光らせ方は「明るさ」だけ変える（材質の種類を切り替えると、ブラウザでは描き方の作り直しで一瞬止まるため）

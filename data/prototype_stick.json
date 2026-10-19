@@ -44,7 +44,7 @@
   "stick_dead_zone": 0.15,
   "button_radius_px": 64.0,
   "hint": "左のスティックで動く。右のボタンでこうげき。サブ（跳ぶ）で輪をよけられる",
-  "boss_hp_label": "ボスの体力",
+  "boss_hp_label": "BOSS HP",
   "win_text": "たおした",
   "boss_hp": 4000.0,
   "boss_size": 5.2,
@@ -282,5 +282,11 @@
   "banner_back_color": "#000000a0",
   "banner_sec_default": 1.6,
   "banner_y_portrait": 0.58,
-  "banner_y": 0.4
+  "banner_y": 0.4,
+  "boss_hp_awake": 4000.0,
+  "boss_hp_label_awake": "覚醒 BOSS HP",
+  "boss_hp_refill_sec": 1.2,
+  "bossbar_color_awake": "#c43aff",
+  "boss_down_text": "ボスが たおれた！",
+  "boss_awake_text": "覚醒！"
 }

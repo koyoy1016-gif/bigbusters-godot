@@ -19,38 +19,13 @@ func _init() -> void:
 	check(is_equal_approx(float(cfg["kinds"]["bat_h"]["windup_sec"]), float(raw["kinds"]["bat_h"]["windup_sec"]) / sp), "速さの倍率で、予告の時間が短くなる")
 	check(is_equal_approx(float(cfg["kinds"]["grab"]["hold_min_sec"]), float(raw["kinds"]["grab"]["hold_min_sec"])), "つかむ時間は、速さで変えない")
 	check(is_equal_approx(float(cfg["kinds"]["bat_spin"]["spin_deg_per_sec"]), float(raw["kinds"]["bat_spin"]["spin_deg_per_sec"]) * sp), "回る速さは上がる")
-	var sched := Attacks.build_schedule(cfg)
-	check(sched.size() > 10, "予定表ができる")
-	var normal_kinds := {}
-	for a in sched:
-		normal_kinds[str(a["kind"])] = true
-	check(normal_kinds.has("bat_h") and normal_kinds.has("bat_v") and normal_kinds.has("bat_spin") and normal_kinds.has("tail_spin") and normal_kinds.has("walk_swing") and normal_kinds.has("grab"), "平常時は、バットの技4つ＋しっぽ回し＋つかみ")
-	check(not normal_kinds.has("flyers") and not normal_kinds.has("flyer_storm") and not normal_kinds.has("hand_sweep"), "平常時は、チラシ・必殺技を使わない")
-	var awake := Attacks.build_schedule(cfg, "awake_cycle")
-	var ults := 0
-	var seen := {}
-	for a in awake:
-		seen[str(a["kind"])] = true
-		check(int(a["n"]) > 10000, "覚醒の攻撃の番号は、平常時と重ならない")
-		if str(a["kind"]) in ["flyer_storm", "hand_sweep"]:
-			ults += 1
-			check(float(a["start"]) >= float(cfg["ultimate_first_sec"]), "必殺技は決めた時刻より前に出ない")
-	check(ults >= 2 and seen.has("sake_rain") and seen.has("typhoon") and seen.has("grab") and not seen.has("bat_h"), "覚醒時は、酒の雨・台風・つかみ・必殺技（バットは持たない）")
-	for i in sched.size() - 1:
-		check(float(sched[i]["end"]) < float(sched[i + 1]["start"]), "攻撃が重ならない")
-	check(Attacks.active_index(sched, 0.5) == -1, "最初の待ち時間は攻撃なし")
-	check(Attacks.active_index(sched, float(cfg["first_delay_sec"]) + 0.1) == 0, "待ち時間のあとは1つめの攻撃")
 
 	var members := ["p2", "p1", "p3"]
 	check(Attacks.grab_target(1, members) == "p1" and Attacks.grab_target(2, members) == "p2" and Attacks.grab_target(4, members) == "p1", "つかみの的は枠の順にまわる")
 	var ctx := {"boss": Vector2(2, 2), "members": members, "positions": {"p1": Vector2(3, 4), "p2": Vector2(-5, 2), "p3": Vector2(0, 0)}, "locked": null, "round_start_ms": 123456.0, "bounds": 14.0}
 
 	# つかみ
-	var g: Dictionary = {}
-	for a in sched:
-		if str(a["kind"]) == "grab":
-			g = a
-			break
+	var g: Dictionary = {"n": 1, "kind": "grab", "start": 0.0, "end": 5.0}
 	g = g.duplicate()
 	g["n"] = 1
 	var gk: Dictionary = cfg["kinds"]["grab"]

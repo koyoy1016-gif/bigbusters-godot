@@ -18,11 +18,11 @@ func _init() -> void:
 	check("動き素材がある（待ち・歩き・剣の攻撃・つかみ・倒れる）", m.anim.has_clip("Idle") and m.anim.has_clip("Walk") and m.anim.has_clip("Sword_Attack") and m.anim.has_clip("Punch") and m.anim.has_clip("Death"))
 	check("はじめは平常の姿", not m.is_awake() and not m.is_staggering())
 	check("肌は紫", m.skin_color().is_equal_approx(Color(str(cfg["skin_normal"]))))
-	m.update_form(0.7, 0.1)
-	check("70%ではよろけない", not m.is_staggering())
-	m.update_form(0.59, 0.1)
-	check("60%を切るとよろける", m.is_staggering() and not m.is_awake())
-	for i in 40: m.update_form(0.58, 0.1)
+	m.update_form(0.1)
+	check("倒れる合図がなければ、よろけない", not m.is_staggering())
+	m.begin_fall()
+	check("第1形態の体力が0になると、よろけて倒れる", m.is_staggering() and not m.is_awake())
+	for i in 40: m.update_form(0.1)
 	check("起き上がると覚醒（赤い肌）", m.is_awake() and not m.is_staggering() and m.skin_color().is_equal_approx(Color(str(cfg["skin_awake"]))))
 	m.stagger_t = 1.2
 	var p_down: Dictionary = m.animate(0.016, 0.0, {})["pose"]
@@ -30,9 +30,6 @@ func _init() -> void:
 	m.stagger_t = -1.0
 	m.reset_form()
 	check("リセットで平常にもどる", not m.is_awake())
-	m.update_form(0.45, 0.1)
-	check("50%以下で始まれば、すぐ覚醒", m.is_awake())
-	m.reset_form()
 	# 歩き：歩いた道のりで、足が前後に動く
 	var p0: Dictionary = m.animate(0.016, 1.0, {"walk_dist": 0.0, "walk_speed": 3.0})["pose"]
 	var p1: Dictionary = m.animate(0.016, 1.0, {"walk_dist": 0.9, "walk_speed": 3.0})["pose"]

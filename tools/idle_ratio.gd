@@ -37,7 +37,7 @@ func _initialize() -> void:
 		var still: bool = not atk and s.motion.speed_now < 0.4 and not s.boss_model.is_staggering()
 		if still:
 			if OS.get_cmdline_user_args().has("log"):
-				var na: Dictionary = s._next_attack(s.awake_schedule if s.boss_model.is_awake() else s.attack_schedule, t)
+				var na: Dictionary = s.ai.next_attack()
 				print("still t=%.2f next=%s spd=%.2f awake=%s" % [t, str(na.get("kind", "-")), s.motion.speed_now, str(s.boss_model.is_awake())])
 			idle += 1
 			run += dt

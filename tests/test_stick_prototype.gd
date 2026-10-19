@@ -165,8 +165,16 @@ func _initialize() -> void:
 		check(is_equal_approx(s2.boss_hp, hp0 - s2.role_value("attack_power")), "当たると、攻撃力のぶん体力が減る")
 		check(not s2.attack(), "動いている間は、もう一度は始められない")
 		s2.actions.reset()
-		s2.my_hits = float(cfg2["boss_hp"]) - 5.0
-		check(s2.attack() and s2.won and not s2.boss.visible, "体力を0にすると、勝ちになり、ボスが消える")
+		# 第1形態を0にして（倒れる）→ 覚醒させて → 第2形態を0にすると勝ち
+		s2.my_hits = float(cfg2["boss_hp"])
+		s2._recompute_boss_hp()
+		check(not s2.won and s2.phase.phase == "fall", "第1形態の体力を0にしても、まだ勝ちではない（倒れて覚醒へ）")
+		s2.phase.tick(99.0, s2._total_boss_damage_counted())
+		s2._on_boss_awake()
+		s2._recompute_boss_hp()
+		s2.actions.reset()
+		s2.my_hits += float(cfg2["boss_hp_awake"]) - 5.0
+		check(s2.attack() and s2.won and not s2.boss.visible, "第2形態の体力を0にすると、勝ちになり、ボスが消える")
 		s2.actions.reset()
 		check(not s2.attack(), "倒したあとは、こうげきが当たらない")
 		check(not s2.round_active(), "倒すと、戦いは終わる")
@@ -178,12 +186,9 @@ func _initialize() -> void:
 		var t0: float = s2.round_start_ms
 		var acfg: Dictionary = s2.attacks_cfg
 		var gk: Dictionary = acfg["kinds"]["grab"]
-		var grab_a: Dictionary = {}
-		for a0 in s2.attack_schedule:
-			if str(a0["kind"]) == "grab":
-				grab_a = a0
-				break
-		check(not grab_a.is_empty(), "平常時の予定表に、つかみがある")
+		now[0] = t0 + 10000.0
+		var grab_a: Dictionary = s2.force_attack("grab")
+		check(not grab_a.is_empty(), "つかみを出せる")
 		var first_ms: float = float(grab_a["start"]) * 1000.0
 		var lock_ms: float = (float(gk["follow_sec"]) + float(gk["lock_sec"])) * 1000.0
 		# ボスの手が届く所にいる
@@ -220,11 +225,10 @@ func _initialize() -> void:
 		s2.stun_left = 0.0
 		s2.grab_state = {}
 		s2.player.position.y = s2.ground_y
-		var sched: Array = s2.awake_schedule
-		var fl: Dictionary = sched[0]
-		check(str(fl["kind"]) == "sake_rain", "覚醒の予定表の1番めは、酒の雨")
 		s2.boss_model._apply_form("awake")
-		s2.awake_from_t = 0.0
+		s2.phase.phase = "awake"
+		now[0] = t0 + 20000.0
+		var fl: Dictionary = s2.force_attack("sake_rain")
 		var hit_found := false
 		var saw_drop := false
 		for u100 in range(0, 600, 2):
@@ -255,7 +259,9 @@ func _initialize() -> void:
 		s2.my_hits = 0.0
 		s2.hazard_done = {}
 		s2.boss_model.reset_form()
-		var gt: Dictionary = grab_a
+		s2.phase.phase = "normal"
+		now[0] = t0 + 40000.0
+		var gt: Dictionary = s2.force_attack("grab")
 		s2.player.position = Vector3(s2.boss.position.x, s2.ground_y, s2.boss.position.z + 3.0)
 		now[0] = t0 + (float(gt["start"]) + float(gk["follow_sec"])) * 1000.0 + 10.0
 		s2.combat_update(0.016)
@@ -456,7 +462,11 @@ func _initialize() -> void:
 		s3.apply_net_state({"slot": "p1", "positions": {}, "hits": {"p2": 30}})
 		check(not s3.others.has("p2"), "ほかの人が抜けたら、箱を消す")
 		s3.apply_net_state({"slot": "p1", "hits": {"p2": float(s3.config["boss_hp"]) + 5.0}, "round": 5000000})
-		check(s3.won and not s3.boss.visible, "ほかの人のダメージで、ボスが倒れたとき、自分の画面でも倒れる")
+		check(not s3.won and s3.phase.phase == "fall", "ほかの人のダメージで第1形態が0になると、自分の画面でも倒れて覚醒へ")
+		s3.phase.tick(99.0, s3._total_boss_damage_counted())
+		s3._on_boss_awake()
+		s3.apply_net_state({"slot": "p1", "hits": {"p2": float(s3.config["boss_hp"]) + float(s3.config["boss_hp_awake"]) + 10.0}, "round": 5000000})
+		check(s3.won and not s3.boss.visible, "ほかの人のダメージで、第2形態も0になったとき、自分の画面でも倒れる")
 		check(sent.any(func(t): return str(t).begins_with("window.bbFirebase.sendHp(")), "体力を送る")
 		var count_before: int = s3.round_count
 		s3.start_round()

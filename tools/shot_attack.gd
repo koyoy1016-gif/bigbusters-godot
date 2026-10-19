@@ -27,27 +27,27 @@ func _initialize() -> void:
 	s.sfx = null
 	s.start_round()
 	if awake:
-		s.my_hits = float(s.config["boss_hp"]) * 0.55
+		s.my_hits = float(s.config["boss_hp"])
 		s._recompute_boss_hp()
+		s.phase.tick(99.0, s._total_boss_damage_counted())
+		s.boss_model.reset_form()
 		s.boss_model._apply_form("awake")
-		s.awake_from_t = 0.0
-	var sched: Array = s.awake_schedule if awake else s.attack_schedule
-	var a: Dictionary = {}
-	for x in sched:
-		if str(x["kind"]) == kind:
-			a = x
-			break
-	if a.is_empty():
-		print("NO ATTACK ", kind)
-		quit(1)
-		return
+		s._on_boss_awake()
+		s._recompute_boss_hp()
+	# 2秒歩かせてから、決めた攻撃を出す
+	var lead := 2.0
+	var a := {"start": lead}
 	var t := 0.0
 	var dt := 1.0 / 30.0
+	var forced := false
 	for u in us:
 		var goal := float(a["start"]) + float(u)
 		while t < goal:
 			t += dt
 			now[0] = s.round_start_ms + t * 1000.0
+			if not forced and t >= lead:
+				s.force_attack(kind)
+				forced = true
 			s.my_hp = 100.0
 			s.downed = false
 			s._process(dt)
