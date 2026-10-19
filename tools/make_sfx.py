@@ -127,3 +127,16 @@ save("lose", np.concatenate(parts), 0.6)
 n = int(0.06 * SR)
 save("click", np.sin(2 * np.pi * 880 * t(0.06)) * env(n, 0.002, 0.06), 0.5)
 print("ok")
+
+# ---- 版47：つかみから逃げる連打、投げられた着地、必殺技 ----
+n = int(SR * 0.05)
+save("mash", np.sin(2 * np.pi * 660 * t(0.05)) * env(n, 0.002, 0.05) + 0.5 * np.sin(2 * np.pi * 990 * t(0.05)) * env(n, 0.002, 0.05), 0.5)
+n = int(SR * 0.35)
+x = np.sin(2 * np.pi * np.cumsum(np.linspace(110, 40, n)) / SR) * env(n, 0.003, 0.35)
+x = x + 0.5 * lowpass(noise(n), 400) * env(n, 0.002, 0.2)
+save("thud", x, 0.9)
+n = int(SR * 0.7)
+x = sweep(300, 1800, 0.7) * env(n, 0.01, 0.7) * 0.6
+x = x + 0.5 * highpass(noise(n), 1500) * env(n, 0.005, 0.25)
+x = x + 0.7 * np.sin(2 * np.pi * 120 * t(0.7)) * env(n, 0.002, 0.5)
+save("ultimate", x, 0.9)

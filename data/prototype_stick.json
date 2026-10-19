@@ -163,7 +163,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "46",
+  "build_id": "48",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "marker_size": 0.35,
@@ -247,22 +247,40 @@
   ],
   "normal_center_frac_portrait": [
     0.86,
-    0.88
+    0.9
   ],
   "sub_center_frac": [
     0.7,
     0.78
   ],
   "sub_center_frac_portrait": [
-    0.62,
-    0.88
+    0.6,
+    0.9
   ],
   "main_center_frac": [
     0.785,
     0.56
   ],
   "main_center_frac_portrait": [
-    0.74,
-    0.76
-  ]
+    0.73,
+    0.79
+  ],
+  "escape_label": "にげる",
+  "escape_button_color": "#ffd060cc",
+  "escape_ring_color": "#ff7030",
+  "ultimate_center_frac_portrait": [
+    0.86,
+    0.67
+  ],
+  "ultimate_center_frac": [
+    0.94,
+    0.5
+  ],
+  "ultimate_ready_color": "#ffd24aee",
+  "ultimate_ring_color": "#ffb020",
+  "banner_color": "#ffe27a",
+  "banner_back_color": "#000000a0",
+  "banner_sec_default": 1.6,
+  "banner_y_portrait": 0.58,
+  "banner_y": 0.4
 }

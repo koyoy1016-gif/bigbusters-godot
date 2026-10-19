@@ -47,7 +47,7 @@ func run_for(s: Node, sec: float) -> void:
 
 func _initialize() -> void:
 	var cfg := Actions.load_config()
-	check(cfg["order"] == ["normal", "sub", "main"], "ボタンは、通常・サブ・メインの3つ")
+	check(cfg["order"] == ["normal", "sub", "main", "ultimate"], "ボタンは、通常・サブ・メイン・必殺の4つ")
 	var a := Actions.new()
 
 	# 通常：始めてすぐ1回当たる。待ち時間のあいだは、もう始められない

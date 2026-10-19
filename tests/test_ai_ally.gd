@@ -44,7 +44,11 @@ func _init() -> void:
 	check(total > 0.0 and is_equal_approx(total, float(a["hits"])), "こうげきでダメージを与える")
 	# ダメージの量は、攻撃力 × 倍率 × damage_scale
 	var one := float(gunner["stats"]["attack_power"]) * float(cfg["damage_scale"])
-	check(absf(total / one - roundf(total / one)) < 0.001, "1回のダメージは、攻撃力×倍率")
+	var near := Ai.make(gunner, 0, Vector2(0, -8 + 3.0))
+	near["think_attack"] = 10.0
+	var first := Ai.step(near, 0.05, ctx)
+	check(is_equal_approx(first, one), "最初の通常攻撃のダメージは、攻撃力×倍率")
+	check(not (near["events"] as Array).is_empty() and Ai.act(near).busy(), "攻撃すると、アニメの出来事が出て、動き中になる")
 
 	# よけながら動く（輪の中に置いて、考える間隔のあと動く）
 	var b := Ai.make(gunner, 0, Vector2(0, 0))
@@ -61,7 +65,7 @@ func _init() -> void:
 	check(Ai.take_hazards(c, "p2", [hit], done, 1.0) == 0.0, "同じ当たりは1回だけ")
 	check(float(c["stun"]) >= 1.0, "つかみのときは、動けなくなる")
 	var c2 := Ai.make(gunner, 0, Vector2(0, 0))
-	c2["air"] = 0.5
+	c2["height"] = 2.0
 	check(Ai.take_hazards(c2, "p2", [hit], {}, 1.0) == 0.0, "跳んでいれば、よけられる")
 	var c3 := Ai.make(gunner, 0, Vector2(0, 0))
 	for k in 5:

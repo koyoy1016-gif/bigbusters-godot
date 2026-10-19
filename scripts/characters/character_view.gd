@@ -259,7 +259,7 @@ func play_action(action: String) -> bool:
 
 ## 攻撃の動きの1コマ分（steps）を、すぐ流す。key は「swing」「jump_start」など、キャラの animations の名前。
 ## そのキャラに key がなければ、「attack」のアニメで代用する。流せたら true
-func play_step(key: String, speed: float) -> bool:
+func play_step(key: String, speed: float, from_end: bool = false) -> bool:
 	current_action = "step"
 	if player == null:
 		return false
@@ -268,8 +268,9 @@ func play_step(key: String, speed: float) -> bool:
 		anim = CharacterData.animation_for(character, "attack")
 	if anim == "" or not player.has_animation(anim):
 		return false
-	player.play(anim, 0.05, speed)
-	player.seek(0.0, true)
+	player.play(anim, 0.05, speed, from_end)
+	if not from_end:
+		player.seek(0.0, true)
 	return true
 
 

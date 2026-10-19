@@ -34,6 +34,7 @@ const CharacterView := preload("res://scripts/characters/character_view.gd")
 const Logic := preload("res://scripts/flow/flow_logic.gd")
 const Actions := preload("res://scripts/combat/player_actions.gd")
 const HitArea := preload("res://scripts/combat/hit_area.gd")
+const Gauge := preload("res://scripts/combat/ultimate_gauge.gd")
 const SubCrowd := preload("res://scripts/prototype/sub_enemy_crowd.gd")
 
 var config: Dictionary = {}
@@ -52,6 +53,8 @@ var facing := Vector2(0.0, -1.0)
 var selected_character := ""
 var characters_cfg: Dictionary = {}
 var crowd_state := CrowdState.new()
+var gauge := Gauge.new(Actions.load_config())  ## 必殺技のゲージ
+var banner := {"text": "", "who": "", "left": 0.0, "total": 1.0}  ## 画面に出す必殺技名
 var actions := Actions.new()  ## 通常・サブ・メインの攻撃の進み（data/actions.json）
 var button_flash := {}  ## 押したボタンの色を、少しのあいだ変える（ボタンid → 残り秒）
 var touch_timer := 0.0
@@ -443,6 +446,7 @@ func _process(delta: float) -> void:
 	var move := Vector2.ZERO if (downed or stun_left > 0.0) else stick_vec * actions.move_scale()
 	player.position = StickMath.step_position(player.position, move, role_value("move_speed"), delta, float(config["bounds"]))
 	hit_flash = maxf(0.0, hit_flash - delta)
+	banner["left"] = maxf(0.0, float(banner["left"]) - delta)
 	for id in button_flash.keys():
 		button_flash[id] = maxf(0.0, float(button_flash[id]) - delta)
 	var boss_base := Color(str(config["enrage_color"])) if is_enraged() else Color(str(config["boss_color"]))
@@ -490,7 +494,11 @@ func handle_press(index: int, pos: Vector2, screen: Vector2) -> void:
 		var id := _button_at(pos, screen)
 		if id != "":
 			button_flash[id] = float(config["press_flash_sec"])
-			perform(id)
+			if _me_held():
+				if id == "normal":
+					_mash_escape()
+			else:
+				perform(id)
 
 
 func handle_drag(index: int, pos: Vector2, screen: Vector2) -> void:
@@ -640,6 +648,8 @@ func _begin_round(start_ms: float) -> void:
 	recorder.clear()
 	since_sample = 0.0
 	actions.reset()
+	gauge.reset()
+	banner["left"] = 0.0
 	button_flash = {}
 	crowd_state.reset(int(config["sub_enemy_count"]), float(config["sub_enemy_hp"]))
 	touch_timer = 0.0
@@ -691,13 +701,30 @@ func highlight_data() -> Dictionary:
 
 
 ## ダメージを受ける
-func _take_damage(amount: float) -> void:
+func _take_damage(amount: float, ignore_invulnerable: bool = false) -> void:
+	if actions.invulnerable() and not ignore_invulnerable:
+		return
 	if amount > 0.0:
 		_play_sfx("hurt")
 	_set_my_hp(Damage.apply_damage(my_hp, amount))
 
 
 ## ---- 3つの攻撃（通常・サブ・メイン）。時間の進みは player_actions.gd、数値は data/actions.json ----
+
+## つかまれ中に「にげる」を1回押した。決めた回数に届くと、つかみが外れる（_grab_update が見て外す）
+func _mash_escape() -> void:
+	if not _me_held():
+		return
+	grab_state["mash"] = float(grab_state["mash"]) + 1.0
+	_play_sfx("mash")
+
+
+## つかまれ中の、にげるの進み（0〜1）。つかまれていなければ 0
+func escape_progress() -> float:
+	if not _me_held():
+		return 0.0
+	return clampf(float(grab_state["mash"]) / float(attacks_cfg["kinds"]["grab"]["mash_needed"]), 0.0, 1.0)
+
 
 ## 通常攻撃（いままでの「こうげき」）。始められたら true
 func attack() -> bool:
@@ -709,8 +736,14 @@ func perform(id: String) -> bool:
 	if not round_active() or downed or _me_held() or stun_left > 0.0:
 		return false
 	var cooldown := role_value("attack_cooldown_sec") if id == "normal" else -1.0
+	if id == "ultimate" and not gauge.is_ready():
+		return false
 	if not actions.start(id, _aim_direction(id), cooldown):
 		return false
+	if id == "ultimate":
+		gauge.consume()
+		_show_banner(str(actions.def(id).get("name", "")), role_name_of(_my_slot()), float(actions.def(id).get("banner_sec", 1.6)))
+		_play_sfx("ultimate")
 	facing = actions.aim
 	if id == "sub":
 		_play_sfx("jump")
@@ -739,8 +772,11 @@ func _actions_update(delta: float) -> void:
 	_handle_action_events(actions.update(delta))
 	if was_busy:
 		var half := float(config["bounds"])
-		player.position.x = clampf(player.position.x + actions.aim.x * actions.frame_move.x, -half, half)
-		player.position.z = clampf(player.position.z + actions.aim.y * actions.frame_move.x, -half, half)
+		var dfwd: float = actions.frame_move.x
+		if bool(actions.def(actions.active).get("stop_at_boss", false)):
+			dfwd = HitArea.clip_forward(Vector2(player.position.x, player.position.z), actions.aim, dfwd, Vector2(boss.position.x, boss.position.z), float(config["boss_size"]) * 0.5 + float(actions.cfg.get("stop_margin", 0.9)))
+		player.position.x = clampf(player.position.x + actions.aim.x * dfwd, -half, half)
+		player.position.z = clampf(player.position.z + actions.aim.y * dfwd, -half, half)
 		player.position.y = ground_y + actions.height
 	if facing.length() < 0.001:
 		facing = Vector2(0.0, -1.0)
@@ -750,10 +786,23 @@ func _actions_update(delta: float) -> void:
 
 func _handle_action_events(events: Array) -> void:
 	for ev in events:
-		if str(ev["type"]) == "hit":
-			_resolve_hit(ev)
-		elif char_view != null:
-			char_view.play_step(str(ev["anim"]), float(ev["speed"]))
+		match str(ev["type"]):
+			"hit":
+				_resolve_hit(ev)
+			"mark":
+				_on_action_mark(str(ev["name"]))
+			"anim":
+				if char_view != null:
+					char_view.play_step(str(ev["anim"]), float(ev["speed"]), bool(ev.get("from_end", false)))
+
+
+## 動きの途中の印（data/actions.json の marks）。いまは、投げられた着地だけ
+func _on_action_mark(mark: String) -> void:
+	if mark == "landed":
+		var k: Dictionary = attacks_cfg["kinds"]["grab"]
+		_take_damage(Damage.damage_amount(float(k["drop_power"]), float(attacks_cfg["damage_multiplier"])), true)
+		player_hit_flash = float(config["hit_flash_sec"])
+		_play_sfx("thud")
 
 
 ## 攻撃が当たったか調べて、ダメージを与える。当たりの範囲は hit_area.gd、ダメージは damage.gd
@@ -778,6 +827,11 @@ func _resolve_hit(ev: Dictionary) -> void:
 			crowd_state.hit(nearest, dmg, _round_t(), respawn)
 
 
+## 必殺技の名前を、画面の真ん中に出す。who：使った人の表示（空なら出さない）
+func _show_banner(text: String, who: String, seconds: float) -> void:
+	banner = {"text": text, "who": who, "left": seconds, "total": seconds}
+
+
 ## ボタンの中心（画面の割合は data/prototype_stick.json の「<id>_center_frac」。縦長なら「…_portrait」）
 func _button_center(id: String, screen: Vector2) -> Vector2:
 	var f: Array = _layout(id + "_center_frac", screen)
@@ -793,6 +847,7 @@ func _button_at(pos: Vector2, screen: Vector2) -> String:
 
 
 func _damage_boss(amount: float) -> void:
+	gauge.charge(amount)
 	my_hits += amount
 	_recompute_boss_hp()
 	if net_active:
@@ -1012,7 +1067,8 @@ func _start_hold(slot: String, from: Vector2) -> void:
 	if not grab_state.is_empty():
 		return
 	_play_sfx("grab")
-	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0}
+	var rate := ai_rng.randf_range(float(ai_cfg.get("escape_taps_min", 2.5)), float(ai_cfg.get("escape_taps_max", 4.5))) if slot != _my_slot() else 0.0
+	grab_state = {"slot": slot, "t": 0.0, "from": from, "base": _total_boss_damage(), "squeeze": 0.0, "lift": 0.0, "mash": 0.0, "ai_rate": rate}
 	if slot == _my_slot():
 		stun_left = maxf(stun_left, 0.1)
 	grab_hand = Vector3(from.x, 0.9, from.y)
@@ -1027,19 +1083,24 @@ func _release_hold(freed: bool) -> void:
 	if slot == _my_slot():
 		if freed:
 			stun_left = maxf(stun_left, float(k["free_stun_sec"]))
+			player.position.y = ground_y
 		else:
-			_take_damage(Damage.damage_amount(float(k["drop_power"]), float(attacks_cfg["damage_multiplier"])))
-			player_hit_flash = float(config["hit_flash_sec"])
-			stun_left = maxf(stun_left, float(k["drop_stun_sec"]))
+			# 逃げられなかった：放り投げられる（着地のダメージと、転んで起き上がるまでは、player_actions の「thrown」）
+			var away := Vector2(player.position.x - boss.position.x, player.position.z - boss.position.z)
+			actions.start("thrown", away, 0.0, true)
+			if char_view != null:
+				char_view.face_now(-away)
+			_handle_action_events(actions.update(0.0))
+			_play_sfx("whoosh")
 	elif ai_allies.has(slot):
 		var a: Dictionary = ai_allies[slot]
 		a["held"] = false
 		other_lift[slot] = 0.0
 		if not freed:
-			a["hp"] = maxf(0.0, float(a["hp"]) - Damage.damage_amount(float(k["drop_power"]), float(attacks_cfg["damage_multiplier"])))
-			if float(a["hp"]) <= 0.0:
-				a["downed"] = true
-			a["stun"] = float(k["drop_stun_sec"])
+			# 投げられる（着地のダメージは、AiAlly.step が「landed」の印で受ける）
+			var pa: Vector2 = a["pos"]
+			var away := Vector2(pa.x - boss.position.x, pa.y - boss.position.z)
+			(AiAlly.act(a) as Actions).start("thrown", away, 0.0, true)
 		else:
 			a["stun"] = float(k["free_stun_sec"])
 
@@ -1060,6 +1121,12 @@ func _grab_update(delta: float) -> void:
 		_release_hold(true)
 		return
 	if grip >= float(k["free_damage"]):
+		_release_hold(true)
+		return
+	# 自分で逃げる：「にげる」ボタンの連打（AIは、決まった速さで連打したことにする）
+	if not is_me:
+		grab_state["mash"] = float(grab_state["mash"]) + float(grab_state["ai_rate"]) * delta
+	if float(grab_state["mash"]) >= float(k["mash_needed"]):
 		_release_hold(true)
 		return
 	if t >= float(k["hold_sec"]):
@@ -1192,12 +1259,14 @@ func _ai_update(delta: float) -> void:
 	var half := float(config["bounds"])
 	if round_active():
 		var ctx := {"boss": Vector2(boss.position.x, boss.position.z), "boss_radius": float(config["boss_size"]) * 0.5, "bounds": half,
-			"hazards": current_hazards, "cfg": ai_cfg, "attack_multiplier": float(config["attack_multiplier"]), "rng": ai_rng, "can_hit_boss": true}
+			"hazards": current_hazards, "cfg": ai_cfg, "attack_multiplier": float(config["attack_multiplier"]), "rng": ai_rng, "can_hit_boss": true,
+			"drop_damage": Damage.damage_amount(float(attacks_cfg["kinds"]["grab"]["drop_power"]), float(attacks_cfg["damage_multiplier"]))}
 		var dealt_total := 0.0
 		for slot in ai_allies:
 			var a: Dictionary = ai_allies[slot]
 			ctx["slot"] = slot
 			var dealt := AiAlly.step(a, delta, ctx)
+			_ai_show_action(str(slot), a)
 			if dealt > 0.0:
 				ai_hits[slot] = float(ai_hits[slot]) + dealt
 				dealt_total += dealt
@@ -1215,6 +1284,22 @@ func _ai_update(delta: float) -> void:
 	if not net_active:
 		_update_others(delta)
 	_check_wipe_ai_only()
+
+
+## AIの攻撃の見た目：流すアニメ、向き、高さ、必殺技の名前
+func _ai_show_action(slot: String, a: Dictionary) -> void:
+	var act: Actions = AiAlly.act(a)
+	var view: Node3D = other_views.get(slot, null)
+	if view != null:
+		for ev in a["events"]:
+			(view as Node).play_step(str(ev["anim"]), float(ev["speed"]), bool(ev.get("from_end", false)))
+		if act.busy():
+			(view as Node).face_now(act.aim)
+	if not bool(a.get("held", false)):
+		other_lift[slot] = float(a["height"])
+	if str(a["banner"]) != "":
+		_show_banner(str(a["banner"]), role_name_of(slot), float(act.def("ultimate").get("banner_sec", 1.6)))
+		_play_sfx("ultimate")
 
 
 ## 自分がダウン中で、AIも全員ダウンしたら全滅
@@ -1284,7 +1369,7 @@ func combat_update(delta: float) -> void:
 
 ## 当たり場所の中にいれば、ダメージ（自分の分だけ調べる）。同じ当たりは1回だけ
 func _apply_hazards(hz: Array) -> void:
-	if downed or _me_held():
+	if downed or _me_held() or actions.invulnerable():
 		return
 	var me := _my_slot()
 	var airborne := player.position.y > ground_y + float(attacks_cfg["dodge_height"])
@@ -1516,9 +1601,13 @@ func _update_other_view(slot: String, node: MeshInstance3D, step: Vector3, delta
 		var view: Node3D = other_views[slot]
 		var speed := Vector2(step.x, step.z) / delta
 		var moving := speed.length() > float(config.get("other_moving_speed", 0.5))
-		view.play_action("run" if moving else "idle")
-		if moving:
-			view.face(speed, delta)
+		var ally_busy: bool = ai_allies.has(slot) and (AiAlly.act(ai_allies[slot]) as Actions).busy()
+		if ai_allies.has(slot) and bool(ai_allies[slot]["downed"]):
+			view.play_action("down")
+		elif not ally_busy:
+			view.play_action("run" if moving else "idle")
+			if moving:
+				view.face(speed, delta)
 
 
 func _other_box_mesh(slot: String) -> BoxMesh:
@@ -1617,11 +1706,31 @@ func _draw_overlay() -> void:
 	overlay.draw_circle(c + stick_vec * r, r * 0.4, Color(str(config["stick_knob_color"])))
 
 	var br := float(config["button_radius_px"])
+	var held := _me_held()
 	for id in actions.ids():
 		var bc := _button_center(str(id), screen)
-		var color := str(config["button_pressed_color"]) if float(button_flash.get(id, 0.0)) > 0.0 else (str(config["button_cooldown_color"]) if actions.cooldown_left(str(id)) > 0.0 or actions.busy() else str(config["button_color"]))
+		var color := str(config["button_pressed_color"]) if float(button_flash.get(id, 0.0)) > 0.0 else (str(config["button_cooldown_color"]) if actions.cooldown_left(str(id)) > 0.0 or actions.busy() or held else str(config["button_color"]))
+		var label := str(actions.def(str(id)).get("label", id))
+		var is_ult := str(id) == "ultimate"
+		if is_ult and not held:
+			if gauge.is_ready():
+				var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.012)
+				color = str(config["button_pressed_color"]) if float(button_flash.get(id, 0.0)) > 0.0 else str(config["ultimate_ready_color"])
+				overlay.draw_circle(bc, br + 4.0 + 6.0 * pulse, Color(str(config["ultimate_ring_color"])).darkened(0.1))
+			elif actions.busy():
+				color = str(config["button_cooldown_color"])
+		if held:
+			if str(id) == "normal":
+				color = str(config["button_pressed_color"]) if float(button_flash.get(id, 0.0)) > 0.0 else str(config["escape_button_color"])
+				label = str(config["escape_label"])
+			else:
+				label = "×"
 		overlay.draw_circle(bc, br, Color(color))
-		_draw_centered(bc, str(actions.def(str(id)).get("label", id)), button_text)
+		if is_ult and not gauge.is_ready():
+			overlay.draw_arc(bc, br + 6.0, -PI * 0.5, -PI * 0.5 + TAU * gauge.ratio(), 40, Color(str(config["ultimate_ring_color"])), 7.0)
+		if held and str(id) == "normal":
+			overlay.draw_arc(bc, br + 8.0, -PI * 0.5, -PI * 0.5 + TAU * escape_progress(), 40, Color(str(config["escape_ring_color"])), 8.0)
+		_draw_centered(bc, label, button_text)
 
 	overlay.draw_string(font, Vector2(16, fs * 1.4), (str(config["hint_portrait"]) if is_portrait(screen) else str(config["hint"])) + "   " + str(config["build_label"]) + str(config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
 	var bp: Array = _layout("bossbar_pos", screen)
@@ -1655,3 +1764,31 @@ func _draw_overlay() -> void:
 			_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.22 + fs * (2.2 + 1.5 * i)), str(lines[i]), text_color)
 	if is_enraged() and int(Time.get_ticks_msec() / 400) % 2 == 0:
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.12), str(config["enrage_text"]), Color(str(config["enrage_color"])), 1.4)
+	_draw_banner(screen)
+
+
+## 必殺技の名前（使った瞬間にはね上がり、少しあとに消える）
+func _draw_banner(screen: Vector2) -> void:
+	var left := float(banner["left"])
+	if left <= 0.0:
+		return
+	var total := maxf(0.01, float(banner["total"]))
+	var age := total - left
+	var pop := 1.0 + 0.6 * maxf(0.0, 1.0 - age / 0.25)
+	var alpha := clampf(left / 0.4, 0.0, 1.0)
+	var center := Vector2(screen.x * 0.5, screen.y * (float(config["banner_y_portrait"]) if is_portrait(screen) else float(config["banner_y"])))
+	var fs := int(float(config["ui_font_size"]) * 2.4 * pop)
+	var text := str(banner["text"])
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var back := Color(str(config["banner_back_color"]))
+	back.a *= alpha
+	overlay.draw_rect(Rect2(Vector2(0.0, center.y - fs * 0.9), Vector2(screen.x, fs * 1.8)), back)
+	var col := Color(str(config["banner_color"]))
+	col.a = alpha
+	overlay.draw_string(font, center + Vector2(-w * 0.5 + 3.0, fs * 0.35 + 3.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, alpha))
+	overlay.draw_string(font, center + Vector2(-w * 0.5, fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	var who := str(banner["who"])
+	if who != "":
+		var fs2 := int(float(config["ui_font_size"]) * 0.9)
+		var w2 := font.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
+		overlay.draw_string(font, center + Vector2(-w2 * 0.5, fs * 0.95 + fs2 * 0.4), who, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(1, 1, 1, alpha))

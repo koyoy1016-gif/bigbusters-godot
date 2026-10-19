@@ -1,43 +1,91 @@
 {
   "note": "プレイヤーの3つの攻撃（全キャラ共通の構成）。通常・サブ（Y）・メイン（X）。数値はここだけで直す。ボタンの位置は data/prototype_stick.json の「…_center_frac」。",
-  "order": ["normal", "sub", "main"],
+  "order": [
+    "normal",
+    "sub",
+    "main",
+    "ultimate"
+  ],
   "actions": {
     "normal": {
-      "label": "つうじょう",
+      "label": "斬り",
       "cooldown_sec": 0.4,
       "duration_from_cooldown": true,
       "move_scale": 0.0,
       "aim_boss": false,
       "cleave": false,
       "radius_scale": 1.0,
-      "hits": [{"t": 0.0, "multiplier": 1.0}],
-      "steps": [{"t": 0.0, "anim": "swing", "speed": 3.0}],
+      "hits": [
+        {
+          "t": 0.0,
+          "multiplier": 1.0
+        }
+      ],
+      "steps": [
+        {
+          "t": 0.0,
+          "anim": "swing",
+          "speed": 3.0
+        }
+      ],
       "path": [],
-      "note": "いまの「こうげき」。1回斬る。待ち時間は、キャラの attack_cooldown_sec"
+      "note": "いまの「こうげき」。1回斬る。待ち時間は、キャラの attack_cooldown_sec",
+      "name": "単純斬り"
     },
     "sub": {
-      "label": "サブ",
+      "label": "かわし",
       "cooldown_sec": 4.0,
       "duration_sec": 1.0,
       "move_scale": 0.0,
       "aim_boss": true,
       "cleave": true,
       "radius_scale": 1.6,
-      "hits": [{"t": 0.42, "multiplier": 2.6}],
+      "hits": [
+        {
+          "t": 0.42,
+          "multiplier": 2.6
+        }
+      ],
       "steps": [
-        {"t": 0.0, "anim": "jump_start", "speed": 2.4},
-        {"t": 0.36, "anim": "swing", "speed": 3.4},
-        {"t": 0.7, "anim": "land", "speed": 2.4}
+        {
+          "t": 0.0,
+          "anim": "jump_start",
+          "speed": 2.4
+        },
+        {
+          "t": 0.36,
+          "anim": "swing",
+          "speed": 3.4
+        },
+        {
+          "t": 0.7,
+          "anim": "land",
+          "speed": 2.4
+        }
       ],
       "path": [
-        {"t": 0.0, "fwd": 0.0, "h": 0.0},
-        {"t": 0.4, "fwd": 2.0, "h": 2.0},
-        {"t": 1.0, "fwd": -0.6, "h": 0.0}
+        {
+          "t": 0.0,
+          "fwd": 0.0,
+          "h": 0.0
+        },
+        {
+          "t": 0.4,
+          "fwd": 2.0,
+          "h": 2.0
+        },
+        {
+          "t": 1.0,
+          "fwd": -0.6,
+          "h": 0.0
+        }
       ],
-      "note": "Y。敵に向かって跳びながら斬って、下がってくる。空中にいる間は、ジャンプでよけられる攻撃を受けない"
+      "note": "Y。敵に向かって跳びながら斬って、下がってくる。空中にいる間は、ジャンプでよけられる攻撃を受けない",
+      "name": "かわし斬り",
+      "stop_at_boss": true
     },
     "main": {
-      "label": "メイン",
+      "label": "五段",
       "cooldown_sec": 6.0,
       "duration_sec": 1.5,
       "move_scale": 0.0,
@@ -45,26 +93,194 @@
       "cleave": true,
       "radius_scale": 1.3,
       "hits": [
-        {"t": 0.15, "multiplier": 0.8},
-        {"t": 0.36, "multiplier": 0.8},
-        {"t": 0.57, "multiplier": 0.8},
-        {"t": 0.78, "multiplier": 0.8},
-        {"t": 0.99, "multiplier": 0.8}
+        {
+          "t": 0.15,
+          "multiplier": 0.8
+        },
+        {
+          "t": 0.36,
+          "multiplier": 0.8
+        },
+        {
+          "t": 0.57,
+          "multiplier": 0.8
+        },
+        {
+          "t": 0.78,
+          "multiplier": 0.8
+        },
+        {
+          "t": 0.99,
+          "multiplier": 0.8
+        }
       ],
       "steps": [
-        {"t": 0.0, "anim": "swing", "speed": 5.0},
-        {"t": 0.21, "anim": "swing", "speed": 5.0},
-        {"t": 0.42, "anim": "swing", "speed": 5.0},
-        {"t": 0.63, "anim": "swing", "speed": 5.0},
-        {"t": 0.84, "anim": "swing", "speed": 5.0}
+        {
+          "t": 0.0,
+          "anim": "swing",
+          "speed": 5.0
+        },
+        {
+          "t": 0.21,
+          "anim": "swing",
+          "speed": 5.0
+        },
+        {
+          "t": 0.42,
+          "anim": "swing",
+          "speed": 5.0
+        },
+        {
+          "t": 0.63,
+          "anim": "swing",
+          "speed": 5.0
+        },
+        {
+          "t": 0.84,
+          "anim": "swing",
+          "speed": 5.0
+        }
       ],
       "path": [
-        {"t": 0.0, "fwd": 0.0, "h": 0.0},
-        {"t": 0.15, "fwd": 0.6, "h": 0.0},
-        {"t": 1.0, "fwd": 1.6, "h": 0.0},
-        {"t": 1.5, "fwd": 1.6, "h": 0.0}
+        {
+          "t": 0.0,
+          "fwd": 0.0,
+          "h": 0.0
+        },
+        {
+          "t": 0.15,
+          "fwd": 0.6,
+          "h": 0.0
+        },
+        {
+          "t": 1.0,
+          "fwd": 1.6,
+          "h": 0.0
+        },
+        {
+          "t": 1.5,
+          "fwd": 1.6,
+          "h": 0.0
+        }
       ],
-      "note": "X。素早く5回斬る。少しずつ前に出る"
+      "note": "X。素早く5回斬る。少しずつ前に出る",
+      "name": "五段斬り",
+      "stop_at_boss": true
+    },
+    "thrown": {
+      "label": "",
+      "forced": true,
+      "cooldown_sec": 0.0,
+      "duration_sec": 2.9,
+      "move_scale": 0.0,
+      "aim_boss": false,
+      "cleave": false,
+      "radius_scale": 1.0,
+      "i_frames": true,
+      "hits": [],
+      "marks": [
+        {
+          "t": 0.65,
+          "name": "landed"
+        }
+      ],
+      "steps": [
+        {
+          "t": 0.0,
+          "anim": "roll",
+          "speed": 1.4
+        },
+        {
+          "t": 0.7,
+          "anim": "down",
+          "speed": 2.0
+        },
+        {
+          "t": 1.75,
+          "anim": "down",
+          "speed": -2.2,
+          "from_end": true
+        }
+      ],
+      "path": [
+        {
+          "t": 0.0,
+          "fwd": 0.0,
+          "h": 4.2
+        },
+        {
+          "t": 0.65,
+          "fwd": 6.0,
+          "h": 0.0
+        },
+        {
+          "t": 2.9,
+          "fwd": 6.0,
+          "h": 0.0
+        }
+      ],
+      "note": "ボスに投げられたとき（相手から強いられる動き。ボタンはない）。放り出されて、着地でダメージ、転んで、起き上がる。倒れている間はダメージを受けない"
+    },
+    "ultimate": {
+      "label": "必殺",
+      "name": "切り捨て御免",
+      "banner_sec": 1.6,
+      "cooldown_sec": 0.0,
+      "duration_sec": 1.15,
+      "move_scale": 0.0,
+      "aim_boss": true,
+      "cleave": true,
+      "radius_scale": 2.4,
+      "i_frames": true,
+      "stop_at_boss": true,
+      "hits": [
+        {
+          "t": 0.5,
+          "multiplier": 22.0
+        }
+      ],
+      "steps": [
+        {
+          "t": 0.0,
+          "anim": "charge",
+          "speed": 1.4
+        },
+        {
+          "t": 0.4,
+          "anim": "swing",
+          "speed": 7.0
+        }
+      ],
+      "path": [
+        {
+          "t": 0.0,
+          "fwd": 0.0,
+          "h": 0.0
+        },
+        {
+          "t": 0.4,
+          "fwd": 0.0,
+          "h": 0.0
+        },
+        {
+          "t": 0.52,
+          "fwd": 5.0,
+          "h": 0.0
+        },
+        {
+          "t": 1.15,
+          "fwd": 5.2,
+          "h": 0.0
+        }
+      ],
+      "note": "必殺技。ゲージがたまったときだけ。力をためて、一瞬で駆け抜けて、一撃で斬り捨てる。使うと、画面に技名が出る（CPUが使ったときも）"
     }
-  }
+  },
+  "ultimate_gauge": {
+    "max": 700.0,
+    "gain_per_damage": 1.0,
+    "note": "ボスに与えたダメージで、ゲージがたまる。いっぱいで必殺技が使える"
+  },
+  "stop_margin": 0.9,
+  "stop_margin_note": "ボスに向かって進む攻撃が、ボスの中心から（ボスの半径＋この値）より近くには入らない"
 }

@@ -59,7 +59,9 @@
         "down": "Death",
         "swing": "Sword_Attack",
         "jump_start": "Jump_Start",
-        "land": "Jump_Land"
+        "land": "Jump_Land",
+        "roll": "Roll",
+        "charge": "Spell"
       },
       "archetype": "swordsman",
       "weapon": "けん",

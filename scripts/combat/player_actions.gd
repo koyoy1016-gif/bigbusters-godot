@@ -17,6 +17,7 @@ var frame_move := Vector2.ZERO
 var height := 0.0
 var _hit_i := 0
 var _step_i := 0
+var _mark_i := 0
 var _last_fwd := 0.0
 var _queue: Array = []
 
@@ -57,9 +58,19 @@ func can_start(id: String) -> bool:
 	return not busy() and not def(id).is_empty() and cooldown_left(id) <= 0.0
 
 
-## 始める。始められたら true。cooldown_override が 0 より大きければ、待ち時間（と、それに合わせる長さ）をそれにする
-func start(id: String, aim_dir: Vector2, cooldown_override: float = -1.0) -> bool:
-	if not can_start(id):
+## 動いている間は、ダメージを受けない動きか（投げられて転んでいる間など）
+func invulnerable() -> bool:
+	return busy() and bool(def(active).get("i_frames", false))
+
+
+## 始める。始められたら true。cooldown_override が 0 より大きければ、待ち時間（と、それに合わせる長さ）をそれにする。
+## force が true なら、いまの動きを打ち切って、待ち時間も見ずに始める（投げられたときなど、相手から強いられる動き）
+func start(id: String, aim_dir: Vector2, cooldown_override: float = -1.0, force: bool = false) -> bool:
+	if force:
+		if def(id).is_empty():
+			return false
+		cancel()
+	elif not can_start(id):
 		return false
 	var d := def(id)
 	var cd := cooldown_override if cooldown_override > 0.0 else float(d.get("cooldown_sec", 1.0))
@@ -70,9 +81,10 @@ func start(id: String, aim_dir: Vector2, cooldown_override: float = -1.0) -> boo
 	cooldowns[id] = cd
 	_hit_i = 0
 	_step_i = 0
+	_mark_i = 0
 	_last_fwd = 0.0
 	frame_move = Vector2.ZERO
-	height = 0.0
+	height = float(offset_at(d.get("path", []), 0.0).y)
 	_queue = []
 	_fire_due()
 	return true
@@ -93,7 +105,7 @@ func reset() -> void:
 
 
 ## 時間を進める。この1コマで起きた出来事の一覧を返す：
-## {"type": "hit", "action", "multiplier", "radius_scale", "cleave"}、 {"type": "anim", "anim", "speed"}
+## {"type": "hit", "action", "multiplier", "radius_scale", "cleave"}、 {"type": "anim", "anim", "speed", "from_end"}、 {"type": "mark", "name"}（着地などの印）
 func update(delta: float) -> Array:
 	for id in cooldowns.keys():
 		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta)
@@ -126,8 +138,13 @@ func _fire_due() -> void:
 		_hit_i += 1
 	var steps: Array = d.get("steps", [])
 	while _step_i < steps.size() and float(steps[_step_i]["t"]) <= t:
-		_queue.append({"type": "anim", "anim": str(steps[_step_i]["anim"]), "speed": float(steps[_step_i]["speed"])})
+		_queue.append({"type": "anim", "anim": str(steps[_step_i]["anim"]), "speed": float(steps[_step_i]["speed"]),
+			"from_end": bool(steps[_step_i].get("from_end", false))})
 		_step_i += 1
+	var marks: Array = d.get("marks", [])
+	while _mark_i < marks.size() and float(marks[_mark_i]["t"]) <= t:
+		_queue.append({"type": "mark", "name": str(marks[_mark_i]["name"])})
+		_mark_i += 1
 
 
 ## 体の動きの道（path）の、時刻 time での (前向きの距離, 高さ)。キーとキーの間は、なめらかにつなぐ

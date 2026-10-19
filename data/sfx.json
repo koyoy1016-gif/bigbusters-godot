@@ -16,6 +16,9 @@
     "sweep": {"file": "res://assets/audio/sfx/sweep.wav", "volume_db": -5.0, "min_gap_sec": 0.5},
     "win": {"file": "res://assets/audio/sfx/win.wav", "volume_db": -4.0, "min_gap_sec": 1.0},
     "lose": {"file": "res://assets/audio/sfx/lose.wav", "volume_db": -4.0, "min_gap_sec": 1.0},
+    "mash": {"file": "res://assets/audio/sfx/mash.wav", "volume_db": -6.0, "min_gap_sec": 0.03},
+    "thud": {"file": "res://assets/audio/sfx/thud.wav", "volume_db": -2.0, "min_gap_sec": 0.3},
+    "ultimate": {"file": "res://assets/audio/sfx/ultimate.wav", "volume_db": -1.0, "min_gap_sec": 0.5},
     "click": {"file": "res://assets/audio/sfx/click.wav", "volume_db": -8.0, "min_gap_sec": 0.05}
   },
   "attack_sounds": {"grab": "grab_warn", "typhoon": "whoosh", "flyers": "throw", "flyer_storm": "storm", "hand_sweep": "sweep"}

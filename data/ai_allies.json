@@ -1,14 +1,45 @@
 {
   "_memo": "AIの味方（通信なしのとき、空いた枠を埋める）。数字は仮",
-  "default_picks": ["guardian", "gunner", "mage"],
-  "slots": ["p2", "p3", "p4"],
-  "approach_angles_deg": [-45.0, 0.0, 45.0],
+  "default_picks": [
+    "guardian",
+    "gunner",
+    "mage"
+  ],
+  "slots": [
+    "p2",
+    "p3",
+    "p4"
+  ],
+  "approach_angles_deg": [
+    -45.0,
+    0.0,
+    45.0
+  ],
   "stand_factor": 0.8,
   "evade_margin": 1.6,
   "evade_speed_factor": 1.1,
-  "jump_chance": 0.55,
-  "jump_sec": 0.55,
   "reaction_sec": 0.35,
-  "spawn_offsets": [[-3.0, 6.0], [3.0, 6.0], [0.0, 8.0]],
-  "damage_scale": 0.85
+  "spawn_offsets": [
+    [
+      -3.0,
+      6.0
+    ],
+    [
+      3.0,
+      6.0
+    ],
+    [
+      0.0,
+      8.0
+    ]
+  ],
+  "damage_scale": 0.85,
+  "escape_taps_min": 3.0,
+  "escape_taps_max": 5.0,
+  "dodge_chance": 0.55,
+  "use_main_chance": 0.5,
+  "use_sub_chance": 0.3,
+  "attack_think_sec": 0.45,
+  "ai_cooldown_scale": 1.3,
+  "ai_ultimate": true
 }
