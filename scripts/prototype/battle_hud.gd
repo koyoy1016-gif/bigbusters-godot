@@ -80,29 +80,14 @@ func _draw_overlay() -> void:
 			b.overlay.draw_arc(bc, br + 6.0, -PI * 0.5, -PI * 0.5 + TAU * b.gauge.ratio(), 40, Color(str(b.config["ultimate_ring_color"])), 7.0)
 		_draw_centered(bc, label, button_text)
 
-	b.overlay.draw_string(b.font, Vector2(16, fs * 1.4), (str(b.config["hint_portrait"]) if is_portrait(screen) else str(b.config["hint"])) + "   " + str(b.config["build_label"]) + str(b.config["build_id"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var bp: Array = _layout("bossbar_pos", screen)
-	var bs: Array = _layout("bossbar_size", screen)
-	var bar_rect := Rect2(Vector2(screen.x * bp[0], screen.y * bp[1]), Vector2(screen.x * bs[0], maxf(10.0, screen.y * bs[1])))
-	b.overlay.draw_rect(bar_rect, Color(str(b.config["bossbar_back_color"])))
-	var frac := b.boss_hp_ratio()
-	var second := b.phase.phase != BossPhase.NORMAL
-	b.overlay.draw_rect(Rect2(bar_rect.position, Vector2(bar_rect.size.x * frac, bar_rect.size.y)), Color(str(b.config["bossbar_color_awake"] if second else b.config["bossbar_color"])))
-	# 第1形態の間は、右はしに「第2形態がある」ことを示す小さな印
-	if not second:
-		b.overlay.draw_rect(Rect2(bar_rect.position + Vector2(bar_rect.size.x - 6.0, 0.0), Vector2(6.0, bar_rect.size.y)), Color(str(b.config["bossbar_color_awake"])))
-	var hp_text := str(b.config["boss_hp_label_awake"] if second else b.config["boss_hp_label"]) + "  " + str(ceili(b.boss_hp)) + " / " + str(int(b.phase.max_hp()))
-	b.overlay.draw_string(b.font, Vector2(16, fs * 2.9), hp_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var my_text := str(b.config["role_label"]) + "：" + str(b.role().get("name", "")) + (("（" + str(b.role()["character_name"]) + "）") if b.role().has("character_name") else "") + "  " + str(b.config["player_hp_label"]) + "  " + str(ceili(b.my_hp)) + " / " + str(ceili(b.role_value("hp")))
-	if b.downed:
-		my_text += "  " + str(b.config["down_text"])
-	b.overlay.draw_string(b.font, Vector2(16, fs * 4.4), my_text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-	var team := build_team_text()
-	var next_line := 5.9
-	if team != "":
-		b.overlay.draw_string(b.font, Vector2(16, fs * next_line), team, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
-		next_line += 1.5
-	b.overlay.draw_string(b.font, Vector2(16, fs * next_line), b.build_room_text(b.net_state, b.room_code, b.net_active, b.config), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, text_color)
+	# 版92：上の文字の行（説明・BOSS HP・やく/体力・なかま・通信）はやめた。体力は、画面に固定した新しい表示（battle_hp_hud.gd）
+	b.hp_hud.draw(screen)
+	var hud_bottom: float = float(b.hp_hud.layout(screen)["bottom"])
+	# 版の数字（公開した版の確認用）：右下に小さく、うすく
+	var vfs := int(fs * 0.5)
+	var vtxt := str(b.config["build_label"]) + str(b.config["build_id"])
+	var vw := b.font.get_string_size(vtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, vfs).x
+	b.overlay.draw_string(b.font, Vector2(screen.x - vw - 6.0, screen.y - 6.0), vtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, vfs, Color(1, 1, 1, float((b.config.get("hud", {}) as Dictionary).get("version_alpha", 0.45))))
 
 	if b._start_button_visible():
 		var sc := _start_center(screen)
@@ -110,12 +95,13 @@ func _draw_overlay() -> void:
 		_draw_centered(sc, str(b.config["restart_label"]) if b.round_count > 0 else str(b.config["start_label"]), button_text)
 	if b.won or b.lost:
 		var result := str(b.config["win_text"]) if b.won else str(b.config["lose_text"])
-		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.22), result, text_color, 2.0)
+		var ry := maxf(screen.y * 0.22, hud_bottom + fs * 2.2)  # 版92：体力の表示の下に
+		_draw_centered(Vector2(screen.x * 0.5, ry), result, text_color, 2.0)
 		var lines := b.build_result_lines()
 		for i in lines.size():
-			_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.22 + fs * (2.2 + 1.5 * i)), str(lines[i]), text_color)
+			_draw_centered(Vector2(screen.x * 0.5, ry + fs * (2.2 + 1.5 * i)), str(lines[i]), text_color)
 	if b.is_enraged() and int(Time.get_ticks_msec() / 400) % 2 == 0:
-		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.12), str(b.config["enrage_text"]), Color(str(b.config["enrage_color"])), 1.4)
+		_draw_centered(Vector2(screen.x * 0.5, maxf(screen.y * 0.12, hud_bottom + fs * 1.4)), str(b.config["enrage_text"]), Color(str(b.config["enrage_color"])), 1.4)  # 版92：体力の表示の下に
 	if float(b.phase_text["left"]) > 0.0 and str(b.phase_text["text"]) != "":
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(b.phase_text["text"]), Color(str(b.config.get("bossbar_color_awake", "#ffffff"))), 1.8)
 	# 版84：自分が倒れている時：起こしてもらえる のこり時間・起こしてもらっている進み

@@ -3,6 +3,7 @@ extends SceneTree
 ## xvfb-run -a godot --rendering-driver opengl3 --resolution 648x1152 --path . --script res://tools/shot_map.gd -- 出力.png 見方 [画質] [時間帯] [切りかえの途中の割合]
 ## 見方：sky（交差点のうしろの上から、街なみ）・top（真上から）・street（人の目の高さ）・battle（戦いのカメラ）
 ## 時間帯（版90）：evening（夕方・ふだん）・night（夜・覚醒）。割合 0〜1 を入れると、切りかえの途中
+## 版92：環境変数 SHOT_HP に数を入れると、自分の体力をその数にして撮る（体力の表示の確認用）
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const Quality := preload("res://scripts/core/quality.gd")
 
@@ -22,6 +23,8 @@ func _initialize() -> void:
 	s.start_round()
 	for i in 20:
 		await process_frame
+	if OS.get_environment("SHOT_HP") != "":
+		s.my_hp = float(OS.get_environment("SHOT_HP"))
 	s.set_process(false)  # 時間帯を、ここで決めた値のままにする（戦いのカメラは、20フレームで動いた所のまま）
 	if s.tod.is_ready():
 		s.tod.snap(tname == "night")
@@ -30,6 +33,7 @@ func _initialize() -> void:
 			s.tod.target = s.tod.t
 			s.tod.apply()
 	if view == "battle":
+		s.overlay.queue_redraw()  # 画面の字・体力の表示も、いまの値で描きなおす
 		for i in 4:
 			await process_frame
 	else:

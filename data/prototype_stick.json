@@ -174,7 +174,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "89",
+  "build_id": "92",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -417,5 +417,69 @@
     "follow_smooth_sec": 0.3,
     "shake_scale": 0.8,
     "zoom_in_per_sec": 1.0
+  },
+  "hud": {
+    "_note": "版92：戦いの体力の表示（scripts/prototype/battle_hp_hud.gd）。上の文字の行（説明・BOSS HP・やく/体力・なかま・通信）はやめて、これに置きかえた。hp_low：自分の体力がこの数「未満」で赤（30 ちょうどは、ふつうの色）。pos・size は画面の割合（_portrait はたて画面）。字はふちどり（outline_px）して、夕方・夜のどちらでも読める。version_alpha：右下の小さな版の数字のこさ",
+    "hp_low": 30,
+    "hp_color": "#ffffff",
+    "hp_low_color": "#ff3b3b",
+    "sub_color": "#d8dcef",
+    "outline_color": "#000000",
+    "outline_px": 5,
+    "version_alpha": 0.45,
+    "player": {
+      "pos_portrait": [
+        0.025,
+        0.085
+      ],
+      "pos": [
+        0.012,
+        0.025
+      ],
+      "icon_r": 30.0,
+      "num_size": 1.35,
+      "max_size": 0.5,
+      "panel_w": 150.0,
+      "ring_color": "#7ee0ff",
+      "ring_low_color": "#ff3b3b",
+      "panel_color": "#0b0e1aa8",
+      "portrait_zoom": 0.9
+    },
+    "boss": {
+      "pos_portrait": [
+        0.025,
+        0.018
+      ],
+      "size_portrait": [
+        0.95,
+        0.056
+      ],
+      "pos": [
+        0.27,
+        0.02
+      ],
+      "size": [
+        0.46,
+        0.085
+      ],
+      "icon_r": 28.0,
+      "bar_frac": 0.34,
+      "text_size": 0.62,
+      "label": "BOSS",
+      "label_awake": "覚醒 BOSS",
+      "bar_color": "#e23b3b",
+      "bar_color_awake": "#b23cff",
+      "bar_back_color": "#3a1420",
+      "trail_color": "#ffe08a",
+      "trail_sec": 0.6,
+      "trail_speed": 0.5,
+      "back_color": "#1a1020d8",
+      "frame_color": "#f2d38a",
+      "icon_back": "#2a0d18",
+      "icon_face": "#5a1f2e",
+      "icon_horn": "#e9dcc0",
+      "icon_eye": "#ffd84a",
+      "icon_eye_awake": "#ff7bff"
+    }
   }
 }
