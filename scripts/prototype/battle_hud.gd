@@ -2,6 +2,7 @@ extends RefCounted
 ## 画面の文字・ボタン・スティック・体力バー・技名の帯・ダメージの数字・縦横の配置（描くだけ。ゲームの決まりは変えない）
 ## stick_prototype.gd（まとめ役。状態の変数はそちら）から分けた部品。本体の変数・関数は b. で使う。動きは分ける前と同じ。
 
+const CameraRig := preload("res://scripts/prototype/camera_rig.gd")
 const CONFIG_PATH := "res://data/prototype_stick.json"
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const SLOTS := ["p1", "p2", "p3", "p4"]
@@ -296,17 +297,28 @@ static func is_portrait(size: Vector2) -> bool:
 ## 縦横の向きを合わせる：基準の大きさ（文字・ボタンの大きさの元）、カメラの見え方を切り替える。向きが変わったときだけ動く
 func apply_orientation(window_size: Vector2) -> void:
 	var portrait := is_portrait(window_size)
-	if portrait == b.portrait_mode:
+	if portrait != b.portrait_mode:
+		b.portrait_mode = portrait
+		var base: Array = b.config["portrait_base_size"] if portrait else b.config["landscape_base_size"]
+		var win := b.get_window()
+		if win != null:
+			win.content_scale_size = Vector2i(int(base[0]), int(base[1]))
+		b.camera_rig_size = Vector2.ZERO
+	# 版91：カメラの高さ・角度・画角（camera_rig.gd）。画面の形が変わった時だけ決めなおす
+	if b.camera_rig_size.is_equal_approx(window_size):
 		return
-	b.portrait_mode = portrait
-	var base: Array = b.config["portrait_base_size"] if portrait else b.config["landscape_base_size"]
-	var win := b.get_window()
-	if win != null:
-		win.content_scale_size = Vector2i(int(base[0]), int(base[1]))
-	var off: Array = b.config["camera_offset_portrait"] if portrait else b.config["camera_offset"]
-	b.camera_offset = Vector3(off[0], off[1], off[2])
-	b.camera.keep_aspect = Camera3D.KEEP_WIDTH if portrait else Camera3D.KEEP_HEIGHT
-	b.camera.fov = float(b.config["camera_fov_portrait"]) if portrait else float(b.config["camera_fov"])
+	b.camera_rig_size = window_size
+	var rig := CameraRig.rig_for(b.config, window_size if window_size.x > 0.0 and window_size.y > 0.0 else Vector2(16, 9))
+	if rig.is_empty():
+		var off: Array = b.config["camera_offset_portrait"] if portrait else b.config["camera_offset"]
+		b.camera_offset = Vector3(off[0], off[1], off[2])
+		b.camera.keep_aspect = Camera3D.KEEP_WIDTH if portrait else Camera3D.KEEP_HEIGHT
+		b.camera.fov = float(b.config["camera_fov_portrait"]) if portrait else float(b.config["camera_fov"])
+		return
+	b.camera_offset = rig["offset"]
+	b.camera_look_h = float(rig["look_h"])
+	b.camera.keep_aspect = Camera3D.KEEP_HEIGHT
+	b.camera.fov = float(rig["fov"])
 
 
 ## ボタンの中心（画面の割合は data/prototype_stick.json の「<id>_center_frac」。縦長なら「…_portrait」）

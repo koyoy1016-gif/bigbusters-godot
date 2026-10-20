@@ -361,18 +361,20 @@ func _initialize() -> void:
 	stand(w, 0.8)
 	w.gauge.value = w.gauge.max_value
 	w.cam_zoom = 0.0
+	w.cam_zoom_goal = 0.0
 	w.shake_amp = 0.0
 	w.perform("ultimate")
 	tick(w, 1.0)
-	check(w.cam_zoom > 0.0 and w.shake_amp > 0.0, "必殺技が当たると、画面がゆれて、カメラが少し寄る")
+	check((w.cam_zoom > 0.0 or w.cam_zoom_goal > 0.0) and w.shake_amp > 0.0, "必殺技が当たると、画面がゆれて、カメラが少し寄る（版91：寄るのも、なめらかに）")
 	check(w.skill_fx_log.has("aura"), "必殺技の間、オーラが出る")
 	Engine.time_scale = 1.0
 	w.actions.reset()
 	w.cam_zoom = 0.0
+	w.cam_zoom_goal = 0.0
 	w.shake_amp = 0.0
 	w.perform("normal")
 	tick(w, 0.4)
-	check(is_equal_approx(w.cam_zoom, 0.0) and is_equal_approx(w.shake_amp, 0.0), "弱い攻撃（ジャブ）では、画面はゆれない")
+	check(is_equal_approx(w.cam_zoom, 0.0) and is_equal_approx(w.cam_zoom_goal, 0.0) and is_equal_approx(w.shake_amp, 0.0), "弱い攻撃（ジャブ）では、画面はゆれない")
 	w.won = true
 	w._update_character(0.1)
 	check(w.char_view.current_action == "win", "勝ったら、喜ぶ動き")

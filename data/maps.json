@@ -154,7 +154,7 @@
           }
         },
         "lamps": {
-          "_memo": "版90：街灯（交差点の歩道の角に沿って every_m ごと。歩道へ out_m 出す。まん中から min_from_center_m より外）。地面の光の輪の大きさ pool_m",
+          "_memo": "版90：街灯（交差点の歩道の角に沿って every_m ごと。歩道へ out_m 出す。まん中から min_from_center_m より外）。地面の光の輪の大きさ pool_m。max_z_m より手前（カメラのがわ）には立てない（戦いの場所の前をふさがないように）",
           "every_m": 14.0,
           "out_m": 1.4,
           "pole_h_m": 7.5,
@@ -162,7 +162,8 @@
           "pool_m": 11.0,
           "pool_lift_m": 0.06,
           "min_from_center_m": 17.0,
-          "pole_color": "#3b3e44"
+          "pole_color": "#3b3e44",
+          "max_z_m": 10.0
         }
       },
       "visible_m": {

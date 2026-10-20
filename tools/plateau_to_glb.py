@@ -684,6 +684,8 @@ def build_lamps(info, b, stats, height):
             base = p0 + nv * outm
             if max(abs(base[0]), abs(base[1])) < float(lc["min_from_center_m"]):
                 continue
+            if base[1] > float(lc.get("max_z_m", 1e9)):
+                continue  # カメラのがわ（手前）：戦いの場所の前をふさぐので立てない
             if any(np.linalg.norm(base - q) < every * 0.6 for q in placed):
                 continue
             placed.append(base)

@@ -52,6 +52,7 @@ const BattleRevive := preload("res://scripts/prototype/battle_revive.gd")
 const BattleAudio := preload("res://scripts/prototype/battle_audio.gd")
 const MapLoader := preload("res://scripts/stage/map_loader.gd")
 const TimeOfDay := preload("res://scripts/stage/time_of_day.gd")
+const CameraRig := preload("res://scripts/prototype/camera_rig.gd")
 const TargetLock := preload("res://scripts/combat/target_lock.gd")
 const Projectiles := preload("res://scripts/combat/projectiles.gd")
 const SkillHits := preload("res://scripts/combat/skill_hits.gd")
@@ -502,6 +503,10 @@ func _add_marker(parent: Node3D, color: Color) -> StandardMaterial3D:
 
 var cam_boss_lift := Vector2.ZERO  ## ボスが高いときに、カメラが上を見る量（x）と、引く量（y）
 var cam_zoom := 0.0  ## 版79：強い攻撃の時に、カメラが寄る割合（0〜。すぐ戻る）
+var camera_look_h := 0.0  ## 版91：カメラが見る点の、床からの高さ（camera_rig）
+var cam_zoom_goal := 0.0  ## 版91：寄る目標（cam_zoom は、ここへなめらかに近づいてから戻る）
+var camera_vel := Vector3.ZERO  ## 版91：カメラがついていく速さ（ばねの動き）
+var camera_rig_size := Vector2.ZERO  ## 版91：カメラの置き方を決めた時の画面の大きさ（変わったら決めなおす）
 
 
 ## 版79：強い攻撃（Y・Xのしめ・必殺技）が当たった手ごたえ。spec：[一瞬止める秒, 画面のゆれ, カメラの寄り]
@@ -511,33 +516,50 @@ func _impact(spec: Variant) -> void:
 	var a: Array = spec
 	_hitstop(float(a[0]), float(a[1]))
 	if a.size() > 2:
-		cam_zoom = maxf(cam_zoom, float(a[2]))
+		cam_zoom_goal = maxf(cam_zoom_goal, float(a[2]))  # 版91：一気に寄らず、なめらかに寄る（camera_update）
 
 
 ## カメラは、自分の動きに合わせて、ゆっくりついていく（動きの一部だけ）。f 秒あたりの追いつきの速さは data で決める
 func camera_update(delta: float) -> void:
 	var goal := Vector3(player.position.x, 0.0, player.position.z) * float(config["camera_follow"])
-	camera_target = camera_target.lerp(goal, Sync.smooth_weight(delta, float(config["camera_follow_per_sec"])))
+	var smooth_sec := float((config.get("camera_rig", {}) as Dictionary).get("follow_smooth_sec", 0.0))
+	if smooth_sec > 0.0:
+		# 版91：ばねのように、なめらかに動き始めて、なめらかに止まる（急に遠くへ動いても、カメラが跳ばない）
+		var res := CameraRig.smooth_damp(camera_target, goal, camera_vel, smooth_sec, delta)
+		camera_target = res[0]
+		camera_vel = res[1]
+	else:
+		camera_target = camera_target.lerp(goal, Sync.smooth_weight(delta, float(config["camera_follow_per_sec"])))
 	# 版63：ボスが高く跳んだときは、少し上を見て、少し引く（ボスの頭が画面から出ないように）。data の camera_boss_frame
 	var bf: Dictionary = config.get("camera_boss_frame", {})
 	var over := maxf(0.0, (motion.height if motion != null else 0.0) - float(bf.get("start_height", 1.5)))
 	var want_lift := Vector2(minf(over * float(bf.get("look_up_per_m", 0.0)), float(bf.get("max_look_up", 0.0))), minf(over * float(bf.get("back_per_m", 0.0)), float(bf.get("max_back", 0.0))))
 	cam_boss_lift = cam_boss_lift.lerp(want_lift, Sync.smooth_weight(delta, float(bf.get("follow_per_sec", 3.0))))
-	var look_at := camera_target + Vector3(0.0, cam_boss_lift.x, 0.0)
+	# 版91：見る点は、床から camera_look_h（キャラの胸のあたり）。カメラは、そこから camera_offset（高さ・角度は camera_rig.gd）
+	var look_at := camera_target + Vector3(0.0, camera_look_h + cam_boss_lift.x, 0.0)
 	var back_dir := Vector3(0.0, camera_offset.y, camera_offset.z).normalized() if camera_offset.length() > 0.01 else Vector3.BACK
-	var pos := camera_target + camera_offset + back_dir * cam_boss_lift.y
-	# 版79：強い攻撃が当たった時の、カメラの寄り（すぐ戻る）
-	if cam_zoom > 0.0:
+	var pos := camera_target + Vector3(0.0, camera_look_h, 0.0) + camera_offset + back_dir * cam_boss_lift.y
+	# 版79：強い攻撃が当たった時の、カメラの寄り（すぐ戻る）。版91：寄るのも、なめらかに（1フレームで跳ばない）
+	if cam_zoom_goal > 0.0 or cam_zoom > 0.0:
+		var zin := float((config.get("camera_rig", {}) as Dictionary).get("zoom_in_per_sec", 1.5))
+		if cam_zoom < cam_zoom_goal:
+			cam_zoom = minf(cam_zoom_goal, cam_zoom + delta * zin)
+			if is_equal_approx(cam_zoom, cam_zoom_goal):
+				cam_zoom_goal = 0.0
+		else:
+			cam_zoom_goal = 0.0
+			cam_zoom = maxf(0.0, cam_zoom - delta * float(config.get("cam_zoom_return_per_sec", 0.6)))
 		pos = look_at + (pos - look_at) * (1.0 - cam_zoom)
-		cam_zoom = maxf(0.0, cam_zoom - delta * float(config.get("cam_zoom_return_per_sec", 0.6)))
-	# 画面のゆれ（強い攻撃に当たったとき）
+	var basis := Basis.looking_at(look_at - pos, Vector3.UP)
+	# 画面のゆれ（強い攻撃に当たったとき）。版91：なめらかな波で、カメラごと横・たてに動かす（向きは変えない＝遠くの背景ははねない）
 	if shake_left > 0.0:
 		shake_left = maxf(0.0, shake_left - delta)
-		var k := shake_left / 0.3
-		pos += Vector3(randf_range(-1.0, 1.0), randf_range(-0.5, 0.5), randf_range(-1.0, 1.0)) * shake_amp * k
+		var total := float((config.get("camera_rig", {}) as Dictionary).get("shake_sec", 0.3))
+		var o := CameraRig.shake_offset(config, total - shake_left, shake_amp, clampf(shake_left / maxf(total, 0.01), 0.0, 1.0))
+		pos += (basis.x * o.x + basis.y * o.y) * float((config.get("camera_rig", {}) as Dictionary).get("shake_scale", 1.0))
 		if shake_left <= 0.0:
 			shake_amp = 0.0
-	camera.transform = Transform3D(Basis.looking_at(look_at - pos, Vector3.UP), pos)
+	camera.transform = Transform3D(basis, pos)
 
 
 func _make_box(node_name: String, size: float, color: Color) -> MeshInstance3D:
@@ -1766,7 +1788,7 @@ func _knockback(kind: String, dir: Vector2) -> void:
 ## 一瞬止める（当たった重さ）と、画面をゆらす
 func _hitstop(sec: float, shake: float) -> void:
 	shake_amp = maxf(shake_amp, shake)
-	shake_left = 0.3
+	shake_left = float((config.get("camera_rig", {}) as Dictionary).get("shake_sec", 0.3))
 	if sec > 0.0 and is_inside_tree():
 		hitstop_until_ms = Time.get_ticks_msec() + int(sec * 1000.0)
 		Engine.time_scale = float(config.get("hitstop_time_scale", 0.06))

@@ -390,5 +390,32 @@
   "revive_progress_text": "ふっかつ %.1f",
   "revive_me_wait": "なかまが そばに 4びょう いれば ふっかつ（あと %d びょう）",
   "revive_me_progress": "ふっかつ まで %.1f びょう",
-  "revive_gone_text": "ふっかつ できる 時間が すぎました"
+  "revive_gone_text": "ふっかつ できる 時間が すぎました",
+  "camera_rig": {
+    "_note": "版91：戦いのカメラ（scripts/prototype/camera_rig.gd）。fov はたての画角（度）。view_width_m：見る点で、横に見える広さ（m）。画面の形から、そのためのカメラの距離を計算（min_dist_m〜max_dist_m）。pitch_deg：見下ろす角度。look_height_m：見る点の床からの高さ。shake_hz・shake_sec：強い攻撃の画面のゆれ（なめらかな波）。follow_smooth_sec：自分についていく、ばねの秒（なめらかに動き始めて止まる）。shake_scale：ゆれの大きさの倍率。zoom_in_per_sec：強い攻撃でカメラが寄る速さ（1秒あたり）",
+    "portrait": {
+      "fov": 70.0,
+      "pitch_deg": 22.0,
+      "view_width_m": 24.0,
+      "min_dist_m": 20.0,
+      "max_dist_m": 34.0,
+      "look_height_m": 2.0
+    },
+    "landscape": {
+      "fov": 55.0,
+      "pitch_deg": 21.0,
+      "view_width_m": 36.0,
+      "min_dist_m": 16.0,
+      "max_dist_m": 26.0,
+      "look_height_m": 1.8
+    },
+    "shake_hz": [
+      7.0,
+      10.0
+    ],
+    "shake_sec": 0.3,
+    "follow_smooth_sec": 0.3,
+    "shake_scale": 0.8,
+    "zoom_in_per_sec": 1.0
+  }
 }

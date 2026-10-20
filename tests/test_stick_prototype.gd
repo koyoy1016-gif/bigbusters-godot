@@ -373,10 +373,12 @@ func _initialize() -> void:
 		var sc_port: Vector2 = s8._start_center(port)
 		check(sc_port.distance_to(a_port) > float(s8.config["start_radius_px"]) + br and sc_port.distance_to(c_port) > float(s8.config["start_radius_px"]) + float(s8.config["stick_radius_px"]), "縦画面で、はじめるボタンが、ほかのボタンと重ならない")
 		s8.apply_orientation(Vector2(390, 844))
-		check(s8.portrait_mode and s8.camera.keep_aspect == Camera3D.KEEP_WIDTH and is_equal_approx(s8.camera.fov, float(s8.config["camera_fov_portrait"])), "縦画面では、カメラは幅を基準にする")
-		check(s8.camera_offset.is_equal_approx(Vector3(s8.config["camera_offset_portrait"][0], s8.config["camera_offset_portrait"][1], s8.config["camera_offset_portrait"][2])), "縦画面のカメラの位置")
+		# 版91：画角は、たて・横どちらも「たて」で決める（たて画面で横を基準にすると、たての画角が広すぎてゆがむため）。位置は camera_rig.gd
+		var rig_p: Dictionary = preload("res://scripts/prototype/camera_rig.gd").rig_for(s8.config, Vector2(390, 844))
+		check(s8.portrait_mode and s8.camera.keep_aspect == Camera3D.KEEP_HEIGHT and is_equal_approx(s8.camera.fov, float(s8.config["camera_rig"]["portrait"]["fov"])), "縦画面では、カメラの画角は たて %.0f°" % s8.camera.fov)
+		check(s8.camera_offset.is_equal_approx(rig_p["offset"]), "縦画面のカメラの位置（camera_rig）")
 		s8.apply_orientation(Vector2(844, 390))
-		check(not s8.portrait_mode and s8.camera.keep_aspect == Camera3D.KEEP_HEIGHT and is_equal_approx(s8.camera.fov, float(s8.config["camera_fov"])), "横に戻すと、カメラも元に戻る")
+		check(not s8.portrait_mode and s8.camera.keep_aspect == Camera3D.KEEP_HEIGHT and is_equal_approx(s8.camera.fov, float(s8.config["camera_rig"]["landscape"]["fov"])), "横に戻すと、カメラも横の設定に戻る")
 		# 縦画面でも、タッチの操作が同じように働く
 		s8.handle_press(1, c_port, port)
 		check(s8.stick_touch == 1, "縦画面：スティックの領域を押すと、スティックが動く")
