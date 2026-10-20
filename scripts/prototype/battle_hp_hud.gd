@@ -7,6 +7,8 @@ extends RefCounted
 ##   たおれた人は、アイコンを暗く・バーは空。
 ##   ボス：自作の角のある顔のアイコン＋メーター。減った分は、少しおくれて縮む黄色の帯。覚醒（第2形態）はむらさき。
 ## 数値・色・場所は data/prototype_stick.json の "hud"。夕方・夜のどちらの背景でも見えるように、濃い下じきと黒いふち。
+## 版102（軽量化）：体力の表示は、自分の描く板（layer）に描き、**見た目が変わった時だけ**描き直す（前は毎コマ全部描き直していた）。
+##   毎コマは update で「見た目を決める数」（sig）だけを集め、前のコマと同じなら描かない。場所（layout）は画面の大きさごとに1回だけ計算する。
 
 const BossPhase := preload("res://scripts/combat/boss_phase.gd")
 const BossSync := preload("res://scripts/network/boss_sync.gd")
@@ -17,9 +19,15 @@ var b  ## まとめ役（stick_prototype.gd）
 var trail := 1.0  ## ボスのメーターの、おくれて縮む帯（割合）
 var trail_hold := 0.0  ## 減ってから、帯が縮み始めるまでの残り秒
 var last_frac := 1.0
-var last_ms := -1
 var requested := {}  ## 顔の絵を、もう頼んだキャラID
 var _role_colors: Dictionary = {}
+var layer: Control  ## 版102：体力の表示を描く板（overlay の子。overlay の絵より先＝下に描く）
+var ci: CanvasItem  ## いま描いている先（layer。古い呼び方の draw では overlay）
+var _sig: Array = []  ## 前に描いた時の「見た目を決める数」
+var _layout_size := Vector2(-1, -1)
+var _layout: Dictionary = {}
+var _circle_unit := PackedVector2Array()  ## 半径1の円の点（1回だけ作る）
+var redraws := 0  ## 描き直した回数（テスト・測る用）
 
 
 func _init(main) -> void:
@@ -34,8 +42,69 @@ func _pick(c: Dictionary, key: String, portrait: bool) -> Variant:
 	return c.get(key + "_portrait", c.get(key)) if portrait else c.get(key)
 
 
-## 画面の大きさ → 体力の表示の場所
+## 版102：体力の表示を描く板を作る（overlay の子。overlay の絵より先＝下に描く。前と同じ重なり方）
+func attach(parent: Control) -> void:
+	layer = Control.new()
+	layer.name = "HpHud"
+	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.show_behind_parent = true
+	layer.draw.connect(_on_layer_draw)
+	parent.add_child(layer)
+
+
+## 毎コマ：ボスの帯を進め、見た目が変わった時だけ描き直す
+func update(delta: float) -> void:
+	step(delta)
+	if layer == null:
+		return
+	var sig := signature(layer.size)
+	if sig != _sig:
+		_sig = sig
+		layer.queue_redraw()
+
+
+## すぐ描き直す（体力などを外から変えて、写真を撮る時など）
+func refresh() -> void:
+	_sig = []
+	if layer != null:
+		layer.queue_redraw()
+
+
+## 見た目を決める数（これが前のコマと同じなら、描き直さない）。party_views より軽い：同じ元の数だけを集める
+func signature(screen: Vector2) -> Array:
+	var sig: Array = [screen, snappedf(float(b.boss_hp_ratio()), 0.0005), snappedf(trail, 0.0005), b.phase.phase != BossPhase.NORMAL,
+			ceili(maxf(float(b.my_hp), 0.0)), b.role_value("hp"), bool(b.downed), float(b.player_hit_flash) > 0.0, b.selected_character, b.hud_portraits.size()]
+	for slot in SLOTS:
+		if b.ai_allies.has(slot):
+			var a: Dictionary = b.ai_allies[slot]
+			sig.append_array([slot, str(a.get("id", "")), ceili(maxf(float(a["hp"]), 0.0)), float(a.get("max_hp", 0.0)), bool(a.get("downed", false))])
+	if b.net_active:
+		for key in ["members", "hp", "chars"]:
+			var v: Variant = b.net_state.get(key, null)
+			sig.append(v.duplicate(true) if (v is Dictionary or v is Array) else v)
+		sig.append_array([b.round_start_ms, str(b._my_slot())])
+	return sig
+
+
+func _on_layer_draw() -> void:
+	ci = layer
+	redraws += 1
+	var L := layout(layer.size)
+	_draw_boss(L)
+	_draw_party(L)
+
+
+## 画面の大きさ → 体力の表示の場所（版102：画面の大きさが同じなら、前の計算を使う）
 func layout(screen: Vector2) -> Dictionary:
+	if screen == _layout_size and not _layout.is_empty():
+		return _layout
+	_layout_size = screen
+	_layout = _calc_layout(screen)
+	return _layout
+
+
+func _calc_layout(screen: Vector2) -> Dictionary:
 	var h := cfg()
 	var portrait := screen.y > screen.x
 	var bc: Dictionary = h.get("boss", {})
@@ -159,14 +228,12 @@ func reset() -> void:
 	trail = 1.0
 	trail_hold = 0.0
 	last_frac = 1.0
+	refresh()
 
 
-## 描く（overlay の _draw の中から）
+## 描く（古い呼び方：overlay の _draw の中から。版102 からは layer が自分で描く）
 func draw(screen: Vector2) -> void:
-	var now := Time.get_ticks_msec()
-	var dt := 0.0 if last_ms < 0 else clampf((now - last_ms) / 1000.0, 0.0, 0.1)
-	last_ms = now
-	step(dt)
+	ci = b.overlay
 	var L := layout(screen)
 	_draw_boss(L)
 	_draw_party(L)
@@ -176,25 +243,30 @@ func _text(pos: Vector2, text: String, size: int, color: Color, outline: int = -
 	var h := cfg()
 	var o := outline if outline >= 0 else int(h.get("outline_px", 5))
 	if o > 0:
-		b.overlay.draw_string_outline(b.font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, o, Color(str(h.get("outline_color", "#000000"))))
-	b.overlay.draw_string(b.font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+		ci.draw_string_outline(b.font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, o, Color(str(h.get("outline_color", "#000000"))))
+	ci.draw_string(b.font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
 
 
 func _circle_points(c: Vector2, r: float, n: int = 32) -> PackedVector2Array:
+	if _circle_unit.size() != n:
+		_circle_unit = PackedVector2Array()
+		for i in n:
+			var a := TAU * i / n
+			_circle_unit.append(Vector2(cos(a), sin(a)))
 	var pts := PackedVector2Array()
+	pts.resize(n)
 	for i in n:
-		var a := TAU * i / n
-		pts.append(c + Vector2(cos(a), sin(a)) * r)
+		pts[i] = c + _circle_unit[i] * r
 	return pts
 
 
 func _bar(rect: Rect2, frac: float, col: Color, back: Color) -> void:
-	b.overlay.draw_rect(rect.grow(2.0), Color(0, 0, 0, 0.85))
-	b.overlay.draw_rect(rect, back)
+	ci.draw_rect(rect.grow(2.0), Color(0, 0, 0, 0.85))
+	ci.draw_rect(rect, back)
 	var w := rect.size.x * clampf(frac, 0.0, 1.0)
 	if w > 0.0:
-		b.overlay.draw_rect(Rect2(rect.position, Vector2(w, rect.size.y)), col)
-		b.overlay.draw_rect(Rect2(rect.position, Vector2(w, rect.size.y * 0.35)), col.lightened(0.35))
+		ci.draw_rect(Rect2(rect.position, Vector2(w, rect.size.y)), col)
+		ci.draw_rect(Rect2(rect.position, Vector2(w, rect.size.y * 0.35)), col.lightened(0.35))
 
 
 func _draw_boss(L: Dictionary) -> void:
@@ -209,37 +281,37 @@ func _draw_boss(L: Dictionary) -> void:
 	# 下じき（角を切った形）
 	var cut := rect.size.y * 0.3
 	var back := PackedVector2Array([rect.position + Vector2(cut, 0), Vector2(rect.end.x, rect.position.y), Vector2(rect.end.x, rect.end.y - cut), Vector2(rect.end.x - cut, rect.end.y), Vector2(rect.position.x, rect.end.y), rect.position + Vector2(0, cut)])
-	b.overlay.draw_colored_polygon(back, Color(str(bc.get("back_color", "#1a1020d8"))))
+	ci.draw_colored_polygon(back, Color(str(bc.get("back_color", "#1a1020d8"))))
 	var closed := back.duplicate()
 	closed.append(back[0])
-	b.overlay.draw_polyline(closed, frame, 2.0)
+	ci.draw_polyline(closed, frame, 2.0)
 	# ラベル（BOSS／覚醒 BOSS）。数字は出さない（版95）
 	var fs := int(float(b.config["ui_font_size"]) * float(bc.get("text_size", 0.62)))
 	_text(Vector2(bar.position.x, bar.position.y - 6.0), str(v["label"]), fs, v["color"].lightened(0.35), 4)
 	# メーター：うしろ・おくれて縮む帯・いまの体力・つや
-	b.overlay.draw_rect(bar.grow(2.0), Color(0, 0, 0, 0.85))
-	b.overlay.draw_rect(bar, Color(str(bc.get("bar_back_color", "#3a1420"))))
+	ci.draw_rect(bar.grow(2.0), Color(0, 0, 0, 0.85))
+	ci.draw_rect(bar, Color(str(bc.get("bar_back_color", "#3a1420"))))
 	if float(v["trail"]) > float(v["frac"]):
-		b.overlay.draw_rect(Rect2(bar.position, Vector2(bar.size.x * float(v["trail"]), bar.size.y)), Color(str(bc.get("trail_color", "#ffe08a"))))
+		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * float(v["trail"]), bar.size.y)), Color(str(bc.get("trail_color", "#ffe08a"))))
 	var fw: float = bar.size.x * float(v["frac"])
 	var col: Color = v["color"]
-	b.overlay.draw_rect(Rect2(bar.position, Vector2(fw, bar.size.y)), col)
-	b.overlay.draw_rect(Rect2(bar.position, Vector2(fw, bar.size.y * 0.35)), col.lightened(0.35))
+	ci.draw_rect(Rect2(bar.position, Vector2(fw, bar.size.y)), col)
+	ci.draw_rect(Rect2(bar.position, Vector2(fw, bar.size.y * 0.35)), col.lightened(0.35))
 	# 第1形態の間は、右はしに「第2形態がある」ことを示す小さな印
 	if not bool(v["awake"]):
-		b.overlay.draw_rect(Rect2(Vector2(bar.end.x - 5.0, bar.position.y), Vector2(5.0, bar.size.y)), Color(str(bc.get("bar_color_awake", "#b23cff"))))
+		ci.draw_rect(Rect2(Vector2(bar.end.x - 5.0, bar.position.y), Vector2(5.0, bar.size.y)), Color(str(bc.get("bar_color_awake", "#b23cff"))))
 	# アイコン：自作のボスの顔（角・光る目）
-	b.overlay.draw_circle(ic, ir + 3.0, frame)
-	b.overlay.draw_circle(ic, ir, Color(str(bc.get("icon_back", "#2a0d18"))))
+	ci.draw_circle(ic, ir + 3.0, frame)
+	ci.draw_circle(ic, ir, Color(str(bc.get("icon_back", "#2a0d18"))))
 	var face := Color(str(bc.get("icon_face", "#5a1f2e")))
 	var horn := Color(str(bc.get("icon_horn", "#e9dcc0")))
-	b.overlay.draw_colored_polygon(PackedVector2Array([ic + Vector2(-ir * 0.55, -ir * 0.15), ic + Vector2(-ir * 0.85, -ir * 0.85), ic + Vector2(-ir * 0.2, -ir * 0.45)]), horn)
-	b.overlay.draw_colored_polygon(PackedVector2Array([ic + Vector2(ir * 0.55, -ir * 0.15), ic + Vector2(ir * 0.85, -ir * 0.85), ic + Vector2(ir * 0.2, -ir * 0.45)]), horn)
-	b.overlay.draw_circle(ic + Vector2(0, ir * 0.12), ir * 0.6, face)
+	ci.draw_colored_polygon(PackedVector2Array([ic + Vector2(-ir * 0.55, -ir * 0.15), ic + Vector2(-ir * 0.85, -ir * 0.85), ic + Vector2(-ir * 0.2, -ir * 0.45)]), horn)
+	ci.draw_colored_polygon(PackedVector2Array([ic + Vector2(ir * 0.55, -ir * 0.15), ic + Vector2(ir * 0.85, -ir * 0.85), ic + Vector2(ir * 0.2, -ir * 0.45)]), horn)
+	ci.draw_circle(ic + Vector2(0, ir * 0.12), ir * 0.6, face)
 	var eye := Color(str(bc.get("icon_eye_awake", "#ff7bff"))) if bool(v["awake"]) else Color(str(bc.get("icon_eye", "#ffd84a")))
 	for sx in [-1.0, 1.0]:
-		b.overlay.draw_colored_polygon(PackedVector2Array([ic + Vector2(sx * ir * 0.12, -ir * 0.02), ic + Vector2(sx * ir * 0.42, -ir * 0.1), ic + Vector2(sx * ir * 0.36, ir * 0.08)]), eye)
-	b.overlay.draw_line(ic + Vector2(-ir * 0.25, ir * 0.4), ic + Vector2(ir * 0.25, ir * 0.4), Color(0, 0, 0, 0.8), 3.0)
+		ci.draw_colored_polygon(PackedVector2Array([ic + Vector2(sx * ir * 0.12, -ir * 0.02), ic + Vector2(sx * ir * 0.42, -ir * 0.1), ic + Vector2(sx * ir * 0.36, ir * 0.08)]), eye)
+	ci.draw_line(ic + Vector2(-ir * 0.25, ir * 0.4), ic + Vector2(ir * 0.25, ir * 0.4), Color(0, 0, 0, 0.8), 3.0)
 
 
 func _draw_party(L: Dictionary) -> void:
@@ -253,12 +325,12 @@ func _draw_party(L: Dictionary) -> void:
 		var cell: Rect2 = c["cell"]
 		var ic: Vector2 = c["icon"]
 		var r: float = c["icon_r"]
-		b.overlay.draw_rect(Rect2(cell.position + Vector2(r, 3.0), Vector2(cell.size.x - r, cell.size.y - 6.0)), Color(str(pc.get("cell_back", "#0b0e1aa8"))))
+		ci.draw_rect(Rect2(cell.position + Vector2(r, 3.0), Vector2(cell.size.x - r, cell.size.y - 6.0)), Color(str(pc.get("cell_back", "#0b0e1aa8"))))
 		# 丸いアイコン：キャラの顔の絵（なければ、役の色の丸と人の形）。たおれたら暗く
 		var ring := Color(str(pc.get("me_ring", "#ffd34a"))) if bool(v["me"]) else Color(str(pc.get("ring", "#0b0e1a")))
 		if bool(v["me"]) and float(b.player_hit_flash) > 0.0:
 			ring = ring.lerp(Color.WHITE, 0.6)  # 自分が当たった直後は、ふちが白く光る
-		b.overlay.draw_circle(ic, r + 3.0, ring)
+		ci.draw_circle(ic, r + 3.0, ring)
 		var tex := portrait_of(str(v["id"]))
 		var dim := Color(0.45, 0.45, 0.45) if bool(v["down"]) else Color.WHITE
 		if tex != null:
@@ -267,15 +339,15 @@ func _draw_party(L: Dictionary) -> void:
 			var z := float(pc.get("portrait_zoom", 0.9))
 			for p in pts:
 				uvs.append(Vector2(0.5, 0.5) + (p - ic) / r * 0.5 * z)
-			b.overlay.draw_colored_polygon(pts, dim, uvs, tex)
+			ci.draw_colored_polygon(pts, dim, uvs, tex)
 		else:
-			b.overlay.draw_circle(ic, r, role_color(str(v["id"])) * dim)
+			ci.draw_circle(ic, r, role_color(str(v["id"])) * dim)
 			var fg := Color(1, 1, 1, 0.9) * dim
-			b.overlay.draw_circle(ic + Vector2(0, -r * 0.22), r * 0.3, fg)
+			ci.draw_circle(ic + Vector2(0, -r * 0.22), r * 0.3, fg)
 			var sh := PackedVector2Array()
 			for k in 13:
 				var a := PI + PI * k / 12.0
 				sh.append(ic + Vector2(cos(a) * r * 0.55, r * 0.62 + sin(a) * r * 0.5))
-			b.overlay.draw_colored_polygon(sh, fg)
+			ci.draw_colored_polygon(sh, fg)
 		# 体力のバー（数字は出さない）
 		_bar(c["bar"], float(v["ratio"]), v["color"], Color(str(pc.get("bar_back", "#14202a"))))

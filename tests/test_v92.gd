@@ -34,7 +34,7 @@ func _initialize() -> void:
 	var a := src.find("func _draw_overlay")
 	var body := src.substr(a, src.find("\nfunc ", a + 10) - a)
 	check(not body.contains("build_team_text()") and not body.contains("build_room_text(") and not body.contains("hint_portrait") and not body.contains("player_hp_label") and not body.contains("boss_hp_label"), "上の文字の行（説明・BOSS HP・やく/体力・なかま・通信）は描かない")
-	check(body.contains("b.hp_hud.draw(screen)"), "かわりに、新しい体力の表示を描く")
+	check(body.contains("b.hp_hud.layout(screen)") and FileAccess.get_file_as_string("res://scripts/prototype/stick_prototype.gd").contains("hp_hud.attach(overlay)"), "かわりに、新しい体力の表示を描く（版102：overlay の子の板 hp_hud.layer に、変わった時だけ）")
 
 	var s: Node = (load(SCENE) as PackedScene).instantiate()
 	s.selected_character = "hero_swordsman"

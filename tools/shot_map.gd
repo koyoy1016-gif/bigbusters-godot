@@ -34,6 +34,7 @@ func _initialize() -> void:
 			s.tod.apply()
 	if view == "battle":
 		s.overlay.queue_redraw()  # 画面の字・体力の表示も、いまの値で描きなおす
+		s.hp_hud.refresh()  # 版102：体力の表示は自分の板（変わった時だけ描く）
 		for i in 4:
 			await process_frame
 	else:

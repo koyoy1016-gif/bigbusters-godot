@@ -11,18 +11,38 @@ static func load_config(path: String = PATH) -> Dictionary:
 	return parsed if parsed is Dictionary else {}
 
 
+## 版102（軽量化）：find の索引（id → キャラ）。同じ characters の配列（同じ物・同じ数）なら作り直さない
+static var _index_of: Array = []
+static var _index_size := -1
+static var _index: Dictionary = {}
+## 版102（軽量化）：has_model の答え（ファイルのあるなしは、遊んでいる間に変わらない）。前は毎コマ3回ファイルを調べていた
+static var _model_exists: Dictionary = {}
+
+
 ## id のキャラ。なければ {}
 static func find(cfg: Dictionary, id: String) -> Dictionary:
-	for c in cfg.get("characters", []):
-		if str(c.get("id", "")) == id:
-			return c
-	return {}
+	var arr: Variant = cfg.get("characters", [])
+	if not (arr is Array):
+		return {}
+	if not is_same(arr, _index_of) or (arr as Array).size() != _index_size:
+		_index_of = arr
+		_index_size = (arr as Array).size()
+		_index = {}
+		for c in arr:
+			var cid := str(c.get("id", ""))
+			if not _index.has(cid):
+				_index[cid] = c  # 同じ id が2つあれば、前と同じく先の物
+	return _index.get(id, {})
 
 
 ## モデルのファイルが、実際に読めるか
 static func has_model(character: Dictionary) -> bool:
 	var path := str(character.get("model", ""))
-	return path != "" and ResourceLoader.exists(path)
+	if path == "":
+		return false
+	if not _model_exists.has(path):
+		_model_exists[path] = ResourceLoader.exists(path)
+	return bool(_model_exists[path])
 
 
 ## 動作（idle, run, jump, attack, down）に対応する、モデルの中のアニメ名。なければ ""

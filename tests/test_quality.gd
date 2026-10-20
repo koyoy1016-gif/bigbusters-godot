@@ -59,6 +59,15 @@ func _initialize() -> void:
 	check(txt2.contains("がぞう 49 MB") and txt2.contains("メモリ 173 MB") and txt3.contains("がぞう 49 MB") and not txt3.contains("メモリ") and not txt.contains("がぞう"), "版100：画像のメモリ・ゲームのメモリ（数えられる時だけ）も出せる：" + txt2.replace("\n", " / "))
 	var txt4: String = PerfOverlay.build_text(41.0, 88.0, 130, Vector2i(456, 987), "low", 49.4, 0.0, 7, 4.25, 6.1)
 	check(txt4.contains("おそい 7") and txt4.contains("しょり 4.2 ms") and txt4.contains("びょうがCPU 6.1 ms") and not txt.contains("おそい") and not txt.contains("しょり"), "版101：おそいコマの数・しょり・びょうがCPU も出せる（渡さなければ出さない）：" + txt4.replace("\n", " / "))
+	# 版102：重さの表示の字は、日本語の字が入った文字の形で出す（前はかなが □ になっていた）
+	var jf := load("res://assets/fonts/NotoSansJP-Regular-subset.ttf") as Font
+	var missing := ""
+	for ch in txt4 + txt2:
+		if ch != "\n" and ch != " " and not jf.has_char(ch.unicode_at(0)):
+			missing += ch
+	var gsrc := FileAccess.get_file_as_string("res://scripts/flow/game_flow.gd")
+	var psrc := FileAccess.get_file_as_string("res://scripts/core/perf_overlay.gd")
+	check(missing == "" and gsrc.contains("perf_overlay.font = font") and psrc.contains("add_theme_font_override(\"font\", font)"), "重さの表示は、日本語の字が入った文字の形で出す（使う字はすべて入っている）" + ("" if missing == "" else "：ない字 " + missing))
 	Quality.apply("zzz", cfg, null, [])
 	check(Engine.max_fps == 0, "壊れた名前は、既定（低）になる。描画の設定がなくても落ちない")
 	Engine.max_fps = 0

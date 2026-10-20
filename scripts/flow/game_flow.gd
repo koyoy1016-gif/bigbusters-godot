@@ -664,6 +664,7 @@ func show_perf() -> void:
 	if perf_overlay == null:
 		perf_overlay = PerfOverlay.new()
 		perf_overlay.name = "Perf"
+		perf_overlay.font = font  # 版102：日本語の字（前はかなが □ になっていた）
 		add_child(perf_overlay)
 	perf_overlay.quality_name = quality_name
 

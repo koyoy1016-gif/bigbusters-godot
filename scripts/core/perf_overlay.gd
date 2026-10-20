@@ -15,6 +15,7 @@ var elapsed := 0.0
 var worst := 0.0
 var quality_name := ""
 var last_text := ""
+var font: Font  ## 版102：日本語の字が入った文字の形（画面の流れが渡す。前は渡していなかったので、かなが □ になっていた）
 var slow := 0  ## 版101：おそいコマの数（この1秒）
 var cpu_sum := 0.0  ## 版101：しょり（秒）の合計
 var render_sum := 0.0  ## 版101：びょうがCPU（ミリ秒）の合計
@@ -39,6 +40,8 @@ func _ready() -> void:
 	layer = 100
 	label = Label.new()
 	label.position = Vector2(8, 8)
+	if font != null:
+		label.add_theme_font_override("font", font)
 	label.add_theme_font_size_override("font_size", 22)
 	label.add_theme_color_override("font_color", Color(1, 1, 0.4))
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0))

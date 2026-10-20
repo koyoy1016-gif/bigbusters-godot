@@ -590,6 +590,7 @@ func _build_ui() -> void:
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.draw.connect(_draw_overlay)
 	layer.add_child(overlay)
+	hp_hud.attach(overlay)  # 版102：体力の表示は自分の板に描き、見た目が変わった時だけ描き直す
 
 
 ## 休止：ハイライト・報酬の間、部屋に残したまま、画面と操作だけ止める（全員さいせんのため）
@@ -682,10 +683,16 @@ func _process(delta: float) -> void:
 	crowd_state.refresh(crowd_t)
 	sub_crowd.update_at(crowd_t, crowd_state)
 	_touch_update(delta)
-	player_material.albedo_color = _player_color()
-	player_marker_material.albedo_color = _slot_color(str(net_state.get("slot", "")))
+	# 版102（軽量化）：色が変わった時だけ材質に書く（書くたびに、材質の数の送り直しが起きるため）
+	var pc := _player_color()
+	if player_material.albedo_color != pc:
+		player_material.albedo_color = pc
+	var mc := _slot_color(str(net_state.get("slot", "")))
+	if player_marker_material.albedo_color != mc:
+		player_marker_material.albedo_color = mc
 	apply_orientation(Vector2(get_window().size) if get_window() != null else Vector2(16, 9))
 	camera_update(delta)
+	hp_hud.update(delta)
 	overlay.queue_redraw()
 
 
@@ -740,7 +747,22 @@ func selected_def() -> Dictionary:
 
 
 ## 自分の役割。選んだキャラがあれば、そのキャラの性能（data/characters.json）。なければ、枠で決まる古い役割（data の roles）
+## 版102（軽量化）：毎コマ何回も呼ばれるので、選んだキャラと枠が同じ間は、前に作った物を返す（前は毎回、性能の辞書を写していた）。
+## 呼ぶ所はどれも読むだけ（書きかえない）
+var _role_cache: Dictionary = {}
+var _role_key := ""
+
+
 func role() -> Dictionary:
+	var key := selected_character + "|" + str(net_state.get("slot", "")) + "|" + str(characters_cfg.size())
+	if key == _role_key and not _role_cache.is_empty():
+		return _role_cache
+	_role_key = key
+	_role_cache = _make_role()
+	return _role_cache
+
+
+func _make_role() -> Dictionary:
 	var def := selected_def()
 	if not def.is_empty():
 		var r: Dictionary = (def["stats"] as Dictionary).duplicate()

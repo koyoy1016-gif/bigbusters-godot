@@ -49,39 +49,62 @@ func _init(main: StickPrototype) -> void:
 	b = main
 
 
+## 版102（軽量化）：設定の色（"#rrggbb" の文字）を、毎コマ読み直さない（1回読んだら覚える）。
+## key が設定にない時は、key そのものを色の文字として読む（ボタンの色の名前を渡す所のため）
+var _color_cache: Dictionary = {}
+
+
+func _cc(key: String, def: String = "") -> Color:
+	var c: Variant = _color_cache.get(key)
+	if c == null:
+		c = Color(str(b.config.get(key, def if def != "" else key)))
+		_color_cache[key] = c
+	return c
+
+
+## ダメージの数字の種類ごとの色（覚える）
+func _kc(kc: Dictionary, kind: String, field: String, def: String) -> Color:
+	var key := "dn:" + kind + ":" + field
+	var c: Variant = _color_cache.get(key)
+	if c == null:
+		c = Color(str(kc.get(field, def)))
+		_color_cache[key] = c
+	return c
+
+
 func _draw_overlay() -> void:
 	var screen := b.overlay.size
 	var fs := int(b.config["ui_font_size"])
-	var text_color := Color(str(b.config["text_color"]))
-	var button_text := Color(str(b.config["button_text_color"]))
+	var text_color := _cc("text_color")
+	var button_text := _cc("button_text_color")
 	var r := float(b.config["stick_radius_px"])
 	var c := _stick_center(screen)
-	b.overlay.draw_circle(c, r, Color(str(b.config["stick_base_color"])))
-	b.overlay.draw_circle(c + b.stick_vec * r, r * 0.4, Color(str(b.config["stick_knob_color"])))
+	b.overlay.draw_circle(c, r, _cc("stick_base_color"))
+	b.overlay.draw_circle(c + b.stick_vec * r, r * 0.4, _cc("stick_knob_color"))
 
 	var br := float(b.config["button_radius_px"])
 	var held := b._me_held()
 	for id in b.actions.ids():
 		var bc := _button_center(str(id), screen)
-		var color := str(b.config["button_pressed_color"]) if float(b.button_flash.get(id, 0.0)) > 0.0 else (str(b.config["button_cooldown_color"]) if b.actions.cooldown_left(str(id)) > 0.0 or b.actions.busy() or held else str(b.config["button_color"]))
+		var color := "button_pressed_color" if float(b.button_flash.get(id, 0.0)) > 0.0 else ("button_cooldown_color" if b.actions.cooldown_left(str(id)) > 0.0 or b.actions.busy() or held else "button_color")
 		var label := str(b.actions.def(str(id)).get("label", id))
 		var is_ult := str(id) == "ultimate"
 		if is_ult and not held:
 			if b.gauge.is_ready():
 				var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.012)
-				color = str(b.config["button_pressed_color"]) if float(b.button_flash.get(id, 0.0)) > 0.0 else str(b.config["ultimate_ready_color"])
-				b.overlay.draw_circle(bc, br + 4.0 + 6.0 * pulse, Color(str(b.config["ultimate_ring_color"])).darkened(0.1))
+				color = "button_pressed_color" if float(b.button_flash.get(id, 0.0)) > 0.0 else "ultimate_ready_color"
+				b.overlay.draw_circle(bc, br + 4.0 + 6.0 * pulse, _cc("ultimate_ring_color").darkened(0.1))
 			elif b.actions.busy():
-				color = str(b.config["button_cooldown_color"])
+				color = "button_cooldown_color"
 		if held:
 			label = "×"  # 版70：つかまれている間は、どのボタンも効かない
-		b.overlay.draw_circle(bc, br, Color(color))
+		b.overlay.draw_circle(bc, br, _cc(color))
 		if is_ult and not b.gauge.is_ready():
-			b.overlay.draw_arc(bc, br + 6.0, -PI * 0.5, -PI * 0.5 + TAU * b.gauge.ratio(), 40, Color(str(b.config["ultimate_ring_color"])), 7.0)
+			b.overlay.draw_arc(bc, br + 6.0, -PI * 0.5, -PI * 0.5 + TAU * b.gauge.ratio(), 40, _cc("ultimate_ring_color"), 7.0)
 		_draw_centered(bc, label, button_text)
 
 	# 版92：上の文字の行（説明・BOSS HP・やく/体力・なかま・通信）はやめた。体力は、画面に固定した新しい表示（battle_hp_hud.gd）
-	b.hp_hud.draw(screen)
+	# 版102：体力の表示は、自分の板（b.hp_hud.layer）に、見た目が変わった時だけ描く（ここでは描かない）
 	var hud_bottom: float = float(b.hp_hud.layout(screen)["center_bottom"])
 	# 版の数字（公開した版の確認用）：右下に小さく、うすく
 	var vfs := int(fs * 0.5)
@@ -91,7 +114,7 @@ func _draw_overlay() -> void:
 
 	if b._start_button_visible():
 		var sc := _start_center(screen)
-		b.overlay.draw_circle(sc, float(b.config["start_radius_px"]), Color(str(b.config["button_color"])))
+		b.overlay.draw_circle(sc, float(b.config["start_radius_px"]), _cc("button_color"))
 		_draw_centered(sc, str(b.config["restart_label"]) if b.round_count > 0 else str(b.config["start_label"]), button_text)
 	if b.won or b.lost:
 		var result := str(b.config["win_text"]) if b.won else str(b.config["lose_text"])
@@ -101,9 +124,9 @@ func _draw_overlay() -> void:
 		for i in lines.size():
 			_draw_centered(Vector2(screen.x * 0.5, ry + fs * (2.2 + 1.5 * i)), str(lines[i]), text_color)
 	if b.is_enraged() and int(Time.get_ticks_msec() / 400) % 2 == 0:
-		_draw_centered(Vector2(screen.x * 0.5, maxf(screen.y * 0.12, hud_bottom + fs * 1.4)), str(b.config["enrage_text"]), Color(str(b.config["enrage_color"])), 1.4)  # 版92：体力の表示の下に
+		_draw_centered(Vector2(screen.x * 0.5, maxf(screen.y * 0.12, hud_bottom + fs * 1.4)), str(b.config["enrage_text"]), _cc("enrage_color"), 1.4)  # 版92：体力の表示の下に
 	if float(b.phase_text["left"]) > 0.0 and str(b.phase_text["text"]) != "":
-		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(b.phase_text["text"]), Color(str(b.config.get("bossbar_color_awake", "#ffffff"))), 1.8)
+		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(b.phase_text["text"]), _cc("bossbar_color_awake", "#ffffff"), 1.8)
 	# 版84：自分が倒れている時：起こしてもらえる のこり時間・起こしてもらっている進み
 	var rs: String = b.revive_sys.my_status() if b.get("revive_sys") != null else ""
 	if rs != "":
@@ -164,10 +187,10 @@ func _draw_banner(screen: Vector2) -> void:
 	var fs := float(settled) * pop  # 画面での文字の大きさ（前と同じ）
 	var text := str(b.banner["text"])
 	var w := b.font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"])).x * float(lv["k"])
-	var back := Color(str(b.config["banner_back_color"]))
+	var back := _cc("banner_back_color")
 	back.a *= alpha
 	b.overlay.draw_rect(Rect2(Vector2(0.0, center.y - fs * 0.9), Vector2(screen.x, fs * 1.8)), back)
-	var col := Color(str(b.config["banner_color"]))
+	var col := _cc("banner_color")
 	col.a = alpha
 	_scaled_string(b.font, center + Vector2(-w * 0.5 + 3.0, fs * 0.35 + 3.0), text, lv, Color(0, 0, 0, alpha))
 	_scaled_string(b.font, center + Vector2(-w * 0.5, fs * 0.35), text, lv, col)
@@ -248,7 +271,7 @@ func _draw_damage_numbers(screen: Vector2) -> void:
 		var a := float(lk["alpha"])
 		# 強い攻撃：出た瞬間の、短い衝撃線
 		if float(lk["burst"]) > 0.0:
-			var bcol := Color(str(kc.get("burst_color", "#fff3b0")))
+			var bcol := _kc(kc, str(it["kind"]), "burst_color", "#fff3b0")
 			bcol.a = a * float(lk["burst"])
 			for i in 8:
 				var ang := TAU * i / 8.0 + 0.2
@@ -257,9 +280,9 @@ func _draw_damage_numbers(screen: Vector2) -> void:
 				var r1 := r0 + 26.0 * (1.2 - float(lk["burst"]))
 				b.overlay.draw_line(p + dir * r0, p + dir * r1, bcol, 4.0)
 		var at := p + Vector2(-sz.x * 0.5, sz.y * 0.32)
-		var oc := Color(str(kc.get("outline", "#2b1606")))
+		var oc := _kc(kc, str(it["kind"]), "outline", "#2b1606")
 		oc.a = a
-		var fc := Color(str(kc.get("color", "#fff6c8")))
+		var fc := _kc(kc, str(it["kind"]), "color", "#fff6c8")
 		fc.a = a
 		_scaled_string(_dmg_font, at, text, lv, fc, int(dc.get("outline_px", 9)), oc)
 
