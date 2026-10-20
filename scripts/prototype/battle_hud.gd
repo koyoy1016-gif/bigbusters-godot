@@ -82,7 +82,7 @@ func _draw_overlay() -> void:
 
 	# 版92：上の文字の行（説明・BOSS HP・やく/体力・なかま・通信）はやめた。体力は、画面に固定した新しい表示（battle_hp_hud.gd）
 	b.hp_hud.draw(screen)
-	var hud_bottom: float = float(b.hp_hud.layout(screen)["bottom"])
+	var hud_bottom: float = float(b.hp_hud.layout(screen)["center_bottom"])
 	# 版の数字（公開した版の確認用）：右下に小さく、うすく
 	var vfs := int(fs * 0.5)
 	var vtxt := str(b.config["build_label"]) + str(b.config["build_id"])

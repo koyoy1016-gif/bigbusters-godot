@@ -3,7 +3,8 @@ extends SceneTree
 ## 版92：戦いの画面の、上の文字の行をやめて、体力の表示を新しくした。
 ## 確かめること：
 ##   1. 上の文字の行（説明・BOSS HP・やく/体力・なかま・通信）は描かない
-##   2. 自分：丸いアイコン＋体力の数字。数字は本当の体力（切り上げ）。30 未満で赤・30 ちょうどはふつうの色・29 で赤
+##   （版95 で数字をやめてバーにしたので、色は「バーの色」で確かめる。数は見え方の計算の中だけ）
+##   2. 自分：体力は本当の体力（切り上げ）。30 未満で赤・30 ちょうどはふつうの色（緑）・29 で赤
 ##   3. 自分：ダメージ・回復で、すぐ数字が変わる。倒れたら「ダウン」
 ##   4. ボス：アイコン＋メーター＋数字（いま / 最大）。本当の体力と同じ割合。減った分はおくれて縮む帯。覚醒（第2形態）はむらさき・ラベルも変わる。満タンにもどる時は帯もすぐ合わせる
 ##   5. 場所：画面の中・ボスと自分が重ならない・スティックとボタンに重ならない（たて・横の4つの画面の形）
@@ -54,7 +55,7 @@ func _initialize() -> void:
 	# ---- 2. 自分の数字と色 ----
 	s.my_hp = 30.0
 	var v: Dictionary = hh.player_view()
-	check(int(v["hp"]) == 30 and not bool(v["low"]) and (v["color"] as Color).is_equal_approx(Color(str(hc["hp_color"]))), "体力 30：ふつうの色")
+	check(int(v["hp"]) == 30 and not bool(v["low"]) and (v["color"] as Color).is_equal_approx(Color(str(hc["party"]["bar_color"]))), "体力 30：ふつうの色（緑）")
 	s.my_hp = 29.0
 	v = hh.player_view()
 	check(int(v["hp"]) == 29 and bool(v["low"]) and (v["color"] as Color).is_equal_approx(Color(str(hc["hp_low_color"]))), "体力 29：赤")
@@ -116,7 +117,7 @@ func _initialize() -> void:
 			scr.x = scr.y * sz.x / sz.y
 		var L: Dictionary = hh.layout(scr)
 		var boss_r: Rect2 = L["boss_rect"]
-		var pl_r: Rect2 = L["player_rect"]
+		var pl_r: Rect2 = L["party_rect"]
 		var full := Rect2(Vector2.ZERO, scr)
 		check(full.encloses(boss_r) and full.encloses(pl_r), "%s：体力の表示は画面の中" % nm)
 		check(not boss_r.intersects(pl_r), "%s：ボスと自分の表示が重ならない" % nm)
@@ -126,7 +127,7 @@ func _initialize() -> void:
 			var bc: Vector2 = s.hud._button_center(str(id), scr)
 			hit = hit or circle_hits_rect(bc, br + 6.0, boss_r) or circle_hits_rect(bc, br + 6.0, pl_r)
 		check(not hit, "%s：スティック・ボタンに重ならない" % nm)
-		check(float(L["bottom"]) < scr.y * 0.2, "%s：上のほう（画面の上から %.0f%% まで）に収まり、戦いの場所をかくさない" % [nm, float(L["bottom"]) / scr.y * 100.0])
+		check(float(L["bottom"]) < scr.y * 0.36 and (L["party_rect"] as Rect2).end.x < scr.x * 0.5, "%s：上の左のほう（上から %.0f%% まで・左半分）に収まり、戦いの場所をかくさない（版95：4人をたてに並べた）" % [nm, float(L["bottom"]) / scr.y * 100.0])
 
 	# ---- 6. 画面に固定 ----
 	var L1: Dictionary = hh.layout(Vector2(648, 1152))
@@ -137,19 +138,19 @@ func _initialize() -> void:
 	for i in 10:
 		s.camera_update(1.0 / 60.0)
 	var L2: Dictionary = hh.layout(Vector2(648, 1152))
-	check((L1["boss_rect"] as Rect2).is_equal_approx(L2["boss_rect"]) and (L1["player_rect"] as Rect2).is_equal_approx(L2["player_rect"]), "カメラが動いても・ゆれても・寄っても、表示の場所と大きさは同じ")
+	check((L1["boss_rect"] as Rect2).is_equal_approx(L2["boss_rect"]) and (L1["party_rect"] as Rect2).is_equal_approx(L2["party_rect"]), "カメラが動いても・ゆれても・寄っても、表示の場所と大きさは同じ")
 
 	# ---- 7. 読みやすさ ----
 	check(int(hc["outline_px"]) >= 3 and Color(str(hc["outline_color"])).get_luminance() < 0.1, "字は黒いふちどり（%d px）で、夕方・夜のどちらの背景でも読める" % int(hc["outline_px"]))
-	check(Color(str(hc["boss"]["back_color"])).a >= 0.7 and Color(str(hc["player"]["panel_color"])).a >= 0.5, "下じきは濃い（背景にうもれない）")
+	check(Color(str(hc["boss"]["back_color"])).a >= 0.7 and Color(str(hc["party"]["cell_back"])).a >= 0.5, "下じきは濃い（背景にうもれない）")
 	check(Color(str(hc["hp_low_color"])).r > 0.9 and Color(str(hc["hp_low_color"])).g < 0.4, "赤ははっきりした赤 %s" % str(hc["hp_low_color"]))
 	check(body.contains("build_label") and body.contains("version_alpha"), "版の数字は、右下に小さく・うすく（確認用）")
 
 	# ---- 8. 顔の絵 ----
 	var gf := FileAccess.get_file_as_string("res://scripts/flow/game_flow.gd")
-	check(gf.contains("bt.hud_portrait = tex"), "画面の流れが、自分のキャラの顔の絵を戦いに渡す")
+	check(gf.contains("battle.portrait_source = portraits"), "画面の流れが、顔の絵を作る係を戦いに渡す（版95：4人分）")
 	var hsrc := FileAccess.get_file_as_string("res://scripts/prototype/battle_hp_hud.gd")
-	check(hsrc.contains("draw_colored_polygon(pts") and hsrc.contains("role_color()"), "顔の絵は丸く切りぬいて描く。ないときは役の色の丸")
+	check(hsrc.contains("draw_colored_polygon(pts") and hsrc.contains("role_color("), "顔の絵は丸く切りぬいて描く。ないときは役の色の丸")
 	s.queue_free()
 
 	print("失敗: %d" % failures)

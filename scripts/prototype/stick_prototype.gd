@@ -103,8 +103,9 @@ var map_root: Node3D = null  ## 版88：戦いのマップ（渋谷のスクラ�
 var tod := TimeOfDay.new()  ## 版90：時間帯（ふだんは夕方・ボスの覚醒の間は夜。scripts/stage/time_of_day.gd）
 var sun: DirectionalLight3D = null
 var hp_hud = HpHud.new(self)  ## 版92：体力の表示（ボス：上・自分：丸いアイコン＋数字。battle_hp_hud.gd）
-var hud_portrait: Texture2D = null  ## 版92：自分のキャラの顔の絵（画面の流れ game_flow が入れる。なければ図形）
-var hud_role_color := Color("#5a6a88")  ## 版92：顔の絵がない時の、丸の色（役の色）
+var hud_portraits: Dictionary = {}  ## 版95：キャラID → 顔の絵（体力の表示の丸いアイコン。portrait_source が作る）
+var portrait_source: Node = null  ## 版95：顔の絵を作る係（画面の流れ game_flow の portraits。なければ図形のアイコン）
+var hud_role_color := Color("#5a6a88")  ## 版92：顔の絵がない時の、丸の色（役の色がわからない時）
 ## 版78：キャラごとの攻撃の状態（battle_skills.gd が使う）
 var skill_fx: Array = []  ## 出している見た目 [{node, follow}]
 var skill_fx_log: Array = []  ## 出した見た目の種類（テスト用）

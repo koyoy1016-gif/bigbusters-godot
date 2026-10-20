@@ -1308,13 +1308,8 @@ func _start_battle() -> void:
 	battle.round_ended.connect(_on_round_ended)
 	battle.round_started.connect(_on_round_started)
 	battle.music_cue.connect(_on_music_cue)
-	# 版92：戦いの体力の表示の、丸いアイコンに入れる自分のキャラの顔の絵（作れない所では、図形のまま）
-	var my_def := CharacterData.find(characters_cfg, selected_character)
-	if portraits != null and not my_def.is_empty():
-		var bt := battle
-		portraits.request(selected_character, my_def, func(tex: Texture2D):
-			if is_instance_valid(bt):
-				bt.hud_portrait = tex)
+	# 版92・95：戦いの体力の表示の、丸いアイコンに入れる顔の絵は、ロビーと同じ係に作ってもらう（作れない所では、図形のまま）
+	battle.portrait_source = portraits
 	add_child(battle)
 	_apply_quality()
 	_apply_audio()
