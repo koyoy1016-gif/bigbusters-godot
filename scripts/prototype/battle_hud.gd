@@ -157,16 +157,20 @@ func _draw_banner(screen: Vector2) -> void:
 	var pop := 1.0 + 0.6 * maxf(0.0, 1.0 - age / 0.25)
 	var alpha := clampf(left / 0.4, 0.0, 1.0)
 	var center := Vector2(screen.x * 0.5, screen.y * (float(b.config["banner_y_portrait"]) if is_portrait(screen) else float(b.config["banner_y"])))
-	var fs := int(float(b.config["ui_font_size"]) * 2.4 * pop)
+	# 版99：文字の大きさを毎コマ変えると、大きさごとに文字の絵が作られてメモリが増える。
+	# 決まった数段の大きさ（text_pop_levels）で描いて、あとは拡大・縮小（draw_set_transform）ではね上がりを出す
+	var settled := int(float(b.config["ui_font_size"]) * 2.4)
+	var lv := pop_text(settled, pop, text_pop_levels())
+	var fs := float(settled) * pop  # 画面での文字の大きさ（前と同じ）
 	var text := str(b.banner["text"])
-	var w := b.font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var w := b.font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"])).x * float(lv["k"])
 	var back := Color(str(b.config["banner_back_color"]))
 	back.a *= alpha
 	b.overlay.draw_rect(Rect2(Vector2(0.0, center.y - fs * 0.9), Vector2(screen.x, fs * 1.8)), back)
 	var col := Color(str(b.config["banner_color"]))
 	col.a = alpha
-	b.overlay.draw_string(b.font, center + Vector2(-w * 0.5 + 3.0, fs * 0.35 + 3.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, alpha))
-	b.overlay.draw_string(b.font, center + Vector2(-w * 0.5, fs * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	_scaled_string(b.font, center + Vector2(-w * 0.5 + 3.0, fs * 0.35 + 3.0), text, lv, Color(0, 0, 0, alpha))
+	_scaled_string(b.font, center + Vector2(-w * 0.5, fs * 0.35), text, lv, col)
 	var who := str(b.banner["who"])
 	if who != "":
 		var fs2 := int(float(b.config["ui_font_size"]) * 0.9)
@@ -227,15 +231,18 @@ func _draw_damage_numbers(screen: Vector2) -> void:
 		_dmg_font.base_font = b.font
 		_dmg_font.variation_embolden = float(dc.get("embolden", 0.9))  # 太い文字（いまの文字の形を太らせる）
 	var base := float(b.config["ui_font_size"]) * float(dc.get("size_scale", 1.4))
+	var levels := text_pop_levels()
 	for it in dn.items:
 		var w: Vector3 = it["world"]
 		if b.camera.is_position_behind(w):
 			continue
 		var kc: Dictionary = dn.kind_cfg(str(it["kind"]))
 		var lk: Dictionary = dn.look(it)
-		var px := maxi(int(dc.get("min_px", 18)), int(base * float(kc.get("size", 1.0)) * float(lk["scale"])))
+		# 版99：落ち着いた時の大きさ（種類ごとに1つ）× 決まった数段で描き、はね上がりは拡大・縮小で出す
+		var settled := maxi(int(dc.get("min_px", 18)), int(base * float(kc.get("size", 1.0))))
+		var lv := pop_text(settled, float(lk["scale"]), levels)
 		var text := str(it["text"])
-		var sz := _dmg_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px)
+		var sz := _dmg_font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"])) * float(lv["k"])
 		var p := b.camera.unproject_position(w) + Vector2(float(it["dx"]) + float(lk["shake"]), float(it["dy"]) - float(lk["rise"]))
 		p = DamageNumbers.keep_on_screen(p, screen, sz * 0.5, float(dc.get("margin_px", 12.0)))
 		var a := float(lk["alpha"])
@@ -254,8 +261,38 @@ func _draw_damage_numbers(screen: Vector2) -> void:
 		oc.a = a
 		var fc := Color(str(kc.get("color", "#fff6c8")))
 		fc.a = a
-		b.overlay.draw_string_outline(_dmg_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, int(dc.get("outline_px", 9)), oc)
-		b.overlay.draw_string(_dmg_font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, fc)
+		_scaled_string(_dmg_font, at, text, lv, fc, int(dc.get("outline_px", 9)), oc)
+
+
+## 版99：はね上がる文字の、描く大きさ。settled：落ち着いた時の大きさ（px）、scale：いまの倍率。
+## levels（倍率の段）のうち、いまの倍率にいちばん近い段の大きさ px で描き、k 倍に拡大・縮小する（px × k ＝ settled × scale）。
+## 描く大きさは「settled × 段」だけになるので、文字の絵（フォントのキャッシュ）が毎コマ増えない
+static func pop_text(settled: int, scale: float, levels: Array) -> Dictionary:
+	var best := 1.0
+	var best_d := INF
+	var s := maxf(scale, 0.01)
+	for l in levels:
+		var d := absf(log(s / maxf(float(l), 0.01)))
+		if d < best_d:
+			best_d = d
+			best = float(l)
+	var px := maxi(1, roundi(float(settled) * best))
+	return {"px": px, "k": float(settled) * s / float(px)}
+
+
+## 倍率の段（data/prototype_stick.json の hud.text_pop_levels）
+func text_pop_levels() -> Array:
+	return (b.config.get("hud", {}) as Dictionary).get("text_pop_levels", [1.0])
+
+
+## 文字を、pop_text の大きさで描いて、左下の点 at から k 倍に広げる（outline > 0 なら縁取りも）
+func _scaled_string(font: Font, at: Vector2, text: String, lv: Dictionary, color: Color, outline: int = 0, outline_color: Color = Color.BLACK) -> void:
+	var k := float(lv["k"])
+	b.overlay.draw_set_transform(at, 0.0, Vector2(k, k))
+	if outline > 0:
+		b.overlay.draw_string_outline(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"]), outline, outline_color)
+	b.overlay.draw_string(font, Vector2.ZERO, text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"]), color)
+	b.overlay.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 func _stick_center(screen: Vector2) -> Vector2:

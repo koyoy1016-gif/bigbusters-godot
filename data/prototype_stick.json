@@ -174,7 +174,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "98",
+  "build_id": "99",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -422,6 +422,8 @@
     "_note": "版92・95：戦いの体力の表示（scripts/prototype/battle_hp_hud.gd）。上の文字の行はやめた。版95：数字は出さず、ボスもキャラもバーだけ。戦う4人（自分がいちばん上）の丸いアイコン＋バーを、たてに並べる（たて画面：ボスの下の左 x_portrait・w_portrait、横画面：左上 pos・w。cell_h は1人分の高さ）。hp_low：体力がこの数「未満」でバーが赤（30 ちょうどは緑）。pos・size・cell_h は画面の割合（_portrait はたて画面）。version_alpha：右下の小さな版の数字のこさ",
     "hp_low": 30,
     "hp_low_color": "#ff3b3b",
+    "_text_pop_levels": "版99：ダメージの数字・必殺技の名前の「はね上がり」。文字はこの倍率の段（落ち着いた大きさ×段）だけで描き、間は拡大・縮小でつなぐ（大きさごとに文字の絵が作られて、メモリが増え続けないように）",
+    "text_pop_levels": [1.0, 1.45, 2.1],
     "outline_color": "#000000",
     "outline_px": 5,
     "version_alpha": 0.45,
