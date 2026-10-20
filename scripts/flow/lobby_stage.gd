@@ -5,10 +5,16 @@ extends Node3D
 ##   夕方の空・太陽の光・流れる雲、街並み3列（窓の明かりがまたたく・遠くの塔の赤いランプ）、広場の街灯と手すり、
 ##   キャラのまわりをただよう光の粒、カメラのゆっくりしたゆれ、スライド中の奥行き（カメラが少し横へ）。
 ##   まんなかに来たキャラは、勝ちポーズをしてから待つ。後ろの人たちの待ちの動きは、少しずつずらす（そろわない）。
+## 版93：待ちの動きのかわりに、キャラごとの A攻撃（戦いの「normal」＝右下のいちばん大きいボタンの技）の動きを、休まずくり返す。
+##   動きは戦いと同じ：data/char_actions.json（剣士は data/actions.json）の normal の最初の steps の anim と speed を、
+##   キャラの形の play_step で流す（戦いと同じ関数）。当たり・音・光・待ち時間などの戦いの処理は呼ばない（動きだけ）。
+##   動きが終わったら（animation_finished）、すぐ最初から。キャラの場所（holder）は動きで変えない。
+##   A攻撃の動きがないキャラは、今までどおり待ちの動き（unsupported に記録）。
 ## 数値は data/lobby.json。戦いに入るときは、game_flow.gd がこの場面ごと消す（ロビーの3Dを戦いに残さない）。
 
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const CharacterView := preload("res://scripts/characters/character_view.gd")
+const Actions := preload("res://scripts/combat/player_actions.gd")
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const WINDOW_SHADER := preload("res://shaders/lobby_windows.gdshader")
 const GROUND_SHADER := preload("res://shaders/lobby_ground.gdshader")
@@ -32,6 +38,9 @@ var beacon_mat: StandardMaterial3D
 var clouds: Array = []
 var motes: CPUParticles3D
 var rng := RandomNumberGenerator.new()
+var attack_cache: Dictionary = {}  ## 版93：キャラID → {anim（キャラの animations の名前）, speed}。なければ {}（設定を何度も読まない）
+var unsupported: Array = []  ## 版93：A攻撃の動きがなく、待ちの動きのままのキャラID
+const ATTACK_ACTION := "normal"  ## 版93：A攻撃＝戦いの normal（char_actions.json では label "A"）
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -579,8 +588,11 @@ func _make_unit(id: String, slot: int) -> Dictionary:
 		var v := CharacterView.new()
 		if v.setup(def):
 			holder.add_child(v)
-			v.play_action("idle")
-			# 待ちの動きを、人ごとにずらす（みんなで同じ動きにならないように）
+			# 版93：A攻撃の動き（なければ待ちの動き）。終わったら、すぐ最初から（つなぐのは作った時の1回だけ）
+			if v.player != null:
+				v.player.animation_finished.connect(_on_anim_finished.bind(v))
+			play_attack(v, id)
+			# 動きを、人ごとにずらす（みんなで同じ動きにならないように）
 			if v.player != null and v.player.current_animation != "":
 				v.player.seek(rng.randf() * maxf(v.player.current_animation_length, 0.1), true)
 			view = v
@@ -626,7 +638,7 @@ func step(delta: float) -> void:
 		elif float(u.get("cheer_left", 0.0)) > 0.0:
 			u["cheer_left"] = float(u["cheer_left"]) - delta
 			if float(u["cheer_left"]) <= 0.0 and view != null:
-				view.play_action("idle")
+				play_attack(view, str(u["id"]))  # 版93：勝ちポーズのあとは、A攻撃の動きへ
 	# カメラ（ゆっくりゆれる・スライド中は横へ）
 	drag_now = lerpf(drag_now, drag, clampf(delta * 8.0, 0.0, 1.0))
 	if camera != null:
@@ -642,6 +654,40 @@ func step(delta: float) -> void:
 		n.position.x += float(c["speed"]) * delta
 		if n.position.x > 36.0:
 			n.position.x = -36.0
+
+
+## 版93：キャラ id の A攻撃の動き（戦いと同じ anim と speed）。なければ {}
+func attack_for(id: String) -> Dictionary:
+	if attack_cache.has(id):
+		return attack_cache[id]
+	var out := {}
+	var acts: Dictionary = Actions.config_for(id).get("actions", {})
+	var steps: Array = (acts.get(ATTACK_ACTION, {}) as Dictionary).get("steps", [])
+	if not steps.is_empty() and str((steps[0] as Dictionary).get("anim", "")) != "":
+		out = {"anim": str(steps[0]["anim"]), "speed": float(steps[0].get("speed", 1.0))}
+	attack_cache[id] = out
+	return out
+
+
+## 版93：A攻撃の動きを最初から流す（動きだけ。戦いの処理は呼ばない）。キャラにその動きがなければ、待ちの動き
+func play_attack(view: Node, id: String) -> bool:
+	var a := attack_for(id)
+	var def: Dictionary = view.get("character")
+	var anim := CharacterData.animation_for(def, str(a.get("anim", ""))) if not a.is_empty() else ""
+	var p: AnimationPlayer = view.get("player")
+	if anim == "" or p == null or not p.has_animation(anim):
+		if not unsupported.has(id):
+			unsupported.append(id)
+		view.play_action("idle")
+		return false
+	return view.play_step(str(a["anim"]), float(a["speed"]))
+
+
+## 版93：動きが終わった。A攻撃の動きの時だけ、すぐ最初から（勝ちポーズ・待ちの動きの時は、なにもしない）
+func _on_anim_finished(_name: StringName, view: Node) -> void:
+	if not is_instance_valid(view) or str(view.get("current_action")) != "step":
+		return
+	play_attack(view, str((view.get("character") as Dictionary).get("id", "")))
 
 
 ## 動きを終わらせる（テスト用）

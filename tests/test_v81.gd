@@ -190,7 +190,7 @@ func _initialize() -> void:
 	var mu: Dictionary = flow.lobby_stage.units[0]
 	check(mu["view"] == null or str((mu["view"] as Node).get("current_action")) == "win", "まんなかに来たキャラは、勝ちポーズ")
 	flow.lobby_stage.step(3.0)
-	check(mu["view"] == null or str((mu["view"] as Node).get("current_action")) == "idle", "少ししたら、待ちの動きにもどる")
+	check(mu["view"] == null or str((mu["view"] as Node).get("current_action")) == "step", "少ししたら、そのキャラの A攻撃の動きへ（版93。前は待ちの動き）")
 	ui.rotate_team(-1)
 	flow.account_state = {"inbox": [{"type": "friend", "from": "x"}, {"type": "invite", "from": "y", "room": "1234"}]}
 	ui.tick(0.6)
