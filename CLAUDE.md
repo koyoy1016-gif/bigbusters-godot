@@ -7,7 +7,7 @@
 - 2アプリ構成：アプリ1（友達用、Firebase通信あり）／アプリ2（収益化用、1人＋AI3人、通信なし、無料体験＋買い切り）。土台は1つのプロジェクトで共通にする
 - 仕様：`docs/bigbusters-spec-v2.md`
 - 全体のまとめ：`docs/bigbusters-summary-2026-10-17.md`
-- 引き継ぎ：`NOTES.md`、最新の引き継ぎ書 `docs/handover-2026-10-20-v76.md`
+- 引き継ぎ：`NOTES.md`、最新の引き継ぎ書 `docs/handover-2026-10-20-v79.md`
 
 ## 作業ルール
 1. 作業を始める前に、`NOTES.md` を読む。作業が終わったら、`NOTES.md` の「いまの状況」と「次にやること」を更新する（Claudeのアカウントを2つ使い分けるため）

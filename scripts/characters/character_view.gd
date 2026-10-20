@@ -293,6 +293,12 @@ func _find_player(node: Node) -> AnimationPlayer:
 
 
 ## 動作に合わせたアニメを流す（同じ動作なら何もしない）。アニメがなければ流さない。流したら true
+## 版79：その動作の動きがあるか（walk・win など、キャラによってない物がある）
+func has_action(action: String) -> bool:
+	var anim := CharacterData.animation_for(character, action)
+	return anim != "" and player != null and player.has_animation(anim)
+
+
 func play_action(action: String) -> bool:
 	if action == current_action:
 		return false
@@ -343,6 +349,30 @@ static func build_library_player(model: Node, path: String) -> AnimationPlayer:
 	return p
 
 
+## 版79：発射口などの、世界の位置。name：sockets の名前（モデルの骨の印）か、"hand_L"・"hand_R"（手首）。わからなければ INF
+func socket_position(name: String) -> Vector3:
+	if model == null or not is_inside_tree():
+		return Vector3.INF
+	var sks := model.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty():
+		return Vector3.INF
+	var sk := sks[0] as Skeleton3D
+	var bone := ""
+	var local := Vector3.ZERO
+	var socks: Dictionary = sk.get_meta("sockets", {})
+	if socks.has(name):
+		bone = str(socks[name][0])
+		local = socks[name][1]
+	elif name in ["hand_L", "hand_R"]:
+		bone = "wrist." + name.substr(5, 1)
+	else:
+		return Vector3.INF
+	var bi := sk.find_bone(bone)
+	if bi < 0:
+		return Vector3.INF
+	return sk.global_transform * (sk.get_bone_global_pose(bi) * local)
+
+
 ## 版79：骨の長さを変えたキャラ（モデルの骨に印 root_y_scale）は、動きの腰の高さ（root の位置の線）を、その倍率にする。
 ## 動きの集まりはほかのキャラと共有なので、写してから変える
 static func _fit_root_height(model: Node, p: AnimationPlayer) -> void:
@@ -372,6 +402,10 @@ static func _fit_root_height(model: Node, p: AnimationPlayer) -> void:
 
 ## 版72：def の built_anims（{新しい名前: {from: 元の動き, map, tremble}}）を作って、再生係に足す。足した数を返す
 ## 元の動きの時間をのばしたり縮めたりして作る（scripts/characters/anim_retime.gd）。同じ名前がもうあれば作らない
+## 版79：作った動きを、形（model）ごとに覚えておく（同じキャラ・呼び出した兵隊を何度も出すとき、作り直さない＝重くならない）
+static var _built_cache: Dictionary = {}
+
+
 static func build_retimed(p: AnimationPlayer, def: Dictionary) -> int:
 	if p == null:
 		return 0
@@ -381,6 +415,15 @@ static func build_retimed(p: AnimationPlayer, def: Dictionary) -> int:
 		var spec: Dictionary = specs[name]
 		var lib: AnimationLibrary = p.get_animation_library("")
 		if lib == null or p.has_animation(str(name)):
+			continue
+		# 元の動きがない（動きの集まりがない、コードの動きだけの時など）なら、作らない
+		if AnimCompose.is_compose(spec) and not (spec["segments"] as Array).is_empty() \
+				and not lib.has_animation(str((spec["segments"] as Array)[0].get("anim", ""))):
+			continue
+		var ckey := "%s|%s" % [str(def.get("model", "")), str(name)]
+		if _built_cache.has(ckey):
+			lib.add_animation(StringName(str(name)), _built_cache[ckey])
+			made += 1
 			continue
 		var anim: Animation
 		if AnimCompose.is_compose(spec):
@@ -392,6 +435,7 @@ static func build_retimed(p: AnimationPlayer, def: Dictionary) -> int:
 		else:
 			continue
 		lib.add_animation(StringName(str(name)), anim)
+		_built_cache[ckey] = anim
 		made += 1
 	return made
 

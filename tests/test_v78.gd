@@ -48,7 +48,8 @@ func run_action(s: Node, id: String, gap: float, sec: float = -1.0) -> float:
 		return -1.0
 	var dur: float = float(s.actions.def(id).get("duration_sec", 0.5)) if sec < 0.0 else sec
 	var t := 0.0
-	while t < dur + 0.1:
+	# 版79：飛ぶ物（銃弾・魔法・プレゼント）は、技が終わった後に当たることがある。少し長く流す
+	while t < dur + 2.6:
 		s._actions_update(0.05)
 		s.combat_update(0.05)
 		t += 0.05
@@ -111,7 +112,8 @@ func _initialize() -> void:
 	var f := make("brawler")
 	check((f.actions.def("main")["hits"] as Array).size() == 20, "ファイター：20連パンチは20回")
 	var d20 := run_action(f, "main", 0.8)
-	check(is_equal_approx(d20, 20.0 * 0.42 * ap("brawler")), "20連パンチは、1発ずつ計算して全部当たると %.1f（%.1f）" % [20.0 * 0.42 * ap("brawler"), d20])
+	var w20 := (19.0 * 0.38 + 1.6) * ap("brawler")  # 版79：19発＋しめの大きな1発
+	check(is_equal_approx(d20, w20), "20連パンチは、1発ずつ計算して全部当たると %.1f（%.1f）" % [w20, d20])
 	f.queue_free()
 
 	var g := make("gunner")
@@ -144,7 +146,7 @@ func _initialize() -> void:
 	var hp0: float = ar.my_hp
 	ar._take_damage(40.0)
 	check(is_equal_approx(hp0 - ar.my_hp, 10.0), "ドームの間、40のダメージは10になる")
-	ar.skill_dome_left = 0.0
+	ar.skill_domes = []  # 版79：膜は skill_domes
 	check(is_equal_approx(ar.skills.dealt_mult(), 1.0), "ドームが消えたら元にもどる")
 	ar.queue_free()
 

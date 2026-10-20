@@ -377,6 +377,14 @@ static func _resolve_hit(a: Dictionary, ev: Dictionary, ctx: Dictionary) -> floa
 	var reach := HitArea.reach_of(float(st.get("attack_reach", 2.0)), float(ev["radius_scale"])) + float(ctx["boss_radius"])
 	# 版78：ビーム・爆発・まわりの当たり。当たった所の見た目は、battle_ai_team が出す
 	var hspec: Dictionary = ev.get("hit", {})
+	if hspec.has("proj"):
+		# 版79：飛ぶ物：撃つだけ。当たった時のダメージは battle_skills.gd が数える
+		var st0: Dictionary = a["stats"]
+		var cfg0: Dictionary = ctx["cfg"]
+		var d0 := Damage.damage_amount(float(st0.get("attack_power", 10.0)), float(ctx["attack_multiplier"]) * float(ev["multiplier"]) * float(cfg0["damage_scale"])
+			* (float(st0.get("ultimate_scale", 1.0)) if str(ev.get("action", "")) == "ultimate" else 1.0))
+		(a["out_events"] as Array).append({"type": "proj", "hit": hspec, "dmg": d0, "action": str(ev.get("action", ""))})
+		return 0.0
 	if hspec.has("fx"):
 		(a["out_events"] as Array).append({"type": "hitfx", "hit": hspec})
 	if SkillHits.shape_of(hspec) != "melee":
@@ -400,7 +408,7 @@ static func _resolve_hit(a: Dictionary, ev: Dictionary, ctx: Dictionary) -> floa
 
 ## ボスの当たりを受ける。受けたダメージの合計を返す。done：すでに当たった印（キー → true）
 static func take_hazards(a: Dictionary, slot: String, hazards: Array, done: Dictionary, multiplier: float) -> float:
-	if bool(a["downed"]) or bool(a.get("held", false)) or act(a).invulnerable() or float(a.get("kb_guard", 0.0)) > 0.0:
+	if bool(a["downed"]) or bool(a.get("held", false)) or act(a).invulnerable() or float(a.get("kb_guard", 0.0)) > 0.0 or bool(a.get("vanished", false)):
 		return 0.0
 	var total := 0.0
 	var pos: Vector2 = a["pos"]

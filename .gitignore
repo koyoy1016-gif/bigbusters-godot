@@ -12,3 +12,7 @@ web/*
 assets/anims/_ual_src.glb
 assets/anims/_ual_src.glb.import
 exports/*.glb
+
+# Python のキャッシュ（コミットしない）
+__pycache__/
+*.pyc

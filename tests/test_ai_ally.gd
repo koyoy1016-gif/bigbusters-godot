@@ -46,14 +46,20 @@ func _init() -> void:
 	var one := float(gunner["stats"]["attack_power"]) * float(cfg["damage_scale"])
 	var near := Ai.make(gunner, 0, Vector2(0, -8 + 3.0))
 	near["think_attack"] = 10.0
-	# 版78：ガンナーの通常攻撃（ショット）は、撃って 0.06秒で当たる。最初に当たった1回をくらべる
-	var first := Ai.step(near, 0.05, ctx)
+	# 版79：ガンナーの通常攻撃は、左右の砲口から1発ずつ（倍率0.5ずつ）の飛ぶ弾。ダメージは弾が当たった時（battle_skills.gd）なので、
+	# ここでは、撃った弾が持つダメージ（out_events の proj の dmg）の合計をくらべる
+	var shot := 0.0
+	Ai.step(near, 0.05, ctx)
 	check(not (near["events"] as Array).is_empty() and Ai.act(near).busy(), "攻撃すると、アニメの出来事が出て、動き中になる")
-	for k in 10:
-		if first > 0.0:
-			break
-		first = Ai.step(near, 0.05, ctx)
-	check(is_equal_approx(first, one), "最初の通常攻撃のダメージは、攻撃力×倍率")
+	for e in near["out_events"]:
+		if str(e.get("type", "")) == "proj":
+			shot += float(e["dmg"])
+	for k in 6:
+		Ai.step(near, 0.05, ctx)
+		for e in near["out_events"]:
+			if str(e.get("type", "")) == "proj":
+				shot += float(e["dmg"])
+	check(is_equal_approx(shot, one), "最初の通常攻撃（2発）のダメージの合計は、攻撃力×倍率（%.2f／%.2f）" % [shot, one])
 
 	# よけながら動く（輪の中に置いて、考える間隔のあと動く）
 	var b := Ai.make(gunner, 0, Vector2(0, 0))

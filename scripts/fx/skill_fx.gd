@@ -1,9 +1,50 @@
 extends RefCounted
-## 版78：キャラごとの攻撃の見た目（ビーム・飛ぶ玉・爆発・衝撃の輪・ドーム・光の柱・時間停止・速さのオーラ）。
-## 形は make で作り、毎コマ tick で動かす（寿命が来たら false を返す。呼ぶ側が消す）。数値は data/char_actions.json の fx_events / hits の fx。
-## 1つの見た目は、単色の光る材質の形を1〜2こだけ使う（ブラウザで重くしない）。
+## 版78・79：キャラごとの攻撃の見た目。形は make で作り、毎コマ tick で動かす（寿命が来たら false を返す。呼ぶ側が消す）。
+## 数値は data/char_actions.json の fx_events / hits の fx。小物（プレゼント・銃弾・魔法の玉など）は data/props.json（tools/make_props.py）。
+## kind：
+##   beam・slash（帯の光）、orb（飛ぶ玉。prop があれば小物）、blast（爆発の球）、ring（広がる輪）、pillar（光の柱）、
+##   dome・heal_dome・clock（半透明の膜。shaders/skill_dome.gdshader。青＝守り、緑＝回復、紫＝時間停止）、
+##   aura（体を包む光と、立ちのぼる粒。必殺技の色）、spark（当たった所の火花）、ripple（膜に当たった波紋）、
+##   confetti（紙ふぶき）、smoke（けむり）、rise（上へのぼる光の筋）、prop（小物をその場に出す：魔法陣・砲口の光など）
+## ブラウザで重くしないよう、1つの見た目は、形を数こ・粒は数十こまでにする。
 
-const SHAPES := ["beam", "orb", "blast", "ring", "dome", "pillar", "clock", "aura", "slash"]
+const BodyBuilder := preload("res://scripts/characters/body_builder.gd")
+const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
+const DOME_SHADER := preload("res://shaders/skill_dome.gdshader")
+const PROPS_PATH := "res://data/props.json"
+
+static var _props: Dictionary = {}
+static var _prop_meshes: Dictionary = {}
+
+
+static func props() -> Dictionary:
+	if _props.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(PROPS_PATH)) if FileAccess.file_exists(PROPS_PATH) else null
+		_props = (parsed as Dictionary).get("props", {}) if parsed is Dictionary else {}
+	return _props
+
+
+## 小物の形（部品をまとめた1つの形。光る部品は、光る材質のまま別の面）。同じ名前は使いまわす。なければ null
+static func prop_mesh(name: String) -> ArrayMesh:
+	if _prop_meshes.has(name):
+		return _prop_meshes[name]
+	var parts: Array = props().get(name, [])
+	if parts.is_empty():
+		return null
+	var list: Array = []
+	var keep: Array = []
+	for part in parts:
+		var m := BodyBuilder.make_part_mesh(part)
+		if m == null:
+			continue
+		var mat := m.surface_get_material(0) as StandardMaterial3D
+		if mat != null and (mat.emission_enabled or mat.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED):
+			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			keep.append(mat)
+		list.append({"mesh": m, "xf": BodyBuilder.part_transform(part)})
+	var merged := MeshMerge.merge_parts(list, keep, {})
+	_prop_meshes[name] = merged
+	return merged
 
 
 static func _mat(color: Color, emission: float = 1.2, alpha: float = 1.0) -> StandardMaterial3D:
@@ -19,7 +60,42 @@ static func _mat(color: Color, emission: float = 1.2, alpha: float = 1.0) -> Sta
 	return m
 
 
-## 見た目を作る。spec：{kind, color, life, ...}。from：始まり（足もと）、to：終わり（ねらう所）。height：手の高さ
+static func dome_material(color: Color, alpha: float) -> ShaderMaterial:
+	var sm := ShaderMaterial.new()
+	sm.shader = DOME_SHADER
+	sm.set_shader_parameter("color", color)
+	sm.set_shader_parameter("alpha", alpha)
+	sm.set_shader_parameter("fade", 0.0)
+	return sm
+
+
+static func _particles(color: Color, amount: int, life: float, spread: float, vel: Vector2, gravity: Vector3, size: float, box: Vector3,
+		one_shot: bool) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.amount = amount
+	p.lifetime = life
+	p.one_shot = one_shot
+	p.explosiveness = 0.9 if one_shot else 0.0
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.emission_box_extents = box
+	p.direction = Vector3.UP
+	p.spread = spread
+	p.initial_velocity_min = vel.x
+	p.initial_velocity_max = vel.y
+	p.gravity = gravity
+	p.scale_amount_min = size * 0.6
+	p.scale_amount_max = size
+	var qm := QuadMesh.new()
+	qm.size = Vector2(0.12, 0.12)
+	var mat := _mat(color, 2.0, 0.9)
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	qm.material = mat
+	p.mesh = qm
+	p.emitting = true
+	return p
+
+
+## 見た目を作る。spec：{kind, color, life, ...}。from：始まり（足もと、または発射口）、to：終わり（ねらう所）。height：from が足もとのときの手の高さ
 static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) -> Node3D:
 	var kind := str(spec.get("kind", "blast"))
 	var col := Color(str(spec.get("color", "#ffffff")))
@@ -38,7 +114,8 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 	match kind:
 		"beam", "slash":
 			var d := to - from
-			d.y = 0.0
+			if not bool(spec.get("tilt", false)):
+				d.y = 0.0
 			var len := maxf(d.length(), 0.1)
 			var cm := CylinderMesh.new()
 			var w := float(spec.get("width", 0.25))
@@ -53,7 +130,6 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 			var dir := d.normalized() if d.length() > 0.001 else Vector3.FORWARD
 			root.basis = Basis(Quaternion(Vector3.UP, dir))
 			if kind == "beam":
-				# 芯（白く細い）
 				var core := MeshInstance3D.new()
 				var c2 := CylinderMesh.new()
 				c2.top_radius = w * 0.4
@@ -64,29 +140,88 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 				c2.material = _mat(Color(1, 1, 1), 2.5, 0.95)
 				core.mesh = c2
 				root.add_child(core)
+				# ビームの通り道の、うず巻く輪（3つ、流れる）
+				for k in 3:
+					var ring := MeshInstance3D.new()
+					var tm := TorusMesh.new()
+					tm.inner_radius = w * 1.3
+					tm.outer_radius = w * 1.7
+					tm.rings = 16
+					tm.ring_segments = 4
+					tm.material = _mat(col, 2.2, 0.7)
+					ring.mesh = tm
+					ring.name = "Ring%d" % k
+					ring.position = Vector3(0, -len * 0.5 + len * (k + 0.5) / 3.0, 0)
+					root.add_child(ring)
 		"orb":
-			var sm := SphereMesh.new()
-			var r := float(spec.get("radius", 0.2))
-			sm.radius = r
-			sm.height = r * 2.0
-			sm.radial_segments = 12
-			sm.rings = 6
-			sm.material = _mat(col, 2.0, 1.0)
-			mi.mesh = sm
+			var pm := prop_mesh(str(spec.get("prop", ""))) if spec.has("prop") else null
+			if pm != null:
+				mi.mesh = pm
+				root.scale = Vector3.ONE * float(spec.get("scale", 1.0))
+			else:
+				var sm := SphereMesh.new()
+				var r := float(spec.get("radius", 0.2))
+				sm.radius = r
+				sm.height = r * 2.0
+				sm.radial_segments = 12
+				sm.rings = 6
+				sm.material = _mat(col, 2.0, 1.0)
+				mi.mesh = sm
 			root.position = from + Vector3(0, height, 0)
-		"blast", "dome", "clock", "aura":
+		"prop":
+			mi.mesh = prop_mesh(str(spec.get("prop", "")))
+			root.position = to + Vector3(0, float(spec.get("y", 0.05)), 0)
+			root.scale = Vector3.ONE * float(spec.get("scale", 1.0))
+			var aimv := to - from
+			aimv.y = 0.0
+			if aimv.length() > 0.01:
+				root.rotation.y = atan2(aimv.x, aimv.z)
+		"blast":
 			var s2 := SphereMesh.new()
 			s2.radius = 1.0
-			s2.height = 1.0 if kind == "dome" else 2.0
-			s2.is_hemisphere = kind == "dome"
+			s2.height = 2.0
 			s2.radial_segments = 20
 			s2.rings = 10
-			s2.material = _mat(col, 1.4, float(spec.get("alpha", 0.45 if kind != "blast" else 0.7)))
+			s2.material = _mat(col, 1.4, 0.7)
 			mi.mesh = s2
 			root.position = to
-			if kind == "dome":
-				root.position = from
 			root.scale = Vector3.ONE * 0.05
+			# 外へ飛ぶ火の粉
+			root.add_child(_particles(col.lightened(0.3), 18, 0.5, 70.0, Vector2(4.0, 8.0), Vector3(0, -9, 0), 1.2, Vector3(0.3, 0.3, 0.3), true))
+		"dome", "heal_dome", "clock", "aura":
+			var s3 := SphereMesh.new()
+			s3.radius = 1.0
+			s3.height = 1.0 if kind in ["dome", "heal_dome"] else 2.0
+			s3.is_hemisphere = kind in ["dome", "heal_dome"]
+			s3.radial_segments = 28
+			s3.rings = 14
+			var dm := dome_material(col, float(spec.get("alpha", 0.18)))
+			if kind == "aura":
+				dm.set_shader_parameter("hex_alpha", 0.0)
+				dm.set_shader_parameter("rim_alpha", 0.9)
+			s3.material = dm
+			mi.mesh = s3
+			root.position = to if kind == "clock" else from
+			root.scale = Vector3.ONE * 0.05
+			if kind == "aura":
+				# 体を包む、たてに長い光（だ円）と、足もとの輪と、立ちのぼる粒
+				mi.scale = Vector3(0.8, 1.25, 0.8)
+				mi.position = Vector3(0, 1.0, 0)
+				var ring2 := MeshInstance3D.new()
+				var tm2 := TorusMesh.new()
+				tm2.inner_radius = 0.9
+				tm2.outer_radius = 1.0
+				tm2.rings = 28
+				tm2.ring_segments = 4
+				tm2.material = _mat(col, 2.2, 0.85)
+				ring2.mesh = tm2
+				ring2.name = "Ground"
+				ring2.scale = Vector3(1.0, 0.3, 1.0)
+				ring2.position = Vector3(0, 0.05, 0)
+				root.add_child(ring2)
+				root.add_child(_particles(col.lightened(0.25), 24, 0.9, 12.0, Vector2(2.0, 3.5), Vector3(0, 0.5, 0), 1.0, Vector3(0.45, 0.1, 0.45), false))
+			if kind == "heal_dome":
+				root.add_child(_particles(Color("#9dffb8"), 28, 1.6, 8.0, Vector2(0.8, 1.6), Vector3(0, 0.6, 0), 0.9, Vector3(0.8, 0.05, 0.8), false))
 		"ring":
 			var tm := TorusMesh.new()
 			tm.inner_radius = 0.9
@@ -108,10 +243,66 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 			cm2.material = _mat(col, 1.8, 0.45)
 			mi.mesh = cm2
 			root.position = to + Vector3(0, cm2.height * 0.5, 0)
+		"spark":
+			# 当たった所：星形の光（すぐ消える）、広がる輪、飛び散る火花
+			mi.mesh = _star_mesh(float(spec.get("size", 0.6)), col)
+			root.position = to
+			root.add_child(_particles(col.lightened(0.35), int(spec.get("amount", 12)), 0.35, 80.0, Vector2(3.0, 6.0), Vector3(0, -6, 0), 0.8,
+				Vector3(0.1, 0.1, 0.1), true))
+		"ripple":
+			var tm3 := TorusMesh.new()
+			tm3.inner_radius = 0.85
+			tm3.outer_radius = 1.0
+			tm3.rings = 24
+			tm3.ring_segments = 4
+			tm3.material = _mat(col, 2.2, 0.85)
+			mi.mesh = tm3
+			root.position = to
+			var nrm := (to - from).normalized()
+			if nrm.length() > 0.5:
+				root.basis = Basis(Quaternion(Vector3.UP, nrm))
+			root.scale = Vector3(0.1, 0.25, 0.1)
+		"confetti":
+			root.position = to + Vector3(0, 0.6, 0)
+			for c in ["#e6343a", "#ffd84a", "#3f6fd1", "#3d9a4a", "#d65aa0"]:
+				root.add_child(_particles(Color(c), 8, 1.2, 45.0, Vector2(4.0, 7.0), Vector3(0, -6, 0), 1.0, Vector3(0.2, 0.1, 0.2), true))
+		"smoke":
+			root.position = to
+			var sp := _particles(Color(str(spec.get("color", "#e8e4dc"))), 10, 0.7, 60.0, Vector2(0.6, 1.4), Vector3(0, 0.4, 0), 3.0, Vector3(0.3, 0.1, 0.3), true)
+			(sp.mesh.material as StandardMaterial3D).emission_energy_multiplier = 0.2
+			(sp.mesh.material as StandardMaterial3D).albedo_color.a = 0.6
+			root.add_child(sp)
+		"rise":
+			root.position = to
+			root.add_child(_particles(col, 20, 0.9, 6.0, Vector2(2.5, 4.0), Vector3(0, 1.5, 0), 0.9, Vector3(0.4, 0.05, 0.4), true))
 	return root
 
 
-## 1コマ進める。まだ続くなら true
+static func _star_mesh(size: float, col: Color) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 8
+	for i in n:
+		var a0 := TAU * float(i) / n
+		var a1 := TAU * (float(i) + 0.5) / n
+		var a2 := TAU * (float(i) + 1.0) / n
+		var p0 := Vector3(cos(a0), sin(a0), 0) * size
+		var p1 := Vector3(cos(a1), sin(a1), 0) * size * 0.35
+		var p2 := Vector3(cos(a2), sin(a2), 0) * size
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(p0)
+		st.add_vertex(p1)
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(p1)
+		st.add_vertex(p2)
+	var m := st.commit()
+	var mat := _mat(col.lightened(0.4), 3.0, 0.95)
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.surface_set_material(0, mat)
+	return m
+
+
+## 1コマ進める。まだ続くなら true。follow：ついていく位置（INF ならついていかない）
 static func tick(n: Node3D, delta: float, follow: Vector3 = Vector3.INF) -> bool:
 	var age := float(n.get_meta("age", 0.0)) + delta
 	n.set_meta("age", age)
@@ -123,7 +314,13 @@ static func tick(n: Node3D, delta: float, follow: Vector3 = Vector3.INF) -> bool
 		"beam":
 			var f := 1.0 + 0.15 * sin(age * 60.0)
 			var shrink := 1.0 - smoothstep(0.75, 1.0, k)
-			n.scale = Vector3(f * shrink, 1.0, f * shrink)
+			var grow := smoothstep(0.0, 0.08, k)
+			n.scale = Vector3(f * shrink * grow, 1.0, f * shrink * grow)
+			for i in 3:
+				var r := n.get_node_or_null("Ring%d" % i) as Node3D
+				if r != null and mi != null:
+					var len := float((mi.mesh as CylinderMesh).height)
+					r.position.y = fposmod(r.position.y + len * 0.5 + delta * 18.0, len) - len * 0.5
 		"slash":
 			n.scale = Vector3(1.0 - k, 1.0, 1.0 - k)
 		"orb":
@@ -134,6 +331,13 @@ static func tick(n: Node3D, delta: float, follow: Vector3 = Vector3.INF) -> bool
 			var p := from.lerp(to, k)
 			p.y = lerpf(from.y + h, to.y + 0.3, k) + arc * 4.0 * k * (1.0 - k)
 			n.position = p
+		"prop":
+			var spin := float(spec.get("spin", 0.0))
+			if spin != 0.0:
+				n.rotate_y(spin * delta)
+			var fade := 1.0 - smoothstep(0.8, 1.0, k)
+			var pop := smoothstep(0.0, 0.12, k)
+			n.scale = Vector3.ONE * float(spec.get("scale", 1.0)) * pop * fade
 		"blast":
 			var r := float(spec.get("radius", 2.0))
 			n.scale = Vector3.ONE * r * (0.3 + 0.7 * sqrt(k))
@@ -144,16 +348,34 @@ static func tick(n: Node3D, delta: float, follow: Vector3 = Vector3.INF) -> bool
 			n.scale = Vector3(r2 * k + 0.1, 0.4, r2 * k + 0.1)
 			if mi != null:
 				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.8 * (1.0 - k)
-		"dome", "aura", "clock":
+		"ripple":
+			var r4 := float(spec.get("radius", 0.9))
+			n.scale = Vector3(r4 * (0.2 + k), 0.25, r4 * (0.2 + k))
+			if mi != null:
+				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.85 * (1.0 - k)
+		"spark":
+			if mi != null:
+				mi.scale = Vector3.ONE * (0.6 + 0.8 * k)
+				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.95 * (1.0 - smoothstep(0.2, 0.6, k))
+		"dome", "heal_dome", "aura", "clock":
 			var r3 := float(spec.get("radius", 3.0))
-			var grow := smoothstep(0.0, 0.12, k)
-			var fade := 1.0 - smoothstep(0.9, 1.0, k)
-			n.scale = Vector3.ONE * r3 * grow * (1.0 + 0.03 * sin(age * 6.0))
+			# 3段階：広がる（はじめの 0.35 秒）→ たもつ（ゆっくり脈打つ）→ うすくなって消える（さいごの 0.6 秒）
+			var grow2 := smoothstep(0.0, minf(0.35, life * 0.3), age)
+			var fade2 := 1.0 - smoothstep(maxf(life - 0.6, life * 0.7), life, age)
+			n.scale = Vector3.ONE * r3 * (0.3 + 0.7 * grow2) * (1.0 + 0.02 * sin(age * 5.0))
 			if follow != Vector3.INF:
 				n.position = follow
-			if mi != null:
-				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = float(spec.get("alpha", 0.35)) * fade
+			if mi != null and mi.mesh.surface_get_material(0) is ShaderMaterial:
+				var smat := mi.mesh.surface_get_material(0) as ShaderMaterial
+				smat.set_shader_parameter("fade", fade2 * grow2)
+				var pulse := float(n.get_meta("pulse", 0.0))
+				if pulse > 0.0:
+					n.set_meta("pulse", maxf(0.0, pulse - delta * 3.0))
+				smat.set_shader_parameter("pulse", float(n.get_meta("pulse", 0.0)))
+			for c in n.get_children():
+				if c is CPUParticles3D and age > life - 0.6:
+					(c as CPUParticles3D).emitting = false
 		"pillar":
-			var fade2 := 1.0 - smoothstep(0.7, 1.0, k)
-			n.scale = Vector3(fade2 + 0.05, 1.0, fade2 + 0.05)
+			var fade3 := 1.0 - smoothstep(0.7, 1.0, k)
+			n.scale = Vector3(fade3 + 0.05, 1.0, fade3 + 0.05)
 	return age < life

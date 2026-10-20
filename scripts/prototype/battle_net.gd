@@ -148,6 +148,8 @@ func _update_other_view(slot: String, node: MeshInstance3D, step: Vector3, delta
 		var ally_busy: bool = b.ai_allies.has(slot) and (AiAlly.act(b.ai_allies[slot]) as Actions).busy()
 		if b.ai_allies.has(slot) and bool(b.ai_allies[slot]["downed"]):
 			view.play_action("down")
+		elif b.won and not ally_busy and view.has_method("has_action") and view.has_action("win"):
+			view.play_action("win")  # 版79：勝ったら、みんなで喜ぶ
 		elif not ally_busy:
 			view.play_action("run" if moving else "idle")
 			if moving:

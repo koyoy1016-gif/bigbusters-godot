@@ -117,8 +117,43 @@ func _draw_overlay() -> void:
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.12), str(b.config["enrage_text"]), Color(str(b.config["enrage_color"])), 1.4)
 	if float(b.phase_text["left"]) > 0.0 and str(b.phase_text["text"]) != "":
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(b.phase_text["text"]), Color(str(b.config.get("bossbar_color_awake", "#ffffff"))), 1.8)
+	_draw_reticle()
 	_draw_damage_numbers(screen)
 	_draw_banner(screen)
+
+
+## 版79：ロックした敵の、赤い照準（敵の体の中心。顔を隠さない大きさ。ロックした瞬間に、外から縮んで合う）。
+## 近くの攻撃が届かない遠さなら、照準を少し暗くして、点線にする。回復の送り先の味方には、緑の小さな輪
+func _draw_reticle() -> void:
+	if b.camera == null or DisplayServer.get_name() == "headless":
+		return
+	if b.target_lock.is_locked():
+		var ti: Dictionary = b.target_info()
+		if not ti.is_empty():
+			var c := Vector3(float(ti["x"]), float(ti["y0"]) + float(ti["h"]) * float(b.config.get("reticle_height_frac", 0.42)), float(ti["z"]))
+			if not b.camera.is_position_behind(c):
+				var p := b.camera.unproject_position(c)
+				var base := clampf(b._screen_radius(c, float(ti["r"])) * 0.45, 26.0, 80.0)
+				var k := clampf(b.target_lock.age / 0.18, 0.0, 1.0)
+				var r := base * (1.0 + 1.2 * (1.0 - k))
+				var far := Vector2(b.player.position.x, b.player.position.z).distance_to(Vector2(float(ti["x"]), float(ti["z"]))) - float(ti["r"]) > float(b.config.get("reticle_far_m", 14.0))
+				var col := Color("#ff3030") if not far else Color("#ff8080")
+				col.a = 0.95 * k + 0.05
+				var rot := float(Time.get_ticks_msec()) * 0.0015
+				# 外の輪（4つに切れた弧が回る）、中の点、上下左右の目印
+				for i in 4:
+					var a0 := rot + TAU * i / 4.0
+					b.overlay.draw_arc(p, r, a0 + 0.15, a0 + TAU / 4.0 - 0.15, 10, Color(0, 0, 0, col.a * 0.6), 7.0)
+					b.overlay.draw_arc(p, r, a0 + 0.15, a0 + TAU / 4.0 - 0.15, 10, col, 4.0)
+				for i in 4:
+					var dir := Vector2(cos(TAU * i / 4.0), sin(TAU * i / 4.0))
+					b.overlay.draw_line(p + dir * (r - 10.0), p + dir * (r + 12.0), col, 4.0)
+				b.overlay.draw_circle(p, 4.5, col)
+	if b.ally_lock != "":
+		var ap: Vector3 = b.skills.pos3_of(b.ally_lock) + Vector3(0, 2.3, 0)
+		if not b.camera.is_position_behind(ap):
+			var q := b.camera.unproject_position(ap)
+			b.overlay.draw_arc(q, 14.0, 0, TAU, 20, Color("#5fe08a"), 4.0)
 
 
 ## 必殺技の名前（使った瞬間にはね上がり、少しあとに消える）

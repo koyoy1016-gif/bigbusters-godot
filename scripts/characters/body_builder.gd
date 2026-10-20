@@ -105,6 +105,7 @@ static func apply(model: Node, look: Dictionary) -> int:
 		if c is MeshInstance3D:
 			_reshape(c as MeshInstance3D, sk, rest, new_rest, morphs)
 	tris += _attach_parts(sk, rest, look.get("parts", []), float(look.get("head_scale", 1.0)), _head_pivot(sk, rest), morphs)
+	_save_sockets(sk, rest, look.get("sockets", {}))
 	_apply_rests(sk, rest, new_rest)
 	return tris
 
@@ -253,6 +254,20 @@ static func _reshape(mi: MeshInstance3D, sk: Skeleton3D, old: Array, new: Array,
 				continue
 			sk2.set_bind_pose(b, ((new[bi] as Transform3D).affine_inverse() * (old[bi] as Transform3D)) * sk2.get_bind_pose(b))
 		mi.skin = sk2
+
+
+## 版79：発射口などの位置（sockets：{名前: {bone, pos（モデル座標）}}）を、骨から見た位置にして、骨の印 sockets に書く。
+## 技の弾・魔法を、つえの先・砲口・手から出すのに使う（character_view.gd の socket_position）
+static func _save_sockets(sk: Skeleton3D, rest: Array, sockets: Dictionary) -> void:
+	var out := {}
+	for nm in sockets:
+		var sd: Dictionary = sockets[nm]
+		var bi := sk.find_bone(str(sd.get("bone", "")))
+		if bi < 0:
+			continue
+		out[nm] = [str(sd["bone"]), (rest[bi] as Transform3D).affine_inverse() * _v3(sd.get("pos", [0, 0, 0]))]
+	if not out.is_empty():
+		sk.set_meta("sockets", out)
 
 
 ## 骨の静止の姿勢を、新しい物にする。腰の高さの倍率を、モデルの印 root_y_scale に書く（動きの腰の高さに使う）
@@ -821,6 +836,9 @@ static func make_part_mesh(part: Dictionary) -> ArrayMesh:
 		float(part.get("emission", 0.0)), str(part.get("tex", "")))
 	if bool(part.get("double", false)):
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if float(part.get("alpha", 1.0)) < 0.999:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.albedo_color.a = float(part["alpha"])
 	var segs := int(part.get("segs", 12))
 	match str(part.get("shape", "box")):
 		"loft":

@@ -46,6 +46,8 @@ const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
 const BattleUltFx := preload("res://scripts/prototype/battle_ult_fx.gd")
 const BattleNet := preload("res://scripts/prototype/battle_net.gd")
 const BattleSkills := preload("res://scripts/prototype/battle_skills.gd")
+const TargetLock := preload("res://scripts/combat/target_lock.gd")
+const Projectiles := preload("res://scripts/combat/projectiles.gd")
 const SkillHits := preload("res://scripts/combat/skill_hits.gd")
 const BattleAiTeam := preload("res://scripts/prototype/battle_ai_team.gd")
 const BattleGrab := preload("res://scripts/prototype/battle_grab.gd")
@@ -92,9 +94,18 @@ var skill_fx_log: Array = []  ## 出した見た目の種類（テスト用）
 var skill_log: Array = []  ## 起きた効果の種類（テスト用）
 var skill_summons: Array = []  ## 呼び出した物 [{owner, pos, life, next, ...}]
 var skill_speed := {}  ## 枠 → {left, mult}（超高速モード）
-var skill_dome_left := 0.0  ## 全体防御強化（ドーム）の残り秒
-var skill_dome_slot := ""
-var skill_dome_cfg: Dictionary = {}
+var skill_domes: Array = []  ## 版79：守り・回復の膜 [{kind, pos, radius, left, ...}]（中だけに効く）
+var skill_projs: Array = []  ## 版79：飛んでいる物（銃弾・魔法・爆弾・回復の光）
+var skill_gimmicks: Array = []  ## 版79：落ちたプレゼント（開いて爆発するまで）
+var skill_ghosts: Array = []  ## 版79：残像
+var skill_vanish := {}  ## 版79：枠 → {left, speed, bonus}（スピードファイターが消えている間）
+var vanish_bonus := 1.0  ## 版79：消えた所から攻撃した、最初の技の倍率
+var target_lock := TargetLock.new()  ## 版79：ターゲットロック（敵をタップ）
+var ally_lock := ""  ## 版79：タップで選んだ味方（回復の光を送る先）
+var approach_id := ""  ## 版79：近づいてから出す技（近くの攻撃で、敵が少し遠いとき）
+var approach_left := 0.0
+var _approach_go := false  ## 近づき終わって、技を出すところ（もう一度近づかない）
+var lean := Vector2.ZERO  ## 版79：止まる・曲がるときの体のかたむき
 var skill_time_stop_left := 0.0  ## 時間停止の残り秒
 var skill_time_stop_resist_until := -999.0  ## この時刻までにまた止めると、ボスの耐性で短くなる
 var boss_freeze_total := 0.0  ## 止まっていた時間の合計（ボスの攻撃の時計から引く）
@@ -312,6 +323,16 @@ func _build_world() -> void:
 
 
 ## 版78：自分のキャラの id（選んでいなければ、既定のキャラ）
+## 版79：味方（自分・AI）に、そのキャラがいるか
+func _team_has(char_id: String) -> bool:
+	if my_char_id() == char_id:
+		return true
+	for s in ai_allies:
+		if str(ai_allies[s].get("id", "")) == char_id:
+			return true
+	return false
+
+
 func my_char_id() -> String:
 	if selected_character != "":
 		return selected_character
@@ -348,13 +369,51 @@ func _raise_marker(node: Node3D) -> void:
 func _update_character(delta: float) -> void:
 	if char_view == null:
 		return
+	_lean_update(delta)
 	if downed:
 		char_view.play_action("down")
 		return
-	# 攻撃の動きの間は、アニメは攻撃の出来事（steps）が決める。終わったら、走る・待つに戻る
+	# 版79：勝ったら、喜ぶ動き（くり返す）
+	if won and not actions.busy() and char_view.has_action("win"):
+		char_view.play_action("win")
+		return
+	# 攻撃の動きの間は、アニメは攻撃の出来事（steps）が決める。終わったら、走る・歩く・待つに戻る
 	if not actions.busy():
-		char_view.play_action(CharacterData.pick_action(false, false, false, stick_vec.length() > 0.1 and actions.move_scale() > 0.0))
+		var act := CharacterData.pick_action(false, false, false, stick_vec.length() > 0.1 and actions.move_scale() > 0.0)
+		# 版79：スティックを少しだけ倒したときは、歩く
+		if act == "run" and stick_vec.length() < float(config.get("walk_stick_max", 0.45)) and char_view.has_action("walk"):
+			act = "walk"
+		char_view.play_action(act)
 		char_view.face(stick_vec, delta)
+
+
+var _lean_vel := Vector2.ZERO  ## 版79：体のかたむきに使う、なめらかにした速さ
+var _lean_prev := Vector2.INF
+
+
+## 版79：止まる・曲がる・走り出すときに、体を少しかたむける（速さの変わる向きへ。最大 lean_max_deg 度）
+func _lean_update(delta: float) -> void:
+	if delta <= 0.0:
+		return
+	var p2 := Vector2(player.position.x, player.position.z)
+	if _lean_prev == Vector2.INF:
+		_lean_prev = p2
+	var v := (p2 - _lean_prev) / delta
+	_lean_prev = p2
+	var prev_v := _lean_vel
+	_lean_vel = _lean_vel.lerp(v, clampf(10.0 * delta, 0.0, 1.0))
+	var acc := (_lean_vel - prev_v) / delta
+	var want := Vector2.ZERO
+	if not actions.busy() and not downed:
+		var f: float = char_view.facing
+		var fwd := Vector2(sin(f), cos(f))
+		var left := Vector2(cos(f), -sin(f))
+		var k := float(config.get("lean_per_accel", 0.006))
+		var mx := deg_to_rad(float(config.get("lean_max_deg", 8.0)))
+		want = Vector2(clampf(acc.dot(fwd) * k, -mx, mx), clampf(acc.dot(left) * k, -mx, mx))
+	lean = lean.lerp(want, clampf(8.0 * delta, 0.0, 1.0))
+	char_view.rotation.x = lean.x
+	char_view.rotation.z = -lean.y
 
 
 ## 光が当たらない面が真っ黒にならないよう、まわりからの明るさ（環境光）を足す
@@ -386,6 +445,17 @@ func _add_marker(parent: Node3D, color: Color) -> StandardMaterial3D:
 
 
 var cam_boss_lift := Vector2.ZERO  ## ボスが高いときに、カメラが上を見る量（x）と、引く量（y）
+var cam_zoom := 0.0  ## 版79：強い攻撃の時に、カメラが寄る割合（0〜。すぐ戻る）
+
+
+## 版79：強い攻撃（Y・Xのしめ・必殺技）が当たった手ごたえ。spec：[一瞬止める秒, 画面のゆれ, カメラの寄り]
+func _impact(spec: Variant) -> void:
+	if not (spec is Array) or (spec as Array).size() < 2:
+		return
+	var a: Array = spec
+	_hitstop(float(a[0]), float(a[1]))
+	if a.size() > 2:
+		cam_zoom = maxf(cam_zoom, float(a[2]))
 
 
 ## カメラは、自分の動きに合わせて、ゆっくりついていく（動きの一部だけ）。f 秒あたりの追いつきの速さは data で決める
@@ -400,6 +470,10 @@ func camera_update(delta: float) -> void:
 	var look_at := camera_target + Vector3(0.0, cam_boss_lift.x, 0.0)
 	var back_dir := Vector3(0.0, camera_offset.y, camera_offset.z).normalized() if camera_offset.length() > 0.01 else Vector3.BACK
 	var pos := camera_target + camera_offset + back_dir * cam_boss_lift.y
+	# 版79：強い攻撃が当たった時の、カメラの寄り（すぐ戻る）
+	if cam_zoom > 0.0:
+		pos = look_at + (pos - look_at) * (1.0 - cam_zoom)
+		cam_zoom = maxf(0.0, cam_zoom - delta * float(config.get("cam_zoom_return_per_sec", 0.6)))
 	# 画面のゆれ（強い攻撃に当たったとき）
 	if shake_left > 0.0:
 		shake_left = maxf(0.0, shake_left - delta)
@@ -555,6 +629,8 @@ func handle_press(index: int, pos: Vector2, screen: Vector2) -> void:
 			button_flash[id] = float(config["press_flash_sec"])
 			if not _me_held():
 				perform(id)  # 版70：つかまれている間は、どのボタンも効かない（逃げる仕組みはない）
+		else:
+			tap_select(pos)  # 版79：ボタンの外をタップ：敵ならターゲットロック、味方なら回復の送り先
 
 
 func handle_drag(index: int, pos: Vector2, screen: Vector2) -> void:
@@ -756,6 +832,8 @@ func _begin_round(start_ms: float) -> void:
 	grab_state = {}
 	last_attack_n = -1
 	_ai_reset()
+	if _team_has("summoner"):
+		skills.warm_mini()  # 版79：小さい兵隊の動きを、前もって作る（はじめて呼んだ時に止まらない）
 	if net_active:
 		bridge.send_hits(0.0)
 		bridge.send_hp(my_hp, round_start_ms)
@@ -805,13 +883,143 @@ func highlight_data() -> Dictionary:
 func _take_damage(amount: float, ignore_invulnerable: bool = false) -> void:
 	if actions.invulnerable() and not ignore_invulnerable:
 		return
-	amount *= skills.taken_mult()  # 版78：アーマーのドームの間は、受けるダメージが減る
+	if skills.is_vanished(_my_slot()) and not ignore_invulnerable:
+		return  # 版79：消えている間は当たらない
+	amount *= skills.taken_mult(_my_slot())  # 版78・79：守りの膜の中なら、受けるダメージが減る
+	if amount > 0.0 and skills.taken_mult(_my_slot()) < 1.0:
+		skills.on_hazard_hit(_my_slot(), Vector2(boss.position.x, boss.position.z))
 	if amount > 0.0:
 		_play_sfx("hurt")
 	_set_my_hp(Damage.apply_damage(my_hp, amount))
 
 
 ## ---- 3つの攻撃（通常・サブ・メイン）。時間の進みは player_actions.gd、数値は data/actions.json ----
+
+## ---- 版79：ターゲットロック ----
+
+## ボスの当たりの円柱 {kind, x, z, r, h, y0}（見えなければ {}）
+func boss_info() -> Dictionary:
+	if boss == null or not boss.visible:
+		return {}
+	return {"kind": "boss", "index": -1, "x": boss.position.x, "z": boss.position.z, "r": float(config["boss_size"]) * 0.5,
+		"h": float(config.get("boss_hit_height", 5.4)), "y0": boss.position.y}
+
+
+## サブ敵 i の当たりの円柱（いなければ {}）
+func sub_info(i: int) -> Dictionary:
+	if i < 0 or not sub_enemies_enabled() or crowd_state == null or not crowd_state.is_alive(i) or i >= sub_crowd.last_positions.size():
+		return {}
+	var p: Vector3 = sub_crowd.last_positions[i]
+	return {"kind": "sub", "index": i, "x": p.x, "z": p.z, "r": float((config["sub_enemy_size"] as Array)[0]) * 0.5, "h": 1.4, "y0": ground_y}
+
+
+## いまねらう敵：ロックした敵。いなければボス
+func target_info() -> Dictionary:
+	if target_lock.kind == "sub":
+		var si := sub_info(target_lock.index)
+		if not si.is_empty():
+			return si
+	return boss_info()
+
+
+## ロックが、まだ有効か（敵が倒れた・消えた・戦いが終わった→外す）
+func _target_lock_update(delta: float) -> void:
+	target_lock.tick(delta)
+	if not target_lock.is_locked():
+		return
+	if not round_active() or (target_lock.kind == "boss" and boss_info().is_empty()) or (target_lock.kind == "sub" and sub_info(target_lock.index).is_empty()):
+		var was_sub := target_lock.kind == "sub"
+		target_lock.clear()
+		if was_sub and round_active() and not boss_info().is_empty() and bool(config.get("relock_on_kill", true)):
+			target_lock.set_target("boss")  # 倒したら、近くの敵（ボス）を選び直す
+
+
+## 画面のタップ：敵ならロック（同じ敵なら外す）、味方なら回復の送り先。どちらでもなければ何もしない
+func tap_select(pos: Vector2) -> bool:
+	if camera == null or not round_active():
+		return false
+	var cands: Array = []
+	var bi := boss_info()
+	if not bi.is_empty():
+		var c3 := Vector3(float(bi["x"]), float(bi["y0"]) + float(bi["h"]) * 0.5, float(bi["z"]))
+		if not camera.is_position_behind(c3):
+			cands.append({"kind": "boss", "index": -1, "screen": camera.unproject_position(c3), "r_px": _screen_radius(c3, float(bi["r"]) * 1.1)})
+	if sub_enemies_enabled():
+		for i in sub_crowd.last_positions.size():
+			var si := sub_info(i)
+			if si.is_empty():
+				continue
+			var c4 := Vector3(float(si["x"]), ground_y + 0.7, float(si["z"]))
+			if not camera.is_position_behind(c4):
+				cands.append({"kind": "sub", "index": i, "screen": camera.unproject_position(c4), "r_px": _screen_radius(c4, 0.9)})
+	var pick := TargetLock.pick(pos, cands, float(config.get("tap_slack_px", 30.0)))
+	if not pick.is_empty():
+		if target_lock.kind == str(pick["kind"]) and target_lock.index == int(pick["index"]):
+			target_lock.clear()  # 同じ敵をもう一度タップ：ロックを外す
+		else:
+			target_lock.set_target(str(pick["kind"]), int(pick["index"]))
+		_play_sfx("click")
+		return true
+	# 味方（回復の送り先）
+	for slot in [_my_slot()] + ai_allies.keys():
+		var p3 := skills.pos3_of(str(slot)) + Vector3(0, 1.0, 0)
+		if camera.is_position_behind(p3):
+			continue
+		if pos.distance_to(camera.unproject_position(p3)) <= _screen_radius(p3, 0.8) + 20.0:
+			ally_lock = "" if ally_lock == str(slot) else str(slot)
+			return true
+	return false
+
+
+func _screen_radius(c: Vector3, r: float) -> float:
+	var right := camera.global_transform.basis.x.normalized()
+	return camera.unproject_position(c).distance_to(camera.unproject_position(c + right * r))
+
+
+## ロック中に、近くの攻撃で敵が届かない：近づく必要があるか（遠すぎる時は近づかない＝届かないことを、照準の色で示す）
+func _needs_approach(id: String) -> bool:
+	var d := actions.def(id)
+	if d.is_empty() or id == "ultimate":
+		return false
+	for h in d.get("hits", []):
+		if (h as Dictionary).has("proj") or SkillHits.shape_of(h) != "melee":
+			return false
+	var ti := target_info()
+	if ti.is_empty():
+		return false
+	var dist := Vector2(player.position.x, player.position.z).distance_to(Vector2(float(ti["x"]), float(ti["z"]))) - float(ti["r"])
+	var reach := HitArea.reach_of(role_value("attack_reach"), float(d.get("radius_scale", 1.0)))
+	return dist > reach and dist <= reach + float(config.get("approach_max_dist", 4.0))
+
+
+## 近づいてから出す技：毎コマ、敵へ走る。届いたら技を出す。時間切れでも出す
+func _approach_update(delta: float) -> void:
+	if approach_id == "":
+		return
+	var ti := target_info()
+	approach_left -= delta
+	if ti.is_empty() or downed or not round_active():
+		approach_id = ""
+		return
+	var to := Vector2(float(ti["x"]) - player.position.x, float(ti["z"]) - player.position.z)
+	var d := actions.def(approach_id)
+	var reach := HitArea.reach_of(role_value("attack_reach"), float(d.get("radius_scale", 1.0)))
+	if to.length() - float(ti["r"]) <= reach * 0.9 or approach_left <= 0.0:
+		var id := approach_id
+		approach_id = ""
+		_approach_go = true
+		perform(id)
+		_approach_go = false
+		return
+	var spd := role_value("move_speed") * skills.speed_mult(_my_slot()) * float(config.get("approach_speed_scale", 1.5))
+	var stepv := to.normalized() * minf(spd * delta, to.length() - float(ti["r"]) - reach * 0.85)
+	player.position.x += stepv.x
+	player.position.z += stepv.y
+	facing = to.normalized()
+	if char_view != null:
+		char_view.play_action("run")
+		char_view.face_now(facing)
+
 
 ## 通常攻撃（いままでの「こうげき」）。始められたら true
 func attack() -> bool:
@@ -825,8 +1033,14 @@ func perform(id: String) -> bool:
 	var cooldown := role_value("attack_cooldown_sec") / skills.speed_mult(_my_slot()) if id == "normal" else -1.0
 	if id == "ultimate" and not gauge.is_ready():
 		return false
+	# 版79：ロック中の近くの攻撃で、敵が少し遠いとき：まず近づいてから出す（追いかけるのは approach_max 秒まで）
+	if target_lock.is_locked() and not _approach_go and approach_id == "" and _needs_approach(id):
+		approach_id = id
+		approach_left = float(config.get("approach_max_sec", 0.6))
+		return true
 	if not actions.start(id, _aim_direction(id), cooldown):
 		return false
+	vanish_bonus = skills.on_attack_start(_my_slot())  # 版79：消えていたら現れる（最初の一撃が強い）
 	if bool(actions.def(id).get("sweep_hit", false)):
 		ult_start_pos = Vector2(player.position.x, player.position.z)  # 版72b・78：駆けぬけた道で当たりを調べる（必殺技・ダッシュ技）
 	if id == "ultimate":
@@ -845,8 +1059,10 @@ func perform(id: String) -> bool:
 
 ## 攻撃の向き。ボスをねらう攻撃は、ボスの方へ。それ以外は、いま向いている方へ
 func _aim_direction(id: String) -> Vector2:
-	if bool(actions.def(id).get("aim_boss", false)) and boss.visible:
-		var to := Vector2(boss.position.x - player.position.x, boss.position.z - player.position.z)
+	# 版79：ロックした敵がいれば、どの技もその敵へ向く。いなければ、今まで通り（ボスをねらう技だけボスへ）
+	var ti := target_info()
+	if (target_lock.is_locked() or bool(actions.def(id).get("aim_boss", false))) and not ti.is_empty():
+		var to := Vector2(float(ti["x"]) - player.position.x, float(ti["z"]) - player.position.z)
 		if to.length() > 0.01:
 			return to
 	return facing
@@ -858,8 +1074,11 @@ func _actions_update(delta: float) -> void:
 		actions.cancel()
 		if not _me_held():
 			player.position.y = ground_y
+	_approach_update(delta)
 	var was_busy := actions.busy()
 	_handle_action_events(actions.update(delta))
+	if not actions.busy():
+		vanish_bonus = 1.0
 	if was_busy:
 		var half := float(config["bounds"])
 		var dfwd: float = actions.frame_move.x
@@ -913,12 +1132,24 @@ func _on_action_mark(mark: String) -> void:
 func _resolve_hit(ev: Dictionary) -> void:
 	# 版74：必殺技は、キャラの ultimate_scale 倍（剣士は0.7＝30%減。書いていなければ1倍）
 	var ult_scale := float(role().get("ultimate_scale", 1.0)) if str(ev.get("action", "")) == "ultimate" else 1.0
-	var dmg := Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]) * float(ev["multiplier"]) * ult_scale * skills.dealt_mult())
+	var dmg := Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]) * float(ev["multiplier"]) * ult_scale * skills.dealt_mult(_my_slot()) * vanish_bonus)
 	var reach := HitArea.reach_of(role_value("attack_reach"), float(ev["radius_scale"]))
 	_play_sfx("slash")
 	var hit_boss := boss.visible and HitArea.hits(player.position, boss.position, reach, float(config["boss_size"]) * 0.5)
 	# 版78：ビーム・爆発・まわりの当たり（skill_hits.gd）。当たった所に、技の見た目（hit の fx）を出す
 	var hspec: Dictionary = ev.get("hit", {})
+	if hspec.has("proj"):
+		# 版79：飛ぶ物：発射口から撃ち、当たった時にダメージ（battle_skills.gd）
+		skills.fire(_my_slot(), hspec, dmg, actions.aim, str(ev.get("action", "")))
+		_play_sfx("slash")
+		return
+	var ti := target_info()
+	if not ti.is_empty() and str(ti.get("kind", "")) == "sub" and SkillHits.shape_of(hspec) == "melee":
+		# 版79：ロックしたサブ敵への近くの攻撃
+		var me2 := Vector2(player.position.x, player.position.z)
+		if me2.distance_to(Vector2(float(ti["x"]), float(ti["z"]))) <= reach + float(ti["r"]):
+			skills.deal(_my_slot(), dmg, str(ev.get("action", "")), Vector3(float(ti["x"]), ground_y + 0.8, float(ti["z"])), ti, hspec.get("fx", {}))
+		return
 	if SkillHits.shape_of(hspec) != "melee":
 		var me := Vector2(player.position.x, player.position.z)
 		var bxz2 := Vector2(boss.position.x, boss.position.z)
@@ -944,6 +1175,12 @@ func _resolve_hit(ev: Dictionary) -> void:
 		_play_sfx("hit")
 		hit_flash = float(config["hit_flash_sec"])
 		_damage_boss(dmg)
+		if hspec.has("impact"):
+			_impact(hspec["impact"])
+		# 版79：当たった所に、役の色の火花（ファイター＝赤、剣士・アタッカー＝黄 など）
+		var bi := boss_info()
+		var me3 := Vector3(slash_at.x, ground_y + 1.3, slash_at.y)
+		skills._spark(_my_slot(), Projectiles.surface_point(me3, bi), hspec.get("fx", {}) if hspec.get("fx", {}).has("size") else {"size": 0.7})
 		_show_damage(dmg, str(ev.get("action", "")), Vector2(player.position.x, player.position.z))  # 版75：減らした量をそのまま出す
 		rage.add_hit(_round_t(), _dist_to_boss_surface(Vector2(player.position.x, player.position.z)))  # 版69：近くからなら、怒りに数える
 	var sub_r := float((config["sub_enemy_size"] as Array)[0]) * 0.5
@@ -1354,6 +1591,7 @@ func combat_update(delta: float) -> void:
 		grab_state = {}
 		return
 	skills.update(delta)
+	_target_lock_update(delta)
 	# 版78：時間停止の間は、ボスの攻撃の時計を止める（止まっていた時間を、攻撃の時計から引く）
 	if skills.boss_frozen():
 		skill_time_stop_left = maxf(0.0, skill_time_stop_left - delta)

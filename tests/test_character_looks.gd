@@ -53,7 +53,15 @@ func _initialize() -> void:
 				bad += 1
 		check(bad == 0, "%s：部品の形と骨が正しい" % id)
 		var def := CD.find(cfg, str(id))
-		check(not def.is_empty() and str(def.get("look", "")) == str(id), "%s：キャラの一覧から見た目を指している" % id)
+		if def.is_empty():
+			# 版79：呼び出す小さい兵隊（summoner_mini）は、キャラの mini（呼び出す物）から指される
+			for c in cfg["characters"]:
+				var mini: Dictionary = c.get("mini", {})
+				if str(mini.get("model", "")).ends_with("/%s.scn" % str(id)):
+					def = (c as Dictionary).duplicate(true)
+					def["model"] = mini["model"]
+					def["look"] = str(id)
+		check(not def.is_empty() and str(def.get("look", "")) == str(id), "%s：キャラの一覧（または呼び出す物）から見た目を指している" % id)
 		check(CD.has_model(def) and str(def.get("anim_library", "")) != "", "%s：体（剣士と同じ）と動きを使う" % id)
 		var baked: Node = (load(str(def["model"])) as PackedScene).instantiate()
 		check(str(baked.get_meta("look_baked", "")) == str(id), "%s：前もって作った形を読む（ゲームの中で作らない）" % id)
@@ -81,7 +89,16 @@ func _initialize() -> void:
 	for id in looks:
 		var v: Node3D = CV.new()
 		root.add_child(v)
-		check(v.setup(CD.find(cfg, str(id))) and v.player != null and v.player.has_animation("Idle"), "%s：キャラとして出せて、動きがある" % id)
+		var vdef := CD.find(cfg, str(id))
+		if vdef.is_empty():
+			# 版79：呼び出す小さい兵隊は、おもちゃの兵隊の mini の形・動きで出す（battle_skills.gd と同じ）
+			var owner := CD.find(cfg, "summoner").duplicate(true)
+			var mini: Dictionary = owner.get("mini", {})
+			if str(mini.get("model", "")).ends_with("/%s.scn" % str(id)):
+				vdef = owner
+				vdef["model"] = mini["model"]
+				vdef["animations"] = mini.get("animations", {})
+		check(v.setup(vdef) and v.player != null and v.player.has_animation("Idle"), "%s：キャラとして出せて、動きがある" % id)
 		v.queue_free()
 	print("失敗: %d" % failures)
 	quit(1 if failures > 0 else 0)

@@ -46,3 +46,8 @@
 
 ## 2026-10-20 版77：味方8人のモデル
 - `assets/models/chars/*.scn`（brawler・sprinter・gunner・bomber・mage・guardian・summoner・healer）：剣士の体（`hero_swordsman.glb`、MakeHuman の CC0 素材）と骨を土台に、Claude がコード（`scripts/characters/body_builder.gd`・`tools/make_looks.py`・`tools/bake_looks.gd`）で形と色を作った。新しい外の素材は使っていない。ライセンスは剣士の体と同じ（CC0）。見た目の参考は、ユーザーの画像（`docs/ref/chars/`）。
+
+## 2026-10-20 版79：技の小物・小さい兵隊
+- `data/props.json`（プレゼントの箱・ふた・バネの道化・ぬいぐるみ（くま・うさぎ）・銃弾・銃口の光・魔法の玉・魔法陣・いん石・ハートの矢・花火の玉・回復の光）：`tools/make_props.py` が、丸・筒・箱などの形の組み合わせで作った自作の形。外の素材は使っていない。CC0として扱う。
+- `assets/models/chars/summoner_mini.scn`（呼び出す小さいおもちゃの兵隊）：版77と同じく、剣士の体（MakeHuman の CC0 素材）と骨を土台に、コードで作った。CC0。
+- `shaders/skill_dome.gdshader`（守りの膜・回復の膜の半透明の見た目）：自作。CC0。

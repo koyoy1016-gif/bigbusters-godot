@@ -37,6 +37,19 @@ static func load_config(path: String = PATH) -> Dictionary:
 	return parsed if parsed is Dictionary else {}
 
 
+static var _char_cache: Dictionary = {}
+
+
+## 版79：キャラの役の情報（_meta：役・必殺技の色・火花の色）。剣士は actions.json の _meta
+static func meta_for(char_id: String) -> Dictionary:
+	if _char_cache.is_empty():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(CHAR_PATH)) if FileAccess.file_exists(CHAR_PATH) else null
+		_char_cache = (parsed as Dictionary).get("characters", {}) if parsed is Dictionary else {}
+		_char_cache["_base"] = load_config().get("_meta", {})
+	var c: Dictionary = _char_cache.get(char_id, {})
+	return c.get("_meta", _char_cache.get("_base", {}))
+
+
 ## 版78：キャラ char_id の攻撃の設定（共通の actions.json に、data/char_actions.json のキャラの分を上書きした物）。
 ## キャラの分がなければ、共通のまま（剣士）
 static func config_for(char_id: String) -> Dictionary:

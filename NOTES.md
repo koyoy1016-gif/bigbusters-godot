@@ -1,9 +1,10 @@
 # 引き継ぎメモ
 
-更新：2026-10-20（版78）
+更新：2026-10-20（版79）
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-20 版79 ロック・飛ぶ物・技のしかけ・女性の骨格・動きの作り直し】ユーザー：魔法使い（と女性キャラ）を骨格から女性に／銃・魔法・爆弾のキャラを同じ型からでなくちゃんと作る／プレゼントの爆弾・兵隊の召喚・銃弾・魔法を細部まで／添付の指示書（敵をタップで赤い照準・全攻撃がロックした敵へ・近づいてから殴る・味方タップで回復先・役の色・スピードのY透明化・プレゼントのしかけ・兵隊の召喚・銃弾/魔法/爆弾の飛び方・青/緑の半透明ドームと3段・動きの一式・強い攻撃だけゆれる・テスト・正直な報告）。質問で止めずに進めた。まとめは `docs/version79.md`、数字の表は `docs/char-actions-v79.md`。新しい部品：`scripts/combat/target_lock.gd`・`scripts/combat/projectiles.gd`・`shaders/skill_dome.gdshader`・`data/props.json`（`tools/make_props.py`）・`assets/models/chars/summoner_mini.scn`。大きく変えた：`battle_skills.gd`（飛ぶ物・プレゼント・兵隊・膜・残像・回復の光・手ごたえ）・`skill_fx.gd`・`anim_compose.gd`（足を床につける IK・lift_units leg_abs・plant）・`tools/make_char_actions.py`（姿勢で作る pose_anim。胸のひねりの向き：spine03 の y＋で右肩が前）・`character_view.gd`（作った動きの使い回し・has_action・socket_position）・`stick_prototype.gd`（ロック・近づく・歩く・かたむき・勝った・_impact とカメラの寄り）。剣士は数字を変えず、必殺技に黄色のオーラだけ足した。テスト `tests/test_v79.gd`（94項目）新規、`test_v78.gd`・`test_ai_ally.gd`・`test_character_looks.gd` を版79に合わせて直した。`test_procedural_anims` で見つかった不具合（元の動きがない時に勝った・負けたを作る）を直した。全テスト Godot 59本・Node 59件 合格。引き継ぎ書 `docs/handover-2026-10-20-v79.md`。道具：`tools/check_feet.gd`（足の高さを測る）、`tools/shot_anim.gd` に EXTRA_ANIMS（試しの動き）。未確認：iPhone 実機の重さ、通信中の見た目（飛ぶ物・膜・呼び出しは自分の画面だけ）。まだ：負けた動きは作ったが使っていない（負ける時は全員ダウン）、止まる・曲がるの専用の動き（かたむきで代用）、正規分布のクリティカル。Blender は使えない（通信が止められている）
 - 【2026-10-20 版78 キャラごとの攻撃と動き】ユーザー：ビームなども全部打てるように／技に合った動きを1キャラずつ／A・X・Yでそれぞれ別の動きとダメージ（剣士とは別）／縦をもっと大きく（意味は「不明」の答え→全員の背を少し高く）／エンジェルに仮面／おもちゃの兵隊のぬいぐるみ部隊。確認：必殺技もキャラごと・呼び出しはぬいぐるみ部隊・ダメージは Claude に任せる。tools/make_char_actions.py → data/char_actions.json（player_actions.gd の config_for がキャラ分で置きかえ、剣士は共通のまま）・docs/char-actions-v78.md（表）。当たりの形 scripts/combat/skill_hits.gd（beam・blast・self）、効果 scripts/prototype/battle_skills.gd（超高速1.75倍・ドーム0.25倍・回復・蘇生・時間停止＋耐性・ぬいぐるみ7体まで）、見た目 scripts/fx/skill_fx.gd。動きは anim_compose.gd（切り取り・つなぎ・腕だけ左右反対・腕をねらった向きへ aim）。武器は前腕に付け直し。テスト test_v78 新規、test_ai_ally・test_v71（剣士で調べる）・test_v72（AIを剣士に）・test_v74 を直した。くわしくは docs/version78.md。未確認：iPhone の重さ、通信中は技の効果が自分の画面だけ
 - 【2026-10-20 版77 味方8人の3Dキャラ】ユーザー：「コードの整理を終えてから、1キャラずつ生成」「自然なアニメーションもつけて、剣士のように全キャラ使えるように」（指示書は8キャラ統合仕様・正規分布クリティカル・3D制作。参考画像8枚は docs/ref/chars/）。Blender は通信が止められて使えないため、剣士と同じ体（MakeHuman CC0）と骨を土台に、scripts/characters/body_builder.gd（体格・塗り・重ね着・部品）でコードで作った。データは tools/make_looks.py → data/character_looks.json、前もって作って assets/models/chars/<id>.scn に保存（tools/bake_looks.gd。xvfb で回す。exports/<id>.glb はリポジトリに入れない）。8方向の確認画像 tools/shot_look.gd、比較画像 docs/ref/chars/<id>_compare.jpg。走りの速さを移動の速さに合わせた（anim_speeds）。強さの数値は変えていない。AIの味方もモデルで出る。くわしくは docs/characters-v77.md（参考画像との差・未対応も書いた）。テスト test_character_looks 新規、test_characters の「モデルのないキャラ」を作ったデータで確かめる形に。Godot 57本・Node 59件 合格。未確認：iPhone での重さ（1人 約3万〜3.6万の三角形、4人で約13万）。指示書の第2〜5部（正規分布・クリティカル・バランス表）は未着手（統合仕様書の全文が見つからない）
 - 【2026-10-20 版76 コードの整理（済み）】stick_prototype.gd（2844行→1593行）を battle_attack_fx・battle_hud・battle_grab・battle_ai_team・battle_net・battle_ult_fx に分けた。1つずつ全テスト合格→コミット（61e0093・4089263・d0702b5・2cc04ff・65c25cd・1be1987）。動きは変えていない
@@ -168,6 +169,7 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること（流れと優先事項。2026-10-18 14:10 更新）
+【2026-10-20 版79のあと】次はユーザーの感想（動き・技の見た目・照準・兵隊・膜）を待つ。候補：①iPhone 実機で重さを測る（兵隊・ぬいぐるみが多い時）②通信中に、飛ぶ物・膜・呼び出しをほかの人の画面にも出す ③正規分布のダメージの変動とクリティカル ④止まる・曲がる・よけるの専用の動き ⑤技の名前を決める
 【2026-10-20 版72のあと】「戦闘システム・AI・必殺技モーションの改善指示」の版70〜72はすべて終わり。次はユーザーの感想・次の指示を待つ。
 【版69のあと】版69の3つの確認（通信中は怒らない・つかみ2倍・投げたあとの約2秒）は、すべて「このまま」で決定。次はユーザーの次の指示を待つ。手が空いたら `docs/handover-2026-10-20-v68.md` の9章の候補。以下は古い記録。
 試作（版9）で、2人の通信・戦いの流れ・役割・ボスの2種類の攻撃・結果の画面が、実機（iPhone＋PC）で動くことを確認済み。次は「ユーザーの作りたいゲームのイメージ」へ移る。

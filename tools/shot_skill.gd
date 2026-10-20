@@ -25,6 +25,7 @@ func _initialize() -> void:
 	if act == "ultimate":
 		s.gauge.value = s.gauge.max_value
 	s.set_process(false)
+	s.target_lock.set_target("boss")  # 版79：ねらう敵（赤い照準）
 	s.perform(act)
 	var t := 0.0
 	while t < at:
@@ -34,9 +35,13 @@ func _initialize() -> void:
 		s.combat_update(dt)
 		if s.char_view != null and s.char_view.player != null:
 			s.char_view.player.advance(0.0)
+		s._target_lock_update(dt)
+		s.camera_update(dt)
+		s.overlay.queue_redraw()
+		Engine.time_scale = 1.0
 		t += dt
 	for i in 3:
 		await process_frame
 	root.get_texture().get_image().save_png(out)
-	print("SHOT ", out, " hits=", s.my_hits, " units=", s.skill_summons.map(func(u): return [u["pos"], (u["node"] as Node3D).global_position, (u["node"] as Node3D).get_child_count(), (u["node"] as Node3D).scale, (u["node"] as Node3D).visible]), " boss=", s.boss.position, " gy=", s.ground_y)
+	print("SHOT ", out, " hits=", s.my_hits, " units=", s.skill_summons.size(), " projs=", s.skill_projs.size(), " fx=", s.skill_fx.size())
 	quit(0)

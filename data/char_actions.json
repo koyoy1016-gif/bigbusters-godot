@@ -1,7 +1,12 @@
 {
- "_memo": "版78：キャラごとの攻撃（tools/make_char_actions.py が作る。手で書きかえない）。actions.json の同じ名前の動きを、キャラの分で置きかえる。ダメージ = キャラの攻撃力 × 倍率。剣士は actions.json のまま",
+ "_memo": "版79：キャラごとの攻撃（tools/make_char_actions.py が作る。手で書きかえない）。actions.json の同じ名前の動きを、キャラの分で置きかえる。ダメージ = キャラの攻撃力 × 倍率。剣士は actions.json のまま。hits の proj は飛ぶ物（当たった時にダメージ）。_meta は役と色",
  "characters": {
   "brawler": {
+   "_meta": {
+    "role": "ファイター",
+    "aura": "#ff3b2f",
+    "spark": "#ff6a3a"
+   },
    "normal": {
     "label": "A",
     "name": "ジャブ",
@@ -16,13 +21,7 @@
       "t": 0.09,
       "multiplier": 1.2,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      }
     ],
@@ -36,11 +35,11 @@
     "path": [],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
-    "note": "すばやいジャブ（左）。待ち時間はキャラの attack_cooldown_sec（0.3秒）"
+    "note": "すばやい左ジャブ。待ち時間はキャラの attack_cooldown_sec（0.3秒）"
    },
    "sub": {
     "label": "Y",
-    "name": "ダッシュアッパー",
+    "name": "ダッシュキック",
     "cooldown_sec": 4.0,
     "duration_sec": 0.75,
     "move_scale": 0.0,
@@ -49,15 +48,21 @@
     "radius_scale": 1.4,
     "hits": [
      {
-      "t": 0.34,
+      "t": 0.38,
       "multiplier": 3.6,
+      "impact": [
+       0.04,
+       0.16,
+       0.0
+      ],
       "fx": {
        "kind": "blast",
-       "color": "#ffb347",
-       "radius": 1.3,
-       "life": 0.25,
+       "color": "#ff8a4a",
+       "radius": 1.2,
+       "life": 0.22,
        "at": "front",
-       "dist": 1.6
+       "dist": 1.7,
+       "size": 1.0
       }
      }
     ],
@@ -75,18 +80,13 @@
       "h": 0.0
      },
      {
-      "t": 0.2,
-      "fwd": 0.2,
+      "t": 0.08,
+      "fwd": 0.0,
       "h": 0.0
      },
      {
-      "t": 0.34,
+      "t": 0.3,
       "fwd": 2.8,
-      "h": 0.25
-     },
-     {
-      "t": 0.55,
-      "fwd": 3.0,
       "h": 0.0
      },
      {
@@ -96,13 +96,14 @@
      }
     ],
     "stop_at_boss": true,
-    "note": "前へ踏みこんで、下から突き上げる"
+    "i_frames": true,
+    "note": "しずんでから前へ踏みこみ、右足で前げり。踏みこむ間は無敵"
    },
    "main": {
     "label": "X",
     "name": "20連パンチ",
     "cooldown_sec": 7.0,
-    "duration_sec": 2.4,
+    "duration_sec": 2.55,
     "move_scale": 0.0,
     "aim_boss": true,
     "cleave": true,
@@ -110,262 +111,153 @@
     "hits": [
      {
       "t": 0.27,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 0.37,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 0.47,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 0.57,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 0.67,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 0.77,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 0.87,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 0.97,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.07,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.17,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.27,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.37,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.47,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.57,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.67,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.77,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.87,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 1.97,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 2.07,
-      "multiplier": 0.42,
+      "multiplier": 0.38,
       "fx": {
-       "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
-       "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "size": 0.7
       }
      },
      {
       "t": 2.17,
-      "multiplier": 0.42,
+      "multiplier": 1.6,
+      "impact": [
+       0.04,
+       0.16,
+       0.0
+      ],
       "fx": {
        "kind": "blast",
-       "color": "#fff1c2",
-       "radius": 0.7,
-       "life": 0.14,
+       "color": "#ff6a3a",
+       "radius": 1.6,
+       "life": 0.25,
        "at": "front",
-       "dist": 1.7,
-       "height": 1.3
+       "dist": 1.8,
+       "size": 1.2
       }
      }
     ],
@@ -384,22 +276,22 @@
      },
      {
       "t": 0.2,
-      "fwd": 0.3,
+      "fwd": 0.4,
       "h": 0.0
      },
      {
       "t": 2.2,
-      "fwd": 1.0,
+      "fwd": 1.2,
       "h": 0.0
      },
      {
-      "t": 2.4,
-      "fwd": 1.0,
+      "t": 2.55,
+      "fwd": 1.2,
       "h": 0.0
      }
     ],
     "stop_at_boss": true,
-    "note": "左右の拳を交互に20発。1発ずつ計算する。2秒以上その場に立つので、反撃を受けやすい"
+    "note": "左右の拳を交互に19発、最後に右の大きな1発。1発ずつ計算する。2秒以上その場に立つので、反撃を受けやすい"
    },
    "ultimate": {
     "label": "必殺",
@@ -414,13 +306,19 @@
      {
       "t": 0.9,
       "multiplier": 23.0,
+      "impact": [
+       0.09,
+       0.34,
+       0.1
+      ],
       "fx": {
        "kind": "blast",
-       "color": "#ff9a2e",
+       "color": "#ff5a2e",
        "radius": 3.0,
        "life": 0.45,
        "at": "front",
-       "dist": 1.8
+       "dist": 1.8,
+       "size": 1.6
       }
      }
     ],
@@ -438,7 +336,7 @@
       "h": 0.0
      },
      {
-      "t": 0.75,
+      "t": 0.72,
       "fwd": -0.3,
       "h": 0.0
      },
@@ -454,31 +352,55 @@
      }
     ],
     "stop_at_boss": true,
+    "banner_sec": 1.6,
     "fx_events": [
      {
-      "t": 0.0,
-      "kind": "aura",
-      "color": "#ffb347",
-      "radius": 1.3,
-      "life": 0.8,
-      "alpha": 0.3
+      "t": 0.3,
+      "kind": "ring",
+      "color": "#ff5a3a",
+      "radius": 1.6,
+      "life": 0.45,
+      "at": "self"
      },
      {
       "t": 0.9,
       "kind": "ring",
-      "color": "#ffd27a",
+      "color": "#ff9a5a",
       "radius": 6.0,
       "life": 0.5,
       "at": "front",
       "dist": 1.8
+     },
+     {
+      "t": 0.9,
+      "kind": "beam",
+      "color": "#ff4a2a",
+      "width": 0.45,
+      "life": 0.22,
+      "length": 7.0,
+      "from": "fist_R"
+     }
+    ],
+    "effects": [
+     {
+      "t": 0.0,
+      "type": "aura",
+      "color": "#ff3b2f",
+      "sec": 1.6,
+      "radius": 1.1,
+      "alpha": 0.22
      }
     ],
     "i_frames": true,
-    "banner_sec": 1.6,
-    "note": "力をためて、渾身の右ストレート"
+    "note": "赤いオーラで力をためて（腕を大きく引き、ふるえる）、踏みこんで渾身の右ストレート。拳の先に衝撃波"
    }
   },
   "sprinter": {
+   "_meta": {
+    "role": "スピード",
+    "aura": "#3fb8ff",
+    "spark": "#7fdcff"
+   },
    "normal": {
     "label": "A",
     "name": "高速ジャブ",
@@ -493,12 +415,7 @@
       "t": 0.07,
       "multiplier": 1.0,
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 0.55,
-       "life": 0.12,
-       "at": "front",
-       "dist": 1.6
+       "size": 0.55
       }
      }
     ],
@@ -515,27 +432,14 @@
    },
    "sub": {
     "label": "Y",
-    "name": "疾風ダッシュ",
-    "cooldown_sec": 3.5,
-    "duration_sec": 0.6,
+    "name": "バニッシュ",
+    "cooldown_sec": 8.0,
+    "duration_sec": 0.4,
     "move_scale": 0.0,
-    "aim_boss": true,
+    "aim_boss": false,
     "cleave": true,
     "radius_scale": 1.0,
-    "hits": [
-     {
-      "t": 0.22,
-      "multiplier": 3.5,
-      "fx": {
-       "kind": "blast",
-       "color": "#5fd6ff",
-       "radius": 1.0,
-       "life": 0.2,
-       "at": "front",
-       "dist": 0.5
-      }
-     }
-    ],
+    "hits": [],
     "steps": [
      {
       "t": 0.0,
@@ -543,41 +447,29 @@
       "speed": 1.0
      }
     ],
-    "path": [
-     {
-      "t": 0.0,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.22,
-      "fwd": 6.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.6,
-      "fwd": 6.0,
-      "h": 0.0
-     }
-    ],
+    "path": [],
     "stop_at_boss": false,
     "fx_events": [
      {
-      "kind": "slash",
+      "t": 0.18,
+      "kind": "ring",
       "color": "#5fd6ff",
-      "width": 0.12,
-      "life": 0.3,
-      "alpha": 0.7,
-      "height": 1.0,
-      "t": 0.02,
-      "length": 6.0,
-      "dist": 3.0,
-      "at": "front"
+      "radius": 1.8,
+      "life": 0.35,
+      "at": "self"
      }
     ],
-    "i_frames": true,
-    "sweep_hit": true,
-    "note": "6m を一気に駆けぬけて、通った道で当てる（ボスをすりぬける）。走っている間は無敵"
+    "effects": [
+     {
+      "t": 0.18,
+      "type": "vanish",
+      "sec": 3.0,
+      "speed": 1.3,
+      "bonus": 1.5,
+      "color": "#5fd6ff"
+     }
+    ],
+    "note": "姿が消える（青い残像と粒）。3秒、ボスの攻撃に当たらず、1.3倍の速さで動ける。攻撃すると現れ、その技のダメージが1.5倍"
    },
    "main": {
     "label": "X",
@@ -600,17 +492,24 @@
     "stop_at_boss": false,
     "fx_events": [
      {
-      "t": 0.3,
+      "t": 0.35,
       "kind": "ring",
       "color": "#5fd6ff",
       "radius": 3.0,
       "life": 0.4,
       "at": "self"
+     },
+     {
+      "t": 0.35,
+      "kind": "rise",
+      "color": "#8fe8ff",
+      "life": 0.8,
+      "at": "self"
      }
     ],
     "effects": [
      {
-      "t": 0.3,
+      "t": 0.35,
       "type": "speed_mode",
       "sec": 6.0,
       "mult": 1.75,
@@ -633,104 +532,125 @@
       "t": 0.4,
       "multiplier": 3.5,
       "shape": "self",
-      "radius": 4.0,
+      "radius": 4.5,
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 1.2,
-       "life": 0.15,
-       "at": "boss"
+       "kind": "slash",
+       "color": "#7fdcff",
+       "width": 0.1,
+       "life": 0.18,
+       "length": 4.5,
+       "at": "boss",
+       "size": 0.9
       }
      },
      {
       "t": 0.65,
       "multiplier": 3.5,
       "shape": "self",
-      "radius": 4.0,
+      "radius": 4.5,
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 1.2,
-       "life": 0.15,
-       "at": "boss"
+       "kind": "slash",
+       "color": "#7fdcff",
+       "width": 0.1,
+       "life": 0.18,
+       "length": 4.5,
+       "at": "boss",
+       "size": 0.9
       }
      },
      {
       "t": 0.9,
       "multiplier": 3.5,
       "shape": "self",
-      "radius": 4.0,
+      "radius": 4.5,
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 1.2,
-       "life": 0.15,
-       "at": "boss"
+       "kind": "slash",
+       "color": "#7fdcff",
+       "width": 0.1,
+       "life": 0.18,
+       "length": 4.5,
+       "at": "boss",
+       "size": 0.9
       }
      },
      {
       "t": 1.15,
       "multiplier": 3.5,
       "shape": "self",
-      "radius": 4.0,
+      "radius": 4.5,
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 1.2,
-       "life": 0.15,
-       "at": "boss"
+       "kind": "slash",
+       "color": "#7fdcff",
+       "width": 0.1,
+       "life": 0.18,
+       "length": 4.5,
+       "at": "boss",
+       "size": 0.9
       }
      },
      {
       "t": 1.4,
       "multiplier": 3.5,
       "shape": "self",
-      "radius": 4.0,
+      "radius": 4.5,
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 1.2,
-       "life": 0.15,
-       "at": "boss"
+       "kind": "slash",
+       "color": "#7fdcff",
+       "width": 0.1,
+       "life": 0.18,
+       "length": 4.5,
+       "at": "boss",
+       "size": 0.9
       }
      },
      {
       "t": 1.65,
       "multiplier": 3.5,
       "shape": "self",
-      "radius": 4.0,
+      "radius": 4.5,
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 1.2,
-       "life": 0.15,
-       "at": "boss"
+       "kind": "slash",
+       "color": "#7fdcff",
+       "width": 0.1,
+       "life": 0.18,
+       "length": 4.5,
+       "at": "boss",
+       "size": 0.9
       }
      },
      {
       "t": 1.9,
       "multiplier": 3.5,
       "shape": "self",
-      "radius": 4.0,
+      "radius": 4.5,
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 1.2,
-       "life": 0.15,
-       "at": "boss"
+       "kind": "slash",
+       "color": "#7fdcff",
+       "width": 0.1,
+       "life": 0.18,
+       "length": 4.5,
+       "at": "boss",
+       "size": 0.9
       }
      },
      {
       "t": 2.15,
       "multiplier": 3.5,
       "shape": "self",
-      "radius": 4.0,
+      "radius": 4.5,
+      "impact": [
+       0.09,
+       0.34,
+       0.1
+      ],
       "fx": {
-       "kind": "blast",
-       "color": "#a8ecff",
-       "radius": 1.2,
-       "life": 0.15,
-       "at": "boss"
+       "kind": "slash",
+       "color": "#7fdcff",
+       "width": 0.1,
+       "life": 0.18,
+       "length": 4.5,
+       "at": "boss",
+       "size": 0.9
       }
      }
     ],
@@ -741,28 +661,73 @@
       "speed": 1.0
      }
     ],
-    "path": [],
-    "stop_at_boss": false,
-    "fx_events": [
+    "path": [
+     {
+      "t": 0.0,
+      "fwd": 0.0,
+      "h": 0.0
+     },
+     {
+      "t": 0.2,
+      "fwd": 0.0,
+      "h": 0.0
+     },
+     {
+      "t": 0.32,
+      "fwd": 6.0,
+      "h": 0.0
+     },
+     {
+      "t": 2.4,
+      "fwd": 6.0,
+      "h": 0.0
+     }
+    ],
+    "stop_at_boss": true,
+    "banner_sec": 1.6,
+    "effects": [
+     {
+      "t": 0.0,
+      "type": "aura",
+      "color": "#3fb8ff",
+      "sec": 2.4,
+      "radius": 1.1,
+      "alpha": 0.22
+     },
      {
       "t": 0.3,
-      "kind": "aura",
-      "color": "#5fd6ff",
-      "radius": 4.0,
-      "life": 2.0,
-      "alpha": 0.18,
-      "at": "self"
+      "type": "afterimage",
+      "color": "#5fd6ff"
+     },
+     {
+      "t": 0.8,
+      "type": "afterimage",
+      "color": "#5fd6ff"
+     },
+     {
+      "t": 1.3,
+      "type": "afterimage",
+      "color": "#5fd6ff"
+     },
+     {
+      "t": 1.8,
+      "type": "afterimage",
+      "color": "#5fd6ff"
      }
     ],
     "i_frames": true,
-    "banner_sec": 1.6,
-    "note": "目にもとまらぬ速さで、まわり4m の敵を8回打つ"
+    "note": "一瞬で敵の前へ。青い残像を残しながら、ジャブ・ストレート・けり・アッパーで8回打つ（まわり4.5m）"
    }
   },
   "gunner": {
+   "_meta": {
+    "role": "アタッカー",
+    "aura": "#ffd24a",
+    "spark": "#ffd24a"
+   },
    "normal": {
     "label": "A",
-    "name": "ショット",
+    "name": "ダブルショット",
     "cooldown_sec": 0.3,
     "duration_sec": 0.3,
     "move_scale": 0.0,
@@ -771,12 +736,54 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.06,
-      "multiplier": 1.0,
-      "shape": "beam",
-      "length": 10.0,
-      "half_width": 0.5,
-      "side": 0.25
+      "t": 0.05,
+      "multiplier": 0.5,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 48.0,
+       "prop": "bullet",
+       "scale": 1.0,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.3,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 0.9,
+        "life": 0.07
+       }
+      },
+      "fx": {
+       "size": 0.45
+      }
+     },
+     {
+      "t": 0.15,
+      "multiplier": 0.5,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 48.0,
+       "prop": "bullet",
+       "scale": 1.0,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.3,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 0.9,
+        "life": 0.07
+       }
+      },
+      "fx": {
+       "size": 0.45
+      }
      }
     ],
     "steps": [
@@ -789,19 +796,7 @@
     "path": [],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
-    "fx_events": [
-     {
-      "kind": "beam",
-      "color": "#ff4a3a",
-      "width": 0.07,
-      "life": 0.12,
-      "length": 10.0,
-      "height": 1.25,
-      "t": 0.05,
-      "side": 0.25
-     }
-    ],
-    "note": "腕の大砲から1発（長さ10m の帯）"
+    "note": "左右の腕の大砲から1発ずつ（銃口の光・光る弾・当たった所の火花。ダメージは当たった時）"
    },
    "sub": {
     "label": "Y",
@@ -814,11 +809,82 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.35,
-      "multiplier": 2.6,
-      "shape": "beam",
-      "length": 12.0,
-      "half_width": 0.7
+      "t": 0.3,
+      "multiplier": 0.9,
+      "side": -0.9,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 48.0,
+       "prop": "bullet",
+       "scale": 1.0,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.3,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 0.9,
+        "life": 0.07
+       }
+      },
+      "fx": {
+       "size": 0.6
+      }
+     },
+     {
+      "t": 0.38,
+      "multiplier": 0.9,
+      "side": 0.0,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 48.0,
+       "prop": "bullet",
+       "scale": 1.0,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.3,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 0.9,
+        "life": 0.07
+       }
+      },
+      "fx": {
+       "size": 0.6
+      }
+     },
+     {
+      "t": 0.46,
+      "multiplier": 0.9,
+      "side": 0.9,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 48.0,
+       "prop": "bullet",
+       "scale": 1.0,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.3,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 0.9,
+        "life": 0.07
+       }
+      },
+      "fx": {
+       "size": 0.6
+      }
      }
     ],
     "steps": [
@@ -835,30 +901,29 @@
       "h": 0.0
      },
      {
-      "t": 0.4,
-      "fwd": -3.0,
+      "t": 0.1,
+      "fwd": 0.0,
+      "h": 0.0
+     },
+     {
+      "t": 0.45,
+      "fwd": -3.2,
       "h": 0.9
      },
      {
+      "t": 0.62,
+      "fwd": -3.4,
+      "h": 0.0
+     },
+     {
       "t": 0.8,
-      "fwd": -3.2,
+      "fwd": -3.4,
       "h": 0.0
      }
     ],
     "stop_at_boss": false,
-    "fx_events": [
-     {
-      "kind": "beam",
-      "color": "#ff4a3a",
-      "width": 0.12,
-      "life": 0.18,
-      "length": 12.0,
-      "height": 1.25,
-      "t": 0.34
-     }
-    ],
     "i_frames": true,
-    "note": "後ろへ跳びながら撃つ。跳んでいる間は無敵"
+    "note": "後ろへ跳びながら、扇の形に3発。跳んでいる間は無敵"
    },
    "main": {
     "label": "X",
@@ -979,26 +1044,24 @@
     "fx_events": [
      {
       "kind": "beam",
-      "color": "#ff4a3a",
+      "color": "#ffcf3a",
       "width": 0.16,
       "life": 1.1,
       "length": 14.0,
-      "height": 1.25,
       "t": 0.3,
-      "side": -0.35
+      "from": "muzzle_L"
      },
      {
       "kind": "beam",
-      "color": "#ff4a3a",
+      "color": "#ffcf3a",
       "width": 0.16,
       "life": 1.1,
       "length": 14.0,
-      "height": 1.25,
       "t": 0.3,
-      "side": 0.35
+      "from": "muzzle_R"
      }
     ],
-    "note": "両腕から2本のビーム。1本ずつ当たりを調べる（同じ敵に2本とも当たる）。6回ずつ、つらぬく"
+    "note": "両腕の砲口から2本のビーム。1本ずつ当たりを調べる。6回ずつ、つらぬく"
    },
    "ultimate": {
     "label": "必殺",
@@ -1011,74 +1074,84 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.55,
+      "t": 0.6,
+      "multiplier": 2.3,
+      "shape": "beam",
+      "length": 18.0,
+      "half_width": 1.4,
+      "impact": [
+       0.09,
+       0.34,
+       0.1
+      ]
+     },
+     {
+      "t": 0.77,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
       "half_width": 1.4
      },
      {
-      "t": 0.72,
+      "t": 0.94,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
       "half_width": 1.4
      },
      {
-      "t": 0.89,
+      "t": 1.11,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
       "half_width": 1.4
      },
      {
-      "t": 1.06,
+      "t": 1.28,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
       "half_width": 1.4
      },
      {
-      "t": 1.23,
+      "t": 1.45,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
       "half_width": 1.4
      },
      {
-      "t": 1.4,
+      "t": 1.62,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
       "half_width": 1.4
      },
      {
-      "t": 1.57,
+      "t": 1.79,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
       "half_width": 1.4
      },
      {
-      "t": 1.74,
+      "t": 1.96,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
       "half_width": 1.4
      },
      {
-      "t": 1.91,
+      "t": 2.13,
       "multiplier": 2.3,
       "shape": "beam",
       "length": 18.0,
-      "half_width": 1.4
-     },
-     {
-      "t": 2.08,
-      "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "half_width": 1.4,
+      "impact": [
+       0.09,
+       0.34,
+       0.1
+      ]
      }
     ],
     "steps": [
@@ -1090,31 +1163,65 @@
     ],
     "path": [],
     "stop_at_boss": false,
+    "banner_sec": 1.6,
     "fx_events": [
      {
       "kind": "beam",
-      "color": "#ff6a2a",
-      "width": 0.6,
-      "life": 1.75,
+      "color": "#ffb02a",
+      "width": 0.42,
+      "life": 1.7,
       "length": 18.0,
-      "height": 1.25,
-      "t": 0.5
+      "t": 0.55,
+      "from": "muzzle_L"
      },
      {
-      "t": 0.1,
-      "kind": "aura",
-      "color": "#ff6a2a",
-      "radius": 1.2,
-      "life": 0.45,
-      "alpha": 0.35
+      "kind": "beam",
+      "color": "#ffb02a",
+      "width": 0.42,
+      "life": 1.7,
+      "length": 18.0,
+      "t": 0.55,
+      "from": "muzzle_R"
+     },
+     {
+      "t": 0.4,
+      "kind": "spark",
+      "color": "#ffe27a",
+      "size": 1.0,
+      "life": 0.3,
+      "at": "socket",
+      "from": "muzzle_L"
+     },
+     {
+      "t": 0.4,
+      "kind": "spark",
+      "color": "#ffe27a",
+      "size": 1.0,
+      "life": 0.3,
+      "at": "socket",
+      "from": "muzzle_R"
+     }
+    ],
+    "effects": [
+     {
+      "t": 0.0,
+      "type": "aura",
+      "color": "#ffd24a",
+      "sec": 2.4,
+      "radius": 1.1,
+      "alpha": 0.22
      }
     ],
     "i_frames": true,
-    "banner_sec": 1.6,
-    "note": "2つの大砲を合わせた、太いビーム（10回当たる）"
+    "note": "2つの大砲を前で合わせて、太いビームを2本（10回当たる）"
    }
   },
   "bomber": {
+   "_meta": {
+    "role": "アタッカー",
+    "aura": "#ffd24a",
+    "spark": "#ffb347"
+   },
    "normal": {
     "label": "A",
     "name": "プレゼント投げ",
@@ -1126,19 +1233,31 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.52,
+      "t": 0.2,
       "multiplier": 1.0,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_L",
+       "speed": 13.0,
+       "prop": "present_pink",
+       "scale": 1.0,
+       "size": 0.2,
+       "range": 12.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 1.5,
+       "arc": 2.4,
+       "spin": 7.0,
+       "blast": 2.0
+      },
       "fx": {
        "kind": "blast",
        "color": "#ff9030",
+       "radius": 2.0,
        "life": 0.35,
-       "radius": 2.0
-      },
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 7.0,
-      "dist": 5.0,
-      "radius": 2.0
+       "confetti": false
+      }
      }
     ],
     "steps": [
@@ -1151,30 +1270,11 @@
     "path": [],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
-    "fx_events": [
-     {
-      "kind": "orb",
-      "color": "#c04a8c",
-      "radius": 0.13,
-      "arc": 1.6,
-      "height": 1.6,
-      "at": "hit",
-      "t": 0.12,
-      "life": 0.4,
-      "hit": {
-       "shape": "blast",
-       "at_boss": true,
-       "max_dist": 7.0,
-       "dist": 5.0,
-       "radius": 2.0
-      }
-     }
-    ],
-    "note": "プレゼントの爆弾を投げる（7m まで、ボスの所で爆発、半径2m）"
+    "note": "プレゼントの爆弾を、放物線で投げる（12m まで）。落ちた所で爆発（半径2m＝ダメージの範囲）"
    },
    "sub": {
     "label": "Y",
-    "name": "置き爆弾＆バックジャンプ",
+    "name": "置きプレゼント＆バックジャンプ",
     "cooldown_sec": 5.0,
     "duration_sec": 0.95,
     "move_scale": 0.0,
@@ -1183,16 +1283,27 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.75,
+      "t": 0.15,
       "multiplier": 3.0,
-      "shape": "blast",
-      "dist": 3.6,
-      "radius": 3.0,
-      "fx": {
-       "kind": "blast",
-       "color": "#ff6a1a",
-       "life": 0.35,
-       "radius": 3.0
+      "proj": {
+       "mode": "arc",
+       "from": "hand_L",
+       "speed": 6.0,
+       "prop": "present_green",
+       "scale": 1.0,
+       "size": 0.2,
+       "range": 12.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 3.2,
+       "arc": 0.6,
+       "spin": 7.0,
+       "land_at": "self",
+       "on_land": "present",
+       "open_sec": 0.55,
+       "boom_sec": 1.1,
+       "blast": 3.0
       }
      }
     ],
@@ -1210,14 +1321,19 @@
       "h": 0.0
      },
      {
-      "t": 0.15,
+      "t": 0.3,
       "fwd": 0.0,
       "h": 0.0
      },
      {
-      "t": 0.55,
+      "t": 0.6,
       "fwd": -3.5,
       "h": 0.9
+     },
+     {
+      "t": 0.75,
+      "fwd": -3.6,
+      "h": 0.0
      },
      {
       "t": 0.95,
@@ -1226,78 +1342,46 @@
      }
     ],
     "stop_at_boss": false,
-    "fx_events": [
-     {
-      "t": 0.05,
-      "kind": "orb",
-      "color": "#3d8a3f",
-      "radius": 0.16,
-      "arc": 0.0,
-      "life": 0.7,
-      "height": 0.2,
-      "at": "self"
-     }
-    ],
     "i_frames": true,
-    "note": "足もとに爆弾を置いて、後ろへ跳ぶ。跳んでいる間は無敵。置いた所が爆発（半径3m）"
+    "note": "足もとにプレゼントを置いて、後ろへ跳ぶ（跳んでいる間は無敵）。箱がゆれ、ふたが飛び、バネの道化が飛び出して爆発（半径3m）"
    },
    "main": {
     "label": "X",
-    "name": "3連プレゼント",
+    "name": "びっくりプレゼント",
     "cooldown_sec": 7.0,
-    "duration_sec": 1.2,
+    "duration_sec": 1.1,
     "move_scale": 0.0,
     "aim_boss": true,
     "cleave": true,
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.62,
-      "multiplier": 2.0,
-      "fx": {
-       "kind": "blast",
-       "color": "#ff9030",
-       "life": 0.35,
-       "radius": 2.3
+      "t": 0.35,
+      "multiplier": 6.0,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_L",
+       "speed": 11.0,
+       "prop": "present_big",
+       "scale": 1.1,
+       "size": 0.2,
+       "range": 12.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 1.7454545454545454,
+       "arc": 3.6,
+       "spin": 7.0,
+       "on_land": "present",
+       "open_sec": 0.45,
+       "boom_sec": 1.0,
+       "blast": 3.5
       },
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 7.0,
-      "dist": 5.0,
-      "radius": 2.3,
-      "side": -1.3
-     },
-     {
-      "t": 0.82,
-      "multiplier": 2.0,
-      "fx": {
-       "kind": "blast",
-       "color": "#ff9030",
-       "life": 0.35,
-       "radius": 2.3
-      },
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 7.0,
-      "dist": 5.0,
-      "radius": 2.3,
-      "side": 0.0
-     },
-     {
-      "t": 1.02,
-      "multiplier": 2.0,
-      "fx": {
-       "kind": "blast",
-       "color": "#ff9030",
-       "life": 0.35,
-       "radius": 2.3
-      },
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 7.0,
-      "dist": 5.0,
-      "radius": 2.3,
-      "side": 1.3
+      "impact": [
+       0.06,
+       0.24,
+       0.04
+      ]
      }
     ],
     "steps": [
@@ -1309,63 +1393,7 @@
     ],
     "path": [],
     "stop_at_boss": false,
-    "fx_events": [
-     {
-      "kind": "orb",
-      "color": "#c04a8c",
-      "radius": 0.13,
-      "arc": 1.6,
-      "height": 1.6,
-      "at": "hit",
-      "t": 0.12,
-      "life": 0.5,
-      "hit": {
-       "shape": "blast",
-       "at_boss": true,
-       "max_dist": 7.0,
-       "dist": 5.0,
-       "radius": 2.0,
-       "side": -1.3
-      }
-     },
-     {
-      "kind": "orb",
-      "color": "#c04a8c",
-      "radius": 0.13,
-      "arc": 1.6,
-      "height": 1.6,
-      "at": "hit",
-      "t": 0.32,
-      "life": 0.5,
-      "hit": {
-       "shape": "blast",
-       "at_boss": true,
-       "max_dist": 7.0,
-       "dist": 5.0,
-       "radius": 2.0,
-       "side": 0.0
-      }
-     },
-     {
-      "kind": "orb",
-      "color": "#c04a8c",
-      "radius": 0.13,
-      "arc": 1.6,
-      "height": 1.6,
-      "at": "hit",
-      "t": 0.52,
-      "life": 0.5,
-      "hit": {
-       "shape": "blast",
-       "at_boss": true,
-       "max_dist": 7.0,
-       "dist": 5.0,
-       "radius": 2.0,
-       "side": 1.3
-      }
-     }
-    ],
-    "note": "左・まん中・右に3つ投げる。それぞれ半径2.3m。ボスが大きいので、3つとも当たることが多い"
+    "note": "大きなプレゼントを放り上げる。落ちると、ゆれて、ふたが飛び、中からバネの道化と紙ふぶき、そして爆発（半径3.5m）"
    },
    "ultimate": {
     "label": "必殺",
@@ -1378,94 +1406,177 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 1.0,
+      "t": 0.6,
       "multiplier": 3.4,
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 20.0,
-      "radius": 3.5,
-      "side": -1.0,
+      "side": -1.2,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_L",
+       "speed": 14.0,
+       "prop": "firework_red",
+       "scale": 1.6,
+       "size": 0.2,
+       "range": 22.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 2.5142857142857142,
+       "arc": 7.0,
+       "spin": 0.0,
+       "blast": 3.5
+      },
       "fx": {
        "kind": "blast",
        "color": "#ff5a3a",
+       "radius": 3.5,
        "life": 0.35,
-       "radius": 3.5
+       "confetti": true
+      }
+     },
+     {
+      "t": 0.8,
+      "multiplier": 3.4,
+      "side": 0.0,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_R",
+       "speed": 14.0,
+       "prop": "firework_gold",
+       "scale": 1.6,
+       "size": 0.2,
+       "range": 22.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 2.5142857142857142,
+       "arc": 7.0,
+       "spin": 0.0,
+       "blast": 3.5
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffd23a",
+       "radius": 3.5,
+       "life": 0.35,
+       "confetti": true
+      }
+     },
+     {
+      "t": 1.0,
+      "multiplier": 3.4,
+      "side": 1.2,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_L",
+       "speed": 14.0,
+       "prop": "firework_blue",
+       "scale": 1.6,
+       "size": 0.2,
+       "range": 22.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 2.5142857142857142,
+       "arc": 7.0,
+       "spin": 0.0,
+       "blast": 3.5
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#5ad1ff",
+       "radius": 3.5,
+       "life": 0.35,
+       "confetti": true
       }
      },
      {
       "t": 1.2,
       "multiplier": 3.4,
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 20.0,
-      "radius": 3.5,
-      "side": 0.0,
+      "side": -1.2,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_R",
+       "speed": 14.0,
+       "prop": "firework_red",
+       "scale": 1.6,
+       "size": 0.2,
+       "range": 22.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 2.5142857142857142,
+       "arc": 7.0,
+       "spin": 0.0,
+       "blast": 3.5
+      },
       "fx": {
        "kind": "blast",
-       "color": "#ffd23a",
+       "color": "#ff5a3a",
+       "radius": 3.5,
        "life": 0.35,
-       "radius": 3.5
+       "confetti": true
       }
      },
      {
       "t": 1.4,
       "multiplier": 3.4,
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 20.0,
-      "radius": 3.5,
-      "side": 1.0,
+      "side": 0.0,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_L",
+       "speed": 14.0,
+       "prop": "firework_gold",
+       "scale": 1.6,
+       "size": 0.2,
+       "range": 22.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 2.5142857142857142,
+       "arc": 7.0,
+       "spin": 0.0,
+       "blast": 3.5
+      },
       "fx": {
        "kind": "blast",
-       "color": "#5ad1ff",
+       "color": "#ffd23a",
+       "radius": 3.5,
        "life": 0.35,
-       "radius": 3.5
+       "confetti": true
       }
      },
      {
       "t": 1.6,
       "multiplier": 3.4,
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 20.0,
-      "radius": 3.5,
-      "side": -1.0,
-      "fx": {
-       "kind": "blast",
-       "color": "#ff5a3a",
-       "life": 0.35,
-       "radius": 3.5
-      }
-     },
-     {
-      "t": 1.8,
-      "multiplier": 3.4,
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 20.0,
-      "radius": 3.5,
-      "side": 0.0,
-      "fx": {
-       "kind": "blast",
-       "color": "#ffd23a",
-       "life": 0.35,
-       "radius": 3.5
-      }
-     },
-     {
-      "t": 2.0,
-      "multiplier": 3.4,
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 20.0,
-      "radius": 3.5,
-      "side": 1.0,
+      "side": 1.2,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_R",
+       "speed": 14.0,
+       "prop": "firework_blue",
+       "scale": 1.6,
+       "size": 0.2,
+       "range": 22.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 2.5142857142857142,
+       "arc": 7.0,
+       "spin": 0.0,
+       "blast": 3.5
+      },
       "fx": {
        "kind": "blast",
        "color": "#5ad1ff",
+       "radius": 3.5,
        "life": 0.35,
-       "radius": 3.5
-      }
+       "confetti": true
+      },
+      "impact": [
+       0.09,
+       0.34,
+       0.1
+      ]
      }
     ],
     "steps": [
@@ -1477,6 +1588,7 @@
     ],
     "path": [],
     "stop_at_boss": false,
+    "banner_sec": 1.6,
     "fx_events": [
      {
       "t": 0.3,
@@ -1488,12 +1600,26 @@
       "at": "self"
      }
     ],
+    "effects": [
+     {
+      "t": 0.0,
+      "type": "aura",
+      "color": "#ffd24a",
+      "sec": 2.4,
+      "radius": 1.1,
+      "alpha": 0.22
+     }
+    ],
     "i_frames": true,
-    "banner_sec": 1.6,
-    "note": "空へ打ち上げた花火が、ボスに6回ふりそそぐ"
+    "note": "花火の玉を6つ、空高く打ち上げる。ボスの所に落ちて、赤・金・青に開く（半径3.5m ずつ）"
    }
   },
   "mage": {
+   "_meta": {
+    "role": "アタッカー",
+    "aura": "#ffd24a",
+    "spark": "#d9a8ff"
+   },
    "normal": {
     "label": "A",
     "name": "マジックショット",
@@ -1505,19 +1631,26 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.3,
+      "t": 0.17,
       "multiplier": 1.0,
-      "fx": {
-       "kind": "blast",
-       "color": "#c070ff",
-       "radius": 1.0,
-       "life": 0.25
+      "proj": {
+       "mode": "homing",
+       "from": "staff_tip",
+       "speed": 17.0,
+       "prop": "magic_orb",
+       "scale": 1.1,
+       "size": 0.2,
+       "range": 16.0,
+       "radius": 0.35,
+       "aim_h": 0.5,
+       "color": "#ffffff",
+       "life": 1.5058823529411764,
+       "turn_deg": 140.0
       },
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 9.0,
-      "dist": 6.0,
-      "radius": 1.0
+      "fx": {
+       "size": 0.7,
+       "color": "#d9a8ff"
+      }
      }
     ],
     "steps": [
@@ -1532,24 +1665,16 @@
     "duration_from_cooldown": true,
     "fx_events": [
      {
-      "t": 0.12,
-      "kind": "orb",
-      "color": "#c9a2ff",
-      "radius": 0.12,
-      "arc": 0.0,
-      "life": 0.18,
-      "height": 1.4,
-      "at": "hit",
-      "hit": {
-       "shape": "blast",
-       "at_boss": true,
-       "max_dist": 9.0,
-       "dist": 6.0,
-       "radius": 1.0
-      }
+      "t": 0.17,
+      "kind": "spark",
+      "color": "#d9a8ff",
+      "size": 0.5,
+      "life": 0.2,
+      "from": "staff_tip",
+      "at": "socket"
      }
     ],
-    "note": "つえから魔法の玉（9m まで、半径1m）"
+    "note": "つえの先から、むらさきの魔法の玉。ゆるく敵を追いかける（1秒に140度まで曲がる）"
    },
    "sub": {
     "label": "Y",
@@ -1562,19 +1687,31 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 1.32,
+      "t": 1.2,
       "multiplier": 4.0,
-      "fx": {
-       "kind": "blast",
-       "color": "#9a5cff",
-       "radius": 2.4,
-       "life": 0.45
+      "proj": {
+       "mode": "homing",
+       "from": "staff_tip",
+       "speed": 12.0,
+       "prop": "magic_big",
+       "scale": 1.3,
+       "size": 0.2,
+       "range": 18.0,
+       "radius": 0.7,
+       "aim_h": 0.5,
+       "color": "#ffffff",
+       "life": 2.4000000000000004,
+       "turn_deg": 90.0
       },
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 10.0,
-      "dist": 6.0,
-      "radius": 2.4
+      "impact": [
+       0.04,
+       0.16,
+       0.0
+      ],
+      "fx": {
+       "size": 1.3,
+       "color": "#c08bff"
+      }
      }
     ],
     "steps": [
@@ -1588,34 +1725,32 @@
     "stop_at_boss": false,
     "fx_events": [
      {
-      "t": 0.15,
-      "kind": "aura",
-      "color": "#b9a8ff",
-      "radius": 0.35,
-      "life": 1.05,
-      "alpha": 0.6,
-      "height": 2.2,
+      "t": 0.2,
+      "kind": "prop",
+      "prop": "magic_circle",
+      "scale": 1.5,
+      "life": 1.0,
+      "at": "self",
+      "y": 0.06
+     },
+     {
+      "t": 0.25,
+      "kind": "rise",
+      "color": "#c9a2ff",
+      "life": 0.9,
       "at": "self"
      },
      {
-      "t": 1.18,
-      "kind": "orb",
-      "color": "#b9a8ff",
-      "radius": 0.35,
-      "arc": 0.5,
-      "life": 0.14,
-      "height": 2.0,
-      "at": "hit",
-      "hit": {
-       "shape": "blast",
-       "at_boss": true,
-       "max_dist": 10.0,
-       "dist": 6.0,
-       "radius": 2.4
-      }
+      "t": 1.2,
+      "kind": "spark",
+      "color": "#e6c8ff",
+      "size": 0.9,
+      "life": 0.25,
+      "from": "staff_tip",
+      "at": "socket"
      }
     ],
-    "note": "1.1秒ためてから、大きな玉（半径2.4m）。ためている間は動けない"
+    "note": "足もとに魔法陣。0.95秒ためてから、大きな魔法の玉（ゆっくり追いかける）"
    },
    "main": {
     "label": "X",
@@ -1644,6 +1779,15 @@
       "radius": 8.0,
       "life": 0.6,
       "at": "self"
+     },
+     {
+      "t": 0.3,
+      "kind": "prop",
+      "prop": "magic_circle",
+      "scale": 2.2,
+      "life": 0.7,
+      "at": "self",
+      "y": 0.06
      }
     ],
     "effects": [
@@ -1669,17 +1813,33 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 1.62,
+      "t": 1.3,
       "multiplier": 19.0,
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 20.0,
-      "radius": 4.5,
+      "proj": {
+       "mode": "straight",
+       "from": "@sky",
+       "speed": 24.0,
+       "prop": "meteor",
+       "scale": 2.2,
+       "size": 0.2,
+       "range": 40.0,
+       "radius": 1.6,
+       "aim_h": 0.3,
+       "color": "#ffffff",
+       "life": 3.0
+      },
+      "impact": [
+       0.09,
+       0.34,
+       0.1
+      ],
       "fx": {
        "kind": "blast",
-       "color": "#8a4cff",
+       "color": "#ff7a2a",
        "radius": 4.5,
-       "life": 0.6
+       "life": 0.6,
+       "size": 2.0,
+       "big": true
       }
      }
     ],
@@ -1692,41 +1852,38 @@
     ],
     "path": [],
     "stop_at_boss": false,
+    "banner_sec": 1.6,
     "fx_events": [
      {
       "t": 0.3,
-      "kind": "aura",
-      "color": "#c9a2ff",
-      "radius": 1.3,
-      "life": 1.2,
-      "alpha": 0.3,
-      "at": "self"
-     },
+      "kind": "prop",
+      "prop": "magic_circle_gold",
+      "scale": 3.0,
+      "life": 1.3,
+      "at": "target",
+      "y": 0.08
+     }
+    ],
+    "effects": [
      {
-      "t": 1.25,
-      "kind": "orb",
-      "color": "#ff8a3a",
-      "radius": 0.9,
-      "arc": 9.0,
-      "life": 0.37,
-      "height": 6.0,
-      "at": "boss"
-     },
-     {
-      "t": 1.62,
-      "kind": "ring",
-      "color": "#ffb36a",
-      "radius": 7.0,
-      "life": 0.6,
-      "at": "boss"
+      "t": 0.0,
+      "type": "aura",
+      "color": "#ffd24a",
+      "sec": 2.2,
+      "radius": 1.1,
+      "alpha": 0.22
      }
     ],
     "i_frames": true,
-    "banner_sec": 1.6,
-    "note": "空から大きな火の玉を落とす（半径4.5m）"
+    "note": "空へ呼びかけ、大きな火の玉（いん石）を、敵の上から落とす。当たった所で大爆発（半径4.5m の見た目）"
    }
   },
   "guardian": {
+   "_meta": {
+    "role": "シールド",
+    "aura": "#4f9bff",
+    "spark": "#9fd0ff"
+   },
    "normal": {
     "label": "A",
     "name": "棍棒",
@@ -1741,12 +1898,7 @@
       "t": 0.26,
       "multiplier": 1.4,
       "fx": {
-       "kind": "blast",
-       "color": "#d6dde6",
-       "radius": 0.9,
-       "life": 0.18,
-       "at": "front",
-       "dist": 1.8
+       "size": 0.8
       }
      }
     ],
@@ -1760,7 +1912,7 @@
     "path": [],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
-    "note": "とげ鉄球の棍棒を振り下ろす"
+    "note": "とげ鉄球の棍棒を、ふりかぶって振り下ろす"
    },
    "sub": {
     "label": "Y",
@@ -1773,15 +1925,21 @@
     "radius_scale": 1.3,
     "hits": [
      {
-      "t": 0.38,
+      "t": 0.42,
       "multiplier": 3.0,
+      "impact": [
+       0.04,
+       0.16,
+       0.0
+      ],
       "fx": {
        "kind": "blast",
        "color": "#7fb4ff",
        "radius": 1.4,
        "life": 0.25,
        "at": "front",
-       "dist": 1.5
+       "dist": 1.5,
+       "size": 1.0
       }
      }
     ],
@@ -1799,7 +1957,12 @@
       "h": 0.0
      },
      {
-      "t": 0.4,
+      "t": 0.1,
+      "fwd": 0.0,
+      "h": 0.0
+     },
+     {
+      "t": 0.42,
       "fwd": 3.5,
       "h": 0.0
      },
@@ -1815,7 +1978,7 @@
    },
    "main": {
     "label": "X",
-    "name": "全体防御強化",
+    "name": "シールドドーム",
     "cooldown_sec": 20.0,
     "duration_sec": 1.0,
     "move_scale": 0.0,
@@ -1832,18 +1995,28 @@
     ],
     "path": [],
     "stop_at_boss": false,
+    "fx_events": [
+     {
+      "t": 0.48,
+      "kind": "ring",
+      "color": "#9fd0ff",
+      "radius": 5.0,
+      "life": 0.5,
+      "at": "self"
+     }
+    ],
     "effects": [
      {
-      "t": 0.5,
+      "t": 0.48,
       "type": "dome",
       "sec": 6.0,
       "radius": 5.0,
       "attack_mult": 0.5,
       "taken_mult": 0.5,
-      "color": "#7fb4ff"
+      "color": "#4f9bff"
      }
     ],
-    "note": "6秒、ドームを張る。敵を含めた全員の攻撃力が50%低下し、受けるダメージが50%軽減（既存の指定のまま）"
+    "note": "青い半透明の膜（半径5m・6秒）。膜の中の味方は受けるダメージが減り、攻撃が当たると膜に波紋。膜の中からの攻撃は弱くなる"
    },
    "ultimate": {
     "label": "必殺",
@@ -1856,16 +2029,22 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.9,
+      "t": 0.88,
       "multiplier": 32.0,
       "shape": "self",
       "radius": 6.0,
+      "impact": [
+       0.09,
+       0.34,
+       0.1
+      ],
       "fx": {
        "kind": "blast",
-       "color": "#c8a46a",
+       "color": "#7fb4ff",
        "radius": 6.0,
        "life": 0.5,
-       "at": "self"
+       "at": "self",
+       "size": 1.6
       }
      }
     ],
@@ -1883,17 +2062,17 @@
       "h": 0.0
      },
      {
-      "t": 0.55,
+      "t": 0.35,
       "fwd": 0.0,
       "h": 0.0
      },
      {
-      "t": 0.72,
+      "t": 0.62,
       "fwd": 0.4,
-      "h": 1.5
+      "h": 1.4
      },
      {
-      "t": 0.9,
+      "t": 0.88,
       "fwd": 0.6,
       "h": 0.0
      },
@@ -1904,22 +2083,46 @@
      }
     ],
     "stop_at_boss": false,
+    "banner_sec": 1.6,
     "fx_events": [
      {
-      "t": 0.9,
+      "t": 0.88,
       "kind": "ring",
-      "color": "#ffd27a",
+      "color": "#9fd0ff",
       "radius": 8.0,
       "life": 0.6,
       "at": "self"
      }
     ],
+    "effects": [
+     {
+      "t": 0.0,
+      "type": "aura",
+      "color": "#4f9bff",
+      "sec": 1.8,
+      "radius": 1.1,
+      "alpha": 0.22
+     },
+     {
+      "t": 0.88,
+      "type": "dome",
+      "sec": 8.0,
+      "radius": 7.0,
+      "attack_mult": 0.5,
+      "taken_mult": 0.5,
+      "color": "#4f9bff"
+     }
+    ],
     "i_frames": true,
-    "banner_sec": 1.6,
-    "note": "跳び上がって、棍棒で地面をたたく（まわり6m）"
+    "note": "跳び上がって、棍棒で地面をたたく（まわり6m）。そのまま大きな守りの膜（半径7m・8秒）を張る"
    }
   },
   "summoner": {
+   "_meta": {
+    "role": "アタッカー",
+    "aura": "#ffd24a",
+    "spark": "#ffd24a"
+   },
    "normal": {
     "label": "A",
     "name": "ぬいぐるみ投げ",
@@ -1931,19 +2134,30 @@
     "radius_scale": 1.0,
     "hits": [
      {
-      "t": 0.34,
+      "t": 0.18,
       "multiplier": 1.3,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_R",
+       "speed": 12.0,
+       "prop": "plush_bear",
+       "scale": 0.55,
+       "size": 0.2,
+       "range": 10.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 1.5,
+       "arc": 1.8,
+       "blast": 1.2,
+       "spin": 9.0
+      },
       "fx": {
        "kind": "blast",
        "color": "#ffd0e0",
-       "radius": 1.0,
-       "life": 0.2
-      },
-      "shape": "blast",
-      "at_boss": true,
-      "max_dist": 6.0,
-      "dist": 4.0,
-      "radius": 1.0
+       "radius": 1.2,
+       "life": 0.22
+      }
      }
     ],
     "steps": [
@@ -1956,31 +2170,12 @@
     "path": [],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
-    "fx_events": [
-     {
-      "t": 0.1,
-      "kind": "orb",
-      "color": "#7a5232",
-      "radius": 0.14,
-      "arc": 1.2,
-      "life": 0.24,
-      "height": 1.5,
-      "at": "hit",
-      "hit": {
-       "shape": "blast",
-       "at_boss": true,
-       "max_dist": 6.0,
-       "dist": 4.0,
-       "radius": 1.0
-      }
-     }
-    ],
-    "note": "小さなぬいぐるみを投げる（6m まで）"
+    "note": "小さなくまのぬいぐるみを投げる（10m まで、落ちた所の半径1.2m）"
    },
    "sub": {
     "label": "Y",
     "name": "ぬいぐるみの突撃",
-    "cooldown_sec": 12.0,
+    "cooldown_sec": 10.0,
     "duration_sec": 0.8,
     "move_scale": 0.0,
     "aim_boss": true,
@@ -1998,7 +2193,7 @@
     "stop_at_boss": false,
     "fx_events": [
      {
-      "t": 0.35,
+      "t": 0.3,
       "kind": "ring",
       "color": "#f2b6c6",
       "radius": 2.0,
@@ -2008,7 +2203,7 @@
     ],
     "effects": [
      {
-      "t": 0.35,
+      "t": 0.3,
       "type": "summon",
       "unit": "plush",
       "count": 2,
@@ -2017,15 +2212,16 @@
       "multiplier": 0.6,
       "speed": 5.5,
       "reach": 1.0,
-      "max_active": 7
+      "max_active": 9,
+      "spread": 1.8
      }
     ],
-    "note": "ぬいぐるみを2体呼ぶ（8秒。0.8秒ごとに攻撃）"
+    "note": "ぬいぐるみを2体呼ぶ（8秒。敵へ跳ねて行き、0.8秒ごとにたたく）"
    },
    "main": {
     "label": "X",
-    "name": "ぬいぐるみ部隊",
-    "cooldown_sec": 18.0,
+    "name": "兵隊よ、進め！",
+    "cooldown_sec": 16.0,
     "duration_sec": 1.0,
     "move_scale": 0.0,
     "aim_boss": true,
@@ -2045,8 +2241,8 @@
      {
       "t": 0.45,
       "kind": "ring",
-      "color": "#f2b6c6",
-      "radius": 3.5,
+      "color": "#ffd24a",
+      "radius": 3.0,
       "life": 0.5,
       "at": "self"
      }
@@ -2055,21 +2251,22 @@
      {
       "t": 0.45,
       "type": "summon",
-      "unit": "plush",
-      "count": 5,
+      "unit": "soldier",
+      "count": 3,
       "sec": 10.0,
-      "interval": 1.0,
-      "multiplier": 0.6,
-      "speed": 5.0,
+      "interval": 0.9,
+      "multiplier": 0.55,
+      "speed": 4.5,
       "reach": 1.0,
-      "max_active": 7
+      "max_active": 9,
+      "spread": 2.2
      }
     ],
-    "note": "ぬいぐるみを5体呼ぶ（10秒。1秒ごとに攻撃）。本体の攻撃力には足さない。同時に7体まで"
+    "note": "小さいおもちゃの兵隊を3人呼ぶ（10秒）。重ならずに並び、立ち上がり、敵へ行進して、小さな弾を撃つ。本体の攻撃力には足さない"
    },
    "ultimate": {
     "label": "必殺",
-    "name": "ぬいぐるみ大行進",
+    "name": "おもちゃの大行進",
     "cooldown_sec": 0.0,
     "duration_sec": 1.6,
     "move_scale": 0.0,
@@ -2086,37 +2283,69 @@
     ],
     "path": [],
     "stop_at_boss": false,
+    "banner_sec": 1.6,
     "fx_events": [
      {
       "t": 1.1,
       "kind": "ring",
-      "color": "#ffd0e0",
+      "color": "#ffd24a",
       "radius": 5.0,
       "life": 0.6,
+      "at": "self"
+     },
+     {
+      "t": 1.1,
+      "kind": "confetti",
+      "life": 1.2,
       "at": "self"
      }
     ],
     "effects": [
      {
+      "t": 0.0,
+      "type": "aura",
+      "color": "#ffd24a",
+      "sec": 1.6,
+      "radius": 1.1,
+      "alpha": 0.22
+     },
+     {
       "t": 1.1,
       "type": "summon",
-      "unit": "plush",
-      "count": 12,
-      "sec": 6.0,
-      "interval": 0.5,
-      "multiplier": 0.38,
-      "speed": 7.0,
-      "reach": 1.2,
+      "unit": "soldier",
+      "count": 6,
+      "sec": 9.0,
+      "interval": 0.7,
+      "multiplier": 0.5,
+      "speed": 5.0,
+      "reach": 1.0,
       "max_active": 12,
-      "spread": 2.0
+      "spread": 2.8
+     },
+     {
+      "t": 1.15,
+      "type": "summon",
+      "unit": "plush",
+      "count": 3,
+      "sec": 9.0,
+      "interval": 0.6,
+      "multiplier": 0.5,
+      "speed": 6.5,
+      "reach": 1.1,
+      "max_active": 12,
+      "spread": 1.6
      }
     ],
     "i_frames": true,
-    "banner_sec": 1.6,
-    "note": "ぬいぐるみ12体の大行進（6秒、0.5秒ごとに攻撃）"
+    "note": "兵隊6人とぬいぐるみ3体の大行進（9秒）"
    }
   },
   "healer": {
+   "_meta": {
+    "role": "ヒーラー",
+    "aura": "#4fe08a",
+    "spark": "#9dffb8"
+   },
    "normal": {
     "label": "A",
     "name": "ハートの矢",
@@ -2130,9 +2359,23 @@
      {
       "t": 0.2,
       "multiplier": 1.4,
-      "shape": "beam",
-      "length": 11.0,
-      "half_width": 0.35
+      "proj": {
+       "mode": "straight",
+       "from": "bow",
+       "speed": 36.0,
+       "prop": "heart_arrow",
+       "scale": 1.4,
+       "size": 0.2,
+       "range": 16.0,
+       "radius": 0.3,
+       "aim_h": 0.5,
+       "color": "#ffffff",
+       "life": 1.5
+      },
+      "fx": {
+       "size": 0.6,
+       "color": "#ff8aa8"
+      }
      }
     ],
     "steps": [
@@ -2145,24 +2388,13 @@
     "path": [],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
-    "fx_events": [
-     {
-      "t": 0.19,
-      "kind": "beam",
-      "color": "#ff7b8a",
-      "width": 0.05,
-      "life": 0.12,
-      "length": 11.0,
-      "height": 1.3
-     }
-    ],
-    "note": "金の弓で、ハートの矢を射る（11m の帯）"
+    "note": "金の弓で、ハートの矢を射る（16m まで。当たった時にダメージ）"
    },
    "sub": {
     "label": "Y",
-    "name": "ヒール",
-    "cooldown_sec": 8.0,
-    "duration_sec": 1.0,
+    "name": "いやしの光",
+    "cooldown_sec": 6.0,
+    "duration_sec": 0.8,
     "move_scale": 0.0,
     "aim_boss": false,
     "cleave": true,
@@ -2179,18 +2411,19 @@
     "stop_at_boss": false,
     "effects": [
      {
-      "t": 0.5,
-      "type": "heal",
+      "t": 0.45,
+      "type": "heal_shot",
       "amount": 40.0,
-      "radius": 7.0,
-      "color": "#7dffa8"
+      "speed": 14.0,
+      "prop": "heal_orb",
+      "from": "hand_R"
      }
     ],
-    "note": "まわり7m の味方を40回復（乱数・クリティカルなし）"
+    "note": "いちばん減っている味方（味方をタップすれば、その味方）へ、回復の光を飛ばす（40回復）"
    },
    "main": {
     "label": "X",
-    "name": "天使の祈り",
+    "name": "いやしのドーム",
     "cooldown_sec": 25.0,
     "duration_sec": 1.4,
     "move_scale": 0.0,
@@ -2207,21 +2440,29 @@
     ],
     "path": [],
     "stop_at_boss": false,
-    "effects": [
+    "fx_events": [
      {
-      "t": 0.8,
-      "type": "revive",
-      "radius": 10.0,
-      "hp_ratio": 0.5
-     },
-     {
-      "t": 0.8,
-      "type": "heal",
-      "amount": 25.0,
-      "radius": 10.0
+      "t": 0.6,
+      "kind": "ring",
+      "color": "#9dffb8",
+      "radius": 5.0,
+      "life": 0.5,
+      "at": "self"
      }
     ],
-    "note": "まわり10m の倒れた味方を、体力50%で起こす。立っている味方は25回復"
+    "effects": [
+     {
+      "t": 0.6,
+      "type": "heal_dome",
+      "sec": 6.0,
+      "radius": 5.0,
+      "per_sec": 8.0,
+      "revive_after": 2.0,
+      "hp_ratio": 0.5,
+      "color": "#4fe08a"
+     }
+    ],
+    "note": "緑の半透明の膜（半径5m・6秒）。中の味方は1秒に8回復。倒れた味方は、2秒で体力50%で起きる"
    },
    "ultimate": {
     "label": "必殺",
@@ -2240,9 +2481,14 @@
       "at_boss": true,
       "max_dist": 20.0,
       "radius": 3.5,
+      "impact": [
+       0.09,
+       0.34,
+       0.1
+      ],
       "fx": {
        "kind": "pillar",
-       "color": "#fff2a8",
+       "color": "#c8ffd8",
        "radius": 3.0,
        "tall": 12.0,
        "life": 0.8
@@ -2258,18 +2504,33 @@
     ],
     "path": [],
     "stop_at_boss": false,
+    "banner_sec": 1.6,
     "effects": [
+     {
+      "t": 0.0,
+      "type": "aura",
+      "color": "#4fe08a",
+      "sec": 2.0,
+      "radius": 1.1,
+      "alpha": 0.22
+     },
      {
       "t": 1.0,
       "type": "heal",
       "amount": 999.0,
       "radius": 99.0,
-      "color": "#fff2a8"
+      "color": "#9dffb8"
+     },
+     {
+      "t": 1.0,
+      "type": "revive",
+      "radius": 99.0,
+      "hp_ratio": 0.5,
+      "color": "#9dffb8"
      }
     ],
     "i_frames": true,
-    "banner_sec": 1.6,
-    "note": "味方全員を全回復して、ボスに光の柱を落とす"
+    "note": "緑の光で、味方全員を全回復（倒れた味方も起こす）。そして、ボスに光の柱を落とす"
    }
   }
  }

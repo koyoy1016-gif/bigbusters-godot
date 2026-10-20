@@ -36,7 +36,15 @@ func _initialize() -> void:
 	vp.add_child(cam)
 	var v: Node3D = CV.new()
 	vp.add_child(v)
-	var def: Dictionary = CD.find(CD.load_config(), id)
+	var def: Dictionary = CD.find(CD.load_config(), id).duplicate(true)
+	# 版79：試しの動き（JSON のファイル {名前: spec}）を足して撮る。環境変数 EXTRA_ANIMS にファイルの場所
+	var extra := OS.get_environment("EXTRA_ANIMS")
+	if extra != "" and FileAccess.file_exists(extra):
+		var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(extra))
+		if d is Dictionary:
+			var ba: Dictionary = def.get("built_anims", {})
+			ba.merge(d, true)
+			def["built_anims"] = ba
 	v.setup(def)
 	v.scale = Vector3.ONE
 	v.rotation_degrees.y = yaw

@@ -14,6 +14,8 @@ extends RefCounted
 ##   aim：{骨: [[新しい秒, [x, y, z], 強さ], ...]} 骨（腕など）を、モデルの中のその向き（+Z が前、+Y が上、+X がキャラの左）へ向ける。
 ##        強さ 0 で元の動きのまま、1 でその向き。骨の名前の後ろに "*" で左右両方（右は x が反対）。skeleton が要る
 ##   root_lock：true なら、体の位置（root の移動）を、元の動きの最初の位置に止める（前へ進むのは actions.json の path で）
+##   root_lift：[[秒, 上げる量], ...] 体（root）を上げ下げする。lift_units: "leg_abs" なら（版79）、低いほうの足首が床にくるように
+##             腰の高さを毎コマ計算し（脚を曲げても、足が床からうかない・しずまない）、root_lift は「さらに上げる量（脚の長さ＝1）」
 
 const FPS := 30.0
 const SKEL := "Human_rig/Skeleton3D:"
@@ -146,6 +148,43 @@ static func build(lib: AnimationLibrary, spec: Dictionary, sk: Skeleton3D = null
 				var ng := Basis(turn) * (gp * Basis(q0))
 				var q1 := (gp.inverse() * ng).get_rotation_quaternion()
 				table[bn][f] = q0.slerp(q1, w).normalized()
+	# 版79：lift_units が "leg_abs" なら、足を床につける。plant（[[秒, "LR"/"L"/"R"/""], ...]）：
+	#   "LR" 両足：床に届きにくいほうの足で腰の高さを決め、もう片方の脚は、ひざを曲げて床に下ろす（2本の骨の IK）
+	#   "L"/"R" その足だけ床に（けり・片足立ち）、"" どちらも決めない（低いほうの足が床。跳ぶときは root_lift で上げる）
+	var leg_abs := str(spec.get("lift_units", "")) == "leg_abs" and sk != null and sk.find_bone("root") >= 0 and sk.find_bone("foot.L") >= 0
+	var rest_y := 0.0
+	var leg_len := 1.0
+	var foot_rest := 0.0
+	var ground_rel: Array = []  ## コマごとの、床の高さ（root の原点から見た足首の高さ）
+	if leg_abs:
+		rest_y = sk.get_bone_global_rest(sk.find_bone("root")).origin.y
+		foot_rest = sk.get_bone_global_rest(sk.find_bone("foot.L")).origin.y
+		leg_len = maxf(0.1, rest_y - foot_rest)
+		for side in ["L", "R"]:
+			for bn in ["upperleg01." + side, "lowerleg01." + side]:
+				if not table.has(bn) and sk.find_bone(bn) >= 0:
+					var qs: Array = []
+					for f in frames + 1:
+						qs.append(sk.get_bone_rest(sk.find_bone(bn)).basis.get_rotation_quaternion())
+					table[bn] = qs
+					bones[bn] = true
+		var plant: Array = spec.get("plant", [])
+		for f in frames + 1:
+			var t := minf(float(f) / FPS, len)
+			var mode := str(_step_at(plant, t, ""))
+			var fl := _bone_rel(sk, "foot.L", table, f).origin.y
+			var fr := _bone_rel(sk, "foot.R", table, f).origin.y
+			var g := minf(fl, fr)
+			if mode == "L":
+				g = fl
+			elif mode == "R":
+				g = fr
+			elif mode == "LR":
+				g = maxf(fl, fr)
+				var low := "L" if fl < fr else "R"
+				if absf(fl - fr) > 0.002 and absf(fl - fr) < leg_len * 0.45:
+					_plant_leg(sk, low, table, f, g)
+			ground_rel.append(g)
 	for bn in bones:
 		var nt := out.add_track(Animation.TYPE_ROTATION_3D)
 		out.track_set_path(nt, NodePath(SKEL + str(bn)))
@@ -171,9 +210,83 @@ static func build(lib: AnimationLibrary, spec: Dictionary, sk: Skeleton3D = null
 					p = sa.position_track_interpolate(rti, float(loc["src_t"])) if rti >= 0 else Vector3.ZERO
 				var dy: Variant = spec.get("root_lift", null)
 				if dy is Array:
-					p.y += _scalar_at(dy, t)
+					if leg_abs:
+						# 低いほうの足首が、床（静止の足首の高さ）にくるように、腰の高さを決める。root_lift はさらに上げる量（跳ぶ・うく）
+						p.y = foot_rest - float(ground_rel[f]) + leg_len * _scalar_at(dy, t)
+					else:
+						p.y += _scalar_at(dy, t)
 				out.position_track_insert_key(nt2, t, p)
 	return out
+
+
+## 骨の、体（root の原点）から見た位置と向き。コマ f の骨の回転（table）と、骨の静止の位置から計算する
+static func _bone_rel(sk: Skeleton3D, bone: String, table: Dictionary, f: int) -> Transform3D:
+	var bi := sk.find_bone(bone)
+	if bi < 0:
+		return Transform3D.IDENTITY
+	var chain: Array = []
+	var c := bi
+	while c >= 0:
+		chain.push_front(c)
+		c = sk.get_bone_parent(c)
+	var g := Transform3D.IDENTITY
+	for i in chain.size():
+		var b: int = chain[i]
+		var nm := sk.get_bone_name(b)
+		var q: Quaternion = table[nm][f] if table.has(nm) else sk.get_bone_rest(b).basis.get_rotation_quaternion()
+		var o := Vector3.ZERO if i == 0 else sk.get_bone_rest(b).origin
+		g = g * Transform3D(Basis(q), o)
+	return g
+
+
+## 片方の脚を、ひざを曲げて（2本の骨の IK）、足首の高さを y にする（足首の前後・左右の位置は変えない）
+static func _plant_leg(sk: Skeleton3D, side: String, table: Dictionary, f: int, y: float) -> void:
+	var up := "upperleg01." + side
+	var lo := "lowerleg01." + side
+	var H := _bone_rel(sk, up, table, f).origin
+	var K := _bone_rel(sk, lo, table, f).origin
+	var F := _bone_rel(sk, "foot." + side, table, f).origin
+	var a := H.distance_to(K)
+	var bl := K.distance_to(F)
+	var T := Vector3(F.x, y, F.z)
+	var d := clampf(H.distance_to(T), absf(a - bl) + 0.001, a + bl - 0.001)
+	var u0 := (F - H).normalized()
+	var u1 := (T - H).normalized()
+	# ひざの曲がる向き（いまの向きを保つ。まっすぐなら、体の前）
+	var n := (K - H) - u0 * (K - H).dot(u0)
+	n = n - u1 * n.dot(u1)
+	if n.length() < 0.001:
+		n = Vector3(0, 0, 1) - u1 * u1.z
+	n = n.normalized()
+	var x := (a * a - bl * bl + d * d) / (2.0 * d)
+	var h := sqrt(maxf(a * a - x * x, 0.0))
+	var K2 := H + u1 * x + n * h
+	var F2 := H + u1 * d
+	_rotate_bone_to(sk, up, table, f, (K - H).normalized(), (K2 - H).normalized())
+	var K3 := _bone_rel(sk, lo, table, f).origin
+	var F3 := _bone_rel(sk, "foot." + side, table, f).origin
+	_rotate_bone_to(sk, lo, table, f, (F3 - K3).normalized(), (F2 - K3).normalized())
+
+
+## 骨 bone を、モデルの中で、向き from が向き to になるように回す（table を書きかえる）
+static func _rotate_bone_to(sk: Skeleton3D, bone: String, table: Dictionary, f: int, from: Vector3, to: Vector3) -> void:
+	if from.dot(to) > 0.99999:
+		return
+	var bi := sk.find_bone(bone)
+	var pg := _bone_rel(sk, sk.get_bone_name(sk.get_bone_parent(bi)), table, f).basis if sk.get_bone_parent(bi) >= 0 else Basis.IDENTITY
+	var q0: Quaternion = table[bone][f]
+	var g := pg * Basis(q0)
+	var ng := Basis(Quaternion(from, to)) * g
+	table[bone][f] = (pg.inverse() * ng).get_rotation_quaternion().normalized()
+
+
+## くり返しでない値の列 [[秒, 値], ...] の、秒 t の値（前の値のまま）
+static func _step_at(keys: Array, t: float, def: Variant) -> Variant:
+	var v: Variant = def
+	for k in keys:
+		if float(k[0]) <= t + 0.0001:
+			v = k[1]
+	return v
 
 
 static func _has_track(srcs: Dictionary, bn: String) -> bool:

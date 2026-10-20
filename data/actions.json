@@ -43,7 +43,12 @@
       "hits": [
         {
           "t": 0.42,
-          "multiplier": 2.6
+          "multiplier": 2.6,
+          "impact": [
+            0.04,
+            0.16,
+            0.0
+          ]
         }
       ],
       "steps": [
@@ -111,7 +116,12 @@
         },
         {
           "t": 0.99,
-          "multiplier": 0.8
+          "multiplier": 0.8,
+          "impact": [
+            0.04,
+            0.16,
+            0.0
+          ]
         }
       ],
       "steps": [
@@ -307,7 +317,17 @@
         "ghost_color": "#9fd8ff",
         "ghost_alpha": 0.55
       },
-      "sweep_hit": true
+      "sweep_hit": true,
+      "effects": [
+        {
+          "t": 0.0,
+          "type": "aura",
+          "color": "#ffd24a",
+          "sec": 1.5,
+          "radius": 1.1,
+          "alpha": 0.22
+        }
+      ]
     },
     "kb_light": {
       "label": "",
@@ -533,5 +553,11 @@
   "stop_margin": 0.9,
   "stop_margin_note": "ボスに向かって進む攻撃が、ボスの中心から（ボスの半径＋この値）より近くには入らない",
   "knockback_note": "ボスの攻撃に当たったときの、ふっ飛び（kb_light / kb_heavy / kb_slam / kb_launch）。どの攻撃がどれを使うかは data/boss_attacks.json の各攻撃の knockback と kb_mode。ふっ飛んでいる間と、起き上がったあと kb_guard_sec 秒は、ボスの攻撃が当たらない（連続で当たって動けなくならないように）",
-  "kb_guard_sec": 0.6
+  "kb_guard_sec": 0.6,
+  "_meta": {
+    "role": "剣士",
+    "aura": "#ffd24a",
+    "spark": "#ffe27a",
+    "note": "版79：役と色（必殺技のオーラ・当たった時の火花）。剣士・アタッカー＝黄、ファイター＝赤、スピード・シールド＝青、ヒーラー＝緑。キャラごとの色は data/char_actions.json の _meta"
+  }
 }

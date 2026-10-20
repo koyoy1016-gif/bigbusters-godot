@@ -142,6 +142,14 @@ def ring_on_head(cy, rx, rz, cz=0.03):
     return [((0, cy - 0.018, cz), rx, rz), ((0, cy + 0.018, cz), rx, rz)]
 
 
+def sock(bone, pos):
+    return {"bone": bone, "pos": [round(float(x), 4) for x in pos]}
+
+
+def mirror_v(v):
+    return [-v[0], v[1], v[2]]
+
+
 # ============================================================== 版79：体型（女性・骨の長さ）
 def female_morphs(bust=1.0, hips=1.0, eyes=1.4):
     """女性の体と顔（もとの体の座標で書く。顔の物は head: True で、頭の大きさに合わせて動く）"""
@@ -273,6 +281,7 @@ def brawler():
                              rot=(0, ang, 0), metallic=0.85, rough=0.3, mirror=True))
     return {
         "name": "ファイター",
+        "sockets": {"fist_L": sock("wrist.L", add(WRIST_L, FOREARM_DIR, 0.1)), "fist_R": sock("wrist.R", mirror_v(add(WRIST_L, FOREARM_DIR, 0.1)))},
         "bones": {"@clavicle": [1.15, 1, 1], "upperarm": 1.02, "neck": 0.85, "thigh": 0.97, "shin": 0.95},
         "idle_speed": 1.1,
         "attack_speed": 2.0,
@@ -357,6 +366,7 @@ def sprinter():
     parts.append(sph("foot.L", (0.205, 0.07, -0.085), 0.028, CYAN, squash=(1.2, 0.8, 0.6), mirror=True, emission=1.8, tex="none"))
     return {
         "name": "スピードファイター",
+        "sockets": {"fist_L": sock("wrist.L", add(WRIST_L, FOREARM_DIR, 0.08)), "fist_R": sock("wrist.R", mirror_v(add(WRIST_L, FOREARM_DIR, 0.08)))},
         "bones": {"thigh": 1.08, "shin": 1.1, "@clavicle": [0.95, 1, 1], "belly": 1.03},
         "idle_speed": 1.25,
         "attack_speed": 2.2,
@@ -440,6 +450,8 @@ def gunner():
     parts.append(box("upperleg01.L", (0.235, 0.86, 0.0), (0.04, 0.2, 0.13), OLIVE, rot=(0, 0, 4), mirror=True, metallic=0.3, tex="steel"))
     return {
         "name": "ガンナー",
+        "sockets": {"muzzle_L": sock("lowerarm02.L", add(add(WRIST_L, FOREARM_DIR, 0.38), [0.0, -0.02, 0.0])),
+                    "muzzle_R": sock("lowerarm02.R", mirror_v(add(add(WRIST_L, FOREARM_DIR, 0.38), [0.0, -0.02, 0.0])))},
         "bones": {"@clavicle": [1.1, 1, 1], "upperarm": 1.04, "forearm": 1.04, "chest": 1.03},
         "ref": "docs/ref/chars/IMG_0397.jpeg",
         "attack_anim": "Spell",
@@ -531,6 +543,8 @@ def bomber():
     parts.append(sph("foot.R", (-0.215, 0.05, 0.16), 0.07, BLU, squash=(1, 0.65, 1.3), rough=0.5))
     return {
         "name": "ボンバー",
+        "sockets": {"hand_L": sock("wrist.L", add(add(WRIST_L, FOREARM_DIR, 0.12), [0, 0.08, 0])),
+                    "hand_R": sock("wrist.R", mirror_v(add(add(WRIST_L, FOREARM_DIR, 0.12), [0, 0.08, 0])))},
         "bones": {"thigh": 0.9, "shin": 0.88, "belly": 1.06, "@clavicle": [0.95, 1, 1], "hand": 1.12, "foot": 1.15},
         "ref": "docs/ref/chars/IMG_0398.jpeg",
         "attack_anim": "Punch",
@@ -680,6 +694,7 @@ def mage():
     parts += thin_brows("#6d6290") + eye_liner() + anime_eyes("#8b5fd0")
     return {
         "name": "魔法使い",
+        "sockets": {"staff_tip": sock("lowerarm02.L", [WRIST_L[0] + 0.03, 1.95 + 0.11, WRIST_L[2] + 0.02]), "hand_R": sock("wrist.R", mirror_v(add(WRIST_L, FOREARM_DIR, 0.08)))},
         "morphs": female_morphs(bust=0.8, hips=1.0),
         "bones": dict(FEMALE_BONES),
         "flat_skin": True,
@@ -794,6 +809,7 @@ def guardian():
     parts.append(extrude("lowerarm01.L", add(sc, [0.006, 0.0, 0.034]), circle2d(0.05, 12, 1.0, 1.2), 0.02, "#a8812e", rot=(0, 15, 0), metallic=0.8))
     return {
         "name": "アーマー",
+        "sockets": {"mace": sock("wrist.R", [-WRIST_L[0], WRIST_L[1] - 0.49, WRIST_L[2]]), "shield": sock("lowerarm01.L", add(add(ELBOW_L, FOREARM_DIR, 0.13), [0.06, 0.02, 0.14]))},
         "bones": {"thigh": 0.76, "shin": 0.72, "@clavicle": [1.2, 1, 1], "@root": [1.15, 1, 1], "upperarm": 0.88, "forearm": 0.88, "neck": 0.6, "belly": 0.95, "hand": 1.1},
         "idle_speed": 0.8,
         "attack_speed": 1.3,
@@ -900,6 +916,7 @@ def summoner():
     parts += bunny("spine01", (0.0, 1.4, 0.29), "#f4efe9", "#f2b6c6", "#e46a9a", scale=1.4)
     return {
         "name": "おもちゃの兵隊",
+        "sockets": {"hand_R": sock("wrist.R", mirror_v(add(WRIST_L, FOREARM_DIR, 0.08))), "hand_L": sock("wrist.L", add(WRIST_L, FOREARM_DIR, 0.08))},
         "bones": {"thigh": 1.06, "shin": 1.06, "neck": 1.05, "@clavicle": [0.95, 1, 1]},
         # 版78：呼び出すぬいぐるみ部隊の形（くま・うさぎ・青いリボンのくま）。足もとが 0
         "units": {"plush": {"scale": 2.4, "variants": [
@@ -993,6 +1010,7 @@ def healer():
     parts.append(rod("foot.L", (0.205, 0.07, -0.06), (0.205, 0.0, -0.06), 0.02, 0.014, GOLD, mirror=True, segs=8, metallic=0.7))
     return {
         "name": "エンジェル",
+        "sockets": {"bow": sock("lowerarm02.L", add(WRIST_L, [0.06, 0.0, 0.1])), "hand_R": sock("wrist.R", mirror_v(add(WRIST_L, FOREARM_DIR, 0.08)))},
         "ref": "docs/ref/chars/IMG_0405.jpeg",
         "attack_anim": "Spell",
         "height": 0.95,
@@ -1024,6 +1042,31 @@ def healer():
     }
 
 
+def summoner_mini():
+    """呼び出す小さい兵隊（おもちゃの兵隊から、ぬいぐるみを外し、おもちゃの銃を右手に）。形は軽くする（bake_lod）"""
+    lk = summoner()
+    parts = []
+    for p in lk["parts"]:
+        c = p.get("center", p.get("from", [0, 0, 0]))
+        if p.get("bone") == "spine01" and float(c[2]) > 0.18:
+            continue  # ぬいぐるみ
+        parts.append(p)
+    fd = [-FOREARM_DIR[0], FOREARM_DIR[1], FOREARM_DIR[2]]
+    w = mirror_v(WRIST_L)
+    wood, black, steel = "#8a5a2e", "#1c1c20", "#d8dde3"
+    parts += [rod("lowerarm02.R", add(w, fd, -0.2), add(w, fd, 0.02), 0.03, 0.035, wood, squash=(0.6, 1.2), segs=8),
+              rod("lowerarm02.R", add(w, fd, 0.0), add(w, fd, 0.55), 0.018, 0.016, black, segs=8, metallic=0.5),
+              rod("lowerarm02.R", add(w, fd, 0.08), add(w, fd, 0.4), 0.026, 0.024, wood, segs=8),
+              rod("lowerarm02.R", add(w, fd, 0.55), add(w, fd, 0.75), 0.012, 0.001, steel, segs=6, metallic=0.9, rough=0.2),
+              torus("lowerarm02.R", add(w, fd, 0.3), 0.028, 0.006, "#d4a838", rot=(90, 0, 0), metallic=0.8)]
+    lk["parts"] = parts
+    lk["name"] = "小さい兵隊（呼び出し）"
+    lk["summon_only"] = True
+    lk["bake_lod"] = 0.22
+    lk["sockets"] = {"muzzle": sock("lowerarm02.R", add(w, fd, 0.6))}
+    return lk
+
+
 LOOKS = {
     "brawler": brawler,
     "sprinter": sprinter,
@@ -1032,6 +1075,7 @@ LOOKS = {
     "mage": mage,
     "guardian": guardian,
     "summoner": summoner,
+    "summoner_mini": summoner_mini,
     "healer": healer,
 }
 
@@ -1044,6 +1088,17 @@ def clean(d):
     if isinstance(d, float):
         return round(d, 4)
     return d
+
+
+def compact_json(d):
+    """版79：見やすさを保ったまま小さく書く（数の並び・その並びの並びは1行に。動きの姿勢の線が多く、そのままだと約740KB）"""
+    import re
+    s = json.dumps(d, ensure_ascii=False, indent=2)
+    one = lambda m: "[" + re.sub(r"\s*\n\s*", " ", m.group(1)) + "]"
+    s = re.sub(r"\[\s*([^\[\]{}]*?)\s*\]", one, s, flags=re.S)
+    s = re.sub(r"\[\s*((?:\[[^\[\]{}]*\]|[^\[\]{}])*?)\s*\]", one, s, flags=re.S)
+    assert json.loads(s) == d
+    return s
 
 
 def main():
@@ -1074,6 +1129,11 @@ def main():
                 c["animations"][key] = key
             for key, an in anim_overrides().get(c["id"], {}).items():
                 c["animations"][key] = an
+            if c["id"] == "summoner":
+                # 版79：呼び出す小さい兵隊（battle_skills.gd）。動きは、おもちゃの兵隊の動きを使う
+                c["mini"] = {"model": "res://assets/models/chars/summoner_mini.scn", "scale": 0.95,
+                             "animations": {"idle": "Mini_Idle", "run": "Mini_March", "attack": "Mini_Shoot", "down": "Death"},
+                             "anim_speeds": {"run": 1.0}}
             # 自然に見える速さ：走りの動きは、移動の速さに合わせる（剣士：7.0m/秒で 1.1倍、体の大きさでも変える）。
             # 重いキャラはゆっくり待ち、軽いキャラは速く待つ（idle_speed）
             mv = float(c["stats"]["move_speed"])
@@ -1081,8 +1141,14 @@ def main():
             if lk.get("run_anim") == "Sprint":
                 run *= 0.72  # 全力の走り（Sprint）は、1歩が大きい
             c["anim_speeds"] = {"run": round(max(0.75, min(run, 1.6)), 3), "idle": lk.get("idle_speed", 1.0),
-                                "attack": lk.get("attack_speed", 1.6)}
-    (ROOT / "data/characters.json").write_text(json.dumps(chars, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                                "attack": lk.get("attack_speed", 1.6), "walk": 1.35}
+        elif c["id"] == "hero_swordsman":
+            # 版79：剣士にも、歩く・勝った・負けたの動き（tools/make_char_actions.py の common_anims）
+            ba = c.setdefault("built_anims", {})
+            ba.update(CHAR_ANIMS.get("hero_swordsman", {}))
+            c["animations"].update(anim_overrides().get("hero_swordsman", {}))
+            c.setdefault("anim_speeds", {})["walk"] = 1.35
+    (ROOT / "data/characters.json").write_text(compact_json(chars) + "\n", encoding="utf-8")
     print("looks", list(looks))
 
 
