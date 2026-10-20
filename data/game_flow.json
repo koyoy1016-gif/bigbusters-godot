@@ -16,8 +16,8 @@
   "lobby_stage_label": "ステージ",
   "stages": [
     {
-      "id": "kitasenju",
-      "name": "きたせんじゅ",
+      "id": "shibuya",
+      "name": "しぶや",
       "open": true,
       "icon": "city"
     },

@@ -1,0 +1,113 @@
+{
+  "_memo": "版88：戦いのマップ。current のマップを scripts/stage/map_loader.gd が読む。.glb は tools/plateau_to_glb.py が PLATEAU（CityGML）から作る（元のデータはリポジトリに入れない）。build は変換の数値、ほかはゲームでの見た目",
+  "current": "shibuya",
+  "maps": {
+    "shibuya": {
+      "name": "しぶや",
+      "glb": "res://assets/maps/shibuya/shibuya.glb",
+      "attribution": "3D都市モデル（Project PLATEAU）渋谷区（2025年度）（国土交通省）を加工して作成",
+      "build": {
+        "_memo": "center：スクランブル交差点のまん中（車道交差部の重心のあたり。ここがゲームの (0,0,0)）。heading_deg：地図をまわす角度（-45 で、北西＝QFRONT・センター街の方が画面の奥）。radius_m より遠くは消す。lod2_radius_m までは屋根の形まで（LOD2）、その外は箱（LOD1）。install_radius_m までは屋上の設備も。flat_half_m：交差点を平らにする半分の幅（m。戦いの場所 ±15m をふくむ、交差点ぜんたい）。flat_blend_m：平らから本物の高さへ、なめらかにもどす幅。subdivide_m：0 より大きいと、平らにする所にかかる道路の三角形を、その長さまで細かく分ける。check_half_m：床の平らさを調べる広さ",
+        "center_lat": 35.659467,
+        "center_lon": 139.700472,
+        "heading_deg": -45.0,
+        "radius_m": 480.0,
+        "lod2_radius_m": 230.0,
+        "install_radius_m": 110.0,
+        "min_wall_m": 1.0,
+        "flat_half_m": 40.0,
+        "flat_blend_m": 25.0,
+        "terrain_drop_m": 0.18,
+        "dem_meshes": [
+          "53393585",
+          "53393586",
+          "53393595",
+          "53393596"
+        ],
+        "colors": {
+          "road": "#34363c",
+          "road_cross": "#393b41",
+          "walk": "#8c877f",
+          "island": "#5d7a4c",
+          "plaza": "#8e8a82",
+          "crosswalk": "#dcd9d0",
+          "roof": "#6f6e6c",
+          "install": "#55585e",
+          "walls": [
+            "#cfc9be",
+            "#b9b4ab",
+            "#9ea3a9",
+            "#c2b49c",
+            "#7d828a",
+            "#a99d8c",
+            "#d8d3ca",
+            "#8f7f72",
+            "#6b7078",
+            "#b7a593",
+            "#a4a9b0",
+            "#e1ddd3"
+          ],
+          "glass": [
+            "#6c869f",
+            "#7d93a8",
+            "#58708a",
+            "#8ea2b2"
+          ],
+          "glass_from_m": 60.0
+        },
+        "crosswalk": {
+          "band_m": 4.0,
+          "stripe_m": 0.45,
+          "gap_m": 0.45,
+          "inset_m": 0.6,
+          "min_mouth_m": 6.0,
+          "diagonals": 2,
+          "diag_trim_m": 3.0
+        },
+        "subdivide_m": 0.0,
+        "check_half_m": 15.0
+      },
+      "sky": {
+        "top": "#3a5390",
+        "horizon": "#f0b48a",
+        "ground": "#4a4450",
+        "energy": 1.0
+      },
+      "fog": {
+        "color": "#a8a4b4",
+        "density": 0.0016,
+        "sky_affect": 0.3
+      },
+      "ambient": {
+        "color": "#c3c7d8",
+        "energy": 0.75
+      },
+      "light": {
+        "rotation_deg": [
+          -38.0,
+          120.0,
+          0.0
+        ],
+        "color": "#ffe4c4",
+        "energy": 1.15
+      },
+      "visible_m": {
+        "low": 330.0,
+        "high": 480.0
+      },
+      "far_from_m": 230.0,
+      "windows": {
+        "floor_m": 3.6,
+        "col_m": 2.2,
+        "lit": 0.32,
+        "glow": 0.9
+      },
+      "border": {
+        "color": "#7fd7ff",
+        "alpha": 0.55,
+        "wall_h": 1.4,
+        "wall_alpha": 0.14
+      }
+    }
+  }
+}

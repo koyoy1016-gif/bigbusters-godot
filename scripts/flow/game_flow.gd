@@ -673,6 +673,8 @@ func _apply_quality() -> void:
 	if get_tree() != null:
 		lights = get_tree().get_nodes_in_group("sun")
 	var applied := Quality.apply(quality_name, quality_config, get_viewport(), lights)
+	if battle != null and is_instance_valid(battle) and battle.has_method("set_map_quality"):
+		battle.set_map_quality(quality_name)  # 版88：マップの遠くの建物・影
 	if get_tree() != null:
 		StyleFx.set_outline(get_tree().root, bool(applied.get("outline", false)))
 	if perf_overlay != null:

@@ -4,7 +4,7 @@ extends SceneTree
 ## 確かめること：
 ##   1. 配置：左上＝名前、右上＝ランクとコイン、右端＝フレンド・へや、下＝ステージとプレイ、いちばん下＝編成・ロビー・ガチャ（この順）
 ##   2. 前の「そうび・キャラ・もちもの」などのボタンは、ロビーにない（同じ入口が2つない）
-##   3. ステージ：5つの枠。1つめ（きたせんじゅ）だけ遊べる。未開放は選べず、戦いも始まらない
+##   3. ステージ：5つの枠。1つめ（しぶや。版88で きたせんじゅ から変更）だけ遊べる。未開放は選べず、戦いも始まらない
 ##   4. キャラ：まんなかに1人・後ろに3人。左右に回す（スライド・矢印・キー）、後ろの人をタップでメインに。編成と保存が合う
 ##   5. 3Dの形は、回しても作り直さない。戦いに入ると消え、ロビーに戻るとまた出る
 ##   6. 下の3つのボタン：ロビーでロビーを押しても作り直さない／編成へ行ける／編成からロビーへ戻れる
@@ -96,13 +96,13 @@ func _initialize() -> void:
 	for st in stages:
 		if bool(st["open"]):
 			open_n += 1
-	check(stages.size() == 5 and bool(stages[0]["open"]) and str(stages[0]["name"]) == "きたせんじゅ" and open_n == 1, "ステージは5つ。遊べるのは きたせんじゅ だけ")
+	check(stages.size() == 5 and bool(stages[0]["open"]) and str(stages[0]["name"]) == "しぶや" and open_n == 1, "ステージは5つ。遊べるのは しぶや だけ")
 	ui.open_stage_picker()
 	check(ui.stage_picker.visible and ui.stage_picker_box.get_child_count() == 5, "ステージの四角をタップで、5つの中から選べる")
 	ui.pick_stage(2)
 	check(flow.stage_index == 0 and ui.stage_picker.visible and flow.toast_label.text == str(flow.config["stage_locked_toast"]), "未開放のステージは選べない（お知らせが出る）")
 	ui.pick_stage(0)
-	check(not ui.stage_picker.visible and flow.stage_index == 0 and flow.stage_label.text == "きたせんじゅ", "遊べるステージを選ぶと、閉じる")
+	check(not ui.stage_picker.visible and flow.stage_index == 0 and flow.stage_label.text == "しぶや", "遊べるステージを選ぶと、閉じる")
 	flow.change_stage(1)
 	flow.play()
 	check(flow.state == "lobby" and flow.battle == null, "未開放のステージでプレイしても、戦いは始まらない")

@@ -107,7 +107,7 @@ func _initialize() -> void:
 		check(flow.state == "lobby" and flow.panels["lobby"].visible, "タイトルのあと、自動でロビーに移る")
 		# 版81：ランクは右上の lobby_info、コインはその下の coin_label
 		check(str(flow.lobby_info.text).contains("ランク 1") and flow.lobby_ui.coin_label.text == "0", "ロビーに、ランクとコイン：" + str(flow.lobby_info.text) + " / " + flow.lobby_ui.coin_label.text)
-		check(flow.stage_label.text == "きたせんじゅ" and not flow.play_button.disabled, "ステージ1が選ばれていて、プレイできる")
+		check(flow.stage_label.text == "しぶや" and not flow.play_button.disabled, "ステージ1が選ばれていて、プレイできる")
 		check(str(flow.quality_button.text).begins_with("がしつ："), "ロビーに、画質のボタン：" + str(flow.quality_button.text))
 		var q0: String = flow.quality_name
 		flow.change_quality()
@@ -119,7 +119,7 @@ func _initialize() -> void:
 		flow.play()
 		check(flow.state == "lobby" and flow.toast_label.text == "じゅんびちゅう", "未開放を押すと、「じゅんびちゅう」と出る")
 		flow.change_stage(-1)
-		check(flow.stage_label.text == "きたせんじゅ", "ステージ選択は、もどせる（版81：5つの枠）")
+		check(flow.stage_label.text == "しぶや", "ステージ選択は、もどせる（版81：5つの枠）")
 		# へんせい：キャラを選ぶ
 		check(flow.selected_character == "hero_swordsman" and flow.lobby_char.text == "けんし" and flow.lobby_ui.role_label.text == "ファイター", "最初のキャラは、主人公のけんし（版81b：役は色の札）：" + str(flow.lobby_char.text))
 		flow.event("formation")

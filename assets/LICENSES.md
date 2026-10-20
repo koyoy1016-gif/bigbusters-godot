@@ -52,3 +52,10 @@
 - `data/props.json`（プレゼントの箱・ふた・バネの道化・ぬいぐるみ（くま・うさぎ）・銃弾・銃口の光・魔法の玉・魔法陣・いん石・ハートの矢・花火の玉・回復の光）：`tools/make_props.py` が、丸・筒・箱などの形の組み合わせで作った自作の形。外の素材は使っていない。CC0として扱う。
 - `assets/models/chars/summoner_mini.scn`（呼び出す小さいおもちゃの兵隊）：版77と同じく、剣士の体（MakeHuman の CC0 素材）と骨を土台に、コードで作った。CC0。
 - `shaders/skill_dome.gdshader`（守りの膜・回復の膜の半透明の見た目）：自作。CC0。
+
+## 渋谷のマップ（assets/maps/shibuya/）
+- `shibuya.glb`：3D都市モデル（Project PLATEAU）渋谷区（2025年度）（国土交通省）を加工して作成
+  - 元のデータ：G空間情報センター https://www.geospatial.jp/ckan/dataset/plateau-13113-shibuya-ku-2025 （CityGML。建物 53393585・53393586・53393595・53393596 の bldg・tran と、地形 533935 の dem）
+  - 使い方の決まり：PLATEAU のサイトポリシー（https://www.mlit.go.jp/plateau/site-policy/ 。「どなたでも、複製、公衆送信、翻訳・変形等の翻案等、自由に利用できます。商用利用も可能です」。CC BY 4.0 と同じ扱い）。出典を書くこと・加工したことを書くこと・国が作ったように見せないこと。
+  - 加工したこと：`tools/plateau_to_glb.py` で、スクランブル交差点のまわり半径480mだけを切り出し、座標をゲームの座標に変え、戦いの場所を平らにし、遠くの建物を箱の形（LOD1）にし、色だけを付けた（写真の模様＝看板・広告がうつる `_appearance` は使っていない）。横断歩道のしまは、道路の形から作った（PLATEAU にはない）。窓は計算で描いた。
+  - 元の CityGML は、このリポジトリには入れていない。

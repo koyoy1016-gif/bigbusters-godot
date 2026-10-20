@@ -14,6 +14,8 @@ func _initialize() -> void:
 	var qcfg := Quality.load_config()
 	Quality.apply(qname, qcfg, root, get_nodes_in_group("sun"))
 	StyleFx.set_outline(root, bool(qcfg["presets"][qname].get("outline", false)))
+	if s.has_method("set_map_quality"):
+		s.set_map_quality(qname)
 	s.start_round()
 	if args.size() > 2 and args[2] == "awake":
 		s.boss_model._apply_form("awake")

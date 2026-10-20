@@ -50,6 +50,7 @@ const BattleNet := preload("res://scripts/prototype/battle_net.gd")
 const BattleSkills := preload("res://scripts/prototype/battle_skills.gd")
 const BattleRevive := preload("res://scripts/prototype/battle_revive.gd")
 const BattleAudio := preload("res://scripts/prototype/battle_audio.gd")
+const MapLoader := preload("res://scripts/stage/map_loader.gd")
 const TargetLock := preload("res://scripts/combat/target_lock.gd")
 const Projectiles := preload("res://scripts/combat/projectiles.gd")
 const SkillHits := preload("res://scripts/combat/skill_hits.gd")
@@ -94,6 +95,8 @@ var net := BattleNet.new(self)  ## 通信（battle_net.gd）
 var skills := BattleSkills.new(self)  ## 版78：キャラごとの攻撃の効果と見た目（battle_skills.gd）
 var revive_sys := BattleRevive.new(self)  ## 版84：倒れた仲間の蘇生（battle_revive.gd）
 var audio := BattleAudio.new(self)  ## 版85：戦いの音（ボスの足音・飛ぶ物の音。battle_audio.gd）
+var map_cfg: Dictionary = {}  ## 版88：戦いのマップの設定（data/maps.json）
+var map_root: Node3D = null  ## 版88：戦いのマップ（渋谷のスクランブル交差点。scripts/stage/map_loader.gd）
 ## 版78：キャラごとの攻撃の状態（battle_skills.gd が使う）
 var skill_fx: Array = []  ## 出している見た目 [{node, follow}]
 var skill_fx_log: Array = []  ## 出した見た目の種類（テスト用）
@@ -267,15 +270,22 @@ func _setup_network() -> void:
 
 
 func _build_world() -> void:
-	var ground := MeshInstance3D.new()
-	ground.name = "Ground"
-	var plane := PlaneMesh.new()
-	plane.size = Vector2.ONE * float(config["ground_size"])
-	var ground_mat := StandardMaterial3D.new()
-	ground_mat.albedo_color = Color(str(config["ground_color"]))
-	plane.material = ground_mat
-	ground.mesh = plane
-	add_child(ground)
+	# 版88：戦いのマップ＝渋谷のスクランブル交差点（PLATEAU の本物の形。data/maps.json・scripts/stage/map_loader.gd）。
+	# 交差点のまん中が (0,0,0)。前の緑の板は作らない（読めない時だけ、代わりに出す）
+	map_cfg = MapLoader.current_map()
+	map_root = MapLoader.build(map_cfg, "high", float(config["bounds"])) if not map_cfg.is_empty() else null
+	if map_root != null:
+		add_child(map_root)
+	else:
+		var ground := MeshInstance3D.new()
+		ground.name = "Ground"
+		var plane := PlaneMesh.new()
+		plane.size = Vector2.ONE * float(config["ground_size"])
+		var ground_mat := StandardMaterial3D.new()
+		ground_mat.albedo_color = Color(str(config["ground_color"]))
+		plane.material = ground_mat
+		ground.mesh = plane
+		add_child(ground)
 
 	var light := DirectionalLight3D.new()
 	light.name = "Light"
@@ -283,6 +293,8 @@ func _build_world() -> void:
 	light.light_energy = float(config["light_energy"])
 	var rot: Array = config["light_rotation_deg"]
 	light.rotation_degrees = Vector3(rot[0], rot[1], rot[2])
+	if map_root != null:
+		MapLoader.apply_light(light, map_cfg)
 	add_child(light)
 
 	player = _make_box("Player", float(config["player_size"]), Color(str(config["player_color"])))
@@ -323,10 +335,33 @@ func _build_world() -> void:
 	var off: Array = config["camera_offset"]
 	camera_offset = Vector3(off[0], off[1], off[2])
 	camera.environment = make_environment(config)
+	if map_root != null:
+		MapLoader.apply_environment(camera.environment, map_cfg)
 	add_child(camera)
 	camera.look_at_from_position(camera_offset, Vector3.ZERO, Vector3.UP)
 	player_marker_material = _add_marker(player, Color(str(config["player_color"])))
 	_attach_character()
+
+
+## 版88：戦いの場所（±bounds。交差点の中）から外へは出られない（念のための最後の守り。動きの計算でも止めている）。
+## ボスにつかまれている間は、ボスの手についていくので、さわらない
+func _keep_inside() -> void:
+	var half := float(config["bounds"])
+	if not _me_held():
+		player.position.x = clampf(player.position.x, -half, half)
+		player.position.z = clampf(player.position.z, -half, half)
+	for slot in ai_allies:
+		var a: Dictionary = ai_allies[slot]
+		if bool(a.get("held", false)):
+			continue
+		var p: Vector2 = a["pos"]
+		a["pos"] = Vector2(clampf(p.x, -half, half), clampf(p.y, -half, half))
+
+
+## 版88：画質（low／high）に合わせて、マップの遠くの建物の見える距離・建物の影を変える
+func set_map_quality(q: String) -> void:
+	if map_root != null:
+		MapLoader.set_quality(map_root, map_cfg, q)
 
 
 ## 版78：自分のキャラの id（選んでいなければ、既定のキャラ）
@@ -1611,6 +1646,7 @@ func combat_update(delta: float) -> void:
 	skills.update(delta)
 	revive_sys.update(delta)
 	audio.update(delta)
+	_keep_inside()
 	_target_lock_update(delta)
 	# 版78：時間停止の間は、ボスの攻撃の時計を止める（止まっていた時間を、攻撃の時計から引く）
 	if skills.boss_frozen():
