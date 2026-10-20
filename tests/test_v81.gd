@@ -188,9 +188,12 @@ func _initialize() -> void:
 	ui.rotate_team(1)
 	flow.lobby_stage.finish()
 	var mu: Dictionary = flow.lobby_stage.units[0]
-	check(mu["view"] == null or str((mu["view"] as Node).get("current_action")) == "win", "まんなかに来たキャラは、勝ちポーズ")
-	flow.lobby_stage.step(3.0)
-	check(mu["view"] == null or str((mu["view"] as Node).get("current_action")) == "step", "少ししたら、そのキャラの A攻撃の動きへ（版93。前は待ちの動き）")
+	check(mu["view"] == null or str((mu["view"] as Node).get("current_action")) == "step", "まんなかに来たキャラは、A攻撃を1回（版94。前は勝ちポーズ）")
+	var mp: AnimationPlayer = (mu["view"] as Node).get("player") if mu["view"] != null else null
+	if mp != null:
+		for i in 120:
+			mp.advance(1.0 / 60.0)
+	check(mu["view"] == null or (str((mu["view"] as Node).get("current_action")) == "idle" and not mp.is_playing()), "攻撃のあとは静止にもどる（版94）")
 	ui.rotate_team(-1)
 	flow.account_state = {"inbox": [{"type": "friend", "from": "x"}, {"type": "invite", "from": "y", "room": "1234"}]}
 	ui.tick(0.6)

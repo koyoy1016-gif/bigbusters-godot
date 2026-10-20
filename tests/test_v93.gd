@@ -1,11 +1,12 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_v93.gd
-## 版93：ロビーのキャラが、それぞれの A攻撃（戦いの normal）の動きを、休まずくり返す。
+## 版93：ロビーのキャラの動きを、それぞれの A攻撃（戦いの normal）に。
+## 版94（ユーザーの指示で変更）：ふだんは静止。前に持ってこられた時だけ A攻撃を1回して静止にもどる。後ろへ行ったら静止。
 ## 確かめること：
 ##   1. 対応：9人すべて、戦いの A攻撃と同じ動き（anim と speed）。別のキャラの動きを使い回していない
-##   2. 出した時：ロビーに出すと、そのキャラの A攻撃の動きが流れる（4人とも）
-##   3. くり返し：動きが終わると、すぐ最初から（止まらない）。何回くり返しても同じ動き
-##   4. 入れかえ：メインを入れかえると、勝ちポーズのあと、そのキャラの A攻撃へ。ほかのキャラの動きにならない
+##   2. 出した時：前も後ろも静止（はじめて出した時は攻撃しない）
+##   3. 前に持ってくると：そのキャラの A攻撃を1回 → 静止にもどる（くり返さない）。後ろは静止（9人とも）
+##   4. 後ろへ行ったら、すぐ静止（攻撃の途中でも）。かわりに前に来た人は自分の A攻撃
 ##   5. 作り直さない：入れかえ・同じ編成をもう一度でも、キャラの形・再生係を作り直さない。つなぎ（signal）は1つだけ
 ##   6. 場所：くり返しても、キャラの場所（holder）とキャラの形の場所は動かない。骨の腰の位置も、最初と最後でほぼ同じ
 ##   7. 戦いの処理は呼ばない：ロビーは動きを流すだけ（当たり・音・光の関数を呼ばない）
@@ -64,64 +65,93 @@ func _initialize() -> void:
 		uniq[anims[id]] = true
 	check(uniq.size() == ids.size(), "動きは全員ちがう（別のキャラの動きを使い回していない。%d 種類）" % uniq.size())
 
-	# ---- 2. 出した時（9人を4人ずつ） ----
-	var shown_ok := true
+	# ---- 2. 出した時：みんな静止（版94） ----
+	var still_ok := true
 	var groups := [ids.slice(0, 4), ids.slice(4, 8), [ids[8], ids[0], ids[1], ids[2]]]
+	var first_g := true
 	for g in groups:
 		st.set_team(g)
 		st.finish()
-		st.step(3.0)  # メインに来た人の勝ちポーズが終わるまで
 		for id in g:
 			var u := unit_of(st, id)
 			var v: Node = u.get("view")
-			var cur := "" if v == null or v.get("player") == null else str((v.get("player") as AnimationPlayer).current_animation)
-			if cur != str(anims[id]) or str(v.get("current_action")) != "step":
-				shown_ok = false
-				print("     ずれ：", id, " ", cur, " ", v.get("current_action"))
-	check(shown_ok, "ロビーに出すと、どのキャラも自分の A攻撃の動き（9人）")
+			var p: AnimationPlayer = v.get("player")
+			var front: bool = int(u["slot"]) == 0
+			# 2回目からの編成では、新しく前に来た人は A攻撃をしてよい（自分の動きなら）
+			var ok: bool = not p.is_playing() and str(v.get("current_action")) == "idle"
+			if not ok and front and not first_g:
+				ok = p.current_animation == str(anims[id])
+			if not ok:
+				still_ok = false
+				print("     動いている：", id, " ", p.current_animation, " ", v.get("current_action"))
+		first_g = false
+	check(still_ok, "ロビーに出した時は、前も後ろも静止（9人。はじめて出した時は攻撃しない）。後ろは、いつも静止")
 
-	# ---- 3. くり返し ----
-	st.set_team([ids[1], ids[2], ids[3], ids[4]])
-	st.finish()
-	var u3 := unit_of(st, ids[2])
-	var v3: Node = u3["view"]
-	var p3: AnimationPlayer = v3.get("player")
-	var loops := 0
-	var stayed := true
-	var stopped := false
-	var last_pos := p3.current_animation_position
-	for i in 240:
-		p3.advance(1.0 / 60.0)
-		var pos := p3.current_animation_position
-		if pos < last_pos - 0.0001:
-			loops += 1
-		last_pos = pos
-		stayed = stayed and p3.current_animation == str(anims[ids[2]])
-		stopped = stopped or not p3.is_playing()
-	check(loops >= 3 and not stopped, "動きが終わると、すぐ最初から（4秒で %d 回くり返し・止まらない）" % loops)
-	check(stayed, "何回くり返しても、同じキャラの A攻撃の動き")
-
-	# ---- 4. 入れかえ ----
-	var built0: int = st.built_count
-	var new_main: String = ids[3]
-	st.set_team([new_main, ids[1], ids[2], ids[4]])
-	st.finish()
-	var um := unit_of(st, new_main)
-	var vm: Node = um["view"]
-	var cheer: bool = str(vm.get("current_action")) == "win" or not vm.has_action("win")
-	check(cheer, "メインに来たキャラは、まず勝ちポーズ（前と同じ）")
-	st.step(3.0)
-	check(str(vm.get("current_action")) == "step" and (vm.get("player") as AnimationPlayer).current_animation == str(anims[new_main]), "勝ちポーズのあとは、そのキャラの A攻撃（%s）" % str(anims[new_main]))
-	var others_ok := true
-	for u in st.units:
+	# ---- 3. 前に持ってくると、そのキャラの A攻撃を1回 → 静止（9人とも） ----
+	var once_ok := true
+	for id in ids:
+		var others: Array = []
+		for k in ids:
+			if k != id and others.size() < 3:
+				others.append(k)
+		var cur_main := str(st.units[0]["id"])
+		if cur_main == id:
+			# いま前にいる人は、いったん後ろへ
+			st.set_team([others[0], id, others[1], others[2]])
+			st.finish()
+		st.set_team([id] + others)
+		st.finish()
+		var u := unit_of(st, id)
 		var v: Node = u["view"]
-		if v != null and str(v.get("current_action")) == "step":
-			others_ok = others_ok and (v.get("player") as AnimationPlayer).current_animation == str(anims[str(u["id"])])
-	check(others_ok, "どのキャラも、ほかのキャラの動きになっていない")
+		var p: AnimationPlayer = v.get("player")
+		var attacking: bool = p.is_playing() and str(v.get("current_action")) == "step" and p.current_animation == str(anims[id])
+		# 動きを最後まで進める → 静止にもどる（くり返さない）
+		for i in 90:
+			p.advance(1.0 / 60.0)
+		var back_still: bool = not p.is_playing() and str(v.get("current_action")) == "idle"
+		for i in 60:
+			p.advance(1.0 / 60.0)
+		var stays: bool = not p.is_playing() and str(v.get("current_action")) == "idle"
+		if not (attacking and back_still and stays):
+			once_ok = false
+			print("     ずれ：", id, " 攻撃=", attacking, " 静止にもどる=", back_still, " そのまま=", stays)
+		# 後ろの人は静止のまま
+		for w in st.units:
+			if int(w["slot"]) != 0:
+				var vv: Node = w["view"]
+				if (vv.get("player") as AnimationPlayer).is_playing():
+					once_ok = false
+					print("     後ろが動いている：", w["id"])
+	check(once_ok, "前に持ってこられた時だけ、そのキャラの A攻撃を1回 → 静止にもどる（くり返さない）。後ろは静止（9人）")
+
+	# ---- 4. 後ろへ行ったら、すぐ静止 ----
+	var front: String = str(st.units[0]["id"])
+	var back1: String = str(st.units[1]["id"])
+	st.set_team([back1, front, str(st.units[2]["id"]), str(st.units[3]["id"])])
+	st.finish()
+	var uf := unit_of(st, front)
+	var vf: Node = uf["view"]
+	var ub := unit_of(st, back1)
+	var vb: Node = ub["view"]
+	check(not (vf.get("player") as AnimationPlayer).is_playing() and str(vf.get("current_action")) == "idle", "前から後ろへ行ったキャラは、すぐ静止")
+	check(str(vb.get("current_action")) == "step" and (vb.get("player") as AnimationPlayer).current_animation == str(anims[back1]), "かわりに前に来たキャラは、自分の A攻撃（%s）。ほかのキャラの動きにならない" % str(anims[back1]))
+	# 攻撃の途中で、後ろへもどされても、すぐ静止
+	st.set_team([front, back1, str(st.units[2]["id"]), str(st.units[3]["id"])])
+	st.finish()
+	check(not (vb.get("player") as AnimationPlayer).is_playing() and str(vb.get("current_action")) == "idle", "攻撃の途中で後ろへもどされても、すぐ静止")
+	st.step(3.0)
 
 	# ---- 5. 作り直さない ----
+	var built0: int = st.built_count
+	var team5: Array = []
+	for u in st.units:
+		team5.append(str(u["id"]))
+	st.set_team([team5[1], team5[0], team5[2], team5[3]])
+	st.finish()
+	st.set_team(team5)
+	st.finish()
 	check(st.built_count == built0, "入れかえても、キャラの形を作り直さない（%d）" % st.built_count)
-	st.set_team([new_main, ids[1], ids[2], ids[4]])
+	st.set_team(team5)
 	st.finish()
 	var one_view := true
 	var one_conn := true
@@ -136,7 +166,7 @@ func _initialize() -> void:
 		var p: AnimationPlayer = v.get("player")
 		one_conn = one_conn and p.animation_finished.get_connections().size() == 1
 	check(st.built_count == built0 and one_view, "同じ編成をもう一度：作り直さず、キャラの形は1人に1つ")
-	check(one_conn, "動きのくり返しのつなぎは、1人に1つだけ（二重にならない）")
+	check(one_conn, "動きが終わった合図のつなぎは、1人に1つだけ（二重にならない）")
 
 	# ---- 6. 場所 ----
 	var holder_ok := true
@@ -157,7 +187,7 @@ func _initialize() -> void:
 		holder_ok = holder_ok and holder.position.is_equal_approx(before)
 		view_ok = view_ok and v.position.is_equal_approx(vpos)
 		# 腰（root の骨）の位置：動きのデータを、最初・途中・最後で読む（画面のない所では骨の形が更新されないため、データで調べる）
-		var an: Animation = p.get_animation(p.current_animation)
+		var an: Animation = p.get_animation(str(anims[str(u["id"])]))
 		var L := an.length
 		for ti in an.get_track_count():
 			var path := str(an.track_get_path(ti))
@@ -197,7 +227,7 @@ func _initialize() -> void:
 	cv.setup(fake)
 	st.attack_cache["no_attack_test"] = {"anim": "Nothing_A", "speed": 1.0}
 	var played: bool = st.play_attack(cv, "no_attack_test")
-	check(not played and str(cv.get("current_action")) == "idle" and st.unsupported.has("no_attack_test"), "A攻撃の動きがないキャラは、待ちの動きのまま（記録される・エラーなし）")
+	check(not played and str(cv.get("current_action")) == "idle" and st.unsupported.has("no_attack_test"), "A攻撃の動きがないキャラは、静止のまま（記録される・エラーなし）")
 	cv.queue_free()
 	st.unsupported.erase("no_attack_test")
 	check(st.unsupported.is_empty(), "いまのキャラ9人に、動きがないキャラはいない")
@@ -213,8 +243,12 @@ func _initialize() -> void:
 	var ok2 := true
 	for u in st2.units:
 		var v: Node = u["view"]
-		ok2 = ok2 and (v.get("player") as AnimationPlayer).current_animation == str(anims[str(u["id"])])
-	check(ok2, "ロビーに入りなおしても、正しい A攻撃の動き")
+		ok2 = ok2 and not (v.get("player") as AnimationPlayer).is_playing()
+	st2.set_team([ids[6], ids[5], ids[7], ids[8]])
+	st2.finish()
+	var v6: Node = unit_of(st2, ids[6])["view"]
+	ok2 = ok2 and (v6.get("player") as AnimationPlayer).current_animation == str(anims[ids[6]]) and (v6.get("player") as AnimationPlayer).is_playing()
+	check(ok2, "ロビーに入りなおしても、静止・前に来たら正しい A攻撃")
 	st2.queue_free()
 
 	print("失敗: %d" % failures)

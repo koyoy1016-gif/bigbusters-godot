@@ -4,12 +4,13 @@ extends Node3D
 ## 版81b：仕上げ。メインは光る台の上（金の輪がゆっくり脈打つ）、足もとにやわらかい影、空気の遠近（霧）、
 ##   夕方の空・太陽の光・流れる雲、街並み3列（窓の明かりがまたたく・遠くの塔の赤いランプ）、広場の街灯と手すり、
 ##   キャラのまわりをただよう光の粒、カメラのゆっくりしたゆれ、スライド中の奥行き（カメラが少し横へ）。
-##   まんなかに来たキャラは、勝ちポーズをしてから待つ。後ろの人たちの待ちの動きは、少しずつずらす（そろわない）。
-## 版93：待ちの動きのかわりに、キャラごとの A攻撃（戦いの「normal」＝右下のいちばん大きいボタンの技）の動きを、休まずくり返す。
+## 版94（ユーザーの指示）：キャラはふだん静止（待ちの動きの最初の形で止める。動かない）。
+##   前（まんなか）に持ってこられた時だけ、そのキャラの A攻撃（戦いの「normal」＝右下のいちばん大きいボタンの技）を1回して、静止にもどる。
+##   後ろへ行ったキャラは、すぐ静止。はじめてロビーを出した時は、だれも攻撃しない（静止）。
 ##   動きは戦いと同じ：data/char_actions.json（剣士は data/actions.json）の normal の最初の steps の anim と speed を、
 ##   キャラの形の play_step で流す（戦いと同じ関数）。当たり・音・光・待ち時間などの戦いの処理は呼ばない（動きだけ）。
-##   動きが終わったら（animation_finished）、すぐ最初から。キャラの場所（holder）は動きで変えない。
-##   A攻撃の動きがないキャラは、今までどおり待ちの動き（unsupported に記録）。
+##   A攻撃の動きがないキャラは、静止のまま（unsupported に記録）。止めている間は再生係が動かないので、軽い。
+##   （版93 の「休まずくり返す」はやめた）
 ## 数値は data/lobby.json。戦いに入るときは、game_flow.gd がこの場面ごと消す（ロビーの3Dを戦いに残さない）。
 
 const CharacterData := preload("res://scripts/characters/character_data.gd")
@@ -38,8 +39,8 @@ var beacon_mat: StandardMaterial3D
 var clouds: Array = []
 var motes: CPUParticles3D
 var rng := RandomNumberGenerator.new()
-var attack_cache: Dictionary = {}  ## 版93：キャラID → {anim（キャラの animations の名前）, speed}。なければ {}（設定を何度も読まない）
-var unsupported: Array = []  ## 版93：A攻撃の動きがなく、待ちの動きのままのキャラID
+var attack_cache: Dictionary = {}  ## 版93・94：キャラID → {anim（キャラの animations の名前）, speed}。なければ {}（設定を何度も読まない）
+var unsupported: Array = []  ## 版93・94：A攻撃の動きがなく、静止のままのキャラID
 const ATTACK_ACTION := "normal"  ## 版93：A攻撃＝戦いの normal（char_actions.json では label "A"）
 
 
@@ -531,7 +532,7 @@ static func _box(st: SurfaceTool, c: Vector3, s: Vector3, col_bottom: Color, col
 
 
 ## 編成（4人のキャラID。0 がメイン）を並べる。同じキャラは、形を作り直さずに新しい場所へ動かす。
-## まんなかに新しく来た人は、着いたら勝ちポーズ（はじめて並べる時はしない）
+## まんなかに新しく来た人は、着いたら A攻撃を1回（はじめて並べる時はしない）。後ろの人は静止（版94）
 func set_team(ids: Array) -> void:
 	var first := units.is_empty()
 	team = ids.duplicate()
@@ -553,6 +554,8 @@ func set_team(ids: Array) -> void:
 			u["from_scale"] = (u["holder"] as Node3D).scale.x
 			u["t"] = 0.0
 			u["cheer"] = i == 0 and int(u["slot"]) != 0
+			if i != 0 and u.get("view") != null:
+				set_still(u["view"])  # 版94：後ろへ行ったら、すぐ静止
 		else:
 			u = _make_unit(id, i)
 			u["cheer"] = i == 0 and not first
@@ -588,18 +591,15 @@ func _make_unit(id: String, slot: int) -> Dictionary:
 		var v := CharacterView.new()
 		if v.setup(def):
 			holder.add_child(v)
-			# 版93：A攻撃の動き（なければ待ちの動き）。終わったら、すぐ最初から（つなぐのは作った時の1回だけ）
+			# 版94：はじめは静止。A攻撃が終わったら静止にもどす合図を、作った時に1回だけつなぐ
 			if v.player != null:
 				v.player.animation_finished.connect(_on_anim_finished.bind(v))
-			play_attack(v, id)
-			# 動きを、人ごとにずらす（みんなで同じ動きにならないように）
-			if v.player != null and v.player.current_animation != "":
-				v.player.seek(rng.randf() * maxf(v.player.current_animation_length, 0.1), true)
+			set_still(v)
 			view = v
 			built_count += 1
 		else:
 			v.free()
-	return {"id": id, "holder": holder, "view": view, "slot": slot, "from": holder.position, "from_scale": 0.01, "t": 0.0, "cheer": false, "cheer_left": 0.0}
+	return {"id": id, "holder": holder, "view": view, "slot": slot, "from": holder.position, "from_scale": 0.01, "t": 0.0, "cheer": false}
 
 
 func _process(delta: float) -> void:
@@ -626,19 +626,11 @@ func step(delta: float) -> void:
 		holder.scale = Vector3.ONE * lerpf(float(u["from_scale"]), goal_s, k)
 		var turn := deg_to_rad(float((cfg["slot_turn_deg"] as Array)[slot]))
 		holder.rotation.y = turn + deg_to_rad(float(cfg.get("spin_deg", 0.0))) * sin(PI * k) * (1.0 if float(u["t"]) < 1.0 else 0.0)
-		# 着いた：まんなかなら勝ちポーズ → 少ししたら待ちの動きへ
+		# 着いた：まんなか（前）に持ってこられた人だけ、A攻撃を1回（終わったら静止。_on_anim_finished）
 		var view: Node3D = u.get("view")
 		if was < 1.0 and float(u["t"]) >= 1.0 and bool(u.get("cheer", false)) and view != null:
 			u["cheer"] = false
-			if view.play_action("win"):
-				var len := 1.6
-				if view.player != null:
-					len = view.player.current_animation_length
-				u["cheer_left"] = clampf(len, 0.6, float(cfg.get("cheer_max_sec", 2.2)))
-		elif float(u.get("cheer_left", 0.0)) > 0.0:
-			u["cheer_left"] = float(u["cheer_left"]) - delta
-			if float(u["cheer_left"]) <= 0.0 and view != null:
-				play_attack(view, str(u["id"]))  # 版93：勝ちポーズのあとは、A攻撃の動きへ
+			play_attack(view, str(u["id"]))
 	# カメラ（ゆっくりゆれる・スライド中は横へ）
 	drag_now = lerpf(drag_now, drag, clampf(delta * 8.0, 0.0, 1.0))
 	if camera != null:
@@ -669,7 +661,7 @@ func attack_for(id: String) -> Dictionary:
 	return out
 
 
-## 版93：A攻撃の動きを最初から流す（動きだけ。戦いの処理は呼ばない）。キャラにその動きがなければ、待ちの動き
+## 版93・94：A攻撃の動きを最初から1回流す（動きだけ。戦いの処理は呼ばない）。キャラにその動きがなければ、静止のまま
 func play_attack(view: Node, id: String) -> bool:
 	var a := attack_for(id)
 	var def: Dictionary = view.get("character")
@@ -678,16 +670,29 @@ func play_attack(view: Node, id: String) -> bool:
 	if anim == "" or p == null or not p.has_animation(anim):
 		if not unsupported.has(id):
 			unsupported.append(id)
-		view.play_action("idle")
+		set_still(view)
 		return false
 	return view.play_step(str(a["anim"]), float(a["speed"]))
 
 
-## 版93：動きが終わった。A攻撃の動きの時だけ、すぐ最初から（勝ちポーズ・待ちの動きの時は、なにもしない）
+## 版94：静止：待ちの動きの最初の形で止める（再生係を止めるので、動かない・軽い）
+func set_still(view: Node) -> void:
+	if not is_instance_valid(view):
+		return
+	view.play_action("idle")
+	var p: AnimationPlayer = view.get("player")
+	if p == null:
+		return
+	if p.current_animation != "":
+		p.seek(0.0, true)
+	p.pause()
+
+
+## 版94：動きが終わった。A攻撃（1回）が終わったら、静止にもどる（くり返さない）
 func _on_anim_finished(_name: StringName, view: Node) -> void:
 	if not is_instance_valid(view) or str(view.get("current_action")) != "step":
 		return
-	play_attack(view, str((view.get("character") as Dictionary).get("id", "")))
+	set_still(view)
 
 
 ## 動きを終わらせる（テスト用）
