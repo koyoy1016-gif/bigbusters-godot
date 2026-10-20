@@ -125,6 +125,19 @@ window.bbAccount = {
       t: Date.now()
     };
   },
+  // 版83：持っているキャラ・アイコン・ガチャの回数（saves/<sid>/extra。いつもの記録とは別に書く。ルールが古くて断られても、いつもの記録はそのまま）
+  _extraObject: function () {
+    var o = this._save || {};
+    return {
+      owned: String(o.owned || '').toLowerCase().replace(/[^a-z_,]/g, '').slice(0, 400),
+      icon: String(o.icon || '').slice(0, 40),
+      gacha: Math.max(0, Math.floor(Number(o.gacha) || 0)),
+      t: Date.now()
+    };
+  },
+  _writeExtra: function (c) {
+    return this._set(c, 'saves/' + this.state.sid + '/extra', this._extraObject()).then(function () { return true; }, function () { return false; });
+  },
   init: function (cfgJson) {
     var self = this;
     this._cfg = cfgJson;
@@ -152,11 +165,17 @@ window.bbAccount = {
       if (!sid) { throw self._stop('アカウントの じょうほうが みつかりません'); }
       self.state.sid = sid;
       self.state.loginId = local;
-      return Promise.all([self._get(c, 'profiles/' + sid), self._get(c, 'saves/' + sid + '/data')]).then(function (r) {
+      var extra = self._get(c, 'saves/' + sid + '/extra').then(function (v) { return v; }, function () { return null; });
+      return Promise.all([self._get(c, 'profiles/' + sid), self._get(c, 'saves/' + sid + '/data'), extra]).then(function (r) {
         var profile = r[0] || {};
         self.state.nickname = profile.nickname || '';
         self.state.friendCode = profile.friendCode || '';
         self.state.save = r[1] || null;
+        if (self.state.save && r[2]) {
+          self.state.save.owned = r[2].owned || '';
+          self.state.save.icon = r[2].icon || '';
+          self.state.save.gacha = r[2].gacha || 0;
+        }
         self.state.signedIn = true;
         self.state.status = 'ok';
         self._watch(c);
@@ -239,7 +258,8 @@ window.bbAccount = {
         .then(function () { return self._set(ctx, 'ids/' + loginId, { sid: sid, gen: '1' }); })
         .then(function () { return self._set(ctx, 'friendCodes/' + fcode, sid); })
         .then(function () { return self._set(ctx, 'profiles/' + sid, { nickname: nickname, friendCode: fcode }); })
-        .then(function () { return self._set(ctx, 'saves/' + sid + '/data', self._saveObject()); });
+        .then(function () { return self._set(ctx, 'saves/' + sid + '/data', self._saveObject()); })
+        .then(function () { self.state.sid = sid; return self._writeExtra(ctx); });
     }).then(function () {
       // ③最後に、メールのログインをつなぐ（ここで失敗しても、記録はむだになるだけで、ゲストのまま遊べる）
       var cred = ctx.sdk.auth.EmailAuthProvider.credential(self._email(loginId, '1'), password);
@@ -381,7 +401,7 @@ window.bbAccount = {
     if (!this.state.signedIn) { return Promise.resolve(false); }
     var self = this;
     return this._ctx().then(function (c) {
-      return self._set(c, 'saves/' + self.state.sid + '/data', self._saveObject());
+      return self._set(c, 'saves/' + self.state.sid + '/data', self._saveObject()).then(function () { return self._writeExtra(c); });
     }).then(function () { return true; }, function () { return false; });
   },
   setNickname: function (name) {

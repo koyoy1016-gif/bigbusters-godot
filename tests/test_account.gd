@@ -40,7 +40,7 @@ func _texts(node: Node, out: Array) -> void:
 
 func _initialize() -> void:
 	check(AccountBridge.build_init_call("{\"a\":1}") == "window.bbAccount.init(\"{\\\"a\\\":1}\")", "初期化の呼び出し（引用符もこわれない）")
-	check(AccountBridge.build_set_save_call({"coins": 12, "wins": 3, "character": "healer", "quality": "low", "secret": "x"}) == "window.bbAccount.setSave(" + JSON.stringify(JSON.stringify({"coins": 12, "wins": 3, "character": "healer", "quality": "low"})) + ")", "保存の呼び出し（余計な項目は送らない）")
+	check(AccountBridge.build_set_save_call({"coins": 12, "wins": 3, "character": "healer", "quality": "low", "secret": "x", "owned": ["healer", "gunner"], "icon_char": "healer", "gacha_count": 2}) == "window.bbAccount.setSave(" + JSON.stringify(JSON.stringify({"coins": 12, "wins": 3, "character": "healer", "quality": "low", "owned": "healer,gunner", "icon": "healer", "gacha": 2})) + ")", "保存の呼び出し（余計な項目は送らない。版83：持っているキャラ・アイコン・ガチャの回数）")
 	check(AccountBridge.build_invite_call("SID", "1234") == "window.bbAccount.invite(\"SID\", \"1234\")", "しょうたいの呼び出し")
 	check(AccountBridge.build_show_form_call("login", {"title_login": "T"}).begins_with("window.bbAccount.showForm(\"login\", {"), "入力欄の呼び出し")
 	check(AccountBridge.parse_state("zzz").is_empty() and AccountBridge.parse_state("{\"signedIn\":true}")["signedIn"] == true, "状態の読み取り")

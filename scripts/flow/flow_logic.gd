@@ -13,11 +13,13 @@ const ACCOUNT := "account"
 const FRIENDS := "friends"
 const ROOM := "room"  # 版81：へやの画面（ロビーの右端「へやを つくる」から）
 const START := "start"  # 版82：はじめの画面（新しく作る・ログイン・ログインせずに遊ぶ）
+const GACHA := "gacha"  # 版83：剣士を引っぱって斬るガチャ
 
 const TRANSITIONS := {
 	"title": {"loaded": "lobby", "start": "start"},
 	"start": {"enter": "lobby"},
-	"lobby": {"play": "battle", "formation": "formation", "account": "account", "friends": "friends", "room": "room"},
+	"lobby": {"play": "battle", "formation": "formation", "account": "account", "friends": "friends", "room": "room", "gacha": "gacha"},
+	"gacha": {"back": "lobby"},
 	"room": {"back": "lobby"},
 	"account": {"back": "lobby"},
 	"friends": {"back": "lobby"},
@@ -141,7 +143,7 @@ static func phase_of(state_name: String, waiting_ready: bool) -> String:
 			return "battle"
 		HIGHLIGHT, REWARD, NEXT:
 			return "result"
-		LOBBY, ROOM, START:
+		LOBBY, ROOM, START, GACHA:
 			return "ready" if waiting_ready else "lobby"
 	return "lobby"
 

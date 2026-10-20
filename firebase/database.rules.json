@@ -190,6 +190,26 @@
             }
           }
         },
+        "extra": {
+          ".read": "auth != null && root.child('saves/' + $sid + '/owners/' + auth.uid).exists()",
+          ".write": "auth != null && root.child('saves/' + $sid + '/owners/' + auth.uid).exists()",
+          ".validate": "newData.hasChildren(['owned', 'icon', 'gacha', 't'])",
+          "owned": {
+            ".validate": "newData.isString() && newData.val().length <= 400 && newData.val().matches(/^[a-z_,]*$/)"
+          },
+          "icon": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          },
+          "gacha": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+          },
+          "t": {
+            ".validate": "newData.isNumber() && newData.val() <= now + 60000"
+          },
+          "$other": {
+            ".validate": false
+          }
+        },
         "$other": {
           ".validate": false
         },

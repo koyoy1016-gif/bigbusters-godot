@@ -34,6 +34,25 @@ func _initialize() -> void:
 				(flow.panels["formation"].find_child("Scroll", true, false) as ScrollContainer).scroll_vertical = 760
 		"guest":
 			flow.start_ui.ask_guest()
+		"gacha", "gacha_aim", "gacha_dash", "gacha_result", "gacha_odds":
+			flow.save["coins"] = 500
+			flow.event("gacha")
+			for k in 20:
+				await process_frame
+			var ui: RefCounted = flow.gacha_ui
+			var hp: Vector2 = ui.stage.hero_screen_point()
+			if mode == "gacha_odds":
+				ui.open_odds()
+			elif mode != "gacha":
+				ui.grab(hp)
+				ui.drag(hp + Vector2(-20, 280))
+				if mode in ["gacha_dash", "gacha_result"]:
+					for k in 8:
+						await process_frame
+					ui.release(hp + Vector2(-20, 280))
+					var n := 5 if mode == "gacha_dash" else 200
+					for k in n:
+						await process_frame
 		"profile", "iconpick":
 			flow.event("account")
 			if mode == "iconpick":

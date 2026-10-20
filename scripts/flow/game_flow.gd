@@ -24,6 +24,7 @@ const Roster := preload("res://scripts/flow/roster.gd")
 const FormationUI := preload("res://scripts/flow/formation_ui.gd")
 const StartUI := preload("res://scripts/flow/start_ui.gd")
 const ProfileUI := preload("res://scripts/flow/profile_ui.gd")
+const GachaUI := preload("res://scripts/flow/gacha_ui.gd")
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const FancyRect := preload("res://scripts/ui/fancy_rect.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
@@ -114,6 +115,7 @@ var owned: Array = []  ## 版82：持っているキャラ
 var formation_ui: RefCounted = null  ## 版82：編成の画面（formation_ui.gd）
 var start_ui: RefCounted = null  ## 版82：はじめの画面（start_ui.gd）
 var profile_ui: RefCounted = null  ## 版82：プロフィールの上の部分（profile_ui.gd）
+var gacha_ui: RefCounted = null  ## 版83：ガチャの画面（gacha_ui.gd）
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -418,6 +420,10 @@ func _build_panels() -> void:
 	n.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
 
 
+	# 版83：ガチャ（剣士を引っぱって斬る）
+	gacha_ui = GachaUI.new(self)
+	gacha_ui.build()
+
 	# 版81：いちばん下の「編成・ロビー・ガチャ」（ロビーと編成の画面で出す）
 	_build_nav_bar()
 
@@ -482,6 +488,8 @@ func goto(new_state: String) -> void:
 		lobby_ui.set_nav_selected(new_state)
 		if lobby_ui.stage_picker != null:
 			lobby_ui.stage_picker.visible = false
+	if gacha_ui != null and state_was == Logic.GACHA and new_state != Logic.GACHA:
+		gacha_ui.exit()  # ガチャの3Dを消す
 	if new_state == Logic.LOBBY or new_state == Logic.START:
 		_ensure_lobby_stage()  # はじめの画面でも、うしろに3Dのキャラを出す
 		if lobby_ui != null and new_state == Logic.LOBBY and state_was != Logic.LOBBY:
@@ -514,6 +522,8 @@ func goto(new_state: String) -> void:
 			_refresh_friends()
 		Logic.START:
 			start_ui.refresh()
+		Logic.GACHA:
+			gacha_ui.enter()
 		Logic.ROOM:
 			party_signature = ""
 			_refresh_room_label()
@@ -965,6 +975,17 @@ func _apply_server_save(server: Dictionary) -> void:
 	if ch != "" and not CharacterData.find(characters_cfg, ch).is_empty():
 		save["character"] = ch
 		selected_character = ch
+	# 版83：持っているキャラは、サーバーとこの端末の両方を合わせる（どちらかで手に入れたキャラを失わない）
+	if server.get("owned") is String and str(server["owned"]) != "":
+		var merged: Array = owned.duplicate()
+		for id in str(server["owned"]).split(",", false):
+			if not merged.has(id):
+				merged.append(id)
+		owned = Roster.owned_list(merged, profiles, _all_ids())
+		save["owned"] = owned.duplicate()
+	if server.get("icon") is String and str(server["icon"]) != "":
+		save["icon_char"] = str(server["icon"])
+	save["gacha_count"] = maxi(int(save.get("gacha_count", 0)), int(server.get("gacha", 0)))
 	var q := str(server.get("quality", ""))
 	if q != "":
 		save["quality"] = q

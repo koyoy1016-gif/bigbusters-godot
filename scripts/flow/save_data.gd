@@ -2,7 +2,7 @@ extends RefCounted
 ## 遊んだ記録（コイン、倒した回数、画質の選び）の保存。ブラウザでは、そのブラウザの中に残る（消すと失われる）。
 ## 引き継ぎ（別の端末へ）は未対応（ログインの仕組みを入れるかは未決）。
 
-const DEFAULTS := {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": ""}
+const DEFAULTS := {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": "", "gacha_count": 0}
 
 
 static func load_save(path: String) -> Dictionary:
@@ -11,7 +11,7 @@ static func load_save(path: String) -> Dictionary:
 		return data
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if parsed is Dictionary:
-		for key in ["coins", "wins"]:
+		for key in ["coins", "wins", "gacha_count"]:
 			var v: Variant = parsed.get(key, null)
 			if (v is float or v is int) and float(v) >= 0.0:
 				data[key] = int(v)
@@ -41,7 +41,8 @@ static func write_save(path: String, data: Dictionary) -> bool:
 		if not owned.has(str(v)):
 			owned.append(str(v))
 	file.store_string(JSON.stringify({"coins": int(data.get("coins", 0)), "wins": int(data.get("wins", 0)), "quality": str(data.get("quality", "")),
-		"character": str(data.get("character", "")), "owned": owned, "icon_char": str(data.get("icon_char", ""))}))
+		"character": str(data.get("character", "")), "owned": owned, "icon_char": str(data.get("icon_char", "")),
+		"gacha_count": int(data.get("gacha_count", 0))}))
 	return true
 
 

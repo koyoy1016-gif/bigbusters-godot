@@ -61,17 +61,17 @@ func _initialize() -> void:
 
 	# 保存
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SAVE))
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": ""}, "保存がなければ、最初の値")
-	check(SaveData.write_save(TEMP_SAVE, {"coins": 120, "wins": 4, "quality": "high", "character": "gunner", "owned": ["gunner", "healer"], "icon_char": "healer"}), "保存できる")
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 120, "wins": 4, "quality": "high", "character": "gunner", "owned": ["gunner", "healer"], "icon_char": "healer"}, "保存した値が読める（版82：持っているキャラ・アイコン）")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": "", "gacha_count": 0}, "保存がなければ、最初の値")
+	check(SaveData.write_save(TEMP_SAVE, {"coins": 120, "wins": 4, "quality": "high", "character": "gunner", "owned": ["gunner", "healer"], "icon_char": "healer", "gacha_count": 3}), "保存できる")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 120, "wins": 4, "quality": "high", "character": "gunner", "owned": ["gunner", "healer"], "icon_char": "healer", "gacha_count": 3}, "保存した値が読める（版82：持っているキャラ・アイコン）")
 	var f := FileAccess.open(TEMP_SAVE, FileAccess.WRITE)
 	f.store_string("これはJSONではない")
 	f = null
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": ""}, "壊れた保存は、最初の値に戻す")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": "", "gacha_count": 0}, "壊れた保存は、最初の値に戻す")
 	f = FileAccess.open(TEMP_SAVE, FileAccess.WRITE)
 	f.store_string('{"coins": -5, "wins": "x"}')
 	f = null
-	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": ""}, "マイナスや文字の値は、捨てる")
+	check(SaveData.load_save(TEMP_SAVE) == {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": "", "gacha_count": 0}, "マイナスや文字の値は、捨てる")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SAVE))
 
 	# 文字が、フォントにある

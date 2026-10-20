@@ -21,6 +21,10 @@ static func build_set_save_call(save: Dictionary) -> String:
 		"wins": int(save.get("wins", 0)),
 		"character": str(save.get("character", "")),
 		"quality": str(save.get("quality", "")),
+		# 版83：持っているキャラ（, でつなぐ）・アイコン・ガチャを引いた回数。サーバーでは saves/<sid>/extra（ルールの変更が必要）
+		"owned": ",".join(PackedStringArray(save.get("owned", []))),
+		"icon": str(save.get("icon_char", "")),
+		"gacha": int(save.get("gacha_count", 0)),
 	}
 	return "window.bbAccount.setSave(%s)" % JSON.stringify(JSON.stringify(slim))
 

@@ -877,18 +877,20 @@ func nav_press(key: String) -> void:
 			elif f.state != Logic.FORMATION:
 				f.goto(Logic.FORMATION)
 		"gacha":
-			f.toast_label.text = str(f.config["gacha_soon"])
-			f.toast_time = 2.0
-			if f.state != Logic.LOBBY:
-				f.goto(Logic.LOBBY)
+			if f.state == Logic.LOBBY:
+				f.event("gacha")
+			elif f.state != Logic.GACHA:
+				f.goto(Logic.GACHA)
 
 
 ## いま開いている画面のボタンを目立たせる（オレンジの字・上の線・うしろの光）。ロビー・編成の画面だけで出す
 func set_nav_selected(state: String) -> void:
 	if nav == null:
 		return
-	nav.visible = state in [Logic.LOBBY, Logic.FORMATION]
-	var on := "lobby" if state == Logic.LOBBY else ("formation" if state == Logic.FORMATION else "")
+	# ガチャは、引いている・斬っている・結果の間は出さない（とちゅうで出られないように）
+	var gacha_idle: bool = f.gacha_ui == null or f.gacha_ui.logic.state == "idle"
+	nav.visible = state in [Logic.LOBBY, Logic.FORMATION] or (state == Logic.GACHA and gacha_idle)
+	var on := "lobby" if state == Logic.LOBBY else ("formation" if state == Logic.FORMATION else ("gacha" if state == Logic.GACHA else ""))
 	var dim := Color(str(_k("nav_dim", "#8f9cb8")))
 	var hot := Color(str(_k("nav_hot", "#ffb05a")))
 	for key in nav_marks:

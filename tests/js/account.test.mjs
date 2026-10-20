@@ -399,3 +399,31 @@ test('版82：自分で決めたID・なまえでログインを作る／使わ�
   const li = await c.acc.login('k7qm3xrt9b', 'secret-pass');
   assert.equal(li.ok, true, c.acc.state.message);
 });
+
+test('版83：持っているキャラ・アイコン・ガチャの回数を saves/<sid>/extra に書き、別の端末のログインで読める', async () => {
+  const world = makeWorld();
+  const a = device(world);
+  await a.acc.init(CFG);
+  await a.acc.setSave(JSON.stringify({ coins: 40, wins: 1, character: 'gunner', quality: 'low', owned: 'hero_swordsman,gunner,mage', icon: 'mage', gacha: 3 }));
+  const r = await a.acc.register('secret-pass', { nickname: 'たろう' });
+  assert.equal(r.ok, true, a.acc.state.message);
+  const sid = a.acc.state.sid;
+  const ex = world.store.get('saves/' + sid + '/extra');
+  assert.equal(ex.owned, 'hero_swordsman,gunner,mage', '持っているキャラ');
+  assert.equal(ex.icon, 'mage');
+  assert.equal(ex.gacha, 3);
+  same(Object.keys(world.store.get('saves/' + sid + '/data')).sort(), ['character', 'coins', 'quality', 't', 'wins'], 'いつもの記録には、前と同じ項目だけ（ルールが古くても断られない）');
+  await a.acc.setSave(JSON.stringify({ coins: 10, wins: 1, character: 'gunner', quality: 'low', owned: 'hero_swordsman,gunner,mage,bomber', icon: 'bomber', gacha: 4, extra: 'x' }));
+  assert.equal(world.store.get('saves/' + sid + '/extra').owned, 'hero_swordsman,gunner,mage,bomber', '書きなおし');
+  const b = device(world);
+  await b.acc.init(CFG);
+  const li = await b.acc.login(r.loginId, 'secret-pass');
+  assert.equal(li.ok, true);
+  const c = device(world);
+  c.sdk.auth.getAuth().currentUser = world.users.get('1.1@bb.example.com').user;
+  await c.acc.init(CFG);
+  assert.equal(c.acc.state.signedIn, true);
+  assert.equal(c.acc.state.save.owned, 'hero_swordsman,gunner,mage,bomber', 'ログインした端末で、持っているキャラが読める');
+  assert.equal(c.acc.state.save.icon, 'bomber');
+  assert.equal(c.acc.state.save.gacha, 4);
+});

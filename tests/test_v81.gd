@@ -153,7 +153,9 @@ func _initialize() -> void:
 	ui.nav_press("lobby")
 	check(flow.state == "lobby" and stage3d.visible, "編成からロビーへ戻れる")
 	ui.nav_press("gacha")
-	check(flow.state == "lobby" and flow.toast_label.text == str(flow.config["gacha_soon"]), "ガチャはまだ（次の版。お知らせだけ）")
+	check(flow.state == "gacha", "ガチャのボタンで、ガチャの画面（版83）")
+	ui.nav_press("lobby")
+	check(flow.state == "lobby", "ガチャからロビーへ戻れる")
 	flow.play()
 	await process_frame
 	check(flow.state == "battle" and (flow.lobby_stage == null) and not ui.nav.visible, "プレイで戦いへ。ロビーの3Dと下のボタンは残らない")
