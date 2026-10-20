@@ -53,55 +53,69 @@
   "swipe_px": 70.0,
   "sky_top": "#2b3a78",
   "sky_horizon": "#f2a072",
-  "ground_color": "#3a3550",
+  "ground_color": "#2c2840",
   "ground_bottom": "#262238",
   "stage_disc_color": "#ffd86a",
   "ambient_color": "#9aa6d8",
-  "ambient_energy": 0.55,
+  "ambient_energy": 0.42,
   "sun_color": "#ffe2c0",
-  "sun_energy": 1.1,
+  "sun_energy": 1.0,
   "sun_dir_deg": [
     -38.0,
     28.0,
     0.0
   ],
-  "rim_color": "#8fb4ff",
-  "rim_energy": 2.4,
-  "rim_pos": [
-    0.0,
-    3.4,
-    -2.6
-  ],
   "city_layers": [
     {
-      "z": -26.0,
-      "count": 16,
+      "z": -42.0,
+      "count": 18,
+      "width": [
+        3.0,
+        5.0
+      ],
+      "height": [
+        6.0,
+        14.0
+      ],
+      "color": "#2a2750",
+      "window": "#ffcf7a",
+      "spread": 56.0,
+      "rim": 0.25,
+      "dark_ratio": 0.7
+    },
+    {
+      "z": -29.0,
+      "count": 14,
       "width": [
         2.6,
         4.2
       ],
       "height": [
-        6.0,
-        15.0
+        4.0,
+        9.0
       ],
-      "color": "#3b3466",
+      "color": "#332d58",
       "window": "#ffcf7a",
-      "spread": 34.0
+      "spread": 40.0,
+      "rim": 0.35,
+      "dark_ratio": 0.62
     },
     {
-      "z": -17.0,
-      "count": 11,
+      "z": -19.0,
+      "count": 10,
       "width": [
         2.4,
         3.6
       ],
       "height": [
-        3.5,
-        9.0
+        2.4,
+        5.5
       ],
-      "color": "#4a3f6e",
+      "color": "#3d3460",
       "window": "#ffd98f",
-      "spread": 26.0
+      "spread": 30.0,
+      "rim": 0.45,
+      "dark_ratio": 0.55
     }
   ],
   "city_seed": 81,
@@ -111,5 +125,73 @@
     -0.35,
     -1.2
   ],
-  "_landscape_memo": "横長の画面：下のプレイの列にキャラがかくれないよう、カメラを下に向けて、キャラを画面の上のほうへ"
+  "_landscape_memo": "横長の画面：下のプレイの列にキャラがかくれないよう、カメラを下に向けて、キャラを画面の上のほうへ",
+  "_v81b_memo": "版81b：仕上げ（台・影・霧・街並み3列・塔・街灯・雲・光の粒・カメラのゆれ）",
+  "rims": [
+    {
+      "pos": [
+        -2.2,
+        3.6,
+        -2.4
+      ],
+      "color": "#7fa8ff",
+      "energy": 2.0,
+      "range": 7.0
+    },
+    {
+      "pos": [
+        2.4,
+        3.2,
+        -2.2
+      ],
+      "color": "#ff8ab8",
+      "energy": 1.3,
+      "range": 6.5
+    }
+  ],
+  "fog_color": "#4c3c6e",
+  "fog_density": 0.0065,
+  "exposure": 0.95,
+  "ground_line": "#4a4266",
+  "ground_glow": "#8a5a44",
+  "platform_height": 0.22,
+  "platform_color": "#1f2746",
+  "platform_glow": "#ffcf6a50",
+  "sun_glow_pos": [
+    8.0,
+    4.5,
+    -50.0
+  ],
+  "sun_glow": "#ffb46ad0",
+  "sun_glow_size": 28.0,
+  "cloud_count": 5,
+  "cloud_color": "#ffd2c4",
+  "rooftop_light": "#d98a7a",
+  "tower_pos": [
+    -15.0,
+    0.0,
+    -44.0
+  ],
+  "tower_height": 26.0,
+  "tower_color": "#2c2550",
+  "tower_light": "#9ad0ff",
+  "rail_z": -11.5,
+  "lamp_x": [
+    -8.0,
+    -4.6,
+    4.6,
+    8.0
+  ],
+  "lamp_color": "#ffd38a",
+  "tree_x": [
+    -11.0,
+    11.5
+  ],
+  "tree_color": "#2f4a4a",
+  "motes": 40,
+  "motes_low": 20,
+  "blob_alpha": 0.55,
+  "sway_m": 0.12,
+  "drag_shift_m": 0.9,
+  "cheer_max_sec": 2.2
 }

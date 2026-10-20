@@ -43,6 +43,7 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 	var ui: RefCounted = flow.lobby_ui
+	ui.finish_enter()
 	var lobby: Control = flow.panels["lobby"]
 	var screen := Vector2(lobby.size)
 
@@ -122,8 +123,9 @@ func _initialize() -> void:
 	check(ui.team() == t0, "左へスライドで、もとにもどる")
 	stage3d.finish()
 	var main_unit: Dictionary = stage3d.units[0]
-	check((main_unit["holder"] as Node3D).position.distance_to(Vector3.ZERO) < 0.01 and (main_unit["holder"] as Node3D).scale.x > (stage3d.units[1]["holder"] as Node3D).scale.x,
-		"メインはまんなかの前、後ろの人より大きい")
+	var top := float(stage3d.cfg.get("platform_height", 0.0))
+	check((main_unit["holder"] as Node3D).position.distance_to(Vector3(0, top, 0)) < 0.01 and (main_unit["holder"] as Node3D).scale.x > (stage3d.units[1]["holder"] as Node3D).scale.x,
+		"メインはまんなかの前の台の上、後ろの人より大きい")
 	check(ui.gesture(Vector2(300, 600), Vector2(460, 610)) == "swipe" and ui.team()[0] == t0[1], "スライドの動きで回る（右へ）")
 	check(ui.gesture(Vector2(460, 600), Vector2(300, 590)) == "swipe" and ui.team() == t0, "左へのスライドで回る")
 	stage3d.finish()
@@ -174,6 +176,39 @@ func _initialize() -> void:
 	check(flow.state == "room" and str(flow.room_label.text).contains(flow.room_code) and room_text.count("／") == 3, "へやの画面：コードと、編成の4人")
 	flow.event("back")
 	check(flow.state == "lobby", "へやの画面から戻れる")
+
+	# ---- 版81b：仕上げ ----
+	ui.rotate_team(1)
+	flow.lobby_stage.finish()
+	var mu: Dictionary = flow.lobby_stage.units[0]
+	check(mu["view"] == null or str((mu["view"] as Node).get("current_action")) == "win", "まんなかに来たキャラは、勝ちポーズ")
+	flow.lobby_stage.step(3.0)
+	check(mu["view"] == null or str((mu["view"] as Node).get("current_action")) == "idle", "少ししたら、待ちの動きにもどる")
+	ui.rotate_team(-1)
+	flow.account_state = {"inbox": [{"type": "friend", "from": "x"}, {"type": "invite", "from": "y", "room": "1234"}]}
+	ui.tick(0.6)
+	check(ui.friend_badge.visible and ui.friend_badge_label.text == "2", "フレンドの申しこみ・しょうたいの数を、赤い丸で出す")
+	flow.account_state = {}
+	ui.tick(0.6)
+	check(not ui.friend_badge.visible, "なければ、赤い丸は出ない")
+	flow.change_stage(1)
+	check(ui.play_skin.top_color.s < 0.3, "プレイが押せない時は、灰色")
+	flow.change_stage(-1)
+	check(ui.play_skin.top_color.s > 0.5 and ui.play_skin.glow_size > 0.0, "押せる時は、オレンジに光る")
+	check(ui.role_pill.visible and ui.role_label.text != "", "役の色の札")
+	ui.play_enter()
+	await process_frame
+	await process_frame
+	ui.finish_enter()
+	var all_shown := true
+	for g in ui.enter_groups:
+		if (g["node"] as Control).modulate.a < 0.99:
+			all_shown = false
+	check(all_shown and prof.get_global_rect().position.x < screen.x * 0.2, "出る動きのあと、部品はもとの場所に、はっきり出る")
+	check(flow.portraits != null and (flow.portraits.can_render() or flow.portraits.cache.is_empty()), "顔の絵は、画面のある所でだけ作る（テストでは図形のアイコン）")
+	flow.toast_label.text = ""
+	ui.tick(0.1)
+	check(not ui.toast_pill.visible, "おしらせがない時は、帯を出さない")
 
 	# ---- 8. ランクとコイン ----
 	flow.save["wins"] = int(flow.config["wins_per_rank"]) - 1

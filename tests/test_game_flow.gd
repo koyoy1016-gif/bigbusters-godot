@@ -121,7 +121,7 @@ func _initialize() -> void:
 		flow.change_stage(-1)
 		check(flow.stage_label.text == "きたせんじゅ", "ステージ選択は、もどせる（版81：5つの枠）")
 		# へんせい：キャラを選ぶ
-		check(flow.selected_character == "hero_swordsman" and str(flow.lobby_char.text).contains("ファイター けんし"), "最初のキャラは、主人公のけんし：" + str(flow.lobby_char.text))
+		check(flow.selected_character == "hero_swordsman" and flow.lobby_char.text == "けんし" and flow.lobby_ui.role_label.text == "ファイター", "最初のキャラは、主人公のけんし（版81b：役は色の札）：" + str(flow.lobby_char.text))
 		flow.event("formation")
 		check(flow.state == "formation" and flow.panels["formation"].visible and not flow.panels["lobby"].visible, "へんせいの画面に移る")
 		check(flow.formation_buttons.size() == 9 and flow.formation_buttons["hero_swordsman"].disabled and not flow.formation_buttons["gunner"].disabled, "9人のボタン。選んでいるキャラは押せない")
@@ -134,7 +134,7 @@ func _initialize() -> void:
 		check(flow.ai_picks[0] == "summoner" and SaveData.load_ai_picks("user://test_ai_picks.json")[0] == "summoner" and str(flow.ai_buttons[0].text).contains("よびだし"), "AIの味方を、タップで次のキャラにかえて保存する")
 		check(flow.selected_character == "gunner", "知らないキャラは選べない")
 		flow.event("back")
-		check(flow.state == "lobby" and str(flow.lobby_char.text).contains("シューター じゅうし"), "ロビーに戻ると、選んだキャラが出る")
+		check(flow.state == "lobby" and flow.lobby_char.text == "じゅうし" and flow.lobby_ui.role_label.text == "シューター", "ロビーに戻ると、選んだキャラが出る")
 		flow.play()
 		_ensure_ready(flow.battle)
 		check(flow.battle.ai_enabled and flow.battle.ai_picks[0] == "summoner", "戦いに、AIの選びが渡る")

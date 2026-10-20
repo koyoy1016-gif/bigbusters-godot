@@ -19,6 +19,7 @@ const BgmPlayer := preload("res://scripts/audio/bgm.gd")
 const PerfOverlay := preload("res://scripts/core/perf_overlay.gd")
 const LobbyUI := preload("res://scripts/flow/lobby_ui.gd")
 const LobbyStage := preload("res://scripts/flow/lobby_stage.gd")
+const PortraitMaker := preload("res://scripts/ui/portrait_maker.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -104,6 +105,7 @@ var my_rematch_vote := false
 var starter_cooldown := 0.0
 var lobby_ui: RefCounted = null  ## 版81：新しいロビーの画面（lobby_ui.gd）
 var lobby_stage: Node3D = null  ## 版81：ロビーの3Dのキャラ（lobby_stage.gd）。戦いの間は消す
+var portraits: Node = null  ## 版81b：キャラの顔の絵を作って覚える（portrait_maker.gd）
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -132,6 +134,10 @@ func _ready() -> void:
 	bgm = BgmPlayer.new()
 	bgm.name = "Bgm"
 	add_child(bgm)
+	portraits = PortraitMaker.new()
+	portraits.name = "Portraits"
+	portraits.cfg = config.get("portrait", {})
+	add_child(portraits)
 	init_room()
 	_build_panels()
 	join_room()
@@ -280,6 +286,8 @@ func _ensure_lobby_stage() -> void:
 		lobby_stage = LobbyStage.new()
 		lobby_stage.setup(characters_cfg)
 		add_child(lobby_stage)
+		lobby_stage.set_quality(quality_name)
+		_apply_quality()
 		var win := get_window()
 		if win != null:
 			lobby_stage.fit_camera(Vector2(win.size))
@@ -472,6 +480,7 @@ func goto(new_state: String) -> void:
 			rematch_button_next.visible = true
 	if new_state != Logic.LOBBY:
 		waiting_ready = false
+	var state_was := state
 	state = new_state
 	state_time = 0.0
 	if bgm != null:
@@ -487,6 +496,8 @@ func goto(new_state: String) -> void:
 			lobby_ui.stage_picker.visible = false
 	if new_state == Logic.LOBBY:
 		_ensure_lobby_stage()
+		if lobby_ui != null and state_was != Logic.LOBBY:
+			lobby_ui.play_enter()
 	elif new_state == Logic.BATTLE:
 		_free_lobby_stage()  # 戦いの間は、ロビーの3Dを残さない
 	elif lobby_stage != null and is_instance_valid(lobby_stage):
@@ -591,6 +602,8 @@ func _refresh_play_button() -> void:
 	invite_button.text = str(config["invite_locked_label"]) if full else str(config["invite_label"])
 	leave_button.disabled = not party
 	leave_button.text = str(config["new_room_label"]) if party else str(config["leave_alone_label"])
+	if lobby_ui != null:
+		lobby_ui.refresh_play_skin()
 
 
 ## 部屋の状態を、みんなに見せる（ロビー／まっている／戦い中／結果）。変わったときだけ送る
@@ -618,6 +631,8 @@ func change_quality() -> void:
 	save["quality"] = quality_name
 	_write_save()
 	_apply_quality()
+	if lobby_stage != null and is_instance_valid(lobby_stage):
+		lobby_stage.set_quality(quality_name)
 	_refresh_lobby()
 
 
@@ -1243,6 +1258,8 @@ func _give_reward() -> void:
 
 func _process(delta: float) -> void:
 	state_time += delta
+	if lobby_ui != null:
+		lobby_ui.tick(delta)
 	_poll_room(delta)
 	_poll_account(delta)
 	if toast_time > 0.0:

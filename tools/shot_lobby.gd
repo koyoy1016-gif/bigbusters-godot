@@ -17,7 +17,7 @@ func _initialize() -> void:
 	flow.goto("lobby")
 	for i in turns:
 		flow.lobby_ui.rotate_team(1)
-	for i in 30:
+	for i in 70:
 		await process_frame
 	match mode:
 		"picker":

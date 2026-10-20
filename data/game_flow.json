@@ -233,7 +233,7 @@
   "lobby_profile_hint": "タップで プロフィール",
   "lobby_rank_up": "ランクアップ！",
   "lobby_friends_button": "フレンド",
-  "lobby_room_button": "へやを\nつくる",
+  "lobby_room_button": "へやを つくる",
   "nav_formation": "編成",
   "nav_lobby": "ロビー",
   "nav_gacha": "ガチャ",
@@ -243,10 +243,10 @@
   "nav_button_color": "#2a3648",
   "lobby_top_color": "#101828cc",
   "lobby_side_button_size": [
-    112,
-    132
+    96,
+    96
   ],
-  "lobby_side_font_size": 20,
+  "lobby_side_font_size": 19,
   "lobby_stage_button_size": [
     138,
     138
@@ -258,8 +258,8 @@
   "lobby_play_font_size": 54,
   "lobby_name_font_size": 34,
   "lobby_arrow_size": [
-    72,
-    72
+    66,
+    66
   ],
   "stage_picker_title": "ステージを えらぶ",
   "stage_locked_note": "まだ あそべません",
@@ -269,5 +269,45 @@
   "room_team_label": "あなたの 編成",
   "room_start_label": "この へやで はじめる",
   "room_name_note": "へやの名前・公開／非公開・へやの一覧は、まだありません（サーバーの決まりの変更が必要）",
-  "gacha_soon": "ガチャは つぎの版で つくります"
+  "gacha_soon": "ガチャは つぎの版で つくります",
+  "ui_kit": {
+    "_memo": "版81b：ロビーの見た目（scripts/ui/ui_kit.gd・scripts/flow/lobby_ui.gd）",
+    "glass": "#0e1526b8",
+    "glass_border": "#ffffff30",
+    "border_width": 2,
+    "radius": 22,
+    "shadow": 8,
+    "bold": 0.7,
+    "gold": "#ffd45a",
+    "sub_text": "#b9c4dc",
+    "play_top": "#ffb84d",
+    "play_bottom": "#f04e23",
+    "play_glow": "#ff7a2a",
+    "side_color": "#2d4a7acc",
+    "arrow_color": "#0e1526a0",
+    "nav_dim": "#8f9cb8",
+    "nav_hot": "#ffb05a",
+    "vignette_color": "#0a0e1aa8",
+    "vignette_top": 210,
+    "vignette_bottom": 470
+  },
+  "role_colors": {
+    "ファイター": "#d9443a",
+    "シューター": "#e09a1e",
+    "ガーディアン": "#3a7ad9",
+    "サポート": "#2fae6a"
+  },
+  "lobby_rank_next": "つぎのランクまで あと {n}勝",
+  "default_icon_char": "hero_swordsman",
+  "portrait": {
+    "_memo": "版81b：3Dの顔の絵（scripts/ui/portrait_maker.gd）。キャラの背は約3.4m",
+    "size": 256,
+    "fov": 24.0,
+    "distance_m": 2.1,
+    "look_drop_m": -0.08,
+    "cam_rise_m": 0.06,
+    "pose_sec": 0.4,
+    "ambient": "#b8c4e8",
+    "fallback_head_m": 3.0
+  }
 }
