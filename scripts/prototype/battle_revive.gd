@@ -69,6 +69,7 @@ func update(delta: float) -> void:
 			if logic.on_down(s, downs[s]):
 				log.append("down:" + s)
 				_make_zone(s, downs[s])
+				b.audio.play("down")  # 版85：倒れた音
 	# ほかの方法で起きた人の輪は消す
 	for s in logic.zones.keys():
 		if not downs.has(s):
@@ -116,7 +117,7 @@ func _revive(slot: String) -> void:
 	was_down.erase(slot)
 	log.append("revive:" + slot)
 	_remove_zone(slot, true)
-	b._play_sfx("skill")
+	b.audio.play("revive")  # 版85：起きた音（上がるきらきら）
 
 
 # ---------------------------------------------------------------- 見た目

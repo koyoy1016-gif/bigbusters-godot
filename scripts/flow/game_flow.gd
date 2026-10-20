@@ -25,6 +25,8 @@ const FormationUI := preload("res://scripts/flow/formation_ui.gd")
 const StartUI := preload("res://scripts/flow/start_ui.gd")
 const ProfileUI := preload("res://scripts/flow/profile_ui.gd")
 const GachaUI := preload("res://scripts/flow/gacha_ui.gd")
+const SettingsUI := preload("res://scripts/flow/settings_ui.gd")
+const AudioSettings := preload("res://scripts/audio/audio_settings.gd")
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const FancyRect := preload("res://scripts/ui/fancy_rect.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
@@ -46,7 +48,9 @@ var last_reward := 0
 var last_won := false
 var best_text := ""
 var menu_sfx: Node = null  # ボタンのクリック音
-var bgm: Node = null  # メニューのBGM（戦いの最中は止める）
+var bgm: Node = null  # 音楽（版85：ロビー・戦い・覚醒・勝ち・負けを切りかえる。scripts/audio/bgm.gd）
+var audio_settings: Dictionary = {}  # 版85：音の大きさ（音楽・効果音。この端末だけ。audio_settings.gd）
+var settings_ui: RefCounted = null  # 版85：プロフィールの「せってい」
 var perf_overlay: CanvasLayer = null  # 重さの表示（URL に ?perf=1 のときだけ）
 
 var title_label: Label
@@ -150,6 +154,10 @@ func _ready() -> void:
 	bgm = BgmPlayer.new()
 	bgm.name = "Bgm"
 	add_child(bgm)
+	# 版85：大きな効果音の時は、音楽を少し下げる。音の大きさは、この端末に保存した値
+	menu_sfx.loud.connect(_on_loud_sfx)
+	audio_settings = AudioSettings.load_settings(str(config.get("audio_settings_path", "")), BgmPlayer.load_config())
+	_apply_audio()
 	portraits = PortraitMaker.new()
 	portraits.name = "Portraits"
 	portraits.cfg = config.get("portrait", {})
@@ -356,7 +364,7 @@ func _build_panels() -> void:
 	formation_ui.build()
 
 	# アカウント
-	var acc_panel := _make_panel(Logic.ACCOUNT, 18)
+	var acc_panel := _make_lobby_panel(Logic.ACCOUNT, 18)
 	acc_panel.add_child(_make_label(str(config["account_title"]), heading, Color(str(config["title_color"]))))
 	account_box = VBoxContainer.new()
 	account_box.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -367,11 +375,11 @@ func _build_panels() -> void:
 	profile_ui.build(acc_panel, panels[Logic.ACCOUNT])
 
 	# 版81：画質のボタンは、プロフィール（アカウント）の画面へ移した
+	# 版85：「せってい」のカード（音楽・効果音の大きさ・画質）にまとめた。プロフィールの下に置く
 	quality_button = _make_button("", [400, 80], change_quality)
-	_paint_button(quality_button, Color(str(config["lobby_card_color"])))
-	var q_holder := CenterContainer.new()
-	q_holder.add_child(quality_button)
-	acc_panel.add_child(q_holder)
+	quality_button.name = "QualityButton"
+	settings_ui = SettingsUI.new(self)
+	settings_ui.build(acc_panel, 2, quality_button)
 
 	# へや（版81：右端の「へやを つくる」から。いまの へやの コード・なかま・しょうたい・はじめる）
 	_build_room_panel()
@@ -479,9 +487,11 @@ func goto(new_state: String) -> void:
 	state_time = 0.0
 	if bgm != null:
 		if new_state == Logic.BATTLE:
-			bgm.stop()
+			# 版85：戦いに入る：メニューの曲は消していく（戦いの曲は、戦いが始まった時に流す。_on_round_started）
+			if not str(bgm.track) in ["battle", "awake"]:
+				bgm.stop(float(config.get("music_battle_fade_out_sec", 0.8)))
 		else:
-			bgm.start()
+			bgm.play_track(str(bgm.cfg.get("default", "lobby")))
 	for key in panels:
 		(panels[key] as Control).visible = (key == new_state)
 	if lobby_ui != null:
@@ -537,6 +547,8 @@ func goto(new_state: String) -> void:
 				highlight_replay.setup(highlight_info["points"], highlight_info["boss"], float(highlight_info["bounds"]), highlight_info["color"], highlight_info["config"], config, highlight_info.get("character", {}), highlight_info.get("boss_track", []))
 		Logic.REWARD:
 			reward_label.text = str(config["reward_coin_prefix"]) + str(last_reward)
+			if last_reward > 0 and menu_sfx != null:
+				menu_sfx.play("coin")
 
 
 ## 出来事で次の状態へ（決まりは flow_logic.gd）
@@ -751,6 +763,48 @@ func _on_round_started() -> void:
 	# ほかの人が（または自分が）新しい戦いを始めた。休止中なら、戦いに戻る
 	if battle != null and battle.dormant and state in [Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT]:
 		goto(Logic.BATTLE)
+	_on_music_cue("battle")
+
+
+## 版85：戦いの音楽の合図（stick_prototype の music_cue・始まり・終わり）。
+## battle：戦いの曲。fall：ボスが倒れた（音楽を下げる）。awake：覚醒の曲。win／lose：短い曲（終わったら、ロビーの曲）
+func _on_music_cue(cue: String) -> void:
+	if bgm == null:
+		return
+	var sc: Dictionary = (battle.sfx.cfg if battle != null and battle.sfx != null else {}).get("battle", {})
+	match cue:
+		"battle":
+			if state == Logic.BATTLE or (battle != null and not battle.dormant):
+				bgm.play_track("battle", float(config.get("music_battle_fade_in_sec", 0.6)))
+		"fall":
+			bgm.duck(float(sc.get("fall_duck_db", -14.0)), float(sc.get("fall_duck_sec", 2.6)))
+		"awake":
+			bgm.play_track("awake", 0.3)
+		"win", "lose":
+			bgm.play_track(cue, 0.0)
+
+
+func _on_loud_sfx(db: float) -> void:
+	if bgm != null:
+		bgm.duck(db)
+
+
+## 版85：音の大きさ（key：music／sfx。0〜1）を変えて、保存する
+func set_audio_volume(key: String, v: float) -> void:
+	audio_settings[key] = clampf(v, 0.0, 1.0)
+	AudioSettings.write_settings(str(config.get("audio_settings_path", "")), audio_settings)
+	_apply_audio()
+
+
+func _apply_audio() -> void:
+	var mv := float(audio_settings.get("music", 0.8))
+	var sv := float(audio_settings.get("sfx", 1.0))
+	if bgm != null:
+		bgm.set_user_volume(mv)
+	if menu_sfx != null:
+		menu_sfx.set_user_volume(sv)
+	if battle != null and is_instance_valid(battle) and battle.sfx != null:
+		battle.sfx.set_user_volume(sv)
 
 
 ## 全員さいせんの判定。1人でも「ロビー」なら全員ロビー。全員が「さいせん」なら、いちばん若い枠の人が開始の時刻を書く。
@@ -1239,8 +1293,14 @@ func _start_battle() -> void:
 		battle.ignore_round = float(room_state.get("round", 0.0))
 	battle.round_ended.connect(_on_round_ended)
 	battle.round_started.connect(_on_round_started)
+	battle.music_cue.connect(_on_music_cue)
 	add_child(battle)
 	_apply_quality()
+	_apply_audio()
+	if battle.sfx != null and not battle.sfx.loud.is_connected(_on_loud_sfx):
+		battle.sfx.loud.connect(_on_loud_sfx)
+	if battle.round_active():
+		_on_music_cue("battle")
 
 
 var _rematch_pending := false
@@ -1255,6 +1315,7 @@ func _end_battle_node() -> void:
 
 func _on_round_ended(won_flag: bool) -> void:
 	last_won = won_flag
+	_on_music_cue("win" if won_flag else "lose")
 	_result_timer = float(config["result_show_sec"])
 	_capture_result()
 

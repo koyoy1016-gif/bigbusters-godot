@@ -1,5 +1,40 @@
 {
-  "_memo": "メニューのBGM（自作。tools/make_bgm.py が作る）。戦いの最中は止める。ループして流す",
-  "file": "res://assets/audio/bgm/menu.wav",
-  "volume_db": -14.0
+  "_memo": "音楽（自作。tools/make_music.py が作る。Ogg Vorbis）。tracks：曲（loop: false は勝ち・負けの短い曲。終わったら、予約した曲を流す）。fade_sec：曲を入れかえる秒。start_fade_sec：最初に流す時の秒。jingle_fade_sec：短い曲に入れかえる時、前の曲を消す秒。after_jingle_fade_sec：短い曲のあと、次の曲を大きくしていく秒。duck_db_per_sec：大きな効果音で下げたあと、もどる速さ。user_default：はじめの音の大きさ（0〜1。プロフィールの「せってい」で変えられる。この端末に保存）",
+  "default": "lobby",
+  "fade_sec": 1.2,
+  "start_fade_sec": 0.4,
+  "jingle_fade_sec": 0.3,
+  "after_jingle_fade_sec": 1.5,
+  "duck_db_per_sec": 18.0,
+  "tracks": {
+    "lobby": {
+      "file": "res://assets/audio/bgm/lobby.ogg",
+      "volume_db": -11.0,
+      "loop": true
+    },
+    "battle": {
+      "file": "res://assets/audio/bgm/battle.ogg",
+      "volume_db": -13.0,
+      "loop": true
+    },
+    "awake": {
+      "file": "res://assets/audio/bgm/awake.ogg",
+      "volume_db": -12.0,
+      "loop": true
+    },
+    "win": {
+      "file": "res://assets/audio/bgm/win.ogg",
+      "volume_db": -8.0,
+      "loop": false
+    },
+    "lose": {
+      "file": "res://assets/audio/bgm/lose.ogg",
+      "volume_db": -9.0,
+      "loop": false
+    }
+  },
+  "user_default": {
+    "music": 0.8,
+    "sfx": 1.0
+  }
 }

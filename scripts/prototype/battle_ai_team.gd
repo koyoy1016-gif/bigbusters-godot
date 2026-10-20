@@ -184,6 +184,8 @@ func _ai_update(delta: float) -> void:
 						b.skills.action_fx(str(slot), hf, AiAlly.act(a).aim)
 			for he in a.get("hit_events", []):
 				b._show_damage(float(he["dmg"]), str(he["action"]), a["pos"])  # 版75：AIの一撃ずつ
+			if not (a.get("hit_events", []) as Array).is_empty():
+				b.audio.play("hit", b.audio.slot_db(str(slot), a["pos"]))  # 版85：AIの味方の近くの攻撃も、小さく音を出す
 			if dealt > 0.0:
 				b.ai_hits[slot] = float(b.ai_hits[slot]) + dealt
 				dealt_total += dealt

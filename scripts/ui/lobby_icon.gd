@@ -1,7 +1,8 @@
 extends Control
 ## 版81：ロビーの小さな絵（アイコン）。画像を使わず、図形で描く（軽い・フォントに字がなくても出る）。
 ## kind：person（人）・home（家＝ロビー）・gacha（ガチャの機械）・friends（2人）・room（部屋＝ドアと＋）・
-##       coin（コイン）・lock（かぎ）・left / right（矢印）・star（星＝ランク）・city（街＝ステージ）
+##       coin（コイン）・lock（かぎ）・left / right（矢印）・star（星＝ランク）・city（街＝ステージ）・
+##       music（音楽）・speaker / speaker_off（効果音）・sparkle（画質）（版85）
 
 var kind := "person"
 var color := Color.WHITE
@@ -80,6 +81,30 @@ func _draw() -> void:
 				var h: float = hs[i]
 				draw_rect(Rect2(p.call(0.02 + 0.165 * i, 1.0 - h), Vector2(0.14, h) * s), Color(0.2, 0.18, 0.32))
 				draw_rect(Rect2(p.call(0.06 + 0.165 * i, 1.0 - h + 0.08), Vector2(0.05, 0.05) * s), Color(1.0, 0.85, 0.45))
+		"music":
+			# 版85：音楽（2つの音符を、はりでつないだ形）
+			draw_circle(p.call(0.28, 0.76), s * 0.13, color)
+			draw_circle(p.call(0.72, 0.66), s * 0.13, color)
+			draw_rect(Rect2(p.call(0.355, 0.2), Vector2(0.08, 0.56) * s), color)
+			draw_rect(Rect2(p.call(0.795, 0.1), Vector2(0.08, 0.56) * s), color)
+			draw_colored_polygon(PackedVector2Array([p.call(0.355, 0.2), p.call(0.875, 0.1), p.call(0.875, 0.24), p.call(0.355, 0.34)]), color)
+		"speaker", "speaker_off":
+			# 版85：効果音（スピーカーと音の波。off は ×）
+			draw_rect(Rect2(p.call(0.1, 0.36), Vector2(0.18, 0.28) * s), color)
+			draw_colored_polygon(PackedVector2Array([p.call(0.26, 0.36), p.call(0.5, 0.14), p.call(0.5, 0.86), p.call(0.26, 0.64)]), color)
+			if kind == "speaker":
+				draw_arc(p.call(0.5, 0.5), s * 0.18, -0.9, 0.9, 12, color, s * 0.07)
+				draw_arc(p.call(0.5, 0.5), s * 0.34, -0.85, 0.85, 16, color, s * 0.07)
+			else:
+				draw_line(p.call(0.62, 0.36), p.call(0.9, 0.64), accent, s * 0.09)
+				draw_line(p.call(0.9, 0.36), p.call(0.62, 0.64), accent, s * 0.09)
+		"sparkle":
+			# 版85：画質（大きな きらり と、小さな きらり）
+			for st in [[0.42, 0.55, 0.4], [0.78, 0.24, 0.2]]:
+				var c := p.call(st[0], st[1]) as Vector2
+				var r := float(st[2]) * s
+				draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.22, -r * 0.22), c + Vector2(r, 0), c + Vector2(r * 0.22, r * 0.22),
+					c + Vector2(0, r), c + Vector2(-r * 0.22, r * 0.22), c + Vector2(-r, 0), c + Vector2(-r * 0.22, -r * 0.22)]), color if st[2] > 0.3 else accent)
 
 
 ## 肩から下の、丸い体（人の形）

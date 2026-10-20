@@ -1,25 +1,326 @@
 {
-  "_memo": "効果音。自作（tools/make_sfx.py）。volume_db は音の大きさ、min_gap_sec は同じ音を続けて鳴らさない最短の間隔",
-  "pool_size": 8,
+  "_memo": "効果音。自作（tools/make_sfx.py）。volume_db は音の大きさ、min_gap_sec は同じ音を続けて鳴らさない最短の間隔、pitch_var は鳴らすたびに高さを少し変える幅（0.08＝±8%。同じ音のくり返しを自然に）、duck_db は鳴らした時に音楽を少し下げる量。0.45秒より長い音は .ogg",
+  "pool_size": 12,
   "sounds": {
-    "slash": {"file": "res://assets/audio/sfx/slash.wav", "volume_db": -6.0, "min_gap_sec": 0.08},
-    "hit": {"file": "res://assets/audio/sfx/hit.wav", "volume_db": -4.0, "min_gap_sec": 0.08},
-    "hurt": {"file": "res://assets/audio/sfx/hurt.wav", "volume_db": -3.0, "min_gap_sec": 0.2},
-    "jump": {"file": "res://assets/audio/sfx/jump.wav", "volume_db": -9.0, "min_gap_sec": 0.2},
-    "skill": {"file": "res://assets/audio/sfx/skill.wav", "volume_db": -6.0, "min_gap_sec": 0.2},
-    "grab_warn": {"file": "res://assets/audio/sfx/grab_warn.wav", "volume_db": -4.0, "min_gap_sec": 0.5},
-    "grab": {"file": "res://assets/audio/sfx/grab.wav", "volume_db": -2.0, "min_gap_sec": 0.3},
-    "free": {"file": "res://assets/audio/sfx/free.wav", "volume_db": -4.0, "min_gap_sec": 0.3},
-    "whoosh": {"file": "res://assets/audio/sfx/whoosh.wav", "volume_db": -5.0, "min_gap_sec": 0.5},
-    "throw": {"file": "res://assets/audio/sfx/throw.wav", "volume_db": -8.0, "min_gap_sec": 0.3},
-    "storm": {"file": "res://assets/audio/sfx/storm.wav", "volume_db": -5.0, "min_gap_sec": 0.5},
-    "sweep": {"file": "res://assets/audio/sfx/sweep.wav", "volume_db": -5.0, "min_gap_sec": 0.5},
-    "win": {"file": "res://assets/audio/sfx/win.wav", "volume_db": -4.0, "min_gap_sec": 1.0},
-    "lose": {"file": "res://assets/audio/sfx/lose.wav", "volume_db": -4.0, "min_gap_sec": 1.0},
-    "mash": {"file": "res://assets/audio/sfx/mash.wav", "volume_db": -6.0, "min_gap_sec": 0.03},
-    "thud": {"file": "res://assets/audio/sfx/thud.wav", "volume_db": -2.0, "min_gap_sec": 0.3},
-    "ultimate": {"file": "res://assets/audio/sfx/ultimate.wav", "volume_db": -1.0, "min_gap_sec": 0.5},
-    "click": {"file": "res://assets/audio/sfx/click.wav", "volume_db": -8.0, "min_gap_sec": 0.05}
+    "slash": {
+      "file": "res://assets/audio/sfx/slash.wav",
+      "volume_db": -6.0,
+      "min_gap_sec": 0.06,
+      "pitch_var": 0.08
+    },
+    "hit": {
+      "file": "res://assets/audio/sfx/hit.wav",
+      "volume_db": -4.0,
+      "min_gap_sec": 0.06,
+      "pitch_var": 0.07
+    },
+    "heavy": {
+      "file": "res://assets/audio/sfx/heavy.ogg",
+      "volume_db": -3.0,
+      "min_gap_sec": 0.1,
+      "pitch_var": 0.05,
+      "duck_db": -4.0
+    },
+    "shot": {
+      "file": "res://assets/audio/sfx/shot.wav",
+      "volume_db": -9.0,
+      "min_gap_sec": 0.045,
+      "pitch_var": 0.1
+    },
+    "cannon": {
+      "file": "res://assets/audio/sfx/cannon.ogg",
+      "volume_db": -4.0,
+      "min_gap_sec": 0.08,
+      "pitch_var": 0.06,
+      "duck_db": -3.0
+    },
+    "magic": {
+      "file": "res://assets/audio/sfx/magic.wav",
+      "volume_db": -8.0,
+      "min_gap_sec": 0.1,
+      "pitch_var": 0.06
+    },
+    "magic_hit": {
+      "file": "res://assets/audio/sfx/magic_hit.ogg",
+      "volume_db": -6.0,
+      "min_gap_sec": 0.08,
+      "pitch_var": 0.05
+    },
+    "boom": {
+      "file": "res://assets/audio/sfx/boom.ogg",
+      "volume_db": -4.0,
+      "min_gap_sec": 0.08,
+      "pitch_var": 0.07,
+      "duck_db": -3.0
+    },
+    "pop": {
+      "file": "res://assets/audio/sfx/pop.wav",
+      "volume_db": -7.0,
+      "min_gap_sec": 0.06,
+      "pitch_var": 0.12
+    },
+    "heal": {
+      "file": "res://assets/audio/sfx/heal.ogg",
+      "volume_db": -8.0,
+      "min_gap_sec": 0.15,
+      "pitch_var": 0.03
+    },
+    "skill": {
+      "file": "res://assets/audio/sfx/skill.ogg",
+      "volume_db": -6.0,
+      "min_gap_sec": 0.2
+    },
+    "jump": {
+      "file": "res://assets/audio/sfx/jump.wav",
+      "volume_db": -9.0,
+      "min_gap_sec": 0.2,
+      "pitch_var": 0.08
+    },
+    "ultimate": {
+      "file": "res://assets/audio/sfx/ultimate.ogg",
+      "volume_db": -2.0,
+      "min_gap_sec": 0.5,
+      "duck_db": -6.0
+    },
+    "hurt": {
+      "file": "res://assets/audio/sfx/hurt.wav",
+      "volume_db": -3.0,
+      "min_gap_sec": 0.2,
+      "pitch_var": 0.06
+    },
+    "thud": {
+      "file": "res://assets/audio/sfx/thud.wav",
+      "volume_db": -2.0,
+      "min_gap_sec": 0.3,
+      "pitch_var": 0.05,
+      "duck_db": -3.0
+    },
+    "grab": {
+      "file": "res://assets/audio/sfx/grab.wav",
+      "volume_db": -2.0,
+      "min_gap_sec": 0.3,
+      "duck_db": -4.0
+    },
+    "free": {
+      "file": "res://assets/audio/sfx/free.wav",
+      "volume_db": -4.0,
+      "min_gap_sec": 0.3
+    },
+    "mash": {
+      "file": "res://assets/audio/sfx/mash.wav",
+      "volume_db": -8.0,
+      "min_gap_sec": 0.03,
+      "pitch_var": 0.15
+    },
+    "down": {
+      "file": "res://assets/audio/sfx/down.ogg",
+      "volume_db": -4.0,
+      "min_gap_sec": 0.3,
+      "duck_db": -3.0
+    },
+    "revive": {
+      "file": "res://assets/audio/sfx/revive.ogg",
+      "volume_db": -3.0,
+      "min_gap_sec": 0.3,
+      "duck_db": -5.0
+    },
+    "boss_step": {
+      "file": "res://assets/audio/sfx/boss_step.wav",
+      "volume_db": -5.0,
+      "min_gap_sec": 0.12,
+      "pitch_var": 0.08
+    },
+    "roar": {
+      "file": "res://assets/audio/sfx/roar.ogg",
+      "volume_db": -1.0,
+      "min_gap_sec": 1.0,
+      "duck_db": -9.0
+    },
+    "grab_warn": {
+      "file": "res://assets/audio/sfx/grab_warn.ogg",
+      "volume_db": -4.0,
+      "min_gap_sec": 0.5,
+      "duck_db": -3.0
+    },
+    "whoosh": {
+      "file": "res://assets/audio/sfx/whoosh.ogg",
+      "volume_db": -5.0,
+      "min_gap_sec": 0.5,
+      "pitch_var": 0.05
+    },
+    "throw": {
+      "file": "res://assets/audio/sfx/throw.wav",
+      "volume_db": -8.0,
+      "min_gap_sec": 0.2,
+      "pitch_var": 0.12
+    },
+    "storm": {
+      "file": "res://assets/audio/sfx/storm.ogg",
+      "volume_db": -5.0,
+      "min_gap_sec": 0.5
+    },
+    "sweep": {
+      "file": "res://assets/audio/sfx/sweep.ogg",
+      "volume_db": -5.0,
+      "min_gap_sec": 0.4,
+      "pitch_var": 0.06
+    },
+    "win": {
+      "file": "res://assets/audio/sfx/win.ogg",
+      "volume_db": -4.0,
+      "min_gap_sec": 1.0
+    },
+    "lose": {
+      "file": "res://assets/audio/sfx/lose.ogg",
+      "volume_db": -4.0,
+      "min_gap_sec": 1.0
+    },
+    "click": {
+      "file": "res://assets/audio/sfx/click.wav",
+      "volume_db": -8.0,
+      "min_gap_sec": 0.05,
+      "pitch_var": 0.05
+    },
+    "pull": {
+      "file": "res://assets/audio/sfx/pull.wav",
+      "volume_db": -6.0,
+      "min_gap_sec": 0.3,
+      "pitch_var": 0.04
+    },
+    "pull_tick": {
+      "file": "res://assets/audio/sfx/pull_tick.wav",
+      "volume_db": -6.0,
+      "min_gap_sec": 0.04
+    },
+    "launch": {
+      "file": "res://assets/audio/sfx/launch.ogg",
+      "volume_db": -3.0,
+      "min_gap_sec": 0.3
+    },
+    "gacha_hit": {
+      "file": "res://assets/audio/sfx/gacha_hit.wav",
+      "volume_db": -3.0,
+      "min_gap_sec": 0.05,
+      "pitch_var": 0.08
+    },
+    "reveal_n": {
+      "file": "res://assets/audio/sfx/reveal_n.ogg",
+      "volume_db": -5.0,
+      "min_gap_sec": 0.5,
+      "duck_db": -4.0
+    },
+    "reveal_r": {
+      "file": "res://assets/audio/sfx/reveal_r.ogg",
+      "volume_db": -4.0,
+      "min_gap_sec": 0.5,
+      "duck_db": -6.0
+    },
+    "reveal_sr": {
+      "file": "res://assets/audio/sfx/reveal_sr.ogg",
+      "volume_db": -3.0,
+      "min_gap_sec": 0.5,
+      "duck_db": -8.0
+    },
+    "reveal_ssr": {
+      "file": "res://assets/audio/sfx/reveal_ssr.ogg",
+      "volume_db": -2.0,
+      "min_gap_sec": 0.5,
+      "duck_db": -12.0
+    },
+    "coin": {
+      "file": "res://assets/audio/sfx/coin.wav",
+      "volume_db": -7.0,
+      "min_gap_sec": 0.08,
+      "pitch_var": 0.04
+    }
   },
-  "attack_sounds": {"sake_drop": "throw", "fire_fest": "storm", "thrust": "whoosh", "bat_throw": "sweep", "spin_charge": "sweep", "jump_slam": "whoosh", "sake_rain": "throw", "bat_h": "whoosh", "bat_v": "whoosh", "bat_spin": "sweep", "tail_spin": "whoosh", "walk_swing": "whoosh", "grab": "grab_warn", "typhoon": "whoosh", "flyers": "throw", "flyer_storm": "storm", "hand_sweep": "sweep", "bottle_ride": "storm"}
+  "attack_sounds": {
+    "sake_drop": "throw",
+    "fire_fest": "storm",
+    "thrust": "whoosh",
+    "bat_throw": "sweep",
+    "spin_charge": "sweep",
+    "jump_slam": "whoosh",
+    "sake_rain": "throw",
+    "bat_h": "whoosh",
+    "bat_v": "whoosh",
+    "bat_spin": "sweep",
+    "tail_spin": "whoosh",
+    "walk_swing": "whoosh",
+    "grab": "grab_warn",
+    "typhoon": "whoosh",
+    "flyers": "throw",
+    "flyer_storm": "storm",
+    "hand_sweep": "sweep",
+    "bottle_ride": "storm"
+  },
+  "proj_sounds": {
+    "_memo": "飛ぶ物（char_actions.json の proj の prop）を撃った時の音と、当たった時の音",
+    "bullet": [
+      "shot",
+      "hit"
+    ],
+    "cannon_shell": [
+      "cannon",
+      "boom"
+    ],
+    "magic_orb": [
+      "magic",
+      "magic_hit"
+    ],
+    "magic_big": [
+      "magic",
+      "magic_hit"
+    ],
+    "meteor": [
+      "magic",
+      "boom"
+    ],
+    "heart_arrow": [
+      "magic",
+      "magic_hit"
+    ],
+    "firework_red": [
+      "throw",
+      "pop"
+    ],
+    "firework_blue": [
+      "throw",
+      "pop"
+    ],
+    "firework_gold": [
+      "throw",
+      "pop"
+    ],
+    "present_pink": [
+      "throw",
+      "boom"
+    ],
+    "present_green": [
+      "throw",
+      "boom"
+    ],
+    "present_big": [
+      "throw",
+      "boom"
+    ],
+    "plush_bear": [
+      "throw",
+      "hit"
+    ],
+    "bullet_small": [
+      "",
+      "hit"
+    ]
+  },
+  "battle": {
+    "_memo": "戦いの音。ai_db：AIの味方の攻撃の音は、これだけ小さく。near_m〜far_m：ボスの足音などが、遠いほど小さくなる（far_m で far_db）。step_min_speed：この速さ（m/秒）より遅い時は、足音を出さない。足音の間かくは boss_model.json の walk_cycle_m の半分（1歩）",
+    "ai_db": -8.0,
+    "near_m": 6.0,
+    "far_m": 34.0,
+    "far_db": -15.0,
+    "step_min_speed": 0.5,
+    "fall_duck_db": -14.0,
+    "fall_duck_sec": 2.6
+  }
 }

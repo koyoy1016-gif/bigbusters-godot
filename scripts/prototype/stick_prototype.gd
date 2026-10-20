@@ -11,6 +11,8 @@ class_name StickPrototype
 signal round_ended(won_flag: bool)
 ## 新しい戦いが始まった（通信で、ほかの人が始めた場合も）
 signal round_started
+## 版85：音楽の合図（fall：ボスが倒れた、awake：覚醒）。画面の流れ（game_flow.gd）が曲を切りかえる
+signal music_cue(cue: String)
 
 const CONFIG_PATH := "res://data/prototype_stick.json"
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
@@ -47,6 +49,7 @@ const BattleUltFx := preload("res://scripts/prototype/battle_ult_fx.gd")
 const BattleNet := preload("res://scripts/prototype/battle_net.gd")
 const BattleSkills := preload("res://scripts/prototype/battle_skills.gd")
 const BattleRevive := preload("res://scripts/prototype/battle_revive.gd")
+const BattleAudio := preload("res://scripts/prototype/battle_audio.gd")
 const TargetLock := preload("res://scripts/combat/target_lock.gd")
 const Projectiles := preload("res://scripts/combat/projectiles.gd")
 const SkillHits := preload("res://scripts/combat/skill_hits.gd")
@@ -90,6 +93,7 @@ var ult_fx := BattleUltFx.new(self)  ## 必殺技の見た目（battle_ult_fx.gd
 var net := BattleNet.new(self)  ## 通信（battle_net.gd）
 var skills := BattleSkills.new(self)  ## 版78：キャラごとの攻撃の効果と見た目（battle_skills.gd）
 var revive_sys := BattleRevive.new(self)  ## 版84：倒れた仲間の蘇生（battle_revive.gd）
+var audio := BattleAudio.new(self)  ## 版85：戦いの音（ボスの足音・飛ぶ物の音。battle_audio.gd）
 ## 版78：キャラごとの攻撃の状態（battle_skills.gd が使う）
 var skill_fx: Array = []  ## 出している見た目 [{node, follow}]
 var skill_fx_log: Array = []  ## 出した見た目の種類（テスト用）
@@ -802,6 +806,7 @@ func _begin_round(start_ms: float) -> void:
 	actions.reset()
 	skills.reset()
 	revive_sys.reset()
+	audio.reset()
 	boss_freeze_total = 0.0
 	gauge.reset()
 	banner["left"] = 0.0
@@ -1140,15 +1145,14 @@ func _resolve_hit(ev: Dictionary) -> void:
 	var ult_scale := float(role().get("ultimate_scale", 1.0)) if str(ev.get("action", "")) == "ultimate" else 1.0
 	var dmg := Damage.damage_amount(role_value("attack_power"), float(config["attack_multiplier"]) * float(ev["multiplier"]) * ult_scale * skills.dealt_mult(_my_slot()) * vanish_bonus)
 	var reach := HitArea.reach_of(role_value("attack_reach"), float(ev["radius_scale"]))
-	_play_sfx("slash")
 	var hit_boss := boss.visible and HitArea.hits(player.position, boss.position, reach, float(config["boss_size"]) * 0.5)
 	# 版78：ビーム・爆発・まわりの当たり（skill_hits.gd）。当たった所に、技の見た目（hit の fx）を出す
 	var hspec: Dictionary = ev.get("hit", {})
 	if hspec.has("proj"):
 		# 版79：飛ぶ物：発射口から撃ち、当たった時にダメージ（battle_skills.gd）
 		skills.fire(_my_slot(), hspec, dmg, actions.aim, str(ev.get("action", "")))
-		_play_sfx("slash")
-		return
+		return  # 版85：撃った音は battle_skills.fire が鳴らす（銃・大砲・魔法・投げる）
+	_play_sfx("slash")
 	var ti := target_info()
 	if not ti.is_empty() and str(ti.get("kind", "")) == "sub" and SkillHits.shape_of(hspec) == "melee":
 		# 版79：ロックしたサブ敵への近くの攻撃
@@ -1179,6 +1183,8 @@ func _resolve_hit(ev: Dictionary) -> void:
 		_play_sfx("hit")  # 倒れて覚醒する間は、当たってもダメージは入らない
 	elif hit_boss:
 		_play_sfx("hit")
+		if hspec.has("impact") or str(ev.get("action", "")) == "ultimate":
+			_play_sfx("heavy")  # 版85：強い技は、低い「ずどん」も重ねる
 		hit_flash = float(config["hit_flash_sec"])
 		_damage_boss(dmg)
 		if hspec.has("impact"):
@@ -1350,7 +1356,8 @@ func _recompute_boss_hp() -> void:
 		field.clear()  # 倒したら、残っている火・酒だまりを消す
 		won = true
 		round_end_ms = server_now_ms()
-		_play_sfx("win")
+		if not flow_mode:
+			_play_sfx("win")  # 画面の流れの中では、勝ちの曲（音楽）を流すので、効果音は鳴らさない
 		round_ended.emit(true)
 		boss.visible = false
 
@@ -1384,12 +1391,14 @@ func _on_boss_fall() -> void:
 	field.clear()  # 倒れたら、燃えている火や酒だまりも消す
 	phase_text = {"text": str(config.get("boss_down_text", "")), "left": 2.0}
 	_play_sfx("thud")
+	music_cue.emit("fall")
 
 
 ## 覚醒の演出が終わった：第2形態の攻撃を始める
 func _on_boss_awake() -> void:
 	phase_text = {"text": str(config.get("boss_awake_text", "")), "left": 1.6}
-	_play_sfx("ultimate")
+	_play_sfx("roar")  # 版85：覚醒の雄たけび（音楽は覚醒の曲へ）
+	music_cue.emit("awake")
 	_on_awake_started()
 
 
@@ -1601,6 +1610,7 @@ func combat_update(delta: float) -> void:
 		return
 	skills.update(delta)
 	revive_sys.update(delta)
+	audio.update(delta)
 	_target_lock_update(delta)
 	# 版78：時間停止の間は、ボスの攻撃の時計を止める（止まっていた時間を、攻撃の時計から引く）
 	if skills.boss_frozen():
@@ -1815,12 +1825,14 @@ func _check_wipe() -> void:
 			if _ai_all_down():
 				lost = true
 				round_end_ms = server_now_ms()
-				_play_sfx("lose")
+				if not flow_mode:
+					_play_sfx("lose")
 				round_ended.emit(false)
 		elif BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms):
 			lost = true
 			round_end_ms = server_now_ms()
-			_play_sfx("lose")
+			if not flow_mode:
+				_play_sfx("lose")
 			round_ended.emit(false)
 
 

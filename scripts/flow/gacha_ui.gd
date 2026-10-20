@@ -43,6 +43,7 @@ var press_pos := Vector2.INF
 var pressing := false
 var bold: Font
 var last_result: Dictionary = {}
+var pull_step := 0  ## 版85：引く強さの目もり（0〜4。25%ごとに「こつ」と鳴らす）
 
 
 func _init(flow: Node) -> void:
@@ -476,9 +477,9 @@ func refresh() -> void:
 		f.lobby_ui.set_nav_selected(f.state)
 
 
-func _sfx(name: String) -> void:
+func _sfx(name: String, pitch: float = 1.0) -> void:
 	if f.menu_sfx != null:
-		f.menu_sfx.play(name)
+		f.menu_sfx.play(name, 0.0, pitch)
 
 
 # ---------------------------------------------------------------- 引く・離す
@@ -527,7 +528,8 @@ func grab(pos: Vector2, force: bool = false) -> bool:
 	hint.visible = false
 	power_box.visible = true
 	refresh()
-	_sfx("click")
+	pull_step = 0
+	_sfx("pull")  # 版85：弓のきしみ
 	drag(pos)
 	return true
 
@@ -545,6 +547,11 @@ func drag(pos: Vector2) -> void:
 	var aim := _aim(pos)
 	power_bar.value = float(aim["raw"])
 	power_label.text = "%d%%" % int(round(float(aim["raw"]) * 100.0))
+	# 版85：25%ごとに「こつ」（強いほど高い音）。もどした時は鳴らさない
+	var st := int(floor(float(aim["raw"]) * 4.0 + 0.001))
+	if st > pull_step:
+		_sfx("pull_tick", 0.85 + 0.15 * float(st))
+	pull_step = st
 	if stage != null:
 		stage.set_pull(aim)
 
@@ -571,7 +578,7 @@ func release(pos: Vector2) -> bool:
 	f.save["gacha_count"] = pulls + 1
 	f._write_save()
 	counter.text = _t("gacha_counter") % [0, int(logic.cfg.get("enemy_count", 5))]
-	_sfx("whoosh")
+	_sfx("launch")  # 版85：弦の「びゅん」
 	if stage != null:
 		stage.launch(aim)
 	refresh()
@@ -581,7 +588,7 @@ func release(pos: Vector2) -> bool:
 func _on_killed(index: int, _at: Vector3) -> void:
 	if not logic.add_kill(index):
 		return
-	_sfx("hit")
+	_sfx("gacha_hit", 1.0 + 0.06 * float(logic.kill_count() - 1))  # 版85：倒すほど少し高く
 	counter.text = _t("gacha_counter") % [logic.kill_count(), int(logic.cfg.get("enemy_count", 5))]
 	if counter.is_inside_tree():
 		counter.pivot_offset = counter.size * 0.5
@@ -681,7 +688,7 @@ func show_result(res: Dictionary) -> void:
 	rays.set("rainbow", r == "SSR")
 	rays.set("rays", 18 if r == "SSR" else 12)
 	rays.set("power", {"N": 0.0, "R": 0.35, "SR": 0.8, "SSR": 1.0}.get(r, 0.5))
-	_sfx({"N": "click", "R": "skill", "SR": "win", "SSR": "ultimate"}.get(r, "click"))
+	_sfx({"N": "reveal_n", "R": "reveal_r", "SR": "reveal_sr", "SSR": "reveal_ssr"}.get(r, "reveal_n"))  # 版85：レア度ごとに、だんだん豪華に
 	if result_box.is_inside_tree():
 		result_card.pivot_offset = Vector2(300, 400)
 		result_card.scale = Vector2(0.6, 0.6)
@@ -693,8 +700,6 @@ func show_result(res: Dictionary) -> void:
 		if r in ["SR", "SSR"]:
 			flash.color = Color(1, 1, 1, 0.9 if r == "SSR" else 0.5)
 			tw.tween_property(flash, "color:a", 0.0, 0.6)
-		if r == "SSR":
-			_sfx("win")
 
 
 ## 「もう一度 引く」：コインを使うか確かめる（はじめの無料の1回は、もう使った）

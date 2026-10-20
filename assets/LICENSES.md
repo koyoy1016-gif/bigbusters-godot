@@ -28,10 +28,11 @@
 - cloth.png / steel.png / skin.png / leather.png：`tools/make_textures.py` が計算で作った画像（他の作品は使っていない）。CC0として扱う。
 
 ## 自作の効果音（assets/audio/sfx/）
-- 15個の .wav：`tools/make_sfx.py` が、計算（ノイズと音程の変化）で作った。他の作品の音は使っていない。CC0として扱う。
+- 39個の .wav／.ogg（版85で作り直し・追加）：`tools/make_sfx.py` が、計算（ノイズ・フィルター・音程の変化・FMの鐘の音・弦のはじき（Karplus-Strong）・かんたんな残響）で作った。録音した音や、他の作品の音は使っていない。CC0として扱う。
 
-## 自作のBGM（assets/audio/bgm/）
-- `menu.wav`（16秒のループ）：`tools/make_bgm.py` が、計算（矩形波・サイン波・ノイズ）で作った。他の作品の曲・旋律は使っていない。CC0として扱う。
+## 自作の音楽（assets/audio/bgm/）
+- 版85：`lobby.ogg`（ロビー・40秒のループ）、`battle.ogg`（戦い・26秒のループ）、`awake.ogg`（覚醒・23秒のループ）、`win.ogg`／`lose.ogg`（勝ち・負けの短い曲）：`tools/make_music.py` が、計算（倍音を足した音・FMの鐘・ノイズの太鼓・かんたんな残響）で作った。和音の進み方と旋律は、このために作ったもの。他の作品の曲・旋律は使っていない。CC0として扱う。
+- 版47〜84の `menu.wav`（`tools/make_bgm.py`）は、版85で消した（使わなくなったため）。
 
 ## 動きの素材（assets/anims/hero_ual.res）
 - Quaternius「Universal Animation Library [Standard]」（https://quaternius.com/packs/universalanimationlibrary.html）。ライセンス：CC0 1.0（パブリックドメイン）。配布のzipの License.txt で確認済み（2026-10-19）。

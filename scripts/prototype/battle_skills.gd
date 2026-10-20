@@ -276,6 +276,7 @@ func fire(slot: String, hspec: Dictionary, dmg: float, aim: Vector2, action: Str
 	p["node"] = _proj_node(ps, from)
 	b.skill_projs.append(p)
 	b.skill_log.append("fire")
+	b.audio.on_fire(slot, str(ps.get("prop", "")), pos_of(slot))  # 版85：撃った音（銃・大砲・魔法・投げる）
 	if ps.has("muzzle") and not sky:
 		var mz: Dictionary = (ps["muzzle"] as Dictionary).duplicate()
 		mz["kind"] = "prop"
@@ -381,9 +382,11 @@ func _update_projs(delta: float) -> void:
 					spawn_at({"kind": "ring", "color": "#7dffa8", "radius": 1.6, "life": 0.6}, hp, hp)
 					spawn_at({"kind": "rise", "color": "#9dffb8", "life": 1.0}, hp, hp)
 					b.skill_log.append("healed")
+					b.audio.play("heal", b.audio.slot_db(str(p["heal_to"]), Vector2(hp.x, hp.z)))
 				else:
 					var sp := Projectiles.surface_point(at, tgt)
 					deal(str(p["owner"]), float(p["dmg"]), str(p["action"]), sp, tgt, hspec.get("fx", {}))
+					b.audio.on_proj_hit(str(p["owner"]), str(ps.get("prop", "")), Vector2(sp.x, sp.z))
 			"land":
 				var blast := float(ps.get("blast", 0.0))
 				if hspec.has("fx"):
@@ -396,6 +399,8 @@ func _update_projs(delta: float) -> void:
 				elif blast > 0.0 and Projectiles.blast_hits(at, blast, tgt):
 					_impact(str(p["owner"]), hspec)
 					deal(str(p["owner"]), float(p["dmg"]), str(p["action"]), Projectiles.surface_point(at + Vector3(0, 1.0, 0), tgt), tgt, {"size": 1.0})
+				if blast > 0.0 and str(ps.get("on_land", "")) != "present":
+					b.audio.on_proj_hit(str(p["owner"]), str(ps.get("prop", "")), Vector2(at.x, at.z))  # 版85：落ちて爆発した音（当たらなくても）
 			"miss":
 				spawn_at({"kind": "smoke", "life": 0.6}, at, at)
 		if node != null and is_instance_valid(node):
@@ -468,6 +473,7 @@ func _update_gimmicks(delta: float) -> void:
 			var blast := float(ps.get("blast", 3.5))
 			spawn_at({"kind": "blast", "color": "#ff7a2a", "radius": blast, "life": 0.45}, at, at + Vector3(0, 0.5, 0))
 			spawn_at({"kind": "ring", "color": "#ffd84a", "radius": blast * 1.3, "life": 0.5}, at, at)
+			b.audio.play("boom", b.audio.slot_db(str(g["owner"]), Vector2(at.x, at.z)))  # 版85：置いたプレゼントの爆発
 			var tgt: Dictionary = b.boss_info() if str(g["tgt_kind"]) == "boss" else b.sub_info(int(g["tgt_index"]))
 			if Projectiles.blast_hits(at, blast, tgt):
 				_impact(str(g["owner"]), g.get("hit", {}))
