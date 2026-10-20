@@ -253,25 +253,32 @@ def triangulate(rings):
 
 
 class Mesh:
-    def __init__(self, name):
+    """uv=True の形は、TEXCOORD_0 も書く（建物：u=建物の足もとの高さ・v=建物ごとの乱数。看板：絵の位置）"""
+
+    def __init__(self, name, uv=False):
         self.name = name
-        self.pos, self.nor, self.col, self.idx = [], [], [], []
+        self.pos, self.nor, self.col, self.idx, self.uv = [], [], [], [], []
+        self.has_uv = uv
         self.nv = 0
         self.ntri = 0
 
-    def add(self, pts, tri, normal, rgba):
+    def add(self, pts, tri, normal, rgba, uv=None):
         k = len(pts)
-        self.pos.append(pts.astype(np.float32))
+        self.pos.append(np.asarray(pts, np.float32))
         self.nor.append(np.tile(np.asarray(normal, np.float32), (k, 1)))
         self.col.append(np.tile(np.asarray(rgba, np.float32), (k, 1)))
-        self.idx.append(tri.astype(np.uint32) + self.nv)
+        if self.has_uv:
+            u = np.zeros((k, 2), np.float32) if uv is None else np.asarray(uv, np.float32)
+            self.uv.append(np.tile(u, (k, 1)) if u.shape == (2,) else u)
+        self.idx.append(np.asarray(tri).astype(np.uint32) + self.nv)
         self.nv += k
         self.ntri += len(tri)
 
     def arrays(self):
         if not self.pos:
             return None
-        return (np.concatenate(self.pos), np.concatenate(self.nor), np.concatenate(self.col), np.concatenate(self.idx).reshape(-1))
+        a = (np.concatenate(self.pos), np.concatenate(self.nor), np.concatenate(self.col), np.concatenate(self.idx).reshape(-1))
+        return a + (np.concatenate(self.uv),) if self.has_uv else a
 
 
 def flatten(p, b, drop=0.0):
@@ -290,32 +297,60 @@ def _rand(seed, k):
     return h / 0xFFFFFFFF
 
 
+# 建物の材質（頂点の色の a に入れる。シェーダー city_buildings.gdshader が見分ける）
+MAT_A = {"roof": 0.0, "metal": 0.25, "punched": 0.5, "glass": 0.75, "ribbon": 1.0}
+
+
+def place_building(bd, fr, b):
+    """建物の足もと → (足もとの点, まん中 x, z, まん中からの距離, 上下の合わせ dy, 足もとの高さ（合わせたあと）)"""
+    src = bd["lod1"] or [rr for _, rr in bd["lod2"]]
+    foot = fr.game(np.concatenate([rr[0] for rr in src]))
+    cx, cz = float(foot[:, 0].mean()), float(foot[:, 2].mean())
+    # 建物ごとの高さの合わせ（平らにした所の近くでは、建物ごと上下させる。形はくずさない）
+    base_real = float(foot[:, 1].min())
+    base_flat = float(flatten(np.array([[cx, base_real, cz]]), b)[0, 1])
+    return foot, cx, cz, math.hypot(cx, cz), base_flat - base_real, base_flat
+
+
+def in_arena(foot, b):
+    arena = float(b.get("check_half_m", 15.0)) + 2.0  # 戦いの場所（と、まわり2m）にかかる建物は出さない
+    return bool(np.any((np.abs(foot[:, 0]) < arena) & (np.abs(foot[:, 2]) < arena)))
+
+
+def building_material(bd, b):
+    """建物ごとの材質と色（高さで、えらび方の割合を変える。写真の渋谷：高い建物はガラス、低い建物はタイル・パネルが多い）"""
+    mc = b["materials"]
+    h = float(bd["h"])
+    group = "tall" if h >= float(mc["tall_m"]) else ("mid" if h >= float(mc["mid_m"]) else "low")
+    r = _rand(bd["id"], 5)
+    kind = "punched"
+    acc = 0.0
+    for k, w in mc["mix"][group].items():
+        acc += float(w)
+        if r < acc:
+            kind = k
+            break
+    pal = [hex_rgb(c) for c in mc["colors"][kind]]
+    wc = pal[int(_rand(bd["id"], 1) * len(pal)) % len(pal)] * (0.94 + 0.12 * _rand(bd["id"], 2))
+    return kind, np.clip(wc, 0.0, 1.0)
+
+
 def build_buildings(data, fr, b, stats):
     cols = b["colors"]
-    walls = [hex_rgb(c) for c in cols["walls"]]
-    glass = [hex_rgb(c) for c in cols["glass"]]
     roof = hex_rgb(cols["roof"])
     inst = hex_rgb(cols["install"])
-    near, far = Mesh("BldgNear"), Mesh("BldgFar")
+    near, far = Mesh("BldgNear", uv=True), Mesh("BldgFar", uv=True)
     R, R2, RI = float(b["radius_m"]), float(b["lod2_radius_m"]), float(b["install_radius_m"])
-    arena = float(b.get("check_half_m", 15.0)) + 2.0  # 戦いの場所（と、まわり2m）にかかる建物は出さない
     for bd in data["bldg"]:
-        src = bd["lod1"] or [rr for _, rr in bd["lod2"]]
-        foot = fr.game(np.concatenate([rr[0] for rr in src]))
-        cx, cz = float(foot[:, 0].mean()), float(foot[:, 2].mean())
-        dist = math.hypot(cx, cz)
+        foot, cx, cz, dist, dy, base_y = place_building(bd, fr, b)
         if dist > R:
             continue
-        if np.any((np.abs(foot[:, 0]) < arena) & (np.abs(foot[:, 2]) < arena)):
+        if in_arena(foot, b):
             stats["inside_arena"] += 1
             continue
-        # 建物ごとの高さの合わせ（平らにした所の近くでは、建物ごと上下させる。形はくずさない）
-        base_real = float(foot[:, 1].min())
-        base_flat = float(flatten(np.array([[cx, base_real, cz]]), b)[0, 1])
-        dy = base_flat - base_real
-        tall = bd["h"] >= float(cols["glass_from_m"])
-        pal = glass if tall else walls
-        wc = pal[int(_rand(bd["id"], 1) * len(pal)) % len(pal)] * (0.92 + 0.16 * _rand(bd["id"], 2))
+        kind_w, wc = building_material(bd, b)
+        stats["mat_" + kind_w] = stats.get("mat_" + kind_w, 0) + 1
+        bu = (base_y, _rand(bd["id"], 6))
         rc = roof * (0.85 + 0.25 * _rand(bd["id"], 3))
         use_lod2 = dist < R2 and bd["lod2"]
         target = near if dist < R2 else far
@@ -343,12 +378,12 @@ def build_buildings(data, fr, b, stats):
                 n = -n
                 tri = tri[:, [0, 2, 1]]
             if kind == "wall":
-                rgba = (*wc, 1.0)  # a=1：窓を描く面
+                rgba = (*wc, MAT_A[kind_w])  # 窓・ガラス・パネルを描く面
             elif kind == "roof":
-                rgba = (*rc, 0.0)
+                rgba = (*rc, MAT_A["roof"])
             else:
-                rgba = (*(inst * (0.9 + 0.2 * _rand(bd["id"], 4))), 0.0)
-            target.add(pts, tri, n, rgba)
+                rgba = (*(inst * (0.9 + 0.2 * _rand(bd["id"], 4))), MAT_A["metal"])
+            target.add(pts, tri, n, rgba, bu)
         stats["bldg_near" if dist < R2 else "bldg_far"] += 1
     return near, far
 
@@ -478,6 +513,12 @@ def weld(arrs, decimals=3):
     return pos[first], nor[first], col[first], inv.reshape(-1)[idx].astype(np.uint32)
 
 
+def up_tris(pts):
+    """4つの点の四角を、上から見て表になる向きの三角形2つに"""
+    n = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+    return np.array([[0, 1, 2], [0, 2, 3]]) if n[1] > 0 else np.array([[0, 2, 1], [0, 3, 2]])
+
+
 # ---------------------------------------------------------------- 横断歩道
 
 def build_crosswalks(data, fr, b, stats, height):
@@ -524,11 +565,11 @@ def build_crosswalks(data, fr, b, stats, height):
     walks = edge.difference(roads)
     stripe, gap, band, inset = float(cw["stripe_m"]), float(cw["gap_m"]), float(cw["band_m"]), float(cw["inset_m"])
 
-    def bar(p0, along, across, w, l):
+    def bar(p0, along, across, w, l, lift=0.02):
         quad = np.array([p0, p0 + along * w, p0 + along * w + across * l, p0 + across * l])
-        y = height(quad) + 0.02
+        y = height(quad) + lift
         pts = np.stack([quad[:, 0], y, quad[:, 1]], 1)
-        m.add(pts, np.array([[0, 2, 1], [0, 3, 2]]), UP, (*col, 1.0))
+        m.add(pts, up_tris(pts), UP, (*col, 1.0))
 
     made = []
     pieces = [] if mouths is None else (list(mouths.geoms) if hasattr(mouths, "geoms") else [mouths])
@@ -547,6 +588,17 @@ def build_crosswalks(data, fr, b, stats, height):
         while s + stripe <= L - 0.5:
             bar(a + u * s + inward * inset, u, inward, stripe, band)
             s += stripe + gap
+        # 止まる線（車が交差点に入ってくる側の半分だけ。日本は左側を走るので、入ってくる向きの左がわ）
+        left = np.array([inward[1], -inward[0]])
+        sw, back = float(cw.get("stop_w_m", 0.45)), float(cw.get("stop_back_m", 2.0))
+        if sw > 0.0:
+            if u @ left > 0:
+                s0, s1 = L / 2 + 0.3, L - 0.6
+            else:
+                s0, s1 = 0.6, L / 2 - 0.3
+            if s1 - s0 > 1.5:
+                bar(a + u * s0 - inward * back, u, inward, s1 - s0, sw)
+                stats["stop_lines"] = stats.get("stop_lines", 0) + 1
         made.append({"a": a.tolist(), "c": c.tolist()})
         stats["crosswalks"] += 1
     # ななめ（むかい合う歩道の角どうし）
@@ -577,13 +629,14 @@ def build_crosswalks(data, fr, b, stats, height):
             diag.append((corners[i], corners[j]))
             if len(diag) >= int(cw.get("diagonals", 2)):
                 break
+    dband = float(cw.get("diag_band_m", band))
     for A, B in diag:
         w = (B - A) / np.linalg.norm(B - A)
         side = np.array([-w[1], w[0]])
         L = np.linalg.norm(B - A)
         s = float(cw.get("diag_trim_m", 3.0))
         while s + stripe <= L - float(cw.get("diag_trim_m", 3.0)):
-            bar(A + w * s - side * band / 2, w, side, stripe, band)
+            bar(A + w * s - side * dband / 2, w, side, stripe, dband, 0.025)
             s += stripe + gap
         stats["diagonals"] += 1
     return m, {"outline": np.array(cl.exterior.coords).tolist(), "mouths": made, "corners": [c.tolist() for c in corners],
@@ -621,6 +674,238 @@ def arena_flatness(arrs, half, step=0.5):
     return float(worst)
 
 
+# ---------------------------------------------------------------- 看板・大画面（自作の絵。tools/make_signs.py が作る assets/maps/shibuya/signs.png）
+
+ATLAS_PX = 512.0
+ATLAS = {  # 種類: (左上 x, 左上 y, 幅, 高さ, 横の数)。make_signs.py の並びと同じ
+    "vertical": (0, 0, 64, 256, 8, 8),
+    "wide": (0, 256, 128, 64, 4, 4),
+    "fascia": (0, 320, 64, 32, 8, 16),
+}
+YAXIS = np.array([0.0, 1.0, 0.0])
+
+
+def atlas_uv(kind, k):
+    x0, y0, w, h, per_row, n = ATLAS[kind]
+    k = int(k) % n
+    x = x0 + (k % per_row) * w
+    y = y0 + (k // per_row) * h
+    e = 1.0  # にじまないように 1 ピクセル内がわ
+    return ((x + e) / ATLAS_PX, (y + e) / ATLAS_PX, (x + w - e) / ATLAS_PX, (y + h - e) / ATLAS_PX)
+
+
+def quad(mesh, center, n, w, h, rgba, uv=None):
+    """向き n（外向き・横）の、たて長方形。左下→右下→右上→左上。uv=(u0,v0,u1,v1)（v0 が上）"""
+    right = np.cross(YAXIS, n)
+    right /= np.linalg.norm(right)
+    c = np.asarray(center, float)
+    pts = np.array([c - right * w / 2 - YAXIS * h / 2, c + right * w / 2 - YAXIS * h / 2,
+                    c + right * w / 2 + YAXIS * h / 2, c - right * w / 2 + YAXIS * h / 2])
+    uvs = None
+    if uv is not None:
+        u0, v0, u1, v1 = uv
+        uvs = np.array([[u0, v1], [u1, v1], [u1, v0], [u0, v0]])
+    mesh.add(pts, np.array([[0, 1, 2], [0, 2, 3]]), n, rgba, uvs)
+
+
+def box(mesh, c, a, ha, hb, hy, rgba):
+    """細い柱・金具（色だけ）。a：横の向き（単位）。ha：a の向きの半分の長さ、hb：それと直角の半分、hy：高さの半分"""
+    c = np.asarray(c, float)
+    a = np.asarray(a, float)
+    bv = np.cross(YAXIS, a)
+    for n, off, w in ((a, ha, 2 * hb), (-a, ha, 2 * hb), (bv, hb, 2 * ha), (-bv, hb, 2 * ha)):
+        quad(mesh, c + n * off, n, w, 2 * hy, rgba)
+
+
+def wall_faces(bd, fr, dy, base_y, sc):
+    """看板をつけられる壁（交差点のほうを向いている、たての面）を返す"""
+    out = []
+    for k, rr in bd["lod2"]:
+        if k != "wall":
+            continue
+        g = fr.game(rr[0]) + [0.0, dy, 0.0]
+        ring = g[:-1] if len(g) > 3 and np.allclose(g[0], g[-1]) else g
+        if len(ring) < 3:
+            continue
+        nn = newell(ring)
+        if nn is None or abs(nn[1]) > 0.2:
+            continue
+        n = np.array([nn[0], 0.0, nn[2]])
+        n /= np.linalg.norm(n)
+        t = np.cross(YAXIS, n)
+        uu = ring @ t
+        plane = float(np.mean(ring @ n))
+        w = float(uu.max() - uu.min())
+        y0, y1 = float(ring[:, 1].min()), float(ring[:, 1].max())
+        if w < 2.5 or y1 - y0 < 3.0:
+            continue
+        # 面積（ニューウェル）と、外の四角の面積の比（1 に近いほど長方形）
+        q = np.roll(ring, -1, axis=0)
+        area = 0.5 * np.linalg.norm(np.sum(np.cross(ring, q), axis=0))
+        rect = area / max(w * (y1 - y0), 1e-6)
+        mid = t * (uu.min() + uu.max()) / 2 + n * plane
+        d = math.hypot(mid[0], mid[2])
+        facing = float(-(n[0] * mid[0] + n[2] * mid[2]) / max(d, 1e-6))
+        if d > float(sc["radius_m"]) or facing < float(sc["facing_min"]):
+            continue
+        out.append({"n": n, "t": t, "u0": float(uu.min()), "u1": float(uu.max()), "plane": plane, "y0": y0, "y1": y1,
+                    "w": w, "rect": rect, "dist": d, "facing": facing, "base": base_y, "used": []})
+    return out
+
+
+def wall_point(f, u, y, out=0.0):
+    p = f["t"] * u + f["n"] * (f["plane"] + out)
+    p[1] = y
+    return p
+
+
+def free(f, u0, u1, y0, y1):
+    for a0, a1, b0, b1 in f["used"]:
+        if u0 < a1 and u1 > a0 and y0 < b1 and y1 > b0:
+            return False
+    return True
+
+
+def build_signs(data, fr, b, stats):
+    """交差点のほうを向いた壁に、看板・大画面をつける（数・大きさ・高さは data/maps.json の build.signs）。
+    写真の渋谷を参考にした置き方：1階の店の帯・角から横に出るたて長の看板・壁の横長の看板（重ねて）・屋上の看板・大きな画面。
+    店名・ロゴはすべて自作（make_signs.py）。"""
+    sc = b["signs"]
+    signs, screens = Mesh("Signs", uv=True), Mesh("Screens", uv=True)
+    white = (1.0, 1.0, 1.0, 1.0)
+    frame_c = (*hex_rgb(sc["frame_color"]), 0.0)
+    band_cols = [hex_rgb(c) for c in sc["fascia"]["band_colors"]]
+    blds = []
+    for bd in data["bldg"]:
+        if not bd["lod2"]:
+            continue
+        foot, cx, cz, dist, dy, base_y = place_building(bd, fr, b)
+        if dist > float(sc["radius_m"]) + 30.0 or in_arena(foot, b):
+            continue
+        faces = wall_faces(bd, fr, dy, base_y, sc)
+        if faces:
+            top = max(f["y1"] for f in faces)
+            blds.append((bd, faces, base_y, top))
+    # 1) 大画面：大きくて交差点によく見える壁から（1つの建物に1つ）
+    cs = sc["screens"]
+    cand = []
+    for bd, faces, base_y, top in blds:
+        for f in faces:
+            if f["w"] >= float(cs["min_wall_w"]) and f["y1"] - base_y >= float(cs["min_wall_h"]) and f["rect"] >= 0.8 and f["facing"] >= 0.6:
+                cand.append((f["w"] * min(f["y1"] - base_y, 40.0) * f["facing"] / max(f["dist"], 30.0), bd["id"], f))
+    cand.sort(key=lambda x: -x[0])
+    done = set()
+    for score, bid, f in cand:
+        if bid in done or len(done) >= int(cs["max"]):
+            continue
+        W = min(f["w"] * 0.85, float(cs["max_w"]))
+        H = W / 2.0
+        yc = f["base"] + (f["y1"] - f["base"]) * 0.62
+        yc = min(max(yc, f["base"] + float(cs["min_bottom_m"]) + H / 2), f["y1"] - 1.0 - H / 2)
+        uc = (f["u0"] + f["u1"]) / 2
+        if yc - H / 2 < f["base"] + 4.5:
+            continue
+        quad(signs, wall_point(f, uc, yc, 0.12), f["n"], W + 0.8, H + 0.8, frame_c)
+        k = len(done)
+        quad(screens, wall_point(f, uc, yc, 0.22), f["n"], W, H, ((k % 8) / 8.0, _rand(bid, 9), 0.0, 1.0), (0.0, 0.0, 1.0, 1.0))
+        f["used"].append((uc - W / 2 - 0.6, uc + W / 2 + 0.6, yc - H / 2 - 0.6, yc + H / 2 + 0.6))
+        done.add(bid)
+        stats["screens"] = stats.get("screens", 0) + 1
+    # 2) 1階の店の帯（色の帯＋店名の板）
+    fc = sc["fascia"]
+    for bd, faces, base_y, top in blds:
+        for i, f in enumerate(faces):
+            if f["y0"] > f["base"] + 1.0 or f["y1"] < f["base"] + float(fc["y_m"]) + 1.0 or f["w"] < 3.5:
+                continue
+            seed = bd["id"] + "f%d" % i
+            y = f["base"] + float(fc["y_m"])
+            L = f["w"] - 0.6
+            uc = (f["u0"] + f["u1"]) / 2
+            bc = band_cols[int(_rand(seed, 1) * len(band_cols)) % len(band_cols)]
+            quad(signs, wall_point(f, uc, y, 0.10), f["n"], L, float(fc["band_h_m"]), (*bc, 0.0))
+            tw, th = float(fc["tile_w_m"]), float(fc["tile_h_m"])
+            nt = max(1, int(L / float(fc["every_m"])))
+            for j in range(nt):
+                u = f["u0"] + 0.3 + (j + 0.5) * L / nt
+                quad(signs, wall_point(f, u, y, 0.14), f["n"], min(tw, L / nt - 0.2), th, white,
+                     atlas_uv("fascia", int(_rand(seed, 10 + j) * 16)))
+                stats["fascia"] = stats.get("fascia", 0) + 1
+            f["used"].append((f["u0"], f["u1"], y - 0.8, y + 0.8))
+    # 3) 角から横に出る、たて長の看板（両面）
+    vc = sc["vertical"]
+    for bd, faces, base_y, top in blds:
+        count = 0
+        for i, f in enumerate(faces):
+            seed = bd["id"] + "v%d" % i
+            if count >= int(vc["max_per_bldg"]) or f["y1"] - f["base"] < float(vc["min_wall_h"]) or f["w"] < 4.0:
+                continue
+            if _rand(seed, 1) > float(vc["prob"]):
+                continue
+            H = float(vc["h_m"]) * (1.0 + 0.5 * _rand(seed, 2))
+            W = H / 4.0
+            yb = f["base"] + float(vc["bottom_m"]) + 2.0 * _rand(seed, 3)
+            if yb + H > f["y1"] - 0.3:
+                H = f["y1"] - 0.3 - yb
+                W = H / 4.0
+            if H < 3.0:
+                continue
+            side = f["u0"] + 0.4 if _rand(seed, 4) < 0.5 else f["u1"] - 0.4
+            if not free(f, side - 0.5, side + 0.5, yb, yb + H):
+                continue
+            out = float(vc["gap_m"]) + W / 2
+            c = wall_point(f, side, yb + H / 2, out)
+            uv = atlas_uv("vertical", int(_rand(seed, 5) * 8))
+            quad(signs, c, f["t"], W, H, white, uv)
+            quad(signs, c, -f["t"], W, H, white, uv)
+            # 壁へつなぐ金具
+            box(signs, wall_point(f, side, yb + H * 0.85, out / 2), f["n"], out / 2, 0.04, 0.06, frame_c)
+            f["used"].append((side - 0.6, side + 0.6, yb, yb + H))
+            count += 1
+            stats["vertical"] = stats.get("vertical", 0) + 1
+    # 4) 壁の横長の看板（上へ重ねる。センター街の入り口のように）
+    wc = sc["wide"]
+    for bd, faces, base_y, top in blds:
+        for i, f in enumerate(faces):
+            seed = bd["id"] + "w%d" % i
+            if f["w"] < 6.0 or f["y1"] - f["base"] < 10.0 or f["rect"] < 0.75 or _rand(seed, 1) > float(wc["prob"]):
+                continue
+            W = min(f["w"] * 0.7, float(wc["max_w_m"]))
+            H = W / 2.0
+            uc = f["u0"] + W / 2 + 0.6 + (f["w"] - W - 1.2) * _rand(seed, 2)
+            y = f["base"] + float(wc["bottom_m"]) + H / 2
+            n_st = 1 + int(_rand(seed, 3) * int(wc["max_stack"]))
+            for j in range(n_st):
+                if y + H / 2 > f["y1"] - 0.5:
+                    break
+                if free(f, uc - W / 2, uc + W / 2, y - H / 2, y + H / 2):
+                    quad(signs, wall_point(f, uc, y, 0.16), f["n"], W, H, white, atlas_uv("wide", int(_rand(seed, 10 + j) * 4)))
+                    f["used"].append((uc - W / 2, uc + W / 2, y - H / 2, y + H / 2))
+                    stats["wide"] = stats.get("wide", 0) + 1
+                y += H + 1.0
+    # 5) 屋上の看板（低めの建物の、交差点を向いた壁の上）
+    rcf = sc["roof"]
+    nroof = 0
+    for bd, faces, base_y, top in sorted(blds, key=lambda x: min(f["dist"] for f in x[1])):
+        if nroof >= int(rcf["max"]) or top - base_y > float(rcf["max_bldg_h_m"]) or top - base_y < 6.0:
+            continue
+        f = max(faces, key=lambda f: f["w"] * f["facing"])
+        seed = bd["id"] + "r"
+        if f["y1"] < top - 0.5 or f["w"] < 7.0 or f["facing"] < 0.7 or _rand(seed, 1) > float(rcf["prob"]):
+            continue
+        W = min(f["w"] * 0.8, float(rcf["max_w_m"]))
+        H = W / 2.0
+        uc = (f["u0"] + f["u1"]) / 2
+        yb = f["y1"] + float(rcf["lift_m"])
+        c = wall_point(f, uc, yb + H / 2, -0.8)
+        quad(signs, c, f["n"], W, H, white, atlas_uv("wide", int(_rand(seed, 2) * 4)))
+        quad(signs, c - f["n"] * 0.05, -f["n"], W, H, frame_c)
+        for s_ in (-0.35, 0.35):
+            box(signs, wall_point(f, uc + W * s_, f["y1"] + float(rcf["lift_m"]) / 2 + 0.05, -0.85), f["n"], 0.12, 0.12, float(rcf["lift_m"]) / 2 + 0.05, frame_c)
+        nroof += 1
+        stats["roof_signs"] = stats.get("roof_signs", 0) + 1
+    return signs, screens
+
+
 # ---------------------------------------------------------------- glb を書く
 
 def write_glb(path, meshes, extras):
@@ -643,7 +928,8 @@ def write_glb(path, meshes, extras):
         return len(views) - 1
 
     for name, arrs in meshes:
-        pos, nor, col, idx = arrs
+        pos, nor, col, idx = arrs[:4]
+        uv = arrs[4] if len(arrs) > 4 else None
         cu8 = np.clip(np.round(col * 255.0), 0, 255).astype(np.uint8)
         vp = add_view(pos.astype("<f4").tobytes(), 34962)
         vn = add_view(nor.astype("<f4").tobytes(), 34962)
@@ -656,9 +942,13 @@ def write_glb(path, meshes, extras):
         accs.append({"bufferView": vn, "componentType": 5126, "count": int(pos.shape[0]), "type": "VEC3"})
         accs.append({"bufferView": vc, "componentType": 5121, "normalized": True, "count": int(pos.shape[0]), "type": "VEC4"})
         accs.append({"bufferView": vi, "componentType": 5125 if big else 5123, "count": int(idx.shape[0]), "type": "SCALAR"})
+        attrs = {"POSITION": ap, "NORMAL": ap + 1, "COLOR_0": ap + 2}
+        if uv is not None:
+            vu = add_view(uv.astype("<f4").tobytes(), 34962)
+            attrs["TEXCOORD_0"] = len(accs)
+            accs.append({"bufferView": vu, "componentType": 5126, "count": int(pos.shape[0]), "type": "VEC2"})
         mats.append({"name": name + "Mat", "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1], "metallicFactor": 0.0, "roughnessFactor": 0.9}})
-        gmeshes.append({"name": name, "primitives": [{"attributes": {"POSITION": ap, "NORMAL": ap + 1, "COLOR_0": ap + 2},
-                                                       "indices": ap + 3, "material": len(mats) - 1}]})
+        gmeshes.append({"name": name, "primitives": [{"attributes": attrs, "indices": ap + 3, "material": len(mats) - 1}]})
         nodes.append({"name": name, "mesh": len(gmeshes) - 1})
     binary = b"".join(bin_parts)
     binary += b"\x00" * ((-len(binary)) % 4)
@@ -686,8 +976,10 @@ def preview(path, meshes, b, info, extent=140.0):
     fig, axs = plt.subplots(1, 2, figsize=(20, 10))
     for ax, ext in ((axs[0], extent), (axs[1], float(b["radius_m"]))):
         for name, arrs in meshes:
-            pos, nor, col, idx = arrs
+            pos, nor, col, idx = arrs[:4]
             t = idx.reshape(-1, 3)
+            if name in ("Signs", "Screens"):
+                continue
             if name.startswith("Bldg"):
                 up = nor[t[:, 0], 1] > 0.5
                 t = t[up]
@@ -755,8 +1047,9 @@ def main():
     near, far = build_buildings(data, fr, b, stats)
     ground, terrain, road_pts = build_ground(data, fr, b, stats)
     cross, info = build_crosswalks(data, fr, b, stats, road_height(road_pts))
+    signs, screens = build_signs(data, fr, b, stats)
     meshes = []
-    for m in (terrain, ground, cross, near, far):
+    for m in (terrain, ground, cross, near, far, signs, screens):
         arrs = m.arrays()
         if arrs is None:
             continue

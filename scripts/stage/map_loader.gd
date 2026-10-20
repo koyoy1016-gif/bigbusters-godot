@@ -1,15 +1,19 @@
 extends RefCounted
 ## 版88：戦いのマップを読む（data/maps.json の current。いまは渋谷のスクランブル交差点）。
-## マップの 3D は tools/plateau_to_glb.py が PLATEAU から作った .glb（Terrain・Ground・Crosswalk・BldgNear・BldgFar）。
+## マップの 3D は tools/plateau_to_glb.py が PLATEAU から作った .glb（Terrain・Ground・Crosswalk・BldgNear・BldgFar・Signs・Screens）。
+## 版89：建物の材質（タイル・ガラス・パネル）、自作の看板・大画面（絵は signs.png）。
 ## 交差点のまん中がゲームの (0,0,0)。戦いの場所（±bounds）は平らで、高さ 0（今までの緑の板と同じ高さ）。
 ## ここでは：材質（頂点の色・建物の窓のシェーダー）・見える距離（画質ごと）・影・空と霧と光・戦いの場所のさかい（光る線とうすい壁）を付ける。
 ## 動ける範囲そのもの（外へ出られない）は、今までどおり prototype_stick.json の bounds で、動きの計算が決める。
 
 const CONFIG_PATH := "res://data/maps.json"
 const BUILDING_SHADER := preload("res://shaders/city_buildings.gdshader")
+const SIGN_SHADER := preload("res://shaders/city_signs.gdshader")
+const SCREEN_SHADER := preload("res://shaders/city_screens.gdshader")
 
 const GROUND_MESHES := ["Terrain", "Ground", "Crosswalk"]
 const BUILDING_MESHES := ["BldgNear", "BldgFar"]
+const SIGN_MESHES := ["Signs", "Screens"]
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -54,6 +58,26 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 	for k in w:
 		bmat.set_shader_parameter(str(k), float(w[k]))
 	bmat.set_shader_parameter("fade_far", float((map_cfg.get("visible_m", {}) as Dictionary).get("high", 480.0)) * 0.8)
+	var sky_cfg: Dictionary = map_cfg.get("sky", {})
+	bmat.set_shader_parameter("sky_top", Color(str(sky_cfg.get("top", "#3a5390"))))
+	bmat.set_shader_parameter("sky_horizon", Color(str(sky_cfg.get("horizon", "#f0b48a"))))
+	var sc: Dictionary = map_cfg.get("signs", {})
+	var atlas: Texture2D = null
+	var ap := str(sc.get("atlas", ""))
+	if ap != "" and ResourceLoader.exists(ap):
+		atlas = load(ap) as Texture2D
+	var smat := ShaderMaterial.new()
+	smat.shader = SIGN_SHADER
+	smat.set_shader_parameter("atlas", atlas)
+	smat.set_shader_parameter("glow", float(sc.get("glow", 0.35)))
+	smat.set_shader_parameter("glow_night", float(sc.get("glow_night", 1.1)))
+	var scr := ShaderMaterial.new()
+	scr.shader = SCREEN_SHADER
+	scr.set_shader_parameter("atlas", atlas)
+	scr.set_shader_parameter("glow", float(sc.get("screen_glow", 0.9)))
+	scr.set_shader_parameter("glow_night", float(sc.get("screen_glow_night", 1.5)))
+	scr.set_shader_parameter("hold_sec", float(sc.get("hold_sec", 6.0)))
+	scr.set_shader_parameter("fade_sec", float(sc.get("fade_sec", 0.6)))
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		var nm := str(m.name)
@@ -62,6 +86,9 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		elif nm in BUILDING_MESHES:
 			m.material_override = bmat
+		elif nm in SIGN_MESHES:
+			m.material_override = scr if nm == "Screens" else smat
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		m.set_meta("map_part", nm)
 	root.add_child(_border(map_cfg.get("border", {}), bounds))
 	set_quality(root, map_cfg, quality)

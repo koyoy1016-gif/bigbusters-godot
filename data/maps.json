@@ -25,47 +25,134 @@
           "53393596"
         ],
         "colors": {
-          "road": "#34363c",
-          "road_cross": "#393b41",
-          "walk": "#8c877f",
+          "road": "#3b3d42",
+          "road_cross": "#3f4146",
+          "walk": "#78756f",
           "island": "#5d7a4c",
-          "plaza": "#8e8a82",
-          "crosswalk": "#dcd9d0",
+          "plaza": "#8a6f66",
+          "crosswalk": "#e4e2dc",
           "roof": "#6f6e6c",
-          "install": "#55585e",
-          "walls": [
-            "#cfc9be",
-            "#b9b4ab",
-            "#9ea3a9",
-            "#c2b49c",
-            "#7d828a",
-            "#a99d8c",
-            "#d8d3ca",
-            "#8f7f72",
-            "#6b7078",
-            "#b7a593",
-            "#a4a9b0",
-            "#e1ddd3"
-          ],
-          "glass": [
-            "#6c869f",
-            "#7d93a8",
-            "#58708a",
-            "#8ea2b2"
-          ],
-          "glass_from_m": 60.0
+          "install": "#55585e"
         },
         "crosswalk": {
-          "band_m": 4.0,
+          "_memo": "版89：写真に合わせて、しまの白線は 45cm・すき間 45cm、横断歩道の幅（白線の長さ）を広く。車が止まる線（45cm）を、入ってくる側の半分に",
+          "band_m": 6.0,
+          "diag_band_m": 5.5,
           "stripe_m": 0.45,
           "gap_m": 0.45,
           "inset_m": 0.6,
           "min_mouth_m": 6.0,
           "diagonals": 2,
-          "diag_trim_m": 3.0
+          "diag_trim_m": 3.0,
+          "stop_w_m": 0.45,
+          "stop_back_m": 2.0
         },
         "subdivide_m": 0.0,
-        "check_half_m": 15.0
+        "check_half_m": 15.0,
+        "materials": {
+          "_memo": "版89：建物ごとの材質（参考の写真の渋谷から）。punched=タイル・コンクリートの壁に窓、glass=ガラスのカーテンウォール（空がうつる）、ribbon=横に長い窓の帯と金属のパネル。高さ（m）で、えらぶ割合を変える",
+          "tall_m": 40.0,
+          "mid_m": 15.0,
+          "mix": {
+            "tall": {
+              "glass": 0.65,
+              "ribbon": 0.25,
+              "punched": 0.1
+            },
+            "mid": {
+              "punched": 0.45,
+              "ribbon": 0.3,
+              "glass": 0.25
+            },
+            "low": {
+              "punched": 0.7,
+              "ribbon": 0.3
+            }
+          },
+          "colors": {
+            "punched": [
+              "#e2e0da",
+              "#d3d1cb",
+              "#c8c2b6",
+              "#bdbfc1",
+              "#d9cfbd",
+              "#a7a9ab",
+              "#8e9094",
+              "#e8e4dc",
+              "#b8ab98",
+              "#6f7277",
+              "#cbc6bc",
+              "#9d968c"
+            ],
+            "glass": [
+              "#2c3846",
+              "#3b4c5e",
+              "#1f262f",
+              "#4d6378",
+              "#5e7488",
+              "#34404c"
+            ],
+            "ribbon": [
+              "#dadcdf",
+              "#c6cacd",
+              "#e9e7e2",
+              "#b2b6ba",
+              "#8d9297",
+              "#f0eeea",
+              "#3a3d42"
+            ]
+          }
+        },
+        "signs": {
+          "_memo": "版89：看板・大画面の置き方。絵は assets/maps/shibuya/signs.png（tools/make_signs.py が作る。店名・ロゴは自作）。交差点のほうを向いた壁（radius_m の中、facing_min より正面）だけにつける",
+          "radius_m": 140.0,
+          "facing_min": 0.3,
+          "frame_color": "#1d1f24",
+          "screens": {
+            "max": 6,
+            "max_w": 24.0,
+            "min_wall_w": 9.0,
+            "min_wall_h": 12.0,
+            "min_bottom_m": 7.0
+          },
+          "fascia": {
+            "y_m": 3.6,
+            "band_h_m": 1.2,
+            "tile_w_m": 2.2,
+            "tile_h_m": 1.1,
+            "every_m": 5.0,
+            "band_colors": [
+              "#22252b",
+              "#3b3f46",
+              "#7a1d24",
+              "#16325c",
+              "#e7e4dd",
+              "#2e5a3a",
+              "#5a3a22"
+            ]
+          },
+          "vertical": {
+            "prob": 0.9,
+            "max_per_bldg": 4,
+            "min_wall_h": 12.0,
+            "h_m": 6.0,
+            "bottom_m": 5.0,
+            "gap_m": 0.3
+          },
+          "wide": {
+            "prob": 0.8,
+            "max_w_m": 10.0,
+            "max_stack": 4,
+            "bottom_m": 6.0
+          },
+          "roof": {
+            "prob": 0.55,
+            "max": 8,
+            "max_w_m": 12.0,
+            "max_bldg_h_m": 35.0,
+            "lift_m": 1.2
+          }
+        }
       },
       "sky": {
         "top": "#3a5390",
@@ -100,13 +187,28 @@
         "floor_m": 3.6,
         "col_m": 2.2,
         "lit": 0.32,
-        "glow": 0.9
+        "glow": 0.9,
+        "lit_night": 0.62,
+        "glow_night": 1.5,
+        "store_h": 3.0,
+        "store_glow": 0.35,
+        "store_glow_night": 1.2
       },
       "border": {
         "color": "#7fd7ff",
         "alpha": 0.55,
         "wall_h": 1.4,
         "wall_alpha": 0.14
+      },
+      "signs": {
+        "_memo": "版89：看板・大画面の見た目。glow は光の強さ（夕方）、*_night は夜（覚醒）。大画面は hold_sec ごとに、fade_sec かけて次の絵へ（ちらつかないように、ゆっくり）",
+        "atlas": "res://assets/maps/shibuya/signs.png",
+        "glow": 0.35,
+        "glow_night": 1.1,
+        "screen_glow": 0.9,
+        "screen_glow_night": 1.5,
+        "hold_sec": 6.0,
+        "fade_sec": 0.6
       }
     }
   }
