@@ -100,6 +100,8 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 	root.set_meta("night_materials", [bmat, smat, scr, lmat, pmat])
 	root.set_meta("building_material", bmat)
 	root.set_meta("crosswalk_material", cross_mat)
+	var pools: Array = []  # 版98：街灯の光の輪（夕方は隠す。time_of_day.gd）
+	root.set_meta("light_pools", pools)
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		var full := str(m.name)
@@ -118,6 +120,8 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 		elif nm in LAMP_MESHES:
 			m.material_override = pmat if nm == "LightPools" else lmat
 			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if nm == "LightPools":
+				pools.append(m)
 		m.set_meta("map_part", nm)
 	root.add_child(_border(map_cfg.get("border", {}), bounds))
 	set_quality(root, map_cfg, quality)

@@ -15,6 +15,7 @@ var sky_mat: ShaderMaterial
 var night_mats: Array = []  ## night（0〜1）を持つシェーダーの材質（建物・看板・大画面・街灯・光の輪）
 var glass_mat: ShaderMaterial  ## 建物（ガラスにうつす空の色）
 var cross_mat: StandardMaterial3D  ## 横断歩道（夜は少し光らせて、白線を見えやすく）
+var pools: Array = []  ## 版98：街灯の光の輪。夜の割合が pool_show_from より小さい間（夕方）は隠す（見えないのに透明の重ね描きをしないため）
 var applied := -1.0
 
 
@@ -41,6 +42,7 @@ func setup(map_cfg: Dictionary, environment: Environment, sun: DirectionalLight3
 		night_mats = map_root.get_meta("night_materials", [])
 		glass_mat = map_root.get_meta("building_material", null)
 		cross_mat = map_root.get_meta("crosswalk_material", null)
+		pools = map_root.get_meta("light_pools", [])
 	snap(false)
 
 
@@ -122,6 +124,10 @@ func apply() -> void:
 	for m in night_mats:
 		if m is ShaderMaterial:
 			(m as ShaderMaterial).set_shader_parameter("night", k)
+	var show_from := float(cfg.get("pool_show_from", 0.02))
+	for pm in pools:
+		if is_instance_valid(pm):
+			(pm as Node3D).visible = k >= show_from
 	if glass_mat != null:
 		glass_mat.set_shader_parameter("sky_top", value("sky_top"))
 		glass_mat.set_shader_parameter("sky_horizon", value("sky_horizon"))

@@ -3,6 +3,8 @@ extends SceneTree
 ## xvfb-run -a -s "-screen 0 1280x1280x24" godot --rendering-driver opengl3 --resolution 390x844 --path . --script res://tools/perf_battle_fixed.gd -- 出力.json [画質]
 ## 自分を3つの場所（まん中・手前の左はし・奥の右はし）に置き、AI とボスを止めて、それぞれ 30 コマの
 ## 1コマの時間（まん中の値）・描画の回数・三角形の数を測る。夕方（ふだん）と夜（覚醒）の両方。
+## 版98：毎回同じ場面になるように、戦いが始まってすぐ止め、AI の味方を決まった場所に置く。
+##   3つめの引数に ab を入れると、街灯の光の輪を「出す／隠す」の両方を、同じ場面で測る（版98 の確かめ）
 
 const SCENE := "res://scenes/game_flow.tscn"
 
@@ -47,10 +49,18 @@ func _initialize() -> void:
 		await process_frame
 	var b: Node = flow.battle
 	b.start_round()
-	for i in 40:
+	for i in 4:
 		await process_frame
+	# 版98：毎回同じ場面にする（はじまってすぐ止める・AI の味方は決まった場所）
 	b.ai_enabled = false
 	b.set_process(false)
+	var k := 0
+	for slot in b.other_target.keys():
+		var pos := Vector2(0.35 + 0.15 * k, 0.62)
+		b.other_target[slot] = pos
+		b.other_pos[slot] = pos
+		k += 1
+	b._update_others(0.0)
 	var half := float(b.config["bounds"])
 	var report := {"quality": qname}
 	for tod in ["evening", "night"]:
@@ -62,6 +72,13 @@ func _initialize() -> void:
 			b.camera_vel = Vector3.ZERO
 			b.camera_update(0.0)
 			report[tod + ":" + str(spot[0])] = await measure()
+			if args.size() > 2 and args[2] == "ab":
+				var pools: Array = b.map_root.get_meta("light_pools", [])
+				for pm in pools:
+					(pm as Node3D).visible = not (pm as Node3D).visible
+				report[tod + ":" + str(spot[0]) + ":pools_toggled"] = await measure()
+				for pm in pools:
+					(pm as Node3D).visible = not (pm as Node3D).visible
 	var f := FileAccess.open(out_path, FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, "  "))
 	f.close()

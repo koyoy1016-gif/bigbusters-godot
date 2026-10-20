@@ -214,6 +214,7 @@
         "_memo": "版90：時間帯。ふだんは evening（夕方）、ボスの覚醒（第2形態）の間は night（夜）。to_night_sec かけて夜へ、to_evening_sec かけて夕方へ（なめらかに）。夜も真っ黒にしない（紺・青むらさき）。光の向き light_rotation_deg は時間帯で変えない（影が動かないように）。夕日は南西（左）から＝交差点を向いた右がわのビル（QFRONT など）に当たる",
         "to_night_sec": 1.6,
         "to_evening_sec": 3.0,
+        "pool_show_from": 0.02,
         "light_rotation_deg": [
           -14.0,
           -105.0,
@@ -261,11 +262,11 @@
         }
       },
       "lamps": {
-        "_memo": "版90：街灯の見た目。glow は光る頭の強さ、pool は地面の光の輪（夕方 → *_night 夜）",
+        "_memo": "版90：街灯の見た目。glow は光る頭の強さ、pool は地面の光の輪（夕方 → *_night 夜）。版98：夕方の光の輪は 0（前は 0.04 でほぼ見えなかった）。夜の割合が time_of_day.pool_show_from より小さい間は、光の輪の形ごと隠す（軽くするため）",
         "color": "#ffd59a",
         "glow": 0.4,
         "glow_night": 3.0,
-        "pool": 0.04,
+        "pool": 0.0,
         "pool_night": 0.3
       }
     }
