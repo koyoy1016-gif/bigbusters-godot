@@ -203,14 +203,38 @@ func _impact(slot: String, hspec: Dictionary) -> void:
 	b._impact(hspec["impact"])
 
 
+## 版80：当たった所の見た目。火花（星・飛び散る粒）に、白い一瞬の光と、撃った人の方を向く衝撃の輪を足す。
+## fx の kind が blast（砲弾）なら小さな爆発、magic（魔法）なら魔法の輪と星も出す。大きさの倍率は prototype_stick.json の hit_fx
 func _spark(slot: String, at: Vector3, spec: Dictionary) -> void:
+	var hc: Dictionary = b.config.get("hit_fx", {})
 	var s := spec.duplicate()
 	if not s.has("color"):
 		s["color"] = role_color(slot)
+	var kind := str(s.get("kind", "spark"))
 	s["kind"] = "spark"
+	s["size"] = float(s.get("size", 0.6)) * float(hc.get("spark_scale", 1.0))
+	s["flash"] = float(hc.get("flash_scale", 0.0))
 	if not s.has("life"):
 		s["life"] = 0.35
 	spawn_at(s, at, at)
+	b.skill_fx_log.append("hit_spark")
+	var from := pos3_of(slot) + Vector3(0, 1.2, 0)
+	var ring_r := float(hc.get("ring_radius", 0.0)) * float(s["size"])
+	if ring_r > 0.0:
+		spawn_at({"kind": "ripple", "color": str(s["color"]), "radius": ring_r, "life": 0.22}, from, at)
+	match kind:
+		"blast":
+			spawn_at({"kind": "blast", "color": str(spec.get("color", "#ffb02a")), "radius": float(spec.get("radius", 1.5)), "life": float(spec.get("life", 0.3))}, at, at)
+		"magic":
+			# 魔法が当たった：むらさきの輪が広がり、魔法陣が一瞬光り、星がのぼる
+			var r := float(spec.get("radius", 1.3))
+			var col := str(spec.get("color", "#d9a8ff"))
+			var ground := Vector3(at.x, b.ground_y, at.z)
+			spawn_at({"kind": "blast", "color": col, "radius": r * 0.7, "life": 0.3}, at, at)
+			spawn_at({"kind": "ring", "color": col, "radius": r * 1.6, "life": 0.4}, ground, ground)
+			spawn_at({"kind": "prop", "prop": "magic_circle", "scale": r, "life": 0.45, "y": 0.06}, ground, ground)
+			spawn_at({"kind": "rise", "color": "#f0dcff", "life": 0.7}, at, at)
+			b.skill_fx_log.append("magic_burst")
 
 
 # ---------------------------------------------------------------- 飛ぶ物
@@ -263,7 +287,7 @@ func heal_shot(slot: String, spec: Dictionary) -> void:
 	var to := _heal_target(slot)
 	var from := socket(slot, str(spec.get("from", "")), aim_of(slot))
 	var ps := {"mode": "homing", "speed": float(spec.get("speed", 14.0)), "turn_deg": 360.0, "radius": 0.4, "range": 40.0, "life": 3.0,
-		"prop": str(spec.get("prop", "")), "color": "#7dffa8", "size": 0.25, "aim_h": 0.5}
+		"prop": str(spec.get("prop", "")), "color": "#7dffa8", "size": 0.25, "aim_h": 0.5, "scale": float(spec.get("scale", 1.0)), "trail": "#9dffb8"}
 	var tp := pos3_of(to) + Vector3(0, 1.0, 0)
 	var p := Projectiles.make(ps, from, tp, slot, 0.0, "heal")
 	p["heal"] = float(spec.get("amount", 40.0))
@@ -314,6 +338,9 @@ func _proj_node(ps: Dictionary, from: Vector3) -> Node3D:
 		"radius": float(ps.get("size", 0.18)), "life": 99.0}
 	var n := SkillFx.make(spec, from, from, 0.0)
 	n.position = from
+	if ps.has("trail"):
+		# 版80：飛んだ道に、光の粒を残す（何がどこへ飛んだか分かるように）
+		n.add_child(SkillFx.trail(Color(str(ps["trail"])), float(ps.get("scale", 1.0))))
 	b.add_child(n)
 	return n
 
@@ -335,6 +362,8 @@ func _update_projs(delta: float) -> void:
 			if v.length() > 0.01:
 				var spin := float((p["spec"] as Dictionary).get("spin", 0.0))
 				node.basis = Basis.looking_at(-v.normalized(), Vector3.UP if absf(v.normalized().y) < 0.98 else Vector3.FORWARD)
+				# 版80：向きを入れると大きさが1にもどってしまうので、大きさ（scale）をかけ直す（版79まで、飛んでいる間は scale が効いていなかった）
+				node.scale = Vector3.ONE * float((p["spec"] as Dictionary).get("scale", 1.0))
 				if spin != 0.0:
 					node.rotate_object_local(Vector3.FORWARD, spin * float(p["t"]))
 		if res == "":
@@ -383,13 +412,15 @@ func _start_present(p: Dictionary, at: Vector3) -> void:
 	if b.is_inside_tree():
 		var root := Node3D.new()
 		root.position = at
+		# 版80：落ちたプレゼントの箱も、飛んできた大きさに合わせる（約1.1m）
+		var bs := float((p["spec"] as Dictionary).get("scale", 2.0)) * 0.95
 		var box := MeshInstance3D.new()
 		box.mesh = SkillFx.prop_mesh("present_box")
-		box.scale = Vector3.ONE * 1.4
+		box.scale = Vector3.ONE * bs
 		root.add_child(box)
 		var lid := MeshInstance3D.new()
 		lid.mesh = SkillFx.prop_mesh("present_lid")
-		lid.scale = Vector3.ONE * 1.4
+		lid.scale = Vector3.ONE * bs
 		root.add_child(lid)
 		var jack := MeshInstance3D.new()
 		jack.mesh = SkillFx.prop_mesh("jack_spring")
@@ -397,6 +428,7 @@ func _start_present(p: Dictionary, at: Vector3) -> void:
 		root.add_child(jack)
 		root.add_to_group("styled")
 		b.add_child(root)
+		g["box_scale"] = bs
 		g["node"] = root
 		g["lid"] = lid
 		g["jack"] = jack
@@ -422,12 +454,14 @@ func _update_gimmicks(delta: float) -> void:
 			spawn_at({"kind": "confetti", "life": 1.4}, g["pos"], g["pos"])
 		if int(g["stage"]) >= 1 and lid != null and is_instance_valid(lid):
 			var k := t - open_t
-			lid.position = Vector3(0.4 * k, 2.6 * k - 4.0 * k * k + 0.0, 0.0)
+			var ls := float(g.get("box_scale", 1.4)) / 1.4
+			lid.position = Vector3(0.4 * k, 2.6 * k - 4.0 * k * k + 0.0, 0.0) * ls
 			lid.rotation = Vector3(k * 6.0, 0, k * 4.0)
 		if int(g["stage"]) >= 1 and jack != null and is_instance_valid(jack):
 			var k2 := clampf((t - open_t) / 0.25, 0.0, 1.0)
 			var bounce := 1.0 + 0.25 * sin((t - open_t) * 30.0) * (1.0 - k2)
-			jack.scale = Vector3(1.4, 1.4 * k2 * bounce, 1.4)
+			var js := float(g.get("box_scale", 1.4))
+			jack.scale = Vector3(js, js * k2 * bounce, js)
 		if int(g["stage"]) == 1 and t >= boom_t:
 			g["stage"] = 2
 			var at: Vector3 = g["pos"]
@@ -640,7 +674,7 @@ func _summon(slot: String, spec: Dictionary, ap: float) -> void:
 			"next": float(spec.get("first", 0.8)) + 0.23 * i, "interval": float(spec.get("interval", 1.0)) * (1.0 + 0.08 * (i % 3)),
 			"mult": float(spec.get("multiplier", 0.6)), "ap": ap, "speed": float(spec.get("speed", 5.0)) * (0.92 + 0.08 * (i % 3)),
 			"reach": float(spec.get("reach", 1.0)), "unit": str(spec.get("unit", "plush")), "slot_i": i, "n": n,
-			"hop": float(i) * 0.37, "node": null, "view": null, "state": ""}
+			"hop": float(i) * 0.37, "node": null, "view": null, "state": "", "unit_height": float(spec.get("unit_height", 0.0))}
 		u["node"] = _make_unit(u, i)
 		b.skill_summons.append(u)
 		spawn_at({"kind": "smoke", "life": 0.6, "color": "#fff3d8"}, Vector3(p.x, b.ground_y, p.y), Vector3(p.x, b.ground_y, p.y))
@@ -674,6 +708,14 @@ func _make_unit(u: Dictionary, i: int) -> Node3D:
 	else:
 		var mi := MeshInstance3D.new()
 		mi.mesh = SkillFx.prop_mesh(["plush_bear", "plush_bunny", "plush_bear2"][i % 3])
+		# 版80：ぬいぐるみを大きく：背の高さを unit_height（m）にそろえる（ふつうのキャラの約半分）。足もとが床に来るように上げる
+		var us := 1.0
+		if mi.mesh != null and float(u.get("unit_height", 0.0)) > 0.0:
+			var ab: AABB = mi.mesh.get_aabb()
+			us = float(u["unit_height"]) / maxf(ab.size.y, 0.01)
+			mi.position.y = -ab.position.y * us
+		mi.scale = Vector3.ONE * us
+		u["unit_scale"] = us
 		root.add_child(mi)
 	root.scale = Vector3.ONE * 0.01
 	return root

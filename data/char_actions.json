@@ -741,23 +741,24 @@
       "proj": {
        "mode": "straight",
        "from": "muzzle_L",
-       "speed": 48.0,
+       "speed": 24.0,
        "prop": "bullet",
-       "scale": 1.0,
+       "scale": 2.4,
        "size": 0.14,
        "range": 18.0,
-       "radius": 0.3,
+       "radius": 0.35,
        "aim_h": 0.42,
        "color": "#ffffff",
        "life": 1.5,
        "muzzle": {
         "prop": "muzzle_flash",
-        "scale": 0.9,
+        "scale": 1.4,
         "life": 0.07
-       }
+       },
+       "trail": "#ffd36a"
       },
       "fx": {
-       "size": 0.45
+       "size": 0.5
       }
      },
      {
@@ -766,23 +767,24 @@
       "proj": {
        "mode": "straight",
        "from": "muzzle_R",
-       "speed": 48.0,
+       "speed": 24.0,
        "prop": "bullet",
-       "scale": 1.0,
+       "scale": 2.4,
        "size": 0.14,
        "range": 18.0,
-       "radius": 0.3,
+       "radius": 0.35,
        "aim_h": 0.42,
        "color": "#ffffff",
        "life": 1.5,
        "muzzle": {
         "prop": "muzzle_flash",
-        "scale": 0.9,
+        "scale": 1.4,
         "life": 0.07
-       }
+       },
+       "trail": "#ffd36a"
       },
       "fx": {
-       "size": 0.45
+       "size": 0.5
       }
      }
     ],
@@ -796,7 +798,7 @@
     "path": [],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
-    "note": "左右の腕の大砲から1発ずつ（銃口の光・光る弾・当たった所の火花。ダメージは当たった時）"
+    "note": "左右の腕の大砲から1発ずつ（大きな銃口の光・金色の弾・当たった所の火花。ダメージは当たった時）"
    },
    "sub": {
     "label": "Y",
@@ -815,23 +817,24 @@
       "proj": {
        "mode": "straight",
        "from": "muzzle_L",
-       "speed": 48.0,
+       "speed": 24.0,
        "prop": "bullet",
-       "scale": 1.0,
+       "scale": 2.4,
        "size": 0.14,
        "range": 18.0,
-       "radius": 0.3,
+       "radius": 0.35,
        "aim_h": 0.42,
        "color": "#ffffff",
        "life": 1.5,
        "muzzle": {
         "prop": "muzzle_flash",
-        "scale": 0.9,
+        "scale": 1.4,
         "life": 0.07
-       }
+       },
+       "trail": "#ffd36a"
       },
       "fx": {
-       "size": 0.6
+       "size": 0.85
       }
      },
      {
@@ -841,23 +844,24 @@
       "proj": {
        "mode": "straight",
        "from": "muzzle_R",
-       "speed": 48.0,
+       "speed": 24.0,
        "prop": "bullet",
-       "scale": 1.0,
+       "scale": 2.4,
        "size": 0.14,
        "range": 18.0,
-       "radius": 0.3,
+       "radius": 0.35,
        "aim_h": 0.42,
        "color": "#ffffff",
        "life": 1.5,
        "muzzle": {
         "prop": "muzzle_flash",
-        "scale": 0.9,
+        "scale": 1.4,
         "life": 0.07
-       }
+       },
+       "trail": "#ffd36a"
       },
       "fx": {
-       "size": 0.6
+       "size": 0.85
       }
      },
      {
@@ -867,23 +871,24 @@
       "proj": {
        "mode": "straight",
        "from": "muzzle_L",
-       "speed": 48.0,
+       "speed": 24.0,
        "prop": "bullet",
-       "scale": 1.0,
+       "scale": 2.4,
        "size": 0.14,
        "range": 18.0,
-       "radius": 0.3,
+       "radius": 0.35,
        "aim_h": 0.42,
        "color": "#ffffff",
        "life": 1.5,
        "muzzle": {
         "prop": "muzzle_flash",
-        "scale": 0.9,
+        "scale": 1.4,
         "life": 0.07
-       }
+       },
+       "trail": "#ffd36a"
       },
       "fx": {
-       "size": 0.6
+       "size": 0.85
       }
      }
     ],
@@ -927,7 +932,7 @@
    },
    "main": {
     "label": "X",
-    "name": "ダブルビーム",
+    "name": "ダブル連射",
     "cooldown_sec": 7.0,
     "duration_sec": 1.6,
     "move_scale": 0.0,
@@ -938,98 +943,326 @@
      {
       "t": 0.35,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": -0.35
+      "side": -0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
-      "t": 0.35,
+      "t": 0.45,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": 0.35
+      "side": 0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
       "t": 0.55,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": -0.35
+      "side": -0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
-      "t": 0.55,
+      "t": 0.65,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": 0.35
+      "side": 0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
       "t": 0.75,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": -0.35
+      "side": -0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
-      "t": 0.75,
+      "t": 0.85,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": 0.35
+      "side": 0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
       "t": 0.95,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": -0.35
+      "side": -0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
-      "t": 0.95,
+      "t": 1.05,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": 0.35
+      "side": 0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
       "t": 1.15,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": -0.35
+      "side": -0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
-      "t": 1.15,
+      "t": 1.25,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": 0.35
+      "side": 0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
       "t": 1.35,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": -0.35
+      "side": -0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      },
      {
-      "t": 1.35,
+      "t": 1.45,
       "multiplier": 0.5,
-      "shape": "beam",
-      "length": 14.0,
-      "half_width": 0.55,
-      "side": 0.35
+      "side": 0.25,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 24.0,
+       "prop": "bullet",
+       "scale": 2.4,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.35,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 1.4,
+        "life": 0.07
+       },
+       "trail": "#ffd36a"
+      },
+      "fx": {
+       "size": 0.5
+      }
      }
     ],
     "steps": [
@@ -1041,27 +1274,7 @@
     ],
     "path": [],
     "stop_at_boss": false,
-    "fx_events": [
-     {
-      "kind": "beam",
-      "color": "#ffcf3a",
-      "width": 0.16,
-      "life": 1.1,
-      "length": 14.0,
-      "t": 0.3,
-      "from": "muzzle_L"
-     },
-     {
-      "kind": "beam",
-      "color": "#ffcf3a",
-      "width": 0.16,
-      "life": 1.1,
-      "length": 14.0,
-      "t": 0.3,
-      "from": "muzzle_R"
-     }
-    ],
-    "note": "両腕の砲口から2本のビーム。1本ずつ当たりを調べる。6回ずつ、つらぬく"
+    "note": "両腕の大砲から、左右かわるがわる12発の連射（弾1発ずつ当たった時にダメージ）"
    },
    "ultimate": {
     "label": "必殺",
@@ -1076,82 +1289,322 @@
      {
       "t": 0.6,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4,
+      "side": -0.3,
       "impact": [
        0.09,
        0.34,
        0.1
-      ]
+      ],
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 0.77,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "side": 0.3,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 0.94,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "side": -0.3,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 1.11,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "side": 0.3,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 1.28,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "side": -0.3,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 1.45,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "side": 0.3,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 1.62,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "side": -0.3,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 1.79,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "side": 0.3,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 1.96,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4
+      "side": -0.3,
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_L",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      },
      {
       "t": 2.13,
       "multiplier": 2.3,
-      "shape": "beam",
-      "length": 18.0,
-      "half_width": 1.4,
+      "side": 0.3,
       "impact": [
        0.09,
        0.34,
        0.1
-      ]
+      ],
+      "proj": {
+       "mode": "straight",
+       "from": "muzzle_R",
+       "speed": 26.0,
+       "prop": "cannon_shell",
+       "scale": 2.8,
+       "size": 0.14,
+       "range": 18.0,
+       "radius": 0.6,
+       "aim_h": 0.42,
+       "color": "#ffffff",
+       "life": 1.5,
+       "muzzle": {
+        "prop": "muzzle_flash",
+        "scale": 2.6,
+        "life": 0.12
+       },
+       "trail": "#ffb347"
+      },
+      "fx": {
+       "kind": "blast",
+       "color": "#ffb02a",
+       "radius": 1.6,
+       "life": 0.3,
+       "size": 1.3
+      }
      }
     ],
     "steps": [
@@ -1166,28 +1619,10 @@
     "banner_sec": 1.6,
     "fx_events": [
      {
-      "kind": "beam",
-      "color": "#ffb02a",
-      "width": 0.42,
-      "life": 1.7,
-      "length": 18.0,
-      "t": 0.55,
-      "from": "muzzle_L"
-     },
-     {
-      "kind": "beam",
-      "color": "#ffb02a",
-      "width": 0.42,
-      "life": 1.7,
-      "length": 18.0,
-      "t": 0.55,
-      "from": "muzzle_R"
-     },
-     {
       "t": 0.4,
       "kind": "spark",
       "color": "#ffe27a",
-      "size": 1.0,
+      "size": 1.2,
       "life": 0.3,
       "at": "socket",
       "from": "muzzle_L"
@@ -1196,7 +1631,7 @@
       "t": 0.4,
       "kind": "spark",
       "color": "#ffe27a",
-      "size": 1.0,
+      "size": 1.2,
       "life": 0.3,
       "at": "socket",
       "from": "muzzle_R"
@@ -1213,7 +1648,7 @@
      }
     ],
     "i_frames": true,
-    "note": "2つの大砲を前で合わせて、太いビームを2本（10回当たる）"
+    "note": "2つの大砲を前で合わせて、大きな砲弾を10発つづけて撃つ（当たった所で小さな爆発）"
    }
   },
   "bomber": {
@@ -1238,17 +1673,18 @@
       "proj": {
        "mode": "arc",
        "from": "hand_L",
-       "speed": 13.0,
+       "speed": 12.0,
        "prop": "present_pink",
-       "scale": 1.0,
+       "scale": 2.2,
        "size": 0.2,
        "range": 12.0,
        "radius": 0.2,
        "aim_h": 0.45,
        "color": "#ffffff",
-       "life": 1.5,
-       "arc": 2.4,
-       "spin": 7.0,
+       "life": 1.6,
+       "arc": 2.8,
+       "spin": 3.5,
+       "trail": "#ffe27a",
        "blast": 2.0
       },
       "fx": {
@@ -1256,7 +1692,7 @@
        "color": "#ff9030",
        "radius": 2.0,
        "life": 0.35,
-       "confetti": false
+       "confetti": true
       }
      }
     ],
@@ -1270,6 +1706,17 @@
     "path": [],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
+    "fx_events": [
+     {
+      "t": 0.2,
+      "kind": "spark",
+      "color": "#ffd24a",
+      "size": 0.6,
+      "life": 0.2,
+      "from": "hand_L",
+      "at": "socket"
+     }
+    ],
     "note": "プレゼントの爆弾を、放物線で投げる（12m まで）。落ちた所で爆発（半径2m＝ダメージの範囲）"
    },
    "sub": {
@@ -1290,7 +1737,7 @@
        "from": "hand_L",
        "speed": 6.0,
        "prop": "present_green",
-       "scale": 1.0,
+       "scale": 2.2,
        "size": 0.2,
        "range": 12.0,
        "radius": 0.2,
@@ -1298,7 +1745,8 @@
        "color": "#ffffff",
        "life": 3.2,
        "arc": 0.6,
-       "spin": 7.0,
+       "spin": 3.5,
+       "trail": "#ffe27a",
        "land_at": "self",
        "on_land": "present",
        "open_sec": 0.55,
@@ -1363,7 +1811,7 @@
        "from": "hand_L",
        "speed": 11.0,
        "prop": "present_big",
-       "scale": 1.1,
+       "scale": 2.53,
        "size": 0.2,
        "range": 12.0,
        "radius": 0.2,
@@ -1371,7 +1819,8 @@
        "color": "#ffffff",
        "life": 1.7454545454545454,
        "arc": 3.6,
-       "spin": 7.0,
+       "spin": 3.5,
+       "trail": "#ffe27a",
        "on_land": "present",
        "open_sec": 0.45,
        "boom_sec": 1.0,
@@ -1414,7 +1863,7 @@
        "from": "hand_L",
        "speed": 14.0,
        "prop": "firework_red",
-       "scale": 1.6,
+       "scale": 2.6,
        "size": 0.2,
        "range": 22.0,
        "radius": 0.2,
@@ -1423,6 +1872,7 @@
        "life": 2.5142857142857142,
        "arc": 7.0,
        "spin": 0.0,
+       "trail": "#fff0a0",
        "blast": 3.5
       },
       "fx": {
@@ -1442,7 +1892,7 @@
        "from": "hand_R",
        "speed": 14.0,
        "prop": "firework_gold",
-       "scale": 1.6,
+       "scale": 2.6,
        "size": 0.2,
        "range": 22.0,
        "radius": 0.2,
@@ -1451,6 +1901,7 @@
        "life": 2.5142857142857142,
        "arc": 7.0,
        "spin": 0.0,
+       "trail": "#fff0a0",
        "blast": 3.5
       },
       "fx": {
@@ -1470,7 +1921,7 @@
        "from": "hand_L",
        "speed": 14.0,
        "prop": "firework_blue",
-       "scale": 1.6,
+       "scale": 2.6,
        "size": 0.2,
        "range": 22.0,
        "radius": 0.2,
@@ -1479,6 +1930,7 @@
        "life": 2.5142857142857142,
        "arc": 7.0,
        "spin": 0.0,
+       "trail": "#fff0a0",
        "blast": 3.5
       },
       "fx": {
@@ -1498,7 +1950,7 @@
        "from": "hand_R",
        "speed": 14.0,
        "prop": "firework_red",
-       "scale": 1.6,
+       "scale": 2.6,
        "size": 0.2,
        "range": 22.0,
        "radius": 0.2,
@@ -1507,6 +1959,7 @@
        "life": 2.5142857142857142,
        "arc": 7.0,
        "spin": 0.0,
+       "trail": "#fff0a0",
        "blast": 3.5
       },
       "fx": {
@@ -1526,7 +1979,7 @@
        "from": "hand_L",
        "speed": 14.0,
        "prop": "firework_gold",
-       "scale": 1.6,
+       "scale": 2.6,
        "size": 0.2,
        "range": 22.0,
        "radius": 0.2,
@@ -1535,6 +1988,7 @@
        "life": 2.5142857142857142,
        "arc": 7.0,
        "spin": 0.0,
+       "trail": "#fff0a0",
        "blast": 3.5
       },
       "fx": {
@@ -1554,7 +2008,7 @@
        "from": "hand_R",
        "speed": 14.0,
        "prop": "firework_blue",
-       "scale": 1.6,
+       "scale": 2.6,
        "size": 0.2,
        "range": 22.0,
        "radius": 0.2,
@@ -1563,6 +2017,7 @@
        "life": 2.5142857142857142,
        "arc": 7.0,
        "spin": 0.0,
+       "trail": "#fff0a0",
        "blast": 3.5
       },
       "fx": {
@@ -1636,20 +2091,24 @@
       "proj": {
        "mode": "homing",
        "from": "staff_tip",
-       "speed": 17.0,
+       "speed": 14.0,
        "prop": "magic_orb",
-       "scale": 1.1,
+       "scale": 2.1,
        "size": 0.2,
        "range": 16.0,
-       "radius": 0.35,
+       "radius": 0.45,
        "aim_h": 0.5,
        "color": "#ffffff",
-       "life": 1.5058823529411764,
-       "turn_deg": 140.0
+       "life": 1.8285714285714285,
+       "turn_deg": 140.0,
+       "trail": "#d9a8ff",
+       "spin": 4.0
       },
       "fx": {
-       "size": 0.7,
-       "color": "#d9a8ff"
+       "kind": "magic",
+       "size": 0.9,
+       "color": "#d9a8ff",
+       "radius": 1.3
       }
      }
     ],
@@ -1668,8 +2127,8 @@
       "t": 0.17,
       "kind": "spark",
       "color": "#d9a8ff",
-      "size": 0.5,
-      "life": 0.2,
+      "size": 0.8,
+      "life": 0.22,
       "from": "staff_tip",
       "at": "socket"
      }
@@ -1692,16 +2151,18 @@
       "proj": {
        "mode": "homing",
        "from": "staff_tip",
-       "speed": 12.0,
+       "speed": 11.0,
        "prop": "magic_big",
-       "scale": 1.3,
+       "scale": 2.3,
        "size": 0.2,
        "range": 18.0,
-       "radius": 0.7,
+       "radius": 0.9,
        "aim_h": 0.5,
        "color": "#ffffff",
-       "life": 2.4000000000000004,
-       "turn_deg": 90.0
+       "life": 2.6181818181818186,
+       "turn_deg": 90.0,
+       "trail": "#c08bff",
+       "spin": 3.0
       },
       "impact": [
        0.04,
@@ -1709,8 +2170,10 @@
        0.0
       ],
       "fx": {
-       "size": 1.3,
-       "color": "#c08bff"
+       "kind": "magic",
+       "size": 1.4,
+       "color": "#c08bff",
+       "radius": 2.4
       }
      }
     ],
@@ -2141,16 +2604,17 @@
        "from": "hand_R",
        "speed": 12.0,
        "prop": "plush_bear",
-       "scale": 0.55,
+       "scale": 1.4,
        "size": 0.2,
        "range": 10.0,
        "radius": 0.2,
        "aim_h": 0.45,
        "color": "#ffffff",
        "life": 1.5,
-       "arc": 1.8,
+       "arc": 2.2,
        "blast": 1.2,
-       "spin": 9.0
+       "spin": 5.0,
+       "trail": "#ffd0e0"
       },
       "fx": {
        "kind": "blast",
@@ -2213,7 +2677,8 @@
       "speed": 5.5,
       "reach": 1.0,
       "max_active": 9,
-      "spread": 1.8
+      "spread": 1.8,
+      "unit_height": 1.6
      }
     ],
     "note": "ぬいぐるみを2体呼ぶ（8秒。敵へ跳ねて行き、0.8秒ごとにたたく）"
@@ -2333,7 +2798,8 @@
       "speed": 6.5,
       "reach": 1.1,
       "max_active": 12,
-      "spread": 1.6
+      "spread": 1.6,
+      "unit_height": 1.6
      }
     ],
     "i_frames": true,
@@ -2364,13 +2830,14 @@
        "from": "bow",
        "speed": 36.0,
        "prop": "heart_arrow",
-       "scale": 1.4,
+       "scale": 2.0,
        "size": 0.2,
        "range": 16.0,
-       "radius": 0.3,
+       "radius": 0.35,
        "aim_h": 0.5,
        "color": "#ffffff",
-       "life": 1.5
+       "life": 1.5,
+       "trail": "#ffb0c4"
       },
       "fx": {
        "size": 0.6,
@@ -2414,9 +2881,10 @@
       "t": 0.45,
       "type": "heal_shot",
       "amount": 40.0,
-      "speed": 14.0,
+      "speed": 12.0,
       "prop": "heal_orb",
-      "from": "hand_R"
+      "from": "hand_R",
+      "scale": 2.2
      }
     ],
     "note": "いちばん減っている味方（味方をタップすれば、その味方）へ、回復の光を飛ばす（40回復）"

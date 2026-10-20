@@ -249,6 +249,20 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 			root.position = to
 			root.add_child(_particles(col.lightened(0.35), int(spec.get("amount", 12)), 0.35, 80.0, Vector2(3.0, 6.0), Vector3(0, -6, 0), 0.8,
 				Vector3(0.1, 0.1, 0.1), true))
+			# 版80：当たった瞬間の、白い一瞬の光（0.1秒で消える）
+			var fl := float(spec.get("flash", 0.0)) * float(spec.get("size", 0.6))
+			if fl > 0.0:
+				var fm := MeshInstance3D.new()
+				fm.name = "Flash"
+				var fs := SphereMesh.new()
+				fs.radius = fl
+				fs.height = fl * 2.0
+				fs.radial_segments = 10
+				fs.rings = 5
+				fs.material = _mat(Color(1, 1, 0.92), 3.0, 0.85)
+				fm.mesh = fs
+				fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				root.add_child(fm)
 		"ripple":
 			var tm3 := TorusMesh.new()
 			tm3.inner_radius = 0.85
@@ -276,6 +290,15 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 			root.position = to
 			root.add_child(_particles(col, 20, 0.9, 6.0, Vector2(2.5, 4.0), Vector3(0, 1.5, 0), 0.9, Vector3(0.4, 0.05, 0.4), true))
 	return root
+
+
+## 版80：飛ぶ物が引く光の粒（世界に残る。飛ぶ物が消えると一緒に消える）。k：飛ぶ物の大きさ
+static func trail(col: Color, k: float = 1.0) -> CPUParticles3D:
+	var p := _particles(col, 16, 0.32, 25.0, Vector2(0.2, 0.6), Vector3.ZERO, clampf(0.9 * k, 1.0, 2.6), Vector3(0.06, 0.06, 0.06), false)
+	p.name = "Trail"
+	p.local_coords = false
+	p.direction = Vector3.BACK
+	return p
 
 
 static func _star_mesh(size: float, col: Color) -> ArrayMesh:
@@ -357,6 +380,13 @@ static func tick(n: Node3D, delta: float, follow: Vector3 = Vector3.INF) -> bool
 			if mi != null:
 				mi.scale = Vector3.ONE * (0.6 + 0.8 * k)
 				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.95 * (1.0 - smoothstep(0.2, 0.6, k))
+			var fm := n.get_node_or_null("Flash") as MeshInstance3D
+			if fm != null:
+				# 一瞬ふくらんで、すぐ消える（0.1秒）
+				var kf := clampf(age / 0.1, 0.0, 1.0)
+				fm.scale = Vector3.ONE * (0.6 + 0.6 * kf)
+				fm.visible = kf < 1.0
+				(fm.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.85 * (1.0 - kf)
 		"dome", "heal_dome", "aura", "clock":
 			var r3 := float(spec.get("radius", 3.0))
 			# 3段階：広がる（はじめの 0.35 秒）→ たもつ（ゆっくり脈打つ）→ うすくなって消える（さいごの 0.6 秒）

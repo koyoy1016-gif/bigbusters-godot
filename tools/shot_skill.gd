@@ -1,6 +1,6 @@
 extends SceneTree
 ## キャラの技を戦いの画面で使って、途中の写真を撮る（見た目の確認用）。
-## xvfb-run -a godot --rendering-driver opengl3 --path . --script res://tools/shot_skill.gd -- 出力.png キャラのid 技（normal・sub・main・ultimate） 秒
+## xvfb-run -a godot --rendering-driver opengl3 --path . --script res://tools/shot_skill.gd -- 出力.png キャラのid 技（normal・sub・main・ultimate） 秒 [はなれ m]
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -20,6 +20,8 @@ func _initialize() -> void:
 	var bp: Vector3 = s.boss.position
 	var br := float(s.config["boss_size"]) * 0.5
 	var gap := 5.0 if act in ["main", "normal"] and cid in ["gunner", "mage", "bomber", "healer", "summoner"] else 1.2
+	if args.size() > 4:
+		gap = float(args[4])  # 版80：5つめに、ボスまでのはなれ（m）を書ける
 	s.player.position = Vector3(bp.x + 0.6, s.ground_y, bp.z + br + gap)
 	s.facing = Vector2(0, -1)
 	if act == "ultimate":

@@ -530,7 +530,7 @@ func animate(delta: float, clock: float, st: Dictionary) -> Dictionary:
 	_clock = clock
 	if bool(st.get("hit_now", false)):
 		flinch = 1.0
-	flinch = move_toward(flinch, 0.0, delta * 4.0)
+	flinch = move_toward(flinch, 0.0, delta * float(cfg.get("flinch_decay_per_sec", 4.0)))
 	st["flinch"] = flinch
 	st["awake"] = form == "awake"
 	st["stagger_t"] = stagger_t

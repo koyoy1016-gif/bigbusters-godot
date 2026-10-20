@@ -121,10 +121,11 @@ func _initialize() -> void:
 	var sides := {}
 	for h in hs:
 		sides[float(h.get("side", 0.0))] = true
-	check(hs.size() == 12 and sides.size() == 2, "ダブルビーム：2本（左右）× 6回")
+	# 版80：ガンナーの X は、ビームをやめて「ダブル連射」（左右かわるがわる12発の弾）。ダメージの合計は同じ
+	check(hs.size() == 12 and sides.size() == 2, "ダブル連射：左右から12発")
 	var dg := run_action(g, "main", 4.0)
-	check(is_equal_approx(dg, 12.0 * 0.5 * ap("gunner")), "ダブルビーム：2本とも同じボスに当たる（%.2f）" % dg)
-	check(g.skill_fx_log.count("beam") >= 2, "ダブルビーム：ビームの見た目が2本出る")
+	check(is_equal_approx(dg, 12.0 * 0.5 * ap("gunner")), "ダブル連射：12発とも同じボスに当たる（%.2f）" % dg)
+	check(g.skill_log.count("fire") >= 12 and g.skill_fx_log.count("beam") == 0, "ダブル連射：弾を12発撃つ（ビームは出ない）")
 	g.queue_free()
 
 	var sp := make("sprinter")

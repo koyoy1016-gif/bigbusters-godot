@@ -59,6 +59,13 @@
   "attack_reach": 2.0,
   "attack_cooldown_sec": 0.4,
   "hit_flash_sec": 0.15,
+  "hit_fx": {
+    "_memo": "版80：攻撃が当たった時の見た目。spark_scale：火花の大きさの倍率、flash_scale：白い一瞬の光（火花の大きさに対する半径）、ring_radius：撃った人の方を向く衝撃の輪（火花の大きさに対する半径）、boss_flash_sec：ボスが白く光る秒（1発ごと。連射でも点めつする）",
+    "spark_scale": 1.5,
+    "flash_scale": 0.55,
+    "ring_radius": 1.4,
+    "boss_flash_sec": 0.07
+  },
   "ui_font_path": "res://assets/fonts/NotoSansJP-Regular-subset.ttf",
   "ui_font_size": 30,
   "stick_base_color": "#ffffff33",
@@ -167,7 +174,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "79",
+  "build_id": "80",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {

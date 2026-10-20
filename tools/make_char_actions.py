@@ -98,7 +98,16 @@ def proj(mode, frm, *, speed, prop, scale=1.0, size=0.2, rng=16.0, radius=0.2, a
     return d
 
 
-MUZZLE = {"prop": "muzzle_flash", "scale": 0.9, "life": 0.07}
+MUZZLE = {"prop": "muzzle_flash", "scale": 1.4, "life": 0.07}
+
+# 版80：飛ぶ物を大きく（遠くのカメラからでも、何が飛んでいるか分かるように）。小物の形は tools/make_props.py
+BULLET_SCALE = 2.4     # ガンナーの弾（胴が約0.8m の金色の弾）
+SHELL_SCALE = 2.8      # ガンナーの必殺技の砲弾
+MAGIC_SCALE = 2.1      # 魔法使いの魔法の玉
+MAGIC_BIG_SCALE = 2.3  # 魔法使いの大きな玉
+PRESENT_SCALE = 2.2    # ボンバーのプレゼント（約0.75m）
+PLUSH_THROW_SCALE = 1.4  # おもちゃの兵隊が投げるぬいぐるみ
+PLUSH_UNIT_HEIGHT = 1.6  # 呼び出すぬいぐるみの背の高さ（m）。ふつうのキャラ（約3.4m）の約半分。版79は約0.4〜0.6m
 
 
 # ------------------------------------------------------------------ 版79：姿勢（ポーズ）の部品
@@ -414,28 +423,32 @@ def gunner():
         (2.2, mix(brace, armL=JOIN, armR=JOIN, legL=CROUCH_F, legR=CROUCH_B, spine=[2, 0, 0])),
         (2.4, ready)], legs=st, extra_offsets={"spine02": tremble(0.55, 2.2, 1.5, 0.06, 0)})
     anims = {"Gunner_A": A, "Gunner_Y": Y, "Gunner_X": X, "Gunner_Ult": U}
-    bullet = lambda frm: proj("straight", frm, speed=48.0, prop="bullet", scale=1.0, size=0.14, rng=18.0, radius=0.3, muzzle=MUZZLE, aim_h=0.42)
-    beam = {"kind": "beam", "color": "#ffcf3a", "width": 0.16, "life": 1.1, "length": 14.0}
+    # 版80：ガンナーはビームをやめて、全部「弾」にする（金色の弾・短い尾・大きな銃口の光・当たった所の火花）
+    bullet = lambda frm, **kw: proj("straight", frm, speed=kw.pop("speed", 24.0), prop=kw.pop("prop", "bullet"), scale=kw.pop("scale", BULLET_SCALE),
+                                    size=0.14, rng=kw.pop("rng", 18.0), radius=kw.pop("radius", 0.35), muzzle=kw.pop("muzzle", MUZZLE), aim_h=0.42,
+                                    trail=kw.pop("trail", "#ffd36a"), **kw)
+    shell_muzzle = dict(MUZZLE, scale=2.6, life=0.12)
     acts = {
-        "normal": act("A", 0.3, 0.3, [hit(0.05, 0.5, proj=bullet("muzzle_L"), fx={"size": 0.45}),
-                                      hit(0.15, 0.5, proj=bullet("muzzle_R"), fx={"size": 0.45})], step(0.0, "Gunner_A"),
-                      from_cd=True, stop=False, name="ダブルショット", note="左右の腕の大砲から1発ずつ（銃口の光・光る弾・当たった所の火花。ダメージは当たった時）"),
-        "sub": act("Y", 0.8, 4.5, [hit(0.3 + 0.08 * k, 0.9, side=s, proj=bullet("muzzle_L" if k != 1 else "muzzle_R"), fx={"size": 0.6})
+        "normal": act("A", 0.3, 0.3, [hit(0.05, 0.5, proj=bullet("muzzle_L"), fx={"size": 0.5}),
+                                      hit(0.15, 0.5, proj=bullet("muzzle_R"), fx={"size": 0.5})], step(0.0, "Gunner_A"),
+                      from_cd=True, stop=False, name="ダブルショット", note="左右の腕の大砲から1発ずつ（大きな銃口の光・金色の弾・当たった所の火花。ダメージは当たった時）"),
+        "sub": act("Y", 0.8, 4.5, [hit(0.3 + 0.08 * k, 0.9, side=s, proj=bullet("muzzle_L" if k != 1 else "muzzle_R"), fx={"size": 0.85})
                                    for k, s in enumerate((-0.9, 0.0, 0.9))], step(0.0, "Gunner_Y"), i_frames=True, stop=False,
                    path_=path((0.0, 0.0, 0.0), (0.1, 0.0, 0.0), (0.45, -3.2, 0.9), (0.62, -3.4, 0.0), (0.8, -3.4, 0.0)), name="バックステップ射撃",
                    note="後ろへ跳びながら、扇の形に3発。跳んでいる間は無敵"),
-        "main": act("X", 1.6, 7.0, [hit(0.35 + 0.2 * i, 0.5, shape="beam", length=14.0, half_width=0.55, side=s)
-                                   for i in range(6) for s in (-0.35, 0.35)], step(0.0, "Gunner_X"),
-                    fx=[dict(beam, t=0.3, frm="muzzle_L"), dict(beam, t=0.3, frm="muzzle_R")], stop=False,
-                    name="ダブルビーム", note="両腕の砲口から2本のビーム。1本ずつ当たりを調べる。6回ずつ、つらぬく"),
-        "ultimate": act("必殺", 2.4, 0.0, [hit(0.6 + 0.17 * i, 2.3, shape="beam", length=18.0, half_width=1.4, impact=IMPACT_ULT if i in (0, 9) else None)
+        "main": act("X", 1.6, 7.0, [hit(0.35 + 0.1 * i, 0.5, side=0.25 if i % 2 else -0.25, proj=bullet("muzzle_R" if i % 2 else "muzzle_L"),
+                                        fx={"size": 0.5})
+                                    for i in range(12)], step(0.0, "Gunner_X"), stop=False,
+                    name="ダブル連射", note="両腕の大砲から、左右かわるがわる12発の連射（弾1発ずつ当たった時にダメージ）"),
+        "ultimate": act("必殺", 2.4, 0.0, [hit(0.6 + 0.17 * i, 2.3, side=0.3 if i % 2 else -0.3, impact=IMPACT_ULT if i in (0, 9) else None,
+                                               proj=bullet("muzzle_R" if i % 2 else "muzzle_L", prop="cannon_shell", scale=SHELL_SCALE, speed=26.0,
+                                                           radius=0.6, muzzle=shell_muzzle, trail="#ffb347"),
+                                               fx={"kind": "blast", "color": "#ffb02a", "radius": 1.6, "life": 0.3, "size": 1.3})
                                            for i in range(10)],
                         step(0.0, "Gunner_Ult"), i_frames=True, stop=False, name="フルバースト",
-                        fx=[dict(beam, t=0.55, width=0.42, life=1.7, length=18.0, color="#ffb02a", frm="muzzle_L"),
-                            dict(beam, t=0.55, width=0.42, life=1.7, length=18.0, color="#ffb02a", frm="muzzle_R"),
-                            {"t": 0.4, "kind": "spark", "color": "#ffe27a", "size": 1.0, "life": 0.3, "frm": "muzzle_L", "at": "socket"},
-                            {"t": 0.4, "kind": "spark", "color": "#ffe27a", "size": 1.0, "life": 0.3, "frm": "muzzle_R", "at": "socket"}],
-                        note="2つの大砲を前で合わせて、太いビームを2本（10回当たる）"),
+                        fx=[{"t": 0.4, "kind": "spark", "color": "#ffe27a", "size": 1.2, "life": 0.3, "frm": "muzzle_L", "at": "socket"},
+                            {"t": 0.4, "kind": "spark", "color": "#ffe27a", "size": 1.2, "life": 0.3, "frm": "muzzle_R", "at": "socket"}],
+                        note="2つの大砲を前で合わせて、大きな砲弾を10発つづけて撃つ（当たった所で小さな爆発）"),
     }
     for a in acts.values():
         for h in a["hits"]:
@@ -482,10 +495,12 @@ def bomber():
     U = pose_anim(uk, legs=st)
     anims = {"Bomber_A": A, "Bomber_Y": Y, "Bomber_X": X, "Bomber_Ult": U}
     boom = lambda r, c="#ff9030": {"kind": "blast", "color": c, "radius": r, "life": 0.35}
-    pres = lambda frm, prop, **kw: proj("arc", frm, speed=kw.pop("speed", 13.0), prop=prop, scale=kw.pop("scale", 1.0), rng=kw.pop("rng", 12.0),
-                                        arc=kw.pop("arc", 2.4), spin=kw.pop("spin", 7.0), **kw)
+    # 版80：プレゼントを大きく（約0.75m）。飛んでいる間、導火線の金の粒を引く。回転はゆっくりにして形が分かるように
+    pres = lambda frm, prop, **kw: proj("arc", frm, speed=kw.pop("speed", 12.0), prop=prop, scale=kw.pop("scale", PRESENT_SCALE), rng=kw.pop("rng", 12.0),
+                                        arc=kw.pop("arc", 2.8), spin=kw.pop("spin", 3.5), trail=kw.pop("trail", "#ffe27a"), **kw)
     acts = {
         "normal": act("A", 0.6, 0.6, [hit(0.2, 1.0, proj=pres("hand_L", "present_pink", blast=2.0), fx=boom(2.0))], step(0.0, "Bomber_A"),
+                      fx=[{"t": 0.2, "kind": "spark", "color": "#ffd24a", "size": 0.6, "life": 0.2, "from": "hand_L", "at": "socket"}],
                       from_cd=True, stop=False, name="プレゼント投げ",
                       note="プレゼントの爆弾を、放物線で投げる（12m まで）。落ちた所で爆発（半径2m＝ダメージの範囲）"),
         "sub": act("Y", 0.95, 5.0, [hit(0.15, 3.0, proj=pres("hand_L", "present_green", land_at="self", arc=0.6, speed=6.0, on_land="present",
@@ -493,13 +508,13 @@ def bomber():
                    step(0.0, "Bomber_Y"), i_frames=True, stop=False, path_=path((0.0, 0.0, 0.0), (0.3, 0.0, 0.0), (0.6, -3.5, 0.9), (0.75, -3.6, 0.0), (0.95, -3.6, 0.0)),
                    name="置きプレゼント＆バックジャンプ",
                    note="足もとにプレゼントを置いて、後ろへ跳ぶ（跳んでいる間は無敵）。箱がゆれ、ふたが飛び、バネの道化が飛び出して爆発（半径3m）"),
-        "main": act("X", 1.1, 7.0, [hit(0.35, 6.0, proj=pres("hand_L", "present_big", scale=1.1, arc=3.6, speed=11.0, on_land="present",
+        "main": act("X", 1.1, 7.0, [hit(0.35, 6.0, proj=pres("hand_L", "present_big", scale=PRESENT_SCALE * 1.15, arc=3.6, speed=11.0, on_land="present",
                                                              open_sec=0.45, boom_sec=1.0, blast=3.5), impact=IMPACT_M)], step(0.0, "Bomber_X"), stop=False,
                     name="びっくりプレゼント",
                     note="大きなプレゼントを放り上げる。落ちると、ゆれて、ふたが飛び、中からバネの道化と紙ふぶき、そして爆発（半径3.5m）"),
         "ultimate": act("必殺", 2.4, 0.0, [hit(0.6 + 0.2 * k, 3.4, side=(k % 3 - 1) * 1.2,
                                                proj=pres("hand_L" if k % 2 == 0 else "hand_R", ["firework_red", "firework_gold", "firework_blue"][k % 3],
-                                                         scale=1.6, arc=7.0, speed=14.0, rng=22.0, blast=3.5, spin=0.0),
+                                                         scale=2.6, arc=7.0, speed=14.0, rng=22.0, blast=3.5, spin=0.0, trail="#fff0a0"),
                                                fx=boom(3.5, ["#ff5a3a", "#ffd23a", "#5ad1ff"][k % 3]), impact=IMPACT_ULT if k == 5 else None)
                                            for k in range(6)],
                         step(0.0, "Bomber_Ult"), i_frames=True, stop=False, name="大花火",
@@ -511,7 +526,7 @@ def bomber():
             if "impact" in h and h["impact"] is None:
                 h.pop("impact")
             if "fx" in h and h["fx"].get("kind") == "blast":
-                h["fx"]["confetti"] = a["label"] == "必殺"
+                h["fx"]["confetti"] = a["label"] in ("必殺", "A")   # 版80：A のプレゼントも、紙ふぶきで「プレゼント」と分かるように
     return acts, anims
 
 
@@ -551,13 +566,15 @@ def mage():
         (2.2, ready)], legs=st)
     anims = {"Mage_A": A, "Mage_Y": Y, "Mage_X": X, "Mage_Ult": U}
     acts = {
-        "normal": act("A", 0.5, 0.5, [hit(0.17, 1.0, proj=proj("homing", "staff_tip", speed=17.0, prop="magic_orb", scale=1.1, rng=16.0, radius=0.35,
-                                                               turn_deg=140.0, aim_h=0.5), fx={"size": 0.7, "color": "#d9a8ff"})],
+        "normal": act("A", 0.5, 0.5, [hit(0.17, 1.0, proj=proj("homing", "staff_tip", speed=14.0, prop="magic_orb", scale=MAGIC_SCALE, rng=16.0, radius=0.45,
+                                                               turn_deg=140.0, aim_h=0.5, trail="#d9a8ff", spin=4.0),
+                                      fx={"kind": "magic", "size": 0.9, "color": "#d9a8ff", "radius": 1.3})],
                       step(0.0, "Mage_A"), from_cd=True, stop=False,
-                      fx=[{"t": 0.17, "kind": "spark", "color": "#d9a8ff", "size": 0.5, "life": 0.2, "from": "staff_tip", "at": "socket"}],
+                      fx=[{"t": 0.17, "kind": "spark", "color": "#d9a8ff", "size": 0.8, "life": 0.22, "from": "staff_tip", "at": "socket"}],
                       name="マジックショット", note="つえの先から、むらさきの魔法の玉。ゆるく敵を追いかける（1秒に140度まで曲がる）"),
-        "sub": act("Y", 1.6, 6.0, [hit(1.2, 4.0, proj=proj("homing", "staff_tip", speed=12.0, prop="magic_big", scale=1.3, rng=18.0, radius=0.7,
-                                                            turn_deg=90.0, aim_h=0.5), impact=IMPACT_S, fx={"size": 1.3, "color": "#c08bff"})],
+        "sub": act("Y", 1.6, 6.0, [hit(1.2, 4.0, proj=proj("homing", "staff_tip", speed=11.0, prop="magic_big", scale=MAGIC_BIG_SCALE, rng=18.0, radius=0.9,
+                                                            turn_deg=90.0, aim_h=0.5, trail="#c08bff", spin=3.0), impact=IMPACT_S,
+                                   fx={"kind": "magic", "size": 1.4, "color": "#c08bff", "radius": 2.4})],
                    step(0.0, "Mage_Y"),
                    fx=[{"t": 0.2, "kind": "prop", "prop": "magic_circle", "scale": 1.5, "life": 1.0, "at": "self", "y": 0.06},
                        {"t": 0.25, "kind": "rise", "color": "#c9a2ff", "life": 0.9, "at": "self"},
@@ -686,12 +703,12 @@ def summoner():
         (0.28, shoot), (0.45, shoot)])
     anims = {"Toy_A": A, "Toy_Y": Y, "Toy_X": X, "Toy_Ult": U, "Mini_Idle": MI, "Mini_March": MM, "Mini_Shoot": MS}
     acts = {
-        "normal": act("A", 0.4, 0.4, [hit(0.18, 1.3, proj=proj("arc", "hand_R", speed=12.0, prop="plush_bear", scale=0.55, rng=10.0, arc=1.8, blast=1.2, spin=9.0),
+        "normal": act("A", 0.4, 0.4, [hit(0.18, 1.3, proj=proj("arc", "hand_R", speed=12.0, prop="plush_bear", scale=PLUSH_THROW_SCALE, rng=10.0, arc=2.2, blast=1.2, spin=5.0, trail="#ffd0e0"),
                                       fx={"kind": "blast", "color": "#ffd0e0", "radius": 1.2, "life": 0.22})], step(0.0, "Toy_A"),
                       from_cd=True, stop=False, name="ぬいぐるみ投げ", note="小さなくまのぬいぐるみを投げる（10m まで、落ちた所の半径1.2m）"),
         "sub": act("Y", 0.8, 10.0, [], step(0.0, "Toy_Y"), stop=False,
                    effects=[{"t": 0.3, "type": "summon", "unit": "plush", "count": 2, "sec": 8.0, "interval": 0.8, "multiplier": 0.6, "speed": 5.5,
-                             "reach": 1.0, "max_active": 9, "spread": 1.8}],
+                             "reach": 1.0, "max_active": 9, "spread": 1.8, "unit_height": PLUSH_UNIT_HEIGHT}],
                    fx=[{"t": 0.3, "kind": "ring", "color": "#f2b6c6", "radius": 2.0, "life": 0.4, "at": "self"}],
                    name="ぬいぐるみの突撃", note="ぬいぐるみを2体呼ぶ（8秒。敵へ跳ねて行き、0.8秒ごとにたたく）"),
         "main": act("X", 1.0, 16.0, [], step(0.0, "Toy_X"), stop=False,
@@ -703,7 +720,7 @@ def summoner():
                         effects=[{"t": 1.1, "type": "summon", "unit": "soldier", "count": 6, "sec": 9.0, "interval": 0.7, "multiplier": 0.5, "speed": 5.0,
                                   "reach": 1.0, "max_active": 12, "spread": 2.8},
                                  {"t": 1.15, "type": "summon", "unit": "plush", "count": 3, "sec": 9.0, "interval": 0.6, "multiplier": 0.5, "speed": 6.5,
-                                  "reach": 1.1, "max_active": 12, "spread": 1.6}],
+                                  "reach": 1.1, "max_active": 12, "spread": 1.6, "unit_height": PLUSH_UNIT_HEIGHT}],
                         fx=[{"t": 1.1, "kind": "ring", "color": "#ffd24a", "radius": 5.0, "life": 0.6, "at": "self"},
                             {"t": 1.1, "kind": "confetti", "life": 1.2, "at": "self"}],
                         note="兵隊6人とぬいぐるみ3体の大行進（9秒）"),
@@ -748,11 +765,11 @@ def healer():
         (2.0, ready)], legs=st)
     anims = {"Angel_A": A, "Angel_Y": Y, "Angel_X": X, "Angel_Ult": U}
     acts = {
-        "normal": act("A", 0.4, 0.4, [hit(0.2, 1.4, proj=proj("straight", "bow", speed=36.0, prop="heart_arrow", scale=1.4, rng=16.0, radius=0.3, aim_h=0.5),
+        "normal": act("A", 0.4, 0.4, [hit(0.2, 1.4, proj=proj("straight", "bow", speed=36.0, prop="heart_arrow", scale=2.0, rng=16.0, radius=0.35, aim_h=0.5, trail="#ffb0c4"),
                                       fx={"size": 0.6, "color": "#ff8aa8"})], step(0.0, "Angel_A"),
                       from_cd=True, stop=False, name="ハートの矢", note="金の弓で、ハートの矢を射る（16m まで。当たった時にダメージ）"),
         "sub": act("Y", 0.8, 6.0, [], step(0.0, "Angel_Y"), stop=False, aim=False,
-                   effects=[{"t": 0.45, "type": "heal_shot", "amount": 40.0, "speed": 14.0, "prop": "heal_orb", "from": "hand_R"}],
+                   effects=[{"t": 0.45, "type": "heal_shot", "amount": 40.0, "speed": 12.0, "prop": "heal_orb", "from": "hand_R", "scale": 2.2}],
                    name="いやしの光", note="いちばん減っている味方（味方をタップすれば、その味方）へ、回復の光を飛ばす（40回復）"),
         "main": act("X", 1.4, 25.0, [], step(0.0, "Angel_X"), stop=False, aim=False,
                     effects=[{"t": 0.6, "type": "heal_dome", "sec": 6.0, "radius": 5.0, "per_sec": 8.0, "revive_after": 2.0, "hp_ratio": 0.5, "color": "#4fe08a"}],

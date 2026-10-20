@@ -2810,21 +2810,208 @@
     "from": [
      0,
      0,
-     -0.25
+     -0.13
     ],
     "to": [
      0,
      0,
-     0.12
+     0.07
     ],
-    "r0": 0.05,
-    "r1": 0.065,
-    "segs": 10,
+    "r0": 0.07,
+    "r1": 0.07,
+    "segs": 12,
     "squash": [
      1,
      1
     ],
-    "color": "#ff5a2a",
+    "color": "#f2b84a",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 1.5,
+    "tex": "none"
+   },
+   {
+    "bone": "root",
+    "shape": "rod",
+    "from": [
+     0,
+     0,
+     0.07
+    ],
+    "to": [
+     0,
+     0,
+     0.2
+    ],
+    "r0": 0.07,
+    "r1": 0.012,
+    "segs": 12,
+    "squash": [
+     1,
+     1
+    ],
+    "color": "#ff7a2a",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 2.0,
+    "tex": "none"
+   },
+   {
+    "bone": "root",
+    "shape": "rod",
+    "from": [
+     0,
+     0,
+     -0.14
+    ],
+    "to": [
+     0,
+     0,
+     -0.1
+    ],
+    "r0": 0.075,
+    "r1": 0.075,
+    "segs": 12,
+    "squash": [
+     1,
+     1
+    ],
+    "color": "#b8742a",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 1.0,
+    "tex": "none"
+   },
+   {
+    "bone": "root",
+    "shape": "sphere",
+    "center": [
+     0,
+     0,
+     0.02
+    ],
+    "r": 0.13,
+    "squash": [
+     1,
+     1,
+     1.6
+    ],
+    "segs": 10,
+    "rotation_deg": [
+     0,
+     0,
+     0
+    ],
+    "color": "#ffd36a",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 1.8,
+    "tex": "none",
+    "alpha": 0.3
+   },
+   {
+    "bone": "root",
+    "shape": "rod",
+    "from": [
+     0,
+     0,
+     -0.38
+    ],
+    "to": [
+     0,
+     0,
+     -0.14
+    ],
+    "r0": 0.006,
+    "r1": 0.05,
+    "segs": 8,
+    "squash": [
+     1,
+     1
+    ],
+    "color": "#ffe08a",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 1.6,
+    "tex": "none",
+    "alpha": 0.5
+   }
+  ],
+  "cannon_shell": [
+   {
+    "bone": "root",
+    "shape": "rod",
+    "from": [
+     0,
+     0,
+     -0.2
+    ],
+    "to": [
+     0,
+     0,
+     0.1
+    ],
+    "r0": 0.11,
+    "r1": 0.11,
+    "segs": 14,
+    "squash": [
+     1,
+     1
+    ],
+    "color": "#d9a23a",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 1.4,
+    "tex": "none"
+   },
+   {
+    "bone": "root",
+    "shape": "rod",
+    "from": [
+     0,
+     0,
+     0.1
+    ],
+    "to": [
+     0,
+     0,
+     0.3
+    ],
+    "r0": 0.11,
+    "r1": 0.02,
+    "segs": 14,
+    "squash": [
+     1,
+     1
+    ],
+    "color": "#ff5a1a",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 2.0,
+    "tex": "none"
+   },
+   {
+    "bone": "root",
+    "shape": "torus",
+    "center": [
+     0,
+     0,
+     -0.05
+    ],
+    "R": 0.115,
+    "r": 0.018,
+    "rotation_deg": [
+     90,
+     0,
+     0
+    ],
+    "squash": [
+     1,
+     1,
+     1
+    ],
+    "segs": 16,
+    "color": "#ffe08a",
     "metallic": 0.0,
     "roughness": 0.8,
     "emission": 2.2,
@@ -2832,29 +3019,57 @@
    },
    {
     "bone": "root",
-    "shape": "rod",
-    "from": [
+    "shape": "torus",
+    "center": [
      0,
      0,
-     0.12
+     -0.15
     ],
-    "to": [
+    "R": 0.115,
+    "r": 0.018,
+    "rotation_deg": [
+     90,
      0,
-     0,
-     0.26
+     0
     ],
-    "r0": 0.065,
-    "r1": 0.005,
-    "segs": 10,
     "squash": [
+     1,
      1,
      1
     ],
-    "color": "#ffd36a",
+    "segs": 16,
+    "color": "#ffe08a",
     "metallic": 0.0,
     "roughness": 0.8,
-    "emission": 2.4,
+    "emission": 2.2,
     "tex": "none"
+   },
+   {
+    "bone": "root",
+    "shape": "sphere",
+    "center": [
+     0,
+     0,
+     0.02
+    ],
+    "r": 0.2,
+    "squash": [
+     1,
+     1,
+     1.5
+    ],
+    "segs": 12,
+    "rotation_deg": [
+     0,
+     0,
+     0
+    ],
+    "color": "#ff9a3a",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 1.8,
+    "tex": "none",
+    "alpha": 0.32
    },
    {
     "bone": "root",
@@ -2862,25 +3077,26 @@
     "from": [
      0,
      0,
-     -0.75
+     -0.6
     ],
     "to": [
      0,
      0,
-     -0.25
+     -0.2
     ],
-    "r0": 0.012,
-    "r1": 0.05,
-    "segs": 8,
+    "r0": 0.01,
+    "r1": 0.09,
+    "segs": 10,
     "squash": [
      1,
      1
     ],
-    "color": "#ff9a4a",
+    "color": "#ffb347",
     "metallic": 0.0,
     "roughness": 0.8,
     "emission": 1.6,
-    "tex": "none"
+    "tex": "none",
+    "alpha": 0.5
    }
   ],
   "muzzle_flash": [
@@ -3075,6 +3291,33 @@
     "roughness": 0.8,
     "emission": 2.0,
     "tex": "none"
+   },
+   {
+    "bone": "root",
+    "shape": "sphere",
+    "center": [
+     0,
+     0,
+     0.05
+    ],
+    "r": 0.16,
+    "squash": [
+     1,
+     1,
+     1
+    ],
+    "segs": 10,
+    "rotation_deg": [
+     0,
+     0,
+     0
+    ],
+    "color": "#fff2b0",
+    "metallic": 0.0,
+    "roughness": 0.8,
+    "emission": 2.6,
+    "tex": "none",
+    "alpha": 0.7
    }
   ],
   "magic_orb": [

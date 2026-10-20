@@ -36,6 +36,11 @@ func ult_damage(s: Node) -> float:
 	while s.actions.busy():
 		s._actions_update(0.02)
 		Engine.time_scale = 1.0
+	# 版80：ガンナーの必殺技は砲弾（当たった時にダメージ）。技が終わった後も、弾が当たるまで飛ばす
+	for i in 150:
+		if s.skill_projs.is_empty():
+			break
+		s.skills.update(0.02)
 	return s.my_hits - h0
 
 

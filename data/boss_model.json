@@ -41,7 +41,9 @@
  "awake_at": 0.5,
  "stagger_sec": 3.4,
  "stagger_swap_sec": 2.2,
- "flash_energy": 0.25,
+ "flash_energy": 0.4,
+ "flinch_decay_per_sec": 7.0,
+ "_flinch_memo": "版80：当たるたびに、体を小さくのけぞらせる（flinch_deg 度）。flinch_decay_per_sec で早く戻す（約0.15秒。止まらない）",
  "tail_base": [
   0.0,
   1.0,

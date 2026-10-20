@@ -37,11 +37,16 @@ func _init() -> void:
 	var ctx := {"boss": Vector2(0, -8), "boss_radius": 1.7, "bounds": 14.0, "hazards": [], "cfg": cfg, "attack_multiplier": 1.0, "rng": rng, "can_hit_boss": true, "slot": "p2"}
 	var total := 0.0
 	var start_dist := (a["pos"] as Vector2).distance_to(ctx["boss"])
+	var shot_total := 0.0
 	for i in 600:
 		total += Ai.step(a, 0.05, ctx)
+		# 版80：ガンナーの技は全部「弾」（当たった時にダメージ。battle_skills.gd）。撃った弾が持つダメージも数える
+		for e in a["out_events"]:
+			if str(e.get("type", "")) == "proj":
+				shot_total += float(e["dmg"])
 	var dist := (a["pos"] as Vector2).distance_to(ctx["boss"])
 	check(dist < start_dist and dist <= float(gunner["stats"]["attack_reach"]) + 1.7, "ボスに近づく")
-	check(total > 0.0 and is_equal_approx(total, float(a["hits"])), "こうげきでダメージを与える")
+	check(total + shot_total > 0.0 and is_equal_approx(total, float(a["hits"])), "こうげきでダメージを与える（直接 %.1f・弾 %.1f）" % [total, shot_total])
 	# ダメージの量は、攻撃力 × 倍率 × damage_scale
 	var one := float(gunner["stats"]["attack_power"]) * float(cfg["damage_scale"])
 	var near := Ai.make(gunner, 0, Vector2(0, -8 + 3.0))

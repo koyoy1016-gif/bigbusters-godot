@@ -148,6 +148,7 @@ var others_hits := 0.0
 var my_hp := 0.0
 var downed := false
 var hit_flash := 0.0
+var boss_last_flash := 0.0  # 版80：前のコマの hit_flash（上がったら、新しく当たった）
 var player_hit_flash := 0.0
 var won := false
 var lost := false
@@ -583,7 +584,9 @@ func _process(delta: float) -> void:
 	for id in button_flash.keys():
 		button_flash[id] = maxf(0.0, float(button_flash[id]) - delta)
 	if boss_model != null:
-		boss_model.set_flash(hit_flash > 0.0)
+		# 版80：当たった直後の短い間だけ白く光る（連射でも、1発ごとに点めつして、当たったことが分かる）
+		var bfs := float((config.get("hit_fx", {}) as Dictionary).get("boss_flash_sec", 0.15))
+		boss_model.set_flash(hit_flash > float(config["hit_flash_sec"]) - bfs)
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
 	boss_clock += delta
@@ -1414,7 +1417,10 @@ func build_result_lines() -> Array:
 ## ボスの動き：剣士と同じ動き素材で、待ち・歩き・攻撃・よろけを動かす（scripts/boss/boss_moves.gd）。
 ## 攻撃の動きは、攻撃が始まってからの秒で決まるので、予告と当たりの時刻に、振る瞬間が合う。delta は1コマの秒
 func _pose_boss(delta: float = 0.0) -> void:
-	var hit_now := hit_flash > 0.0 and not boss_was_hit
+	# 版80：当たるたびに（hit_flash が上がった時に）のけぞる。版79までは、つづけて当たると最初の1発だけだった
+	# （当たらない間は、1コマで delta だけ減る。それより大きければ、このコマで新しく当たった）
+	var hit_now := hit_flash > 0.0 and hit_flash > boss_last_flash - delta + 0.0001
+	boss_last_flash = hit_flash
 	boss_was_hit = hit_flash > 0.0
 	boss_model.update_form(delta)
 	var kind := str(current_attack.get("kind", ""))
