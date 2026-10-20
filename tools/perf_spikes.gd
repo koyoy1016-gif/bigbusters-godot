@@ -1,6 +1,7 @@
 extends SceneTree
 ## 版105：戦いで「1コマだけ長い」コマ（引っかかり）を見つけ、その時に何が起きたかを記録する（測るだけ）。
-## godot --headless --fixed-fps 60 --path . --script res://tools/perf_spikes.gd -- 出力.json [コマ数] [回数]
+## godot --headless --fixed-fps 60 --path . --script res://tools/perf_spikes.gd -- 出力.json [コマ数] [回数] [prewarm]
+## prewarm：版106 の見た目の先出しをしてから測る
 ## 画面なし・1コマ＝1/60 秒（ゲームの時計も）。AI の味方とボスが自由に戦う。決まった種で、毎回ほぼ同じ戦い。
 ## 毎コマ：1コマの時間・そのコマで新しくできたノード（名前・種類）・ノードの数。長いコマ（まん中の4倍以上）を、できた物といっしょに出す。
 ## 戦いを何回かくり返し（回数）、2回目以降にも長いコマが出るか（はじめてだけか）も見る。
@@ -8,6 +9,7 @@ extends SceneTree
 const SCENE := "res://scenes/game_flow.tscn"
 
 var added: Array = []
+var do_prewarm := false
 
 
 func _on_added(n: Node) -> void:
@@ -27,6 +29,10 @@ func run_battle(flow: Node, frames: int, sim: Array) -> Dictionary:
 	for i in 5:
 		await process_frame
 	var b: Node = flow.battle
+	if do_prewarm:
+		b.skills.prewarm_fx()  # 版106：画面ありの時と同じく、見た目を先出し（画面なしでは自動では出さないので、ここで呼ぶ）
+		for i in 4:
+			await process_frame
 	b.clock_ms = func() -> float: return float(sim[0])
 	b.start_round()
 	for i in 10:
@@ -69,6 +75,7 @@ func _initialize() -> void:
 	var out_path := args[0]
 	var frames := int(args[1]) if args.size() > 1 else 3600
 	var runs := int(args[2]) if args.size() > 2 else 2
+	do_prewarm = args.size() > 3 and args[3] == "prewarm"
 	seed(4242)
 	var sim := [1.0e7]
 	node_added.connect(_on_added)

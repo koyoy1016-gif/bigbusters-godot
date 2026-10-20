@@ -854,6 +854,78 @@ func spawn_fx(spec: Dictionary, slot: String, aim: Vector2, at: Vector3 = Vector
 	return node
 
 
+## ---- 版106（軽量化③の続き）：見た目の先出し ----
+const PREWARM_KINDS := ["blast", "ring", "slash", "spark", "ripple", "beam", "pillar", "rise", "confetti", "smoke", "orb", "prop", "aura", "dome", "heal_dome", "clock"]
+var prewarm_nodes: Array = []  ## 先に出した見た目（2コマ後に消す）
+var _prewarm_frames := 0
+
+
+## 戦いの画面ができた時（「はじめる」の前）に、戦う4人の技・当たり・必殺技の見た目を、カメラの前の地面の下（見えない所）に1回ずつ出しておく。
+## 材質を作る準備と、スマホの絵の準備（シェーダー作り）を先にすませ、戦いの最中に、はじめての見た目で1コマだけ長くなるのをなくす。
+## 2コマ後に消すので、材質は使いまわしの置き場（fx_pool.gd）に入り、戦いの最中に使われる。見た目・当たりは何も変えない
+func prewarm_fx() -> void:
+	if b.camera == null or not b.is_inside_tree():
+		return
+	var ids: Array = [b.my_char_id()]
+	if b.characters_cfg.is_empty():
+		b.characters_cfg = CharacterData.load_config()
+	var picks: Array = b.ai_picks if b.ai_enabled else []  # AI の味方の選び（戦いの前なので、画面の流れから来た選び）
+	for id in picks:
+		if not ids.has(str(id)) and not CharacterData.find(b.characters_cfg, str(id)).is_empty():
+			ids.append(str(id))
+	var specs: Array = []
+	var hc: Dictionary = b.config.get("hit_fx", {})
+	for id in ids:
+		_collect_fx_specs(Actions.config_for(str(id)), specs)
+		var meta: Dictionary = Actions.meta_for(str(id))
+		var sc := str(meta.get("spark", "#ffd24a"))
+		specs.append({"kind": "spark", "color": sc, "size": 0.6 * float(hc.get("spark_scale", 1.0)), "flash": float(hc.get("flash_scale", 0.0)), "life": 0.35})
+		specs.append({"kind": "ripple", "color": sc, "radius": 1.0, "life": 0.22})
+		specs.append({"kind": "aura", "color": str(meta.get("aura", "#ffd24a")), "radius": 1.0, "life": 1.0})
+	# カメラの前の、地面より下（地面にかくれて見えない。見える範囲の中なので、絵の準備はされる）
+	var cam: Transform3D = b.camera.global_transform
+	var fwd := -cam.basis.z
+	var down := maxf(0.2, -fwd.y)
+	var at: Vector3 = cam.origin + fwd * ((cam.origin.y - b.ground_y) / down + 25.0)
+	for spec in specs:
+		var n := SkillFx.make(spec, at, at + Vector3(0, 0, -1), 0.0)
+		b.add_child(n)
+		n.global_position = at
+		prewarm_nodes.append(n)
+	var ufx: Dictionary = b.actions.def("ultimate").get("fx", {}) if b.actions.has_action("ultimate") else {}
+	for k in ["charge", "slash"]:
+		var u := UltFx.spawn(b, k, at, Vector2(0, 1), ufx)
+		u.global_position = at
+		prewarm_nodes.append(u)
+	_prewarm_frames = 3
+
+
+## 先に出した見た目を消す（2コマ描いたあと。毎コマ呼ぶ）
+func prewarm_step() -> void:
+	if prewarm_nodes.is_empty():
+		return
+	_prewarm_frames -= 1
+	if _prewarm_frames > 0:
+		return
+	for n in prewarm_nodes:
+		if is_instance_valid(n):
+			(n as Node).queue_free()
+	prewarm_nodes.clear()
+
+
+## 技の設定の中の、見た目（kind のある辞書）を集める
+static func _collect_fx_specs(x: Variant, out: Array) -> void:
+	if x is Dictionary:
+		var d := x as Dictionary
+		if d.has("kind") and PREWARM_KINDS.has(str(d["kind"])) and d.has("color"):
+			out.append(d.duplicate())
+		for k in d:
+			_collect_fx_specs(d[k], out)
+	elif x is Array:
+		for v in x:
+			_collect_fx_specs(v, out)
+
+
 ## 決まった所に、見た目を出す（from→to の向き）
 func spawn_at(spec: Dictionary, from: Vector3, to: Vector3) -> Node3D:
 	b.skill_fx_log.append(str(spec.get("kind", "")))

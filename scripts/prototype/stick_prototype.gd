@@ -257,6 +257,10 @@ func _ready() -> void:
 	_build_ui()
 	if use_network or shared_bridge != null:
 		_setup_network()
+	# 版106：戦う4人の技・当たりの見た目を、見えない所で先に1回出しておく（はじめての見た目の引っかかりをなくす）。
+	# 画面なし（テスト）では、絵の準備がないので出さない
+	if DisplayServer.get_name() != "headless":
+		skills.prewarm_fx()
 
 
 ## 合言葉の部屋に自動で入る。ブラウザ側の入り口（window.bbFirebase）がなければ、通信なしで遊ぶ
@@ -656,6 +660,7 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	_hitstop_update()
+	skills.prewarm_step()
 	kb_guard_left = maxf(0.0, kb_guard_left - delta)
 	if dormant:
 		_dormant_update(delta)
