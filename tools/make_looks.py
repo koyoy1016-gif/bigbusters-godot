@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from make_char_actions import all_anims  # noqa: E402
+from make_char_actions import all_anims, anim_overrides  # noqa: E402
 
 CHAR_ANIMS = all_anims()
 
@@ -142,6 +142,108 @@ def ring_on_head(cy, rx, rz, cz=0.03):
     return [((0, cy - 0.018, cz), rx, rz), ((0, cy + 0.018, cz), rx, rz)]
 
 
+# ============================================================== 版79：体型（女性・骨の長さ）
+def female_morphs(bust=1.0, hips=1.0, eyes=1.4):
+    """女性の体と顔（もとの体の座標で書く。顔の物は head: True で、頭の大きさに合わせて動く）"""
+    return [
+        # 顔：あごを細く小さく、あご先をとがらせる、鼻を小さく、まゆの骨を平らに、目を大きく、ほおをふっくら
+        {"c": [0, 1.73, 0.06], "r": [0.14, 0.08, 0.15], "s": [0.72, 0.86, 0.88], "m": [0, 0.006, 0], "head": True},
+        {"c": [0, 1.715, 0.145], "r": [0.05, 0.035, 0.05], "s": [0.7, 1, 1], "m": [0, 0.006, -0.012], "head": True},
+        {"c": [0, 1.80, 0.17], "r": [0.03, 0.045, 0.04], "s": [0.75, 0.85, 0.65], "m": [0, 0.005, -0.01], "head": True},
+        {"c": [0, 1.865, 0.155], "r": [0.09, 0.03, 0.04], "m": [0, 0, -0.01], "head": True},
+        {"c": [0.032, 1.847, 0.14], "r": [0.034, 0.026, 0.034], "s": [eyes, eyes * 1.08, 1.1], "mirror": True, "head": True},
+        {"c": [0.055, 1.785, 0.115], "r": [0.045, 0.04, 0.045], "m": [0.004, 0.003, 0.008], "mirror": True, "head": True},
+        {"c": [0, 1.756, 0.16], "r": [0.032, 0.014, 0.025], "s": [0.82, 1.3, 1.0], "m": [0, 0, 0.004], "head": True},
+        {"c": [0.085, 1.79, 0.06], "r": [0.05, 0.08, 0.08], "m": [-0.008, 0, 0], "mirror": True, "head": True},
+        # 首を細く
+        {"c": [0, 1.66, 0.0], "r": [0.11, 0.08, 0.11], "s": [0.78, 1, 0.82]},
+        # 胸
+        {"c": [0.085, 1.43, 0.1], "r": [0.085, 0.08, 0.095], "m": [0.0, 0.006 * bust, 0.045 * bust], "mirror": True},
+        # 腰（くびれ）とおしり
+        {"c": [0, 1.22, -0.01], "r": [0.24, 0.14, 0.18], "s": [0.8, 1, 0.84]},
+        {"c": [0, 1.0, -0.02], "r": [0.28, 0.15, 0.22], "s": [1.0 + 0.14 * hips, 1, 1.0 + 0.1 * hips]},
+        {"c": [0.08, 0.98, -0.1], "r": [0.1, 0.1, 0.08], "m": [0, 0, -0.025 * hips], "mirror": True},
+    ]
+
+
+def thin_brows(color, lift=0.0):
+    """細い弓なりのまゆ（左右）"""
+    out = []
+    for sx in (1, -1):
+        pts = [(0.013 * sx, 1.869 + lift, 0.163), (0.035 * sx, 1.877 + lift, 0.161), (0.058 * sx, 1.869 + lift, 0.146)]
+        out.append(dict(tube("head", pts, 0.0032, 0.0018, color, smooth=True, steps=6, segs=5, squash=0.6, rough=0.8), face=True))
+    return out
+
+
+def anime_eyes(iris, size=1.0):
+    """大きなひとみ（白目・ひとみ・黒目・光）。目の玉の前に、うすい円を重ねる"""
+    out = []
+    for sx in (1, -1):
+        cx = 0.032 * sx
+        out.append(dict(extrude("head", (cx, 1.846, 0.1525), circle2d(0.0135 * size, 20, 1.15, 1.0), 0.0015, "#fbfbfb", rough=0.3, tex="none"), face=True))
+        out.append(dict(extrude("head", (cx + 0.001 * sx, 1.8455, 0.1545), circle2d(0.0095 * size, 20, 0.95, 1.12), 0.0015, iris, rough=0.3, tex="none"), face=True))
+        out.append(dict(extrude("head", (cx + 0.001 * sx, 1.845, 0.156), circle2d(0.0048 * size, 14, 0.9, 1.1), 0.0012, "#1a1020", tex="none"), face=True))
+        out.append(dict(sph("head", (cx - 0.003 * sx, 1.8495, 0.1575), 0.0024 * size, "#ffffff", segs=8, emission=0.6, tex="none"), face=True))
+    return out
+
+
+def eye_liner(color="#20141c"):
+    """上まぶたの線（目を大きく見せる）"""
+    out = []
+    for sx in (1, -1):
+        pts = [(0.017 * sx, 1.8545, 0.1575), (0.026 * sx, 1.859, 0.1585), (0.04 * sx, 1.8595, 0.157), (0.05 * sx, 1.856, 0.152), (0.055 * sx, 1.8575, 0.149)]
+        out.append(dict(tube("head", pts, 0.003, 0.002, color, segs=5, squash=0.7, rough=0.5), face=True))
+    return out
+
+
+# 女性の骨格：肩はばをせまく（鎖骨・肩）、骨盤を広く（@root・@pelvis）、腕を短く、手足を小さく、胴を短く、脚を少し長く
+FEMALE_BONES = {"@clavicle": [0.76, 1, 1], "@shoulder01": [0.85, 1, 1], "@root": [1.18, 1, 1], "@pelvis": [1.1, 1, 1],
+                "upperarm": 0.95, "forearm": 0.93, "hand": 0.86, "foot": 0.86, "thigh": 1.04, "shin": 1.04,
+                "belly": 0.92, "chest": 0.94, "neck": 1.06}
+
+
+def masquerade(white, gold, eye_c=0.032, eye_r=(0.017, 0.012), y=1.846, z=0.17):
+    """目の所があいた仮面（上と下の2枚。金のふちつき）。顔の形の変化（目を大きく）にも合わせて広がる"""
+    import math as _m
+    def arc(cx, a0, a1, n=8, rx=eye_r[0], ry=eye_r[1]):
+        return [[cx + rx * _m.cos(_m.radians(a0 + (a1 - a0) * i / n)), ry * _m.sin(_m.radians(a0 + (a1 - a0) * i / n))] for i in range(n + 1)]
+    bridge = -0.004
+    upper = [[-0.104, 0.0], [-0.09, 0.024], [-0.055, 0.036], [-0.02, 0.024], [0.0, 0.015], [0.02, 0.024], [0.055, 0.036], [0.09, 0.024], [0.104, 0.0]]
+    upper += [[eye_c + eye_r[0], 0.0]] + arc(eye_c, 0, 180)[1:-1] + [[eye_c - eye_r[0], 0.0], [0.0, bridge], [-eye_c + eye_r[0], 0.0]]
+    upper += arc(-eye_c, 0, 180)[1:-1] + [[-eye_c - eye_r[0], 0.0]]
+    lower = [[-0.104, 0.0], [-eye_c - eye_r[0], 0.0]] + arc(-eye_c, 180, 360)[1:-1] + [[-eye_c + eye_r[0], 0.0], [0.0, bridge]]
+    lower += [[eye_c - eye_r[0], 0.0]] + arc(eye_c, 180, 360)[1:-1] + [[eye_c + eye_r[0], 0.0], [0.104, 0.0]]
+    lower += [[0.085, -0.02], [0.05, -0.028], [0.016, -0.016], [0.0, -0.024], [-0.016, -0.016], [-0.05, -0.028], [-0.085, -0.02]]
+    out = []
+    for poly in (upper, lower):
+        out.append(dict(extrude("head", (0, y, z - 0.003), [[px * 1.07, py * 1.12] for px, py in poly], 0.006, gold, rot=(-4, 0, 0), metallic=0.75, rough=0.3),
+                        bend=5.0, face=True))
+        out.append(dict(extrude("head", (0, y, z), poly, 0.006, white, rot=(-4, 0, 0), rough=0.35), bend=5.0, face=True))
+    for sx in (1, -1):
+        out.append(dict(extrude("head", (0.108 * sx, y + 0.012, z - 0.05), [[p[0] * sx, p[1]] for p in wing2d(0.07)], 0.006, white, rot=(0, 35 * sx, 0)), face=True))
+        out.append(dict(sph("head", (0.104 * sx, y + 0.004, z - 0.03), 0.008, gold, metallic=0.8, segs=8), face=True))
+    return out
+
+
+def lips(color="#d9727e"):
+    return [region(color, groups=["head"], mesh=["body"], y=[1.759, 1.773], x_abs=[0.0, 0.017], z=[0.15, 0.3], nz=[0.2, 1.0], rough=0.4, tex="none")]
+
+
+SKIN_TEX_AVG = (0.781, 0.609, 0.508)
+
+
+def skin_flat(skin):
+    """肌の色（look の skin）を、もとの肌の画像をかけたときと同じ明るさの、模様のない色にする"""
+    h = skin.lstrip("#")
+    c = [int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)]
+    return "#%02x%02x%02x" % tuple(int(min(1.0, c[i] * SKIN_TEX_AVG[i] * 1.08) * 255) for i in range(3))
+
+
+def smooth_face(skin):
+    """顔の肌を、模様のないなめらかな肌にする（男性の肌の画像の、ひげ・しわの影を消す）。skin は look の skin と同じ値"""
+    return [region(skin_flat(skin), groups=["head", "neck"], mesh=["body"], rough=0.55, tex="none")]
+
+
 # ============================================================== ファイター（こぶし）
 def brawler():
     RED = "#a3161d"
@@ -171,6 +273,7 @@ def brawler():
                              rot=(0, ang, 0), metallic=0.85, rough=0.3, mirror=True))
     return {
         "name": "ファイター",
+        "bones": {"@clavicle": [1.15, 1, 1], "upperarm": 1.02, "neck": 0.85, "thigh": 0.97, "shin": 0.95},
         "idle_speed": 1.1,
         "attack_speed": 2.0,
         "attack_anim": "Punch",
@@ -254,6 +357,7 @@ def sprinter():
     parts.append(sph("foot.L", (0.205, 0.07, -0.085), 0.028, CYAN, squash=(1.2, 0.8, 0.6), mirror=True, emission=1.8, tex="none"))
     return {
         "name": "スピードファイター",
+        "bones": {"thigh": 1.08, "shin": 1.1, "@clavicle": [0.95, 1, 1], "belly": 1.03},
         "idle_speed": 1.25,
         "attack_speed": 2.2,
         "ref": "docs/ref/chars/IMG_0395.jpeg",
@@ -336,6 +440,7 @@ def gunner():
     parts.append(box("upperleg01.L", (0.235, 0.86, 0.0), (0.04, 0.2, 0.13), OLIVE, rot=(0, 0, 4), mirror=True, metallic=0.3, tex="steel"))
     return {
         "name": "ガンナー",
+        "bones": {"@clavicle": [1.1, 1, 1], "upperarm": 1.04, "forearm": 1.04, "chest": 1.03},
         "ref": "docs/ref/chars/IMG_0397.jpeg",
         "attack_anim": "Spell",
         "height": 1.07,
@@ -426,6 +531,7 @@ def bomber():
     parts.append(sph("foot.R", (-0.215, 0.05, 0.16), 0.07, BLU, squash=(1, 0.65, 1.3), rough=0.5))
     return {
         "name": "ボンバー",
+        "bones": {"thigh": 0.9, "shin": 0.88, "belly": 1.06, "@clavicle": [0.95, 1, 1], "hand": 1.12, "foot": 1.15},
         "ref": "docs/ref/chars/IMG_0398.jpeg",
         "attack_anim": "Punch",
         "height": 1.04,
@@ -492,8 +598,8 @@ def staff(bone, x, z, color, top_y=2.0):
 
 def long_hair(color, length_y=1.05, width=0.15, depth=0.1, waves=True):
     """背中まで届く長い髪（頭の骨につく）：頭の上の帽子形と、後ろの幕と、横の房"""
-    ps = [sph("head", (0, 1.88, 0.0), 0.122, color, squash=(1.05, 0.95, 1.08), segs=16, rough=0.7),
-          sph("head", (0, 1.915, 0.035), 0.112, color, squash=(1.05, 0.85, 1.05), segs=16, rough=0.7)]
+    ps = [sph("head", (0, 1.88, 0.0), 0.122, color, squash=(1.05, 0.95, 1.08), segs=16, rough=0.45, tex="none"),
+          sph("head", (0, 1.915, 0.035), 0.112, color, squash=(1.05, 0.85, 1.05), segs=16, rough=0.45, tex="none")]
     rings = []
     n = 6
     for i in range(n + 1):
@@ -501,21 +607,21 @@ def long_hair(color, length_y=1.05, width=0.15, depth=0.1, waves=True):
         y = 1.9 - (1.9 - length_y) * t
         w = width * (0.85 + 0.45 * t)
         rings.append(((0, y, -0.06 - 0.06 * t), w, depth * (1.0 - 0.3 * t)))
-    ps.append(loft("head", rings, color, segs=16, arc=(180, 360), caps=False, double=True, rough=0.7))
+    ps.append(loft("head", rings, color, segs=16, arc=(180, 360), caps=False, double=True, rough=0.45, tex="none"))
     for side in (1, -1):
         for k in range(3):
             x0 = (0.09 + 0.02 * k) * side
             pts = [(x0, 1.86 - 0.03 * k, 0.02 - 0.04 * k), (x0 + 0.06 * side, 1.6, -0.02 - 0.04 * k), (x0 + 0.04 * side, length_y + 0.12, -0.05 - 0.03 * k)]
-            ps.append(tube("head", pts, 0.035, 0.012, color, smooth=True, steps=8, segs=8, squash=0.7, rough=0.7))
+            ps.append(tube("head", pts, 0.035, 0.012, color, smooth=True, steps=8, segs=8, squash=0.7, rough=0.45, tex="none"))
     # 背中の波うつ房
     for k in range(-2, 3):
         x0 = 0.05 * k
         ps.append(tube("head", [(x0, 1.8, -0.1), (x0 * 1.3 + 0.03, 1.45, -0.17), (x0 * 1.4, length_y + 0.05, -0.14)], 0.04, 0.015, color,
-                       smooth=True, steps=8, segs=8, squash=0.6, rough=0.7))
+                       smooth=True, steps=8, segs=8, squash=0.6, rough=0.45, tex="none"))
     # 前髪
     for k in range(-3, 4):
         ps.append(tube("head", [(0.03 * k, 1.97, 0.06), (0.032 * k, 1.93, 0.12), (0.03 * k, 1.875, 0.135)], 0.025, 0.006, color,
-                       smooth=True, steps=4, segs=6, squash=0.6, rough=0.7))
+                       smooth=True, steps=4, segs=6, squash=0.6, rough=0.45, tex="none"))
     return ps
 
 
@@ -571,17 +677,22 @@ def mage():
         parts.append(sph("spine05", (rx * math.cos(a) * 1.01, y, rx * 0.91 * math.sin(a) * 1.01), 0.008, "#f2d675", segs=6, emission=0.8, tex="none"))
     # 左手のつえ
     parts += staff("lowerarm02.L", WRIST_L[0] + 0.03, WRIST_L[2] + 0.02, PUR_D, top_y=1.95)
+    parts += thin_brows("#6d6290") + eye_liner() + anime_eyes("#8b5fd0")
     return {
         "name": "魔法使い",
+        "morphs": female_morphs(bust=0.8, hips=1.0),
+        "bones": dict(FEMALE_BONES),
+        "flat_skin": True,
+        "tint_eyebrow004": "#8d84ad",
         "ref": "docs/ref/chars/IMG_0400.jpeg",
         "attack_anim": "Spell",
         "height": 1.0,
-        "keep": ["eyebrow004", "eyelashes01", "low-poly"],
+        "keep": ["eyelashes01", "low-poly"],
         "skin": "#ffe9dc",
         "head_scale": 1.12,
         "bulk": {"neck": 0.82, "chest": [0.86, 0.86], "belly": [0.8, 0.8], "hips": [1.0, 1.0],
                  "upperarm": 0.78, "forearm": 0.78, "hand": 0.9, "thigh": 0.88, "shin": 0.82},
-        "paint": [
+        "paint": smooth_face("#ffe9dc") + lips("#d98a94") + [
             # ドレスの胴（明るい紫の前、ひもは濃い紫）と、肩から上は肌
             region(PUR, groups=["chest", "belly", "hips", "upperarm"], rough=0.75),
             region(LAV, groups=["chest", "belly"], nz=[0.35, 1.0], x_abs=[0.0, 0.1], y=[1.1, 1.53]),
@@ -683,6 +794,7 @@ def guardian():
     parts.append(extrude("lowerarm01.L", add(sc, [0.006, 0.0, 0.034]), circle2d(0.05, 12, 1.0, 1.2), 0.02, "#a8812e", rot=(0, 15, 0), metallic=0.8))
     return {
         "name": "アーマー",
+        "bones": {"thigh": 0.76, "shin": 0.72, "@clavicle": [1.2, 1, 1], "@root": [1.15, 1, 1], "upperarm": 0.88, "forearm": 0.88, "neck": 0.6, "belly": 0.95, "hand": 1.1},
         "idle_speed": 0.8,
         "attack_speed": 1.3,
         "ref": "docs/ref/chars/IMG_0401.jpeg",
@@ -788,6 +900,7 @@ def summoner():
     parts += bunny("spine01", (0.0, 1.4, 0.29), "#f4efe9", "#f2b6c6", "#e46a9a", scale=1.4)
     return {
         "name": "おもちゃの兵隊",
+        "bones": {"thigh": 1.06, "shin": 1.06, "neck": 1.05, "@clavicle": [0.95, 1, 1]},
         # 版78：呼び出すぬいぐるみ部隊の形（くま・うさぎ・青いリボンのくま）。足もとが 0
         "units": {"plush": {"scale": 2.4, "variants": [
             teddy("root", (0, 0.1, 0), "#7a5232", "#2f5fb0", scale=1.4),
@@ -829,7 +942,7 @@ def healer():
     CREAM = "#efe6da"
     GOLD = "#d8ae4a"
     RED = "#d9505a"
-    HAIR = "#d8c49a"
+    HAIR = "#cfa967"
     parts = long_hair(HAIR, length_y=1.08, width=0.15)
     # 天使の輪（光る金）と、頭の小さな羽・白い花
     parts.append(torus("head", (0, 2.08, 0.0), 0.09, 0.008, "#ffd56a", segs=20, emission=1.6, tex="none"))
@@ -837,14 +950,8 @@ def healer():
         parts.append(extrude("head", (0.1 * sx, 1.93, 0.0), [[p[0] * sx, p[1]] for p in wing2d(0.09)], 0.01, WHITE, rot=(0, 0, 0)))
     parts.append(sph("head", (0.1, 1.9, 0.07), 0.026, WHITE, squash=(1, 1, 0.5), segs=8))
     parts.append(sph("head", (0.1, 1.9, 0.085), 0.01, "#f2c94c", segs=6))
-    # 版78：顔の仮面（目をおおう白い仮面、金のふち、両はしに小さな羽）
-    mask = [[-0.1, 0.0], [-0.085, 0.022], [-0.05, 0.03], [-0.015, 0.018], [0.0, 0.008], [0.015, 0.018], [0.05, 0.03], [0.085, 0.022],
-            [0.1, 0.0], [0.08, -0.02], [0.045, -0.026], [0.012, -0.012], [0.0, -0.022], [-0.012, -0.012], [-0.045, -0.026], [-0.08, -0.02]]
-    parts.append(extrude("head", (0, 1.855, 0.143), [[x * 1.18, y * 1.2] for x, y in mask], 0.012, GOLD, rot=(-6, 0, 0), metallic=0.7, rough=0.35))
-    parts.append(extrude("head", (0, 1.855, 0.15), mask, 0.012, WHITE, rot=(-6, 0, 0), rough=0.4))
-    for sx in (1, -1):
-        parts.append(sph("head", (0.055 * sx, 1.857, 0.157), 0.012, "#2a1a20", squash=(1.4, 0.8, 0.4), segs=8))
-        parts.append(extrude("head", (0.115 * sx, 1.87, 0.11), [[p[0] * sx, p[1]] for p in wing2d(0.07)], 0.008, WHITE, rot=(0, 30 * sx, 0)))
+    # 版79：目のあいた仮面（白・金のふち・両はしに羽）と、女性の顔（細いまゆ・アイライン・大きなひとみ）
+    parts += thin_brows("#b8995a", lift=0.004) + eye_liner("#5a3a28") + anime_eyes("#b07a45", size=0.95) + masquerade(WHITE, GOLD)
     # 背中の大きな白い羽（左右。羽根の形を3枚重ねる）
     for sx in (1, -1):
         for k, (sc, dy, dz) in enumerate([(0.55, 0.0, -0.17), (0.45, -0.05, -0.19), (0.34, -0.1, -0.21)]):
@@ -888,13 +995,16 @@ def healer():
         "name": "エンジェル",
         "ref": "docs/ref/chars/IMG_0405.jpeg",
         "attack_anim": "Spell",
-        "height": 1.0,
-        "keep": ["eyebrow004", "eyelashes01", "low-poly"],
+        "height": 0.95,
+        "keep": ["eyelashes01", "low-poly"],
         "skin": "#fff0e6",
+        "morphs": female_morphs(bust=0.9, hips=1.0, eyes=1.45),
+        "bones": dict(FEMALE_BONES),
+        "flat_skin": True,
         "head_scale": 1.14,
         "bulk": {"neck": 0.8, "chest": [0.86, 0.86], "belly": [0.8, 0.8], "hips": [0.98, 0.98],
                  "upperarm": 0.76, "forearm": 0.76, "hand": 0.88, "thigh": 0.88, "shin": 0.8},
-        "paint": [
+        "paint": smooth_face("#fff0e6") + lips("#e29aa0") + [
             # 胸までの白いドレス（肩は出す）・金のふち・白いニーハイ
             region(WHITE, groups=["chest", "belly", "hips"], rough=0.8),
             region("skin", groups=["chest", "neck", "upperarm"], y=[1.55, 1.8]),
@@ -962,6 +1072,8 @@ def main():
             c["built_anims"] = ca
             for key in ca:
                 c["animations"][key] = key
+            for key, an in anim_overrides().get(c["id"], {}).items():
+                c["animations"][key] = an
             # 自然に見える速さ：走りの動きは、移動の速さに合わせる（剣士：7.0m/秒で 1.1倍、体の大きさでも変える）。
             # 重いキャラはゆっくり待ち、軽いキャラは速く待つ（idle_speed）
             mv = float(c["stats"]["move_speed"])

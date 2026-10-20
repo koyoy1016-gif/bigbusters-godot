@@ -36,6 +36,7 @@ func setup(def: Dictionary) -> bool:
 		player = build_library_player(model, str(def["anim_library"]))
 	if player == null and bool(def.get("procedural_anims", false)):
 		player = ProceduralAnims.build_player(model, ProceduralAnims.load_config())
+	_fit_root_height(model, player)
 	build_retimed(player, def)
 	fix_materials(model, def)
 	# 2026-10-20：見た目のデータ（data/character_looks.json）があれば、体格・服・部品を作る（body_builder.gd）
@@ -259,6 +260,8 @@ static func fix_materials(node: Node, def: Dictionary) -> int:
 				var mat := mi.mesh.surface_get_material(i) as StandardMaterial3D
 				if mat == null:
 					continue
+				if mat.vertex_color_use_as_albedo:
+					continue  # 版79：まとめた部品（Items）は、両面などの設定をそのまま使う（前は片面にしてしまい、つば・マントの裏が消えた）
 				var nm := mat.resource_name.to_lower()
 				var cut := false
 				for k in keywords:
@@ -338,6 +341,33 @@ static func build_library_player(model: Node, path: String) -> AnimationPlayer:
 	p.root_node = NodePath("..")
 	p.add_animation_library("", lib)
 	return p
+
+
+## 版79：骨の長さを変えたキャラ（モデルの骨に印 root_y_scale）は、動きの腰の高さ（root の位置の線）を、その倍率にする。
+## 動きの集まりはほかのキャラと共有なので、写してから変える
+static func _fit_root_height(model: Node, p: AnimationPlayer) -> void:
+	if p == null:
+		return
+	var sks := model.find_children("*", "Skeleton3D", true, false)
+	if sks.is_empty() or not (sks[0] as Node).has_meta("root_y_scale"):
+		return
+	var k := float((sks[0] as Node).get_meta("root_y_scale"))
+	if absf(k - 1.0) < 0.001:
+		return
+	var src: AnimationLibrary = p.get_animation_library("")
+	if src == null:
+		return
+	var lib := AnimationLibrary.new()
+	for nm in src.get_animation_list():
+		var a := (src.get_animation(nm) as Animation).duplicate(true) as Animation
+		for ti in a.get_track_count():
+			if a.track_get_type(ti) == Animation.TYPE_POSITION_3D and str(a.track_get_path(ti)).ends_with(":root"):
+				for ki in a.track_get_key_count(ti):
+					var v: Vector3 = a.track_get_key_value(ti, ki)
+					a.track_set_key_value(ti, ki, Vector3(v.x, v.y * k, v.z))
+		lib.add_animation(nm, a)
+	p.remove_animation_library("")
+	p.add_animation_library("", lib)
 
 
 ## 版72：def の built_anims（{新しい名前: {from: 元の動き, map, tremble}}）を作って、再生係に足す。足した数を返す

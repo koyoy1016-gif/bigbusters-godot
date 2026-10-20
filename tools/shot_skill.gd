@@ -38,5 +38,5 @@ func _initialize() -> void:
 	for i in 3:
 		await process_frame
 	root.get_texture().get_image().save_png(out)
-	print("SHOT ", out, " hits=", s.my_hits, " active=", s.round_active(), " inv=", s.phase.invulnerable(), " fx=", s.skill_fx_log, " log=", s.skill_log)
+	print("SHOT ", out, " hits=", s.my_hits, " units=", s.skill_summons.map(func(u): return [u["pos"], (u["node"] as Node3D).global_position, (u["node"] as Node3D).get_child_count(), (u["node"] as Node3D).scale, (u["node"] as Node3D).visible]), " boss=", s.boss.position, " gy=", s.ground_y)
 	quit(0)

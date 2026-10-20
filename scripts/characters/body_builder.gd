@@ -5,6 +5,9 @@ extends RefCounted
 ##   2. 塗り（paint）：体の面を、部位・高さなどで選んで、服の色にする（ぴったりした服・肌着）。しま模様もできる
 ##   3. 重ね着（shells）：体の面を少し外へ出した、もう1枚の服（ぶかぶかのズボン・手袋の巻き布など）。骨についていく
 ##   4. 部品（parts）：帽子・武器・盾・羽などの形を、骨に付ける（loft・tube・rod・box・sphere・torus・extrude）
+##   5. 版79：形の変化（morphs）：だ円の範囲の中の形を、大きく・小さく・ずらす（女性の体型・顔、胸、腰など）
+##   6. 版79：骨の長さ（bones）：部位ごとに骨を長く・短くする（脚を長く、胴を短く、ずんぐり、など）。骨の静止の姿勢も変えるので、
+##      動き（回転だけの動き）はそのまま使える。腰の高さが変わる分は、モデルの印 root_y_scale を character_view.gd が動きに当てる
 ## 座標は「モデル座標」（体の前が +Z、上が +Y、キャラの左が +X。体の高さは約1.97）。骨の静止の姿勢（Aポーズ）で書く。
 ## Blender は、この作業環境では使えない（入れられない）。そのため、ここでコードで作る。
 
@@ -87,7 +90,7 @@ static func apply(model: Node, look: Dictionary) -> int:
 	var keys := {}
 	for mi in bodies:
 		var base_mat: Material
-		if str(mi.name) == "Human":
+		if str(mi.name) == "Human" and not bool(look.get("flat_skin", false)):
 			base_mat = _skin_material(mi.mesh.surface_get_material(0), look)
 		else:
 			# もとの体の肌の画像の平均の色（SKIN_TEX_AVG）をかけて、腕・顔の肌と同じ色にそろえる
@@ -95,8 +98,177 @@ static func apply(model: Node, look: Dictionary) -> int:
 			base_mat = _material(sc.to_html(false), 0.0, 0.75, 0.0, "none")
 		mats.append(base_mat)
 		tris += _build_body(mi, sk, rest, tails, look, mats, keys, mats.size() - 1)
-	tris += _attach_parts(sk, rest, look.get("parts", []), float(look.get("head_scale", 1.0)), _head_pivot(sk, rest))
+	# 版79：形の変化（morphs）と骨の長さ（bones）を、体・目・髪などの形に当て、骨の静止の姿勢を変える
+	var new_rest := _scaled_rests(sk, rest, look.get("bones", {}))
+	var morphs: Array = _head_morphs(look.get("morphs", []), float(look.get("head_scale", 1.0)), _head_pivot(sk, rest))
+	for c in sk.get_children():
+		if c is MeshInstance3D:
+			_reshape(c as MeshInstance3D, sk, rest, new_rest, morphs)
+	tris += _attach_parts(sk, rest, look.get("parts", []), float(look.get("head_scale", 1.0)), _head_pivot(sk, rest), morphs)
+	_apply_rests(sk, rest, new_rest)
 	return tris
+
+
+# ---------------------------------------------------------------- 版79：形の変化と骨の長さ
+
+## 顔の形の変化（head: true）は、もとの頭の座標で書く。頭を大きくした分（head_scale）を、ここで合わせる
+static func _head_morphs(morphs: Array, hs: float, piv: Vector3) -> Array:
+	var out: Array = []
+	for mo in morphs:
+		if bool(mo.get("head", false)) and absf(hs - 1.0) > 0.0001:
+			var m2: Dictionary = (mo as Dictionary).duplicate(true)
+			var c := _v3(mo.get("c", [0, 0, 0]))
+			var c2 := piv + (c - piv) * hs
+			m2["c"] = [c2.x, c2.y, c2.z]
+			var r := _v3(mo.get("r", [0.1, 0.1, 0.1])) * hs
+			m2["r"] = [r.x, r.y, r.z]
+			var mv := _v3(mo.get("m", [0, 0, 0])) * hs
+			m2["m"] = [mv.x, mv.y, mv.z]
+			out.append(m2)
+		else:
+			out.append(mo)
+	return out
+
+
+## 形の変化を1点に当てる。morph：{c:[中心], r:[だ円の半径 x,y,z], s:[大きさ x,y,z]（中心から）, m:[ずらす x,y,z], mirror:左右にも}
+static func morph_point(p: Vector3, morphs: Array) -> Vector3:
+	var out := p
+	for mo in morphs:
+		var c := _v3(mo.get("c", [0, 0, 0]))
+		var cs: Array = [c]
+		if bool(mo.get("mirror", false)):
+			cs.append(Vector3(-c.x, c.y, c.z))
+		for k in cs.size():
+			var cc: Vector3 = cs[k]
+			var r := _v3(mo.get("r", [0.1, 0.1, 0.1]))
+			var q := (p - cc) / r
+			var d2 := q.length_squared()
+			if d2 >= 1.0:
+				continue
+			var w := (1.0 - d2) * (1.0 - d2)
+			var sc := _v3(mo.get("s", [1, 1, 1]))
+			var mv := _v3(mo.get("m", [0, 0, 0]))
+			if k == 1:
+				mv.x = -mv.x
+			out += w * ((cc + (p - cc) * sc) - p + mv)
+	return out
+
+
+## 骨の長さを変えた、骨の静止の姿勢（モデルの中）。bones：{部位: 倍率}。骨の「親の部位」の倍率で、親から子までの長さを変える。
+## キーは部位（thigh・shin・upperarm・forearm・hand・foot・neck・chest・belly・hips・hips_out）か、"@骨の名前"（.L/.R なし。例 @clavicle＝肩はば、
+## @root＝骨盤のはば、@pelvis＝股関節の位置）。倍率は数か [x, y, z]（モデルの向きごと：x＝左右、y＝上下、z＝前後）。
+## 腰（root）の高さは、足のうらが床に残るように動かす
+static func _scaled_rests(sk: Skeleton3D, rest: Array, bones: Dictionary) -> Array:
+	if bones.is_empty():
+		return rest
+	var n := sk.get_bone_count()
+	var out: Array = []
+	out.resize(n)
+	for i in n:
+		var p := sk.get_bone_parent(i)
+		var t: Transform3D = rest[i]
+		if p < 0:
+			out[i] = t
+			continue
+		var off := t.origin - (rest[p] as Transform3D).origin
+		var g := group_of(sk.get_bone_name(p))
+		if g == "hips" and group_of(sk.get_bone_name(i)) != "hips":
+			g = "hips_out"  # 腰から胴・脚へ（腰の幅・高さ）
+		var pn := sk.get_bone_name(p).trim_suffix(".L").trim_suffix(".R")
+		var f: Variant = null
+		if bones.has("@" + pn):
+			f = bones["@" + pn]
+		elif bones.has(g):
+			f = bones[g]
+		if f is Array:
+			off = Vector3(off.x * float(f[0]), off.y * float(f[1]), off.z * float(f[2]))
+		elif f != null:
+			off *= float(f)
+		out[i] = Transform3D(t.basis, (out[p] as Transform3D).origin + off)
+	# 足が床に残るように、全体を上下に動かす
+	var foot := sk.find_bone("foot.L")
+	if foot >= 0:
+		var dy := (rest[foot] as Transform3D).origin.y - (out[foot] as Transform3D).origin.y
+		for i in n:
+			var t2: Transform3D = out[i]
+			t2.origin.y += dy
+			out[i] = t2
+	return out
+
+
+## 形 mi の頂点を、形の変化（old の座標で）→ 骨の長さの変化（骨ごとに old→new へ動かして、重みでまぜる）の順に動かす
+static func _reshape(mi: MeshInstance3D, sk: Skeleton3D, old: Array, new: Array, morphs: Array) -> void:
+	if mi.mesh == null:
+		return
+	var same := new == old
+	if same and morphs.is_empty():
+		return
+	var bind := _bind_bones(mi, sk)
+	var moves: Array = []
+	moves.resize(sk.get_bone_count())
+	for i in sk.get_bone_count():
+		moves[i] = (new[i] as Transform3D) * (old[i] as Transform3D).affine_inverse()
+	var src := mi.mesh
+	var out := ArrayMesh.new()
+	for s in src.get_surface_count():
+		var arr := src.surface_get_arrays(s)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var nr: PackedVector3Array = arr[Mesh.ARRAY_NORMAL] if arr[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+		var bo: PackedInt32Array = arr[Mesh.ARRAY_BONES] if arr[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+		var we: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS] if arr[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+		for i in v.size():
+			var p := morph_point(v[i], morphs)
+			if not same and bo.size() >= (i + 1) * 4:
+				var q := Vector3.ZERO
+				var nn := Vector3.ZERO
+				var tw := 0.0
+				for k in 4:
+					var w := we[i * 4 + k]
+					var bi := bind[bo[i * 4 + k]] if bo[i * 4 + k] < bind.size() else -1
+					if w <= 0.0 or bi < 0:
+						continue
+					var mvt: Transform3D = moves[bi]
+					q += w * (mvt * p)
+					if i < nr.size():
+						nn += w * (mvt.basis * nr[i])
+					tw += w
+				if tw > 0.0:
+					p = q / tw
+					if i < nr.size() and nn.length() > 0.0001:
+						nr[i] = nn.normalized()
+			v[i] = p
+		arr[Mesh.ARRAY_VERTEX] = v
+		if nr.size() > 0:
+			arr[Mesh.ARRAY_NORMAL] = nr
+		var fmt: int = src.surface_get_format(s)
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, fmt & (Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS))
+		out.surface_set_material(s, src.surface_get_material(s))
+	mi.mesh = out
+	# 骨の静止の姿勢が変わるので、スキン（骨と形の結びつき）も、新しい姿勢に合わせる
+	if not same and mi.skin != null:
+		var sk2 := mi.skin.duplicate() as Skin
+		for b in sk2.get_bind_count():
+			var bi := bind[b] if b < bind.size() else -1
+			if bi < 0:
+				continue
+			sk2.set_bind_pose(b, ((new[bi] as Transform3D).affine_inverse() * (old[bi] as Transform3D)) * sk2.get_bind_pose(b))
+		mi.skin = sk2
+
+
+## 骨の静止の姿勢を、新しい物にする。腰の高さの倍率を、モデルの印 root_y_scale に書く（動きの腰の高さに使う）
+static func _apply_rests(sk: Skeleton3D, old: Array, new: Array) -> void:
+	if new == old:
+		return
+	var n := sk.get_bone_count()
+	for i in n:
+		var p := sk.get_bone_parent(i)
+		var loc: Transform3D = (new[p] as Transform3D).affine_inverse() * (new[i] as Transform3D) if p >= 0 else new[i]
+		sk.set_bone_rest(i, loc)
+	sk.reset_bone_poses()
+	var r := sk.find_bone("root")
+	if r >= 0:
+		var oy := (old[r] as Transform3D).origin.y
+		sk.set_meta("root_y_scale", (new[r] as Transform3D).origin.y / oy if oy > 0.01 else 1.0)
 
 
 # ---------------------------------------------------------------- 骨の情報
@@ -535,7 +707,7 @@ static func _tri_count(mesh: Mesh) -> int:
 # ---------------------------------------------------------------- 部品
 
 ## parts を骨に付ける（Item_look_* の BoneAttachment3D。あとで character_view.bake_items が1つにまとめる）。三角形の数を返す
-static func _attach_parts(sk: Skeleton3D, rest: Array, parts: Array, head_scale: float = 1.0, head_pivot: Vector3 = Vector3.ZERO) -> int:
+static func _attach_parts(sk: Skeleton3D, rest: Array, parts: Array, head_scale: float = 1.0, head_pivot: Vector3 = Vector3.ZERO, morphs: Array = []) -> int:
 	var holders := {}
 	var tris := 0
 	var all: Array = []
@@ -565,10 +737,35 @@ static func _attach_parts(sk: Skeleton3D, rest: Array, parts: Array, head_scale:
 		if group_of(bone) == "head" and absf(head_scale - 1.0) > 0.0001:
 			# 頭につく部品（髪・帽子）は、頭の大きさに合わせて、同じ点を中心に大きくする
 			xf = Transform3D(Basis.from_scale(Vector3.ONE * head_scale), head_pivot * (1.0 - head_scale)) * xf
+		if not morphs.is_empty() and not bool(part.get("rigid", false)):
+			# 版79：形の変化を部品にも当てる（服・髪が、体の形についていく）
+			mesh = _morph_mesh(mesh, xf, morphs)
+			xf = Transform3D.IDENTITY
+		mi.mesh = mesh
 		mi.transform = inv * xf
 		(holders[bone] as Node3D).add_child(mi)
 		tris += _tri_count(mesh)
 	return tris
+
+
+## 部品の形を、モデルの座標に置いてから、形の変化を当てる（できた形は、モデルの座標で書かれている）
+static func _morph_mesh(mesh: ArrayMesh, xf: Transform3D, morphs: Array) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for s in mesh.get_surface_count():
+		var arr := mesh.surface_get_arrays(s)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var nr: PackedVector3Array = arr[Mesh.ARRAY_NORMAL] if arr[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+		for i in v.size():
+			v[i] = morph_point(xf * v[i], morphs)
+			if i < nr.size():
+				nr[i] = (xf.basis * nr[i]).normalized()
+		arr[Mesh.ARRAY_VERTEX] = v
+		if nr.size() > 0:
+			arr[Mesh.ARRAY_NORMAL] = nr
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		out.surface_set_material(s, mesh.surface_get_material(s))
+	out.set_meta("part", true)
+	return out
 
 
 ## 左右反対の部品（x の符号を逆に、骨の .L と .R を入れかえる）
@@ -668,7 +865,7 @@ static func make_part_mesh(part: Dictionary) -> ArrayMesh:
 			tm.ring_segments = 6
 			return _from_primitive(tm, mat)
 		"extrude":
-			return _extrude(part.get("points2d", []), float(part.get("depth", 0.02)), mat, float(part.get("bevel", 0.0)))
+			return _extrude(part.get("points2d", []), float(part.get("depth", 0.02)), mat, float(part.get("bevel", 0.0)), float(part.get("bend", 0.0)))
 	return null
 
 
@@ -682,7 +879,8 @@ static func _from_primitive(pm: PrimitiveMesh, mat: Material) -> ArrayMesh:
 
 
 ## 平らな形（多角形）を、厚み depth で押し出す。面は XY、厚みは Z（−depth/2〜+depth/2）。盾・羽根・ハートなど
-static func _extrude(pts2: Array, depth: float, mat: Material, bevel: float) -> ArrayMesh:
+## bend：横に曲げる（z を −bend×x² だけ後ろへ。顔に沿う仮面など）
+static func _extrude(pts2: Array, depth: float, mat: Material, bevel: float, bend: float = 0.0) -> ArrayMesh:
 	var poly := PackedVector2Array()
 	for p in pts2:
 		poly.append(Vector2(float(p[0]), float(p[1])))
@@ -723,6 +921,9 @@ static func _extrude(pts2: Array, depth: float, mat: Material, bevel: float) -> 
 			n.append(out)
 			uv.append(Vector2.ZERO)
 		idx.append_array([base2, base2 + 1, base2 + 2, base2, base2 + 2, base2 + 3])
+	if absf(bend) > 0.0:
+		for i in v.size():
+			v[i].z -= bend * v[i].x * v[i].x
 	var arr := []
 	arr.resize(Mesh.ARRAY_MAX)
 	arr[Mesh.ARRAY_VERTEX] = v

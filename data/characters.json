@@ -143,7 +143,7 @@
       "tri_budget": 15000,
       "model_scale": 2.145,
       "animations": {
-        "idle": "Idle",
+        "idle": "Sprinter_Idle",
         "run": "Sprint",
         "jump": "Jump",
         "attack": "Punch",
@@ -157,7 +157,8 @@
         "Sprinter_A": "Sprinter_A",
         "Sprinter_Y": "Sprinter_Y",
         "Sprinter_X": "Sprinter_X",
-        "Sprinter_Ult": "Sprinter_Ult"
+        "Sprinter_Ult": "Sprinter_Ult",
+        "Sprinter_Idle": "Sprinter_Idle"
       },
       "skill": "ダッシュ",
       "break_power": 1.0,
@@ -543,6 +544,60 @@
             }
           ],
           "blend": 0.03
+        },
+        "Sprinter_Idle": {
+          "segments": [
+            {
+              "anim": "Idle",
+              "from": 0.3,
+              "to": 0.3,
+              "dur": 0.6
+            }
+          ],
+          "loop": true,
+          "blend": 0.0,
+          "root_lift": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              0.15,
+              -0.025
+            ],
+            [
+              0.3,
+              0.0
+            ],
+            [
+              0.45,
+              -0.025
+            ],
+            [
+              0.6,
+              0.0
+            ]
+          ],
+          "offsets": {
+            "spine03": [
+              [
+                0.0,
+                [
+                  10,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.6,
+                [
+                  10,
+                  0,
+                  0
+                ]
+              ]
+            ]
+          }
         }
       }
     },
@@ -559,7 +614,7 @@
       "tri_budget": 15000,
       "model_scale": 2.067,
       "animations": {
-        "idle": "Idle",
+        "idle": "Brawler_Idle",
         "run": "Run",
         "jump": "Jump",
         "attack": "Punch",
@@ -573,7 +628,8 @@
         "Brawler_A": "Brawler_A",
         "Brawler_Y": "Brawler_Y",
         "Brawler_X": "Brawler_X",
-        "Brawler_Ult": "Brawler_Ult"
+        "Brawler_Ult": "Brawler_Ult",
+        "Brawler_Idle": "Brawler_Idle"
       },
       "skill": "ダッシュ",
       "break_power": 2.0,
@@ -1081,6 +1137,68 @@
             ]
           },
           "blend": 0.05
+        },
+        "Brawler_Idle": {
+          "segments": [
+            {
+              "anim": "Punch",
+              "from": 0.03,
+              "to": 0.03,
+              "dur": 0.8
+            }
+          ],
+          "loop": true,
+          "blend": 0.0,
+          "root_lift": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              0.2,
+              -0.035
+            ],
+            [
+              0.4,
+              0.0
+            ],
+            [
+              0.6,
+              -0.035
+            ],
+            [
+              0.8,
+              0.0
+            ]
+          ],
+          "offsets": {
+            "spine03": [
+              [
+                0.0,
+                [
+                  0,
+                  6,
+                  0
+                ]
+              ],
+              [
+                0.4,
+                [
+                  0,
+                  -6,
+                  0
+                ]
+              ],
+              [
+                0.8,
+                [
+                  0,
+                  6,
+                  0
+                ]
+              ]
+            ]
+          }
         }
       }
     },
@@ -1097,7 +1215,7 @@
       "tri_budget": 15000,
       "model_scale": 2.0865,
       "animations": {
-        "idle": "Idle",
+        "idle": "Gunner_Idle",
         "run": "Run",
         "jump": "Jump",
         "attack": "Spell",
@@ -1111,7 +1229,8 @@
         "Gunner_A": "Gunner_A",
         "Gunner_Y": "Gunner_Y",
         "Gunner_X": "Gunner_X",
-        "Gunner_Ult": "Gunner_Ult"
+        "Gunner_Ult": "Gunner_Ult",
+        "Gunner_Idle": "Gunner_Idle"
       },
       "skill": "射撃",
       "break_power": 1.0,
@@ -1441,6 +1560,108 @@
             ]
           },
           "blend": 0.08
+        },
+        "Gunner_Idle": {
+          "segments": [
+            {
+              "anim": "Idle",
+              "from": 0.3,
+              "to": 0.3,
+              "dur": 2.6
+            }
+          ],
+          "loop": true,
+          "aim": {
+            "upperarm01*": [
+              [
+                0.0,
+                [
+                  0.25,
+                  -0.85,
+                  0.45
+                ],
+                1.0
+              ]
+            ],
+            "lowerarm01*": [
+              [
+                0.0,
+                [
+                  0.12,
+                  -0.55,
+                  0.82
+                ],
+                1.0
+              ]
+            ]
+          },
+          "offsets": {
+            "spine01": [
+              [
+                0.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.65,
+                [
+                  1.5,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1.3,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1.9500000000000002,
+                [
+                  1.5,
+                  0,
+                  0
+                ]
+              ],
+              [
+                2.6,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "root_lift": [
+            [
+              0.0,
+              -0.004
+            ],
+            [
+              0.65,
+              0.004
+            ],
+            [
+              1.3,
+              -0.004
+            ],
+            [
+              1.9500000000000002,
+              0.004
+            ],
+            [
+              2.6,
+              -0.004
+            ]
+          ],
+          "blend": 0.0
         }
       }
     },
@@ -1457,7 +1678,7 @@
       "tri_budget": 15000,
       "model_scale": 2.028,
       "animations": {
-        "idle": "Idle",
+        "idle": "Bomber_Idle",
         "run": "Run",
         "jump": "Jump",
         "attack": "Punch",
@@ -1471,7 +1692,8 @@
         "Bomber_A": "Bomber_A",
         "Bomber_Y": "Bomber_Y",
         "Bomber_X": "Bomber_X",
-        "Bomber_Ult": "Bomber_Ult"
+        "Bomber_Ult": "Bomber_Ult",
+        "Bomber_Idle": "Bomber_Idle"
       },
       "skill": "投げ",
       "break_power": 2.0,
@@ -1825,6 +2047,178 @@
             ]
           ],
           "blend": 0.05
+        },
+        "Bomber_Idle": {
+          "segments": [
+            {
+              "anim": "Walk",
+              "from": 0.36,
+              "to": 0.36,
+              "dur": 1.0
+            }
+          ],
+          "loop": true,
+          "aim": {
+            "upperarm01*": [
+              [
+                0.0,
+                [
+                  0.5,
+                  -0.75,
+                  0.35
+                ],
+                1.0
+              ]
+            ],
+            "lowerarm01*": [
+              [
+                0.0,
+                [
+                  0.45,
+                  -0.1,
+                  0.9
+                ],
+                1.0
+              ]
+            ],
+            "upperleg01.L": [
+              [
+                0.0,
+                [
+                  0.03,
+                  -1.0,
+                  0.0
+                ],
+                1.0
+              ]
+            ],
+            "lowerleg01.L": [
+              [
+                0.0,
+                [
+                  0.02,
+                  -1.0,
+                  -0.03
+                ],
+                1.0
+              ]
+            ],
+            "upperleg01.R": [
+              [
+                0.0,
+                [
+                  -0.03,
+                  -1.0,
+                  0.0
+                ],
+                1.0
+              ]
+            ],
+            "lowerleg01.R": [
+              [
+                0.0,
+                [
+                  -0.02,
+                  -1.0,
+                  -0.03
+                ],
+                1.0
+              ]
+            ]
+          },
+          "offsets": {
+            "spine01": [
+              [
+                0.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.25,
+                [
+                  2.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.5,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.75,
+                [
+                  2.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ]
+            ],
+            "spine03": [
+              [
+                0.0,
+                [
+                  0,
+                  0,
+                  5
+                ]
+              ],
+              [
+                0.5,
+                [
+                  0,
+                  0,
+                  -5
+                ]
+              ],
+              [
+                1.0,
+                [
+                  0,
+                  0,
+                  5
+                ]
+              ]
+            ]
+          },
+          "root_lift": [
+            [
+              0.0,
+              0.0
+            ],
+            [
+              0.25,
+              0.045
+            ],
+            [
+              0.5,
+              0.0
+            ],
+            [
+              0.75,
+              0.045
+            ],
+            [
+              1.0,
+              0.0
+            ]
+          ],
+          "blend": 0.0
         }
       }
     },
@@ -1841,7 +2235,7 @@
       "tri_budget": 15000,
       "model_scale": 1.95,
       "animations": {
-        "idle": "Idle",
+        "idle": "Mage_Idle",
         "run": "Run",
         "jump": "Jump",
         "attack": "Spell",
@@ -1855,7 +2249,8 @@
         "Mage_A": "Mage_A",
         "Mage_Y": "Mage_Y",
         "Mage_X": "Mage_X",
-        "Mage_Ult": "Mage_Ult"
+        "Mage_Ult": "Mage_Ult",
+        "Mage_Idle": "Mage_Idle"
       },
       "skill": "魔法",
       "break_power": 1.0,
@@ -2537,6 +2932,192 @@
               0.0
             ]
           ]
+        },
+        "Mage_Idle": {
+          "segments": [
+            {
+              "anim": "Walk",
+              "from": 0.36,
+              "to": 0.36,
+              "dur": 3.0
+            }
+          ],
+          "loop": true,
+          "aim": {
+            "upperarm01.L": [
+              [
+                0.0,
+                [
+                  0.42,
+                  -0.9,
+                  0.08
+                ],
+                1.0
+              ]
+            ],
+            "lowerarm01.L": [
+              [
+                0.0,
+                [
+                  0.45,
+                  -0.42,
+                  0.78
+                ],
+                1.0
+              ]
+            ],
+            "upperarm01.R": [
+              [
+                0.0,
+                [
+                  -0.12,
+                  -1.0,
+                  0.15
+                ],
+                1.0
+              ]
+            ],
+            "lowerarm01.R": [
+              [
+                0.0,
+                [
+                  0.55,
+                  -0.15,
+                  0.82
+                ],
+                1.0
+              ]
+            ],
+            "upperleg01.L": [
+              [
+                0.0,
+                [
+                  -0.02,
+                  -1.0,
+                  0.06
+                ],
+                1.0
+              ]
+            ],
+            "lowerleg01.L": [
+              [
+                0.0,
+                [
+                  0.0,
+                  -1.0,
+                  -0.12
+                ],
+                1.0
+              ]
+            ],
+            "upperleg01.R": [
+              [
+                0.0,
+                [
+                  -0.04,
+                  -1.0,
+                  -0.01
+                ],
+                1.0
+              ]
+            ],
+            "lowerleg01.R": [
+              [
+                0.0,
+                [
+                  -0.03,
+                  -1.0,
+                  -0.02
+                ],
+                1.0
+              ]
+            ]
+          },
+          "offsets": {
+            "spine01": [
+              [
+                0.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.75,
+                [
+                  1.5,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1.5,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                2.25,
+                [
+                  1.5,
+                  0,
+                  0
+                ]
+              ],
+              [
+                3.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ]
+            ],
+            "spine03": [
+              [
+                0.0,
+                [
+                  0,
+                  0,
+                  -3
+                ]
+              ],
+              [
+                3.0,
+                [
+                  0,
+                  0,
+                  -3
+                ]
+              ]
+            ]
+          },
+          "root_lift": [
+            [
+              0.0,
+              -0.002
+            ],
+            [
+              0.75,
+              0.002
+            ],
+            [
+              1.5,
+              -0.002
+            ],
+            [
+              2.25,
+              0.002
+            ],
+            [
+              3.0,
+              -0.002
+            ]
+          ],
+          "blend": 0.0
         }
       }
     },
@@ -2553,7 +3134,7 @@
       "tri_budget": 15000,
       "model_scale": 1.911,
       "animations": {
-        "idle": "Idle",
+        "idle": "Guardian_Idle",
         "run": "Run",
         "jump": "Jump",
         "attack": "Sword_Attack",
@@ -2567,7 +3148,8 @@
         "Guardian_A": "Guardian_A",
         "Guardian_Y": "Guardian_Y",
         "Guardian_X": "Guardian_X",
-        "Guardian_Ult": "Guardian_Ult"
+        "Guardian_Ult": "Guardian_Ult",
+        "Guardian_Idle": "Guardian_Idle"
       },
       "skill": "バリア",
       "break_power": 3.0,
@@ -2960,6 +3542,108 @@
             ]
           ],
           "blend": 0.05
+        },
+        "Guardian_Idle": {
+          "segments": [
+            {
+              "anim": "Idle",
+              "from": 0.3,
+              "to": 0.3,
+              "dur": 3.2
+            }
+          ],
+          "loop": true,
+          "aim": {
+            "upperarm01.L": [
+              [
+                0.0,
+                [
+                  0.25,
+                  -0.35,
+                  0.9
+                ],
+                1.0
+              ]
+            ],
+            "lowerarm01.L": [
+              [
+                0.0,
+                [
+                  0.05,
+                  0.2,
+                  1.0
+                ],
+                1.0
+              ]
+            ]
+          },
+          "offsets": {
+            "spine01": [
+              [
+                0.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.8,
+                [
+                  2.5,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1.6,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                2.4000000000000004,
+                [
+                  2.5,
+                  0,
+                  0
+                ]
+              ],
+              [
+                3.2,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "root_lift": [
+            [
+              0.0,
+              -0.006
+            ],
+            [
+              0.8,
+              0.006
+            ],
+            [
+              1.6,
+              -0.006
+            ],
+            [
+              2.4000000000000004,
+              0.006
+            ],
+            [
+              3.2,
+              -0.006
+            ]
+          ],
+          "blend": 0.0
         }
       }
     },
@@ -2976,7 +3660,7 @@
       "tri_budget": 15000,
       "model_scale": 2.0865,
       "animations": {
-        "idle": "Idle",
+        "idle": "Toy_Idle",
         "run": "Run",
         "jump": "Jump",
         "attack": "Spell",
@@ -2990,7 +3674,8 @@
         "Toy_A": "Toy_A",
         "Toy_Y": "Toy_Y",
         "Toy_X": "Toy_X",
-        "Toy_Ult": "Toy_Ult"
+        "Toy_Ult": "Toy_Ult",
+        "Toy_Idle": "Toy_Idle"
       },
       "skill": "召喚",
       "break_power": 1.0,
@@ -3472,6 +4157,152 @@
               0.0
             ]
           ]
+        },
+        "Toy_Idle": {
+          "segments": [
+            {
+              "anim": "Walk",
+              "from": 0.36,
+              "to": 0.36,
+              "dur": 2.0
+            }
+          ],
+          "loop": true,
+          "aim": {
+            "upperarm01*": [
+              [
+                0.0,
+                [
+                  0.12,
+                  -1.0,
+                  0.25
+                ],
+                1.0
+              ]
+            ],
+            "lowerarm01*": [
+              [
+                0.0,
+                [
+                  -0.55,
+                  0.12,
+                  0.83
+                ],
+                1.0
+              ]
+            ],
+            "upperleg01.L": [
+              [
+                0.0,
+                [
+                  0.03,
+                  -1.0,
+                  0.0
+                ],
+                1.0
+              ]
+            ],
+            "lowerleg01.L": [
+              [
+                0.0,
+                [
+                  0.02,
+                  -1.0,
+                  -0.03
+                ],
+                1.0
+              ]
+            ],
+            "upperleg01.R": [
+              [
+                0.0,
+                [
+                  -0.03,
+                  -1.0,
+                  0.0
+                ],
+                1.0
+              ]
+            ],
+            "lowerleg01.R": [
+              [
+                0.0,
+                [
+                  -0.02,
+                  -1.0,
+                  -0.03
+                ],
+                1.0
+              ]
+            ]
+          },
+          "offsets": {
+            "spine01": [
+              [
+                0.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.5,
+                [
+                  1.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1.5,
+                [
+                  1.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                2.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "root_lift": [
+            [
+              0.0,
+              -0.002
+            ],
+            [
+              0.5,
+              0.002
+            ],
+            [
+              1.0,
+              -0.002
+            ],
+            [
+              1.5,
+              0.002
+            ],
+            [
+              2.0,
+              -0.002
+            ]
+          ],
+          "blend": 0.0
         }
       }
     },
@@ -3486,9 +4317,9 @@
       "model": "res://assets/models/chars/healer.scn",
       "heads_tall": 7.5,
       "tri_budget": 15000,
-      "model_scale": 1.95,
+      "model_scale": 1.8525,
       "animations": {
-        "idle": "Idle",
+        "idle": "Angel_Idle",
         "run": "Run",
         "jump": "Jump",
         "attack": "Spell",
@@ -3502,7 +4333,8 @@
         "Angel_A": "Angel_A",
         "Angel_Y": "Angel_Y",
         "Angel_X": "Angel_X",
-        "Angel_Ult": "Angel_Ult"
+        "Angel_Ult": "Angel_Ult",
+        "Angel_Idle": "Angel_Idle"
       },
       "skill": "回復",
       "break_power": 1.0,
@@ -3520,7 +4352,7 @@
         "attack"
       ],
       "anim_speeds": {
-        "run": 0.943,
+        "run": 0.992,
         "idle": 1.0,
         "attack": 1.6
       },
@@ -4096,6 +4928,166 @@
               0.0
             ]
           ]
+        },
+        "Angel_Idle": {
+          "segments": [
+            {
+              "anim": "Walk",
+              "from": 0.36,
+              "to": 0.36,
+              "dur": 3.0
+            }
+          ],
+          "loop": true,
+          "aim": {
+            "upperarm01.L": [
+              [
+                0.0,
+                [
+                  0.3,
+                  -0.9,
+                  0.2
+                ],
+                1.0
+              ]
+            ],
+            "lowerarm01.L": [
+              [
+                0.0,
+                [
+                  0.25,
+                  -0.7,
+                  0.65
+                ],
+                1.0
+              ]
+            ],
+            "upperarm01.R": [
+              [
+                0.0,
+                [
+                  -0.25,
+                  -0.95,
+                  0.15
+                ],
+                1.0
+              ]
+            ],
+            "lowerarm01.R": [
+              [
+                0.0,
+                [
+                  -0.2,
+                  -0.6,
+                  0.75
+                ],
+                1.0
+              ]
+            ],
+            "upperleg01.L": [
+              [
+                0.0,
+                [
+                  0.03,
+                  -1.0,
+                  0.1
+                ],
+                1.0
+              ]
+            ],
+            "lowerleg01.L": [
+              [
+                0.0,
+                [
+                  0.0,
+                  -0.9,
+                  -0.45
+                ],
+                1.0
+              ]
+            ],
+            "upperleg01.R": [
+              [
+                0.0,
+                [
+                  -0.04,
+                  -1.0,
+                  0.02
+                ],
+                1.0
+              ]
+            ],
+            "lowerleg01.R": [
+              [
+                0.0,
+                [
+                  -0.02,
+                  -1.0,
+                  -0.1
+                ],
+                1.0
+              ]
+            ]
+          },
+          "offsets": {
+            "spine01": [
+              [
+                0.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                0.75,
+                [
+                  1.5,
+                  0,
+                  0
+                ]
+              ],
+              [
+                1.5,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ],
+              [
+                2.25,
+                [
+                  1.5,
+                  0,
+                  0
+                ]
+              ],
+              [
+                3.0,
+                [
+                  0.0,
+                  0,
+                  0
+                ]
+              ]
+            ]
+          },
+          "root_lift": [
+            [
+              0.0,
+              0.12
+            ],
+            [
+              1.5,
+              0.18
+            ],
+            [
+              3.0,
+              0.12
+            ]
+          ],
+          "blend": 0.0
         }
       }
     }

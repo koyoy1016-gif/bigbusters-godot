@@ -26,7 +26,9 @@ func _initialize() -> void:
 		var lod_tris := 0
 		for mi in model.find_children("*", "MeshInstance3D", true, false):
 			var m := mi as MeshInstance3D
-			m.mesh = _with_lods(m.mesh)
+			# 版79：部品をまとめた形（Items）は、細い物（帽子のつば・まゆ・ひとみ）が消えるので、軽い形（LOD）を作らない
+			if str(m.name) != "Items" and OS.get_environment("NOLOD") == "":
+				m.mesh = _with_lods(m.mesh)
 			lod_tris += _tris(m.mesh)
 		model.set_meta("look_baked", str(id))
 		model.scene_file_path = ""

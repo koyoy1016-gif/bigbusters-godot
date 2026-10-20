@@ -416,12 +416,90 @@ def anim_keys(anims):
     return {k: k for k in anims}
 
 
+# ------------------------------------------------------------------ 版79：キャラごとの待ちの姿勢（くり返す）
+DOWN_L = [0.08, -1.0, 0.04]
+LEG_STRAIGHT = {"upperleg01.L": [[0.0, [0.03, -1.0, 0.0], 1.0]], "lowerleg01.L": [[0.0, [0.02, -1.0, -0.03], 1.0]],
+                "upperleg01.R": [[0.0, [-0.03, -1.0, 0.0], 1.0]], "lowerleg01.R": [[0.0, [-0.02, -1.0, -0.03], 1.0]]}
+
+
+def breathe(period=2.4, amp=2.0, bob=0.006, extra=None):
+    """息をする：胸が少し上下し、体が少し上下する（くり返しの1周 period 秒）"""
+    n = 4
+    spine = [[period * i / n, [amp * (1 if i % 2 else 0), 0, 0]] for i in range(n + 1)]
+    lift = [[period * i / n, bob * (1 if i % 2 else 0) - bob * 0.5] for i in range(n + 1)]
+    d = {"offsets": {"spine01": spine}, "root_lift": lift}
+    if extra:
+        d["offsets"].update(extra)
+    return d
+
+
+def idle_anim(base, period, aim, offsets=None, lift=None, amp=2.0, bob=0.006):
+    b = breathe(period, amp, bob, offsets)
+    spec = {"segments": [hold(base[0], base[1], period)], "loop": True, "aim": aim, "offsets": b["offsets"], "root_lift": lift or b["root_lift"],
+            "blend": 0.0}
+    return spec
+
+
+def idles():
+    W = ("Walk", 0.36)
+    out = {}
+    # ファイター：ボクシングの構えで、軽く弾む
+    out["brawler"] = {"Brawler_Idle": {"segments": [hold("Punch", 0.03, 0.8)], "loop": True, "blend": 0.0,
+                                       "root_lift": [[0.0, 0.0], [0.2, -0.035], [0.4, 0.0], [0.6, -0.035], [0.8, 0.0]],
+                                       "offsets": {"spine03": [[0.0, [0, 6, 0]], [0.4, [0, -6, 0]], [0.8, [0, 6, 0]]]}}}
+    # スピードファイター：前かがみで、つま先で小きざみに弾む（走り出す前）
+    out["sprinter"] = {"Sprinter_Idle": {"segments": [hold("Idle", 0.3, 0.6)], "loop": True, "blend": 0.0,
+                                         "root_lift": [[0.0, 0.0], [0.15, -0.025], [0.3, 0.0], [0.45, -0.025], [0.6, 0.0]],
+                                         "offsets": {"spine03": [[0.0, [10, 0, 0]], [0.6, [10, 0, 0]]]}}}
+    # ガンナー：足を開いて立ち、両腕の大砲を、少し下に向けて前に構える
+    gun = [0.12, -0.55, 0.82]
+    out["gunner"] = {"Gunner_Idle": idle_anim(("Idle", 0.3), 2.6, {"upperarm01*": [[0.0, [0.25, -0.85, 0.45], 1.0]], "lowerarm01*": [[0.0, gun, 1.0]]},
+                                              amp=1.5, bob=0.008)}
+    # ボンバー：プレゼントを両手にかかえて、ぴょこぴょこ弾む（道化）
+    out["bomber"] = {"Bomber_Idle": idle_anim(W, 1.0, dict({"upperarm01*": [[0.0, [0.5, -0.75, 0.35], 1.0]], "lowerarm01*": [[0.0, [0.45, -0.1, 0.9], 1.0]]},
+                                                            **LEG_STRAIGHT),
+                                              offsets={"spine03": [[0.0, [0, 0, 5]], [0.5, [0, 0, -5]], [1.0, [0, 0, 5]]]},
+                                              lift=[[0.0, 0.0], [0.25, 0.045], [0.5, 0.0], [0.75, 0.045], [1.0, 0.0]])}
+    # 魔法使い：すっと立ち、左手でつえを持ち、右手は胸の前（片ひざを少し曲げる）
+    out["mage"] = {"Mage_Idle": idle_anim(W, 3.0, {
+        "upperarm01.L": [[0.0, [0.42, -0.9, 0.08], 1.0]], "lowerarm01.L": [[0.0, [0.45, -0.42, 0.78], 1.0]],
+        "upperarm01.R": [[0.0, [-0.12, -1.0, 0.15], 1.0]], "lowerarm01.R": [[0.0, [0.55, -0.15, 0.82], 1.0]],
+        "upperleg01.L": [[0.0, [-0.02, -1.0, 0.06], 1.0]], "lowerleg01.L": [[0.0, [0.0, -1.0, -0.12], 1.0]],
+        "upperleg01.R": [[0.0, [-0.04, -1.0, -0.01], 1.0]], "lowerleg01.R": [[0.0, [-0.03, -1.0, -0.02], 1.0]]},
+        offsets={"spine03": [[0.0, [0, 0, -3]], [3.0, [0, 0, -3]]]}, amp=1.5, bob=0.004)}
+    # アーマー：足を大きく開き、盾を前に構え、ゆっくり息をする
+    out["guardian"] = {"Guardian_Idle": idle_anim(("Idle", 0.3), 3.2, {"upperarm01.L": [[0.0, [0.25, -0.35, 0.9], 1.0]],
+                                                                       "lowerarm01.L": [[0.0, [0.05, 0.2, 1.0], 1.0]]}, amp=2.5, bob=0.012)}
+    # おもちゃの兵隊：気をつけの姿勢で、ぬいぐるみを胸にだく
+    out["summoner"] = {"Toy_Idle": idle_anim(W, 2.0, dict({"upperarm01*": [[0.0, [0.12, -1.0, 0.25], 1.0]],
+                                                            "lowerarm01*": [[0.0, [-0.55, 0.12, 0.83], 1.0]]}, **LEG_STRAIGHT), amp=1.0, bob=0.004)}
+    # エンジェル：少しうき上がり、片ひざを曲げて、ゆっくり上下する。弓を左手に
+    out["healer"] = {"Angel_Idle": idle_anim(W, 3.0, {
+        "upperarm01.L": [[0.0, [0.3, -0.9, 0.2], 1.0]], "lowerarm01.L": [[0.0, [0.25, -0.7, 0.65], 1.0]],
+        "upperarm01.R": [[0.0, [-0.25, -0.95, 0.15], 1.0]], "lowerarm01.R": [[0.0, [-0.2, -0.6, 0.75], 1.0]],
+        "upperleg01.L": [[0.0, [0.03, -1.0, 0.1], 1.0]], "lowerleg01.L": [[0.0, [0.0, -0.9, -0.45], 1.0]],
+        "upperleg01.R": [[0.0, [-0.04, -1.0, 0.02], 1.0]], "lowerleg01.R": [[0.0, [-0.02, -1.0, -0.1], 1.0]]},
+        lift=[[0.0, 0.12], [1.5, 0.18], [3.0, 0.12]], amp=1.5)}
+    return out
+
+
+IDLE_KEYS = {"brawler": "Brawler_Idle", "sprinter": "Sprinter_Idle", "gunner": "Gunner_Idle", "bomber": "Bomber_Idle", "mage": "Mage_Idle",
+             "guardian": "Guardian_Idle", "summoner": "Toy_Idle", "healer": "Angel_Idle"}
+
+
 def all_anims():
     out = {}
+    idl = idles()
     for cid, f in CHARS.items():
         acts, anims = f()
-        out[cid] = anims
+        out[cid] = dict(anims)
+        out[cid].update(idl.get(cid, {}))
     return out
+
+
+def anim_overrides():
+    """キャラの動作（idle など）を、キャラ専用の動きに置きかえる"""
+    return {cid: {"idle": name} for cid, name in IDLE_KEYS.items()}
 
 
 def total(a, ap):
