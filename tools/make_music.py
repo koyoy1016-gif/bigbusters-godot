@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """版85：BGM を計算で作る（自作・CC0扱い）。32000Hz・ステレオ。ffmpeg で Ogg Vorbis にして assets/audio/bgm/ に書く。
-曲：lobby（ロビー・夕方の街・96BPM）／battle（戦い＝ボスの第1形態・148BPM）／awake（覚醒・164BPM）／win（勝ち・短い）／lose（負け・短い）。
+曲：lobby（ロビー・夕方の街・96BPM）／battle（ボス戦・第1形態・150BPM。版86で作り直し）／awake（覚醒・166BPM）／win（勝ち・短い）／lose（負け・短い）。
 ループする曲は、はみ出した音（余韻）を頭にもどして足すので、つなぎ目が自然。
 使い方: python3 tools/make_music.py   （ffmpeg が必要）"""
 import subprocess
@@ -260,64 +260,168 @@ def lobby():
     return s.render(True, 0.85)
 
 
-# ---------------------------------------------------------------- 戦い（ボスの第1形態）
-def battle(bpm=148, key=50, intense=False):
-    s = Song(bpm, 16, tail=2.0)
-    # i - VI - VII - V を2回、iv - VI - VII - i、VI - VII - V - V
-    rel = [(0, "m"), (-4, "M"), (-2, "M"), (-5, "M"), (0, "m"), (-4, "M"), (-2, "M"), (-5, "M"),
-           (5, "m"), (-4, "M"), (-2, "M"), (0, "m"), (-4, "M"), (-2, "M"), (-5, "M"), (-5, "M")]
-    for bar, (r, kind) in enumerate(rel):
-        root = key + r
-        bnote = root - 12 if root - 12 >= 33 else root
-        # ベース：8分で、オクターブを行き来する
-        for e in range(8):
-            m = bnote + (12 if e % 2 else 0) if not intense else bnote + (12 if e in (3, 7) else 0)
-            f = dist_bass if intense else bass
-            s.add(f(mf(m), 0.45 * s.beat) if intense else bass(mf(m), 0.45 * s.beat, 0.9), s.at(bar, e * 0.5), 0.3 if not intense else 0.26, rev=0.03)
-        # パワーコード：裏拍で切る
-        for e in range(8):
-            if e % 2 == 1 or (intense and e in (0, 4)):
-                for m in chord_notes(root + 12, "5"):
-                    s.add(stab(mf(m), 0.3 * s.beat), s.at(bar, e * 0.5), 0.05, pan=-0.45 if m % 2 else 0.45, rev=0.15)
-        # 太鼓
-        for beat in range(4):
-            s.add(kick(1.0), s.at(bar, beat), 0.55, rev=0.0)
-            if beat in (1, 3):
-                s.add(snare(1.0), s.at(bar, beat), 0.42, pan=0.1, rev=0.3)
-            if intense:
-                s.add(tom(70 if beat % 2 == 0 else 90, 0.9), s.at(bar, beat + 0.5), 0.3, pan=-0.3, rev=0.25)
+# ---------------------------------------------------------------- 戦い（ボス戦）
+# 版86：ボス戦らしく作り直した。ニ短調（覚醒はホ短調）。フリギアの♭2（ミ♭）とナポリの和音（E♭）で、こわさと緊張を出す。
+# 低い弦の16分のきざみ（ずっと続く）・大太鼓（和太鼓のような低い太鼓）・低い金管の「ぶおっ」・暗い合唱・鐘。
+# 24小節のループ：A（8小節：きざみ＋太鼓＋合唱）→ B（8小節：金管の主旋律）→ C（8小節：静かになって、また盛り上がる）
+def brass2(f, dur, bright=1.0):
+    """低い金管：吹きはじめに明るくなり（倍音がふえる）、少しにごらせる"""
+    n = int((dur + 0.22) * SR)
+    t = tt(n)
+    b = 2.0 + (6.0 * bright) * np.clip(t / 0.08, 0, 1) * np.exp(-np.clip(t - 0.08, 0, None) * 2.5) + 2.5 * bright
+    x = np.zeros(n)
+    ph = 2 * np.pi * f * t + (0.006 * f / 5.0) * np.sin(2 * np.pi * 5.0 * t) * np.clip(t / 0.3, 0, 1)
+    for k in range(1, 26):
+        if f * k > SR * 0.45:
+            break
+        x += np.sin(ph * k) * np.exp(-(k - 1) / b) / k ** 0.6
+    x2 = additive(f * 1.003, n, saw_h(10, 1.3)) * 0.25
+    e = adsr(n, 0.025, 0.2, 0.75, 0.18, hold=dur)
+    return np.tanh((x + x2) * 0.9) * e
+
+
+def str_stab(f, dur):
+    """弦のきざみ（短く、少しざらつく）"""
+    n = int((dur + 0.06) * SR)
+    x = additive(f, n, saw_h(14, 1.15), detune=0.004) + additive(f, n, saw_h(14, 1.15), detune=-0.004)
+    x += rng.standard_normal(n) * 0.02 * np.exp(-tt(n) * 60)
+    return x * adsr(n, 0.004, 0.06, 0.55, 0.04, hold=dur)
+
+
+def taiko(f=58, power=1.0, decay=4.5):
+    """和太鼓のような低い太鼓：皮の「どん」＋胴の響き"""
+    n = int(1.1 * SR)
+    t = tt(n)
+    ff = f * (1 + 0.5 * np.exp(-t * 25))
+    body = np.sin(2 * np.pi * np.cumsum(ff) / SR) * np.exp(-t * decay)
+    over = np.sin(2 * np.pi * np.cumsum(ff * 2.3) / SR) * np.exp(-t * decay * 2.2) * 0.3
+    skin = rng.standard_normal(n) * np.exp(-t * 45) * 0.35
+    return np.tanh((body + over + skin) * 1.6) * power
+
+
+def anvil(f=1480, power=1.0):
+    """金属をたたく「かーん」（小節の頭のアクセント）"""
+    n = int(0.9 * SR)
+    t = tt(n)
+    x = sum(np.sin(2 * np.pi * f * r * t) * np.exp(-t * d) * a for r, d, a in [(1.0, 5, 1.0), (2.76, 8, 0.5), (5.4, 14, 0.3), (8.93, 20, 0.15)])
+    return x * power
+
+
+def riser(dur):
+    """だんだん上がって大きくなる「ざーっ」（区切りの前）"""
+    n = int(dur * SR)
+    u = np.linspace(0, 1, n)
+    nz = rng.standard_normal(n)
+    # 高い所だけ通す（だんだん下の方まで）
+    out = np.zeros(n)
+    seg = n // 16
+    for i in range(16):
+        a, b = i * seg, min(n, (i + 1) * seg + 200)
+        k = max(2, int(14 - i * 0.8))
+        s_ = nz[a:b] - np.convolve(nz[a:b], np.ones(k) / k, mode="same")
+        out[a:b] += s_ * np.hanning(b - a) * 1.6
+    tone_ = np.sin(2 * np.pi * np.cumsum(220 * 2 ** (u * 2)) / SR) * 0.25
+    return (out * 0.5 + tone_) * u ** 2.2
+
+
+def boss_battle(bpm=150, key=50, intense=False):
+    bars = 24
+    s = Song(bpm, bars, tail=2.5)
+    D = key
+    # 和音（D からの半音の差・種類）
+    A_prog = [(0, "m"), (0, "m"), (-4, "M"), (-5, "M"), (0, "m"), (5, "m"), (1, "M"), (-5, "M")]          # Dm Dm B♭ A | Dm Gm E♭ A
+    B_prog = [(5, "m"), (0, "m"), (1, "M"), (-4, "M"), (5, "m"), (-5, "M"), (0, "m"), (-5, "M")]          # Gm Dm E♭ B♭ | Gm A Dm A
+    C_prog = [(0, "m"), (0, "m"), (1, "M"), (1, "M"), (0, "m"), (1, "M"), (-2, "M"), (-5, "M")]           # Dm Dm E♭ E♭ | Dm E♭ C A
+    prog = A_prog + B_prog + C_prog
+    # 低い弦のきざみ（1小節＝16分音符16個。根音からの差。12＝1オクターブ上、1＝♭2）
+    ost = [0, 0, 12, 0, 1, 0, 12, 0, 0, 0, 12, 0, 3, 1, 0, -2]
+    for bar, (r, kind) in enumerate(prog):
+        sec = "A" if bar < 8 else ("B" if bar < 16 else "C")
+        cb = bar - 16  # C の中の小節
+        root = D + r - 12  # 低い根音（D3 あたり）
+        if root < 45:
+            root += 12
+        quiet = sec == "C" and cb < 4
+        # --- きざみ（低い弦＋ひずんだベース） ---
         for e in range(16):
-            s.add(hat(open_=(e % 8 == 6), power=1.0 if e % 4 == 0 else 0.6), s.at(bar, e * 0.25), 0.16, pan=0.4, rev=0.05)
-        if bar % 8 == 7:
-            for k, b2 in enumerate([2.0, 2.5, 3.0, 3.25, 3.5, 3.75]):
-                s.add(tom(140 - k * 14, 1.0), s.at(bar, b2), 0.35, pan=-0.5 + k * 0.2, rev=0.3)
+            off = ost[e]
+            if kind == "M" and off == 3:
+                off = 4  # 長調の和音の上では、長3度
+            if kind == "M" and off == 1 and r != -5:
+                off = 0  # ♭2 は、短調の和音と A（属和音）の上だけ（にごりすぎない）
+            m = root + off
+            acc = 1.0 if e % 4 == 0 else 0.7
+            s.add(str_stab(mf(m), 0.09 * s.beat * 2.2), s.at(bar, e * 0.25), (0.05 if quiet else 0.085) * acc, pan=-0.35, rev=0.12)
+            s.add(str_stab(mf(m + 12), 0.09 * s.beat * 2.2), s.at(bar, e * 0.25), (0.025 if quiet else 0.04) * acc, pan=0.35, rev=0.12)
+            if e % 2 == 0 and not quiet:
+                s.add(dist_bass(mf(root - 12 + (0 if off in (0, 12) else off % 12)), 0.4 * s.beat), s.at(bar, e * 0.25), 0.16 if not intense else 0.19, rev=0.02)
+        # --- 太鼓 ---
+        if quiet:
+            for b2 in (0, 2.5):
+                s.add(taiko(52, 1.0), s.at(bar, b2), 0.5, pan=-0.2, rev=0.4)
+        else:
+            for beat in range(4):
+                s.add(kick(1.1), s.at(bar, beat), 0.5, rev=0.0)
+                if beat in (1, 3):
+                    s.add(snare(1.1), s.at(bar, beat), 0.4, pan=0.08, rev=0.35)
+            # 和太鼓：1拍目と、3拍目の裏
+            s.add(taiko(55, 1.0), s.at(bar, 0), 0.55, pan=-0.25, rev=0.35)
+            s.add(taiko(70, 0.8), s.at(bar, 2.5), 0.45, pan=0.25, rev=0.35)
+            if intense:
+                s.add(taiko(62, 0.8), s.at(bar, 1.5), 0.38, pan=0.4, rev=0.3)
+                s.add(taiko(48, 0.9), s.at(bar, 3.5), 0.42, pan=-0.4, rev=0.3)
+            for e in range(8 if not intense else 16):
+                step = 0.5 if not intense else 0.25
+                s.add(hat(power=0.9 if e % 2 == 0 else 0.55), s.at(bar, e * step), 0.1, pan=0.45, rev=0.05)
+        # 区切り（4小節ごと）：金属の「かーん」と、低い「どーん」
+        if bar % 4 == 0 and not quiet:
+            s.add(anvil(1480 if not intense else 1660, 1.0), s.at(bar, 0), 0.06, pan=0.3, rev=0.5)
         if bar % 8 == 0:
-            s.add(crash(0.9), s.at(bar, 0), 0.4, pan=0.2, rev=0.2)
-        # アルペジオ（16分。小さく）
-        arp = chord_notes(root + 24, "m" if kind == "m" else "M")
-        for e in range(16):
-            m = arp[[0, 1, 2, 1][e % 4]] + (12 if (e // 4) % 2 and intense else 0)
-            s.add(lead(mf(m), 0.22 * s.beat, "square"), s.at(bar, e * 0.25), 0.035, pan=0.5 if e % 2 else -0.5, rev=0.2)
-        if intense:
-            for m in chord_notes(root + 12, "m" if kind == "m" else "M"):
-                s.add(choir(mf(m), 3.8 * s.beat), s.at(bar, 0), 0.06, pan=0.0, rev=0.5)
-    # 旋律（勇ましい金管）
-    k = key + 12
-    mel = [
-        [(0, 0, 1.5), (1.5, 2, 0.5), (2, 3, 1.0), (3, 5, 1.0)], [(0, 7, 2.0), (2, 5, 1.0), (3, 3, 1.0)],
-        [(0, 5, 1.5), (1.5, 3, 0.5), (2, 2, 1.0), (3, 0, 1.0)], [(0, 2, 2.0), (2, -3, 2.0)],
-        [(0, 0, 1.5), (1.5, 2, 0.5), (2, 3, 1.0), (3, 7, 1.0)], [(0, 12, 2.0), (2, 10, 1.0), (3, 8, 1.0)],
-        [(0, 10, 1.0), (1, 7, 1.0), (2, 5, 1.0), (3, 7, 1.0)], [(0, 4, 3.0), (3, 7, 1.0)],
-        [(0, 8, 1.5), (1.5, 7, 0.5), (2, 5, 1.0), (3, 3, 1.0)], [(0, 5, 1.0), (1, 3, 1.0), (2, 0, 2.0)],
-        [(0, 2, 1.0), (1, 3, 1.0), (2, 5, 1.0), (3, 7, 1.0)], [(0, 10, 2.0), (2, 12, 2.0)],
-        [(0, 12, 1.5), (1.5, 10, 0.5), (2, 8, 1.0), (3, 7, 1.0)], [(0, 10, 1.5), (1.5, 8, 0.5), (2, 7, 2.0)],
-        [(0, 7, 1.0), (1, 4, 1.0), (2, 2, 1.0), (3, 4, 1.0)], [(0, 7, 3.0)]]
-    for bar, notes in enumerate(mel):
-        for beat, d, dur in notes:
-            s.add(lead(mf(k + d), dur * s.beat, "brass"), s.at(bar, beat), 0.085 if not intense else 0.08, pan=-0.05, rev=0.3)
-            if intense:
-                s.add(lead(mf(k + d + 12), dur * s.beat, "square"), s.at(bar, beat), 0.025, pan=0.3, rev=0.3)
-    return s.render(True, 0.88)
+            s.add(crash(1.0), s.at(bar, 0), 0.38, pan=-0.15, rev=0.3)
+            s.add(taiko(40, 1.2, 2.5), s.at(bar, 0), 0.6, rev=0.5)
+        # --- 暗い合唱（1小節の長い和音） ---
+        cn = chord_notes(D + r, "m" if kind == "m" else "M")
+        for k, m in enumerate(cn):
+            mm = m if m >= 57 else m + 12
+            s.add(choir(mf(mm), 3.9 * s.beat), s.at(bar, 0), (0.05 if sec != "C" else 0.065) * (1.25 if intense else 1.0), pan=-0.3 + 0.3 * k, rev=0.55)
+        # --- 低い金管の「ぶおっ」（A と C の、小節の頭と裏） ---
+        if sec in ("A", "C") and not quiet:
+            for b2, d in [(0, 0.9), (1.5, 0.4), (2.5, 1.2)] if bar % 2 == 0 else [(0, 1.8), (3.0, 0.8)]:
+                for m in (root, root + 7, root + 12):
+                    s.add(brass2(mf(m), d * s.beat, 0.9), s.at(bar, b2), 0.035, pan=-0.1 if m == root else 0.2, rev=0.3)
+        # --- C の後半：盛り上がり（スネアの連打がだんだん細かく・ざーっと上がる・太鼓のまわし） ---
+        if sec == "C" and cb >= 4:
+            sub = 0.5 if cb == 4 else (0.25 if cb < 7 else 0.125)
+            nn = int(4 / sub)
+            for i in range(nn):
+                p = (cb - 4 + i / nn) / 4.0
+                s.add(snare(0.5 + 0.6 * p), s.at(bar, i * sub), 0.16 + 0.22 * p, pan=0.1, rev=0.25)
+        if sec == "C" and cb == 4:
+            s.add(riser(4 * 4 * s.beat), s.at(bar, 0), 0.22, rev=0.2)
+        if sec == "C" and cb == 7:
+            for k2, b2 in enumerate([2.0, 2.5, 3.0, 3.25, 3.5, 3.75]):
+                s.add(taiko(90 - k2 * 8, 1.0), s.at(bar, b2), 0.45, pan=-0.5 + k2 * 0.2, rev=0.3)
+    # --- 主旋律（B：低い金管＋高い弦のかさね）と、A・C の高い弦ののばし ---
+    melB = [
+        [(0, 74, 1.5), (1.5, 72, 0.5), (2, 70, 1.0), (3, 67, 1.0)],
+        [(0, 69, 2.0), (2, 74, 1.0), (3, 77, 1.0)],
+        [(0, 79, 1.5), (1.5, 77, 0.5), (2, 75, 1.0), (3, 70, 1.0)],
+        [(0, 74, 2.0), (2, 70, 1.0), (3, 74, 1.0)],
+        [(0, 79, 1.5), (1.5, 77, 0.5), (2, 74, 1.0), (3, 70, 1.0)],
+        [(0, 73, 1.5), (1.5, 76, 0.5), (2, 81, 2.0)],
+        [(0, 77, 1.0), (1, 76, 1.0), (2, 74, 1.0), (3, 69, 1.0)],
+        [(0, 73, 2.0), (2, 76, 1.0), (3, 69, 1.0)]]
+    sh = key - 50  # 覚醒の時は、まとめて上げる
+    for i, notes in enumerate(melB):
+        bar = 8 + i
+        for b2, m, d in notes:
+            s.add(brass2(mf(m - 12 + sh), d * s.beat, 1.1), s.at(bar, b2), 0.11, pan=-0.05, rev=0.35)
+            s.add(lead(mf(m + sh), d * s.beat, "brass"), s.at(bar, b2), 0.035 if not intense else 0.05, pan=0.25, rev=0.4)
+    # A と C の前半：高い弦の、こわい のばし（D → D → D → C♯ …。E♭ の和音の上だけ E♭）
+    top = {0: 74, 1: 74, 2: 74, 3: 73, 4: 74, 5: 74, 6: 75, 7: 73, 16: 74, 17: 74, 18: 75, 19: 75}
+    for bar in top:
+        s.add(pad(mf(top[bar] + 12 + sh), 3.9 * s.beat), s.at(bar, 0), 0.035, pan=0.4, rev=0.6)
+    return s.render(True, 0.9)
 
 
 # ---------------------------------------------------------------- 勝ち・負け
@@ -361,14 +465,22 @@ def write(name, x, quality=4):
         w.setframerate(SR)
         w.writeframes((np.clip(x, -1, 1) * 32767).astype(np.int16).tobytes())
     dst = OUT / (name + ".ogg")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(tmp), "-c:a", "libvorbis", "-q:a", str(quality), str(dst)], check=True)
+    # Ogg にすると、山が少し高くなることがある（1.0 をこえると割れる）。もどして測り、こえたら下げて作り直す
+    vol = 1.0
+    for _ in range(4):
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(tmp), "-af", "volume=%.4f" % vol, "-c:a", "libvorbis", "-q:a", str(quality), str(dst)], check=True)
+        raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", str(dst), "-f", "f32le", "-"], capture_output=True, check=True).stdout
+        peak = float(np.max(np.abs(np.frombuffer(raw, dtype=np.float32))))
+        if peak <= 0.97:
+            break
+        vol *= 0.94 / peak
     tmp.unlink()
     print(name, "%.1f 秒" % (len(x) / SR), "%d KB" % (dst.stat().st_size // 1024))
 
 
 if __name__ == "__main__":
     write("lobby", lobby())
-    write("battle", battle())
-    write("awake", battle(164, 52, True))
+    write("battle", boss_battle(150, 50, False))
+    write("awake", boss_battle(166, 52, True))
     write("win", win())
     write("lose", lose())
