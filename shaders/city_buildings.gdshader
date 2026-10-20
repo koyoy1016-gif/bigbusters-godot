@@ -56,6 +56,9 @@ void vertex() {
 }
 
 void fragment() {
+	// 建物ごとの乱数を、整数にしてから使う（なめらかに補間された値のわずかなずれで、乱数が点ごとに変わり、ざらざらに見えるのを防ぐ）
+	float sd = floor(bu.y * 997.0 + 0.5);
+	vec2 so = vec2(mod(sd, 61.0), mod(floor(sd / 61.0), 53.0)) * 3.0;
 	vec3 base = COLOR.rgb;
 	int m = int(COLOR.a * 4.0 + 0.5);
 	vec3 col = base;
@@ -75,7 +78,7 @@ void fragment() {
 			float g = pulse(uu / 2.6, 0.04, 0.96) * band(hy, 0.3, store_h - 0.2, 0.05);
 			col = mix(base * 0.5, vec3(0.07, 0.07, 0.08), g);
 			float sg = mix(store_glow, store_glow_night, night);
-			emit = store_color * g * sg * (0.65 + 0.35 * hash(vec2(floor(uu / 2.6), bu.y * 91.0)));
+			emit = store_color * g * sg * (0.65 + 0.35 * hash(vec2(floor(uu / 2.6), 7.0) + so));
 			rough = mix(0.8, 0.2, g);
 		} else if (m == 3) {
 			// ガラスのカーテンウォール：空がうつる・細い金属のわく・明かりのついた階
@@ -88,7 +91,7 @@ void fragment() {
 			col = mix(glassc, vec3(0.72, 0.74, 0.77), mull * 0.6);
 			rough = mix(0.12, 0.55, mull);
 			vec2 cell = vec2(floor(uu / 4.8), floor(hy / floor_m));
-			float on = mix(step(1.0 - lit_now * 0.8, hash(cell + bu.y * 37.0)), lit_now * 0.8, far_mix(vec2(uu / 4.8, hy / floor_m)));
+			float on = mix(step(1.0 - lit_now * 0.8, hash(cell + so)), lit_now * 0.8, far_mix(vec2(uu / 4.8, hy / floor_m)));
 			emit = office_color * glow_now * 0.5 * on * (1.0 - mull) * near;
 		} else if (m == 4) {
 			// 横長の窓の帯と、金属のパネル
@@ -99,7 +102,7 @@ void fragment() {
 			metal = 0.3 * (1.0 - win);
 			rough = mix(0.5, 0.25, win);
 			vec2 cell = vec2(floor(uu / 3.0), floor(hy / floor_m));
-			float on = mix(step(1.0 - lit_now, hash(cell + bu.y * 53.0)), lit_now, far_mix(vec2(uu / 3.0, hy / floor_m)));
+			float on = mix(step(1.0 - lit_now, hash(cell + so + vec2(17.0, 5.0))), lit_now, far_mix(vec2(uu / 3.0, hy / floor_m)));
 			emit = light_color * glow_now * 0.8 * win * (1.0 - mull) * on;
 		} else {
 			// タイル・コンクリートの壁に、四角い窓
@@ -109,7 +112,7 @@ void fragment() {
 			float win = pulse(u, 0.16, 0.84) * pulse(v, 0.28, 0.82) * near;
 			col = mix(base, glass_color, win * 0.8);
 			float fm = far_mix(vec2(u, v));
-			float on = mix(step(1.0 - lit_now, hash(cell + bu.y * 71.0)) * (0.55 + 0.45 * hash(cell * 1.7)), lit_now * 0.78, fm);
+			float on = mix(step(1.0 - lit_now, hash(cell + so + vec2(31.0, 11.0))) * (0.55 + 0.45 * hash(cell * 1.7)), lit_now * 0.78, fm);
 			emit = light_color * glow_now * win * on;
 			rough = mix(0.85, 0.3, win);
 		}

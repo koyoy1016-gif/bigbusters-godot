@@ -10,10 +10,13 @@ const CONFIG_PATH := "res://data/maps.json"
 const BUILDING_SHADER := preload("res://shaders/city_buildings.gdshader")
 const SIGN_SHADER := preload("res://shaders/city_signs.gdshader")
 const SCREEN_SHADER := preload("res://shaders/city_screens.gdshader")
+const LAMP_SHADER := preload("res://shaders/city_lamps.gdshader")
+const POOL_SHADER := preload("res://shaders/city_light_pool.gdshader")
 
 const GROUND_MESHES := ["Terrain", "Ground", "Crosswalk"]
 const BUILDING_MESHES := ["BldgNear", "BldgFar"]
 const SIGN_MESHES := ["Signs", "Screens"]
+const LAMP_MESHES := ["Lamps", "LightPools"]
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -52,15 +55,18 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 	var cross_mat := StandardMaterial3D.new()
 	cross_mat.vertex_color_use_as_albedo = true
 	cross_mat.roughness = 0.7
+	cross_mat.emission_enabled = true  # 版90：夜に少し光らせる（強さは time_of_day.gd。最初から true：あとで切りかえると止まるため）
+	cross_mat.emission = Color(1, 1, 1)
+	cross_mat.emission_energy_multiplier = 0.0
 	var bmat := ShaderMaterial.new()
 	bmat.shader = BUILDING_SHADER
 	var w: Dictionary = map_cfg.get("windows", {})
 	for k in w:
 		bmat.set_shader_parameter(str(k), float(w[k]))
 	bmat.set_shader_parameter("fade_far", float((map_cfg.get("visible_m", {}) as Dictionary).get("high", 480.0)) * 0.8)
-	var sky_cfg: Dictionary = map_cfg.get("sky", {})
-	bmat.set_shader_parameter("sky_top", Color(str(sky_cfg.get("top", "#3a5390"))))
-	bmat.set_shader_parameter("sky_horizon", Color(str(sky_cfg.get("horizon", "#f0b48a"))))
+	var ev: Dictionary = (map_cfg.get("time_of_day", {}) as Dictionary).get("evening", {})
+	bmat.set_shader_parameter("sky_top", Color(str(ev.get("sky_top", "#3a5390"))))
+	bmat.set_shader_parameter("sky_horizon", Color(str(ev.get("sky_horizon", "#f0b48a"))))
 	var sc: Dictionary = map_cfg.get("signs", {})
 	var atlas: Texture2D = null
 	var ap := str(sc.get("atlas", ""))
@@ -78,6 +84,21 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 	scr.set_shader_parameter("glow_night", float(sc.get("screen_glow_night", 1.5)))
 	scr.set_shader_parameter("hold_sec", float(sc.get("hold_sec", 6.0)))
 	scr.set_shader_parameter("fade_sec", float(sc.get("fade_sec", 0.6)))
+	var lc: Dictionary = map_cfg.get("lamps", {})
+	var lmat := ShaderMaterial.new()
+	lmat.shader = LAMP_SHADER
+	lmat.set_shader_parameter("lamp_color", Color(str(lc.get("color", "#ffd59a"))))
+	lmat.set_shader_parameter("glow", float(lc.get("glow", 0.4)))
+	lmat.set_shader_parameter("glow_night", float(lc.get("glow_night", 3.0)))
+	var pmat := ShaderMaterial.new()
+	pmat.shader = POOL_SHADER
+	pmat.set_shader_parameter("lamp_color", Color(str(lc.get("color", "#ffd59a"))))
+	pmat.set_shader_parameter("strength", float(lc.get("pool", 0.04)))
+	pmat.set_shader_parameter("strength_night", float(lc.get("pool_night", 0.3)))
+	# 版90：時間帯（time_of_day.gd）が night を変える材質
+	root.set_meta("night_materials", [bmat, smat, scr, lmat, pmat])
+	root.set_meta("building_material", bmat)
+	root.set_meta("crosswalk_material", cross_mat)
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		var nm := str(m.name)
@@ -88,6 +109,9 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 			m.material_override = bmat
 		elif nm in SIGN_MESHES:
 			m.material_override = scr if nm == "Screens" else smat
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif nm in LAMP_MESHES:
+			m.material_override = pmat if nm == "LightPools" else lmat
 			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		m.set_meta("map_part", nm)
 	root.add_child(_border(map_cfg.get("border", {}), bounds))
@@ -117,42 +141,7 @@ static func set_quality(root: Node3D, map_cfg: Dictionary, quality: String) -> v
 	root.set_meta("quality", quality)
 
 
-## 空（夕方のグラデーション）・霧・まわりの明るさ
-static func apply_environment(env: Environment, map_cfg: Dictionary) -> void:
-	var sky_cfg: Dictionary = map_cfg.get("sky", {})
-	if not sky_cfg.is_empty():
-		var sm := ProceduralSkyMaterial.new()
-		sm.sky_top_color = Color(str(sky_cfg.get("top", "#2a3a6e")))
-		sm.sky_horizon_color = Color(str(sky_cfg.get("horizon", "#f2a36b")))
-		sm.ground_horizon_color = Color(str(sky_cfg.get("horizon", "#f2a36b")))
-		sm.ground_bottom_color = Color(str(sky_cfg.get("ground", "#3a3440")))
-		sm.sky_energy_multiplier = float(sky_cfg.get("energy", 1.0))
-		sm.sun_angle_max = 20.0
-		var sky := Sky.new()
-		sky.sky_material = sm
-		env.background_mode = Environment.BG_SKY
-		env.sky = sky
-	var amb: Dictionary = map_cfg.get("ambient", {})
-	if not amb.is_empty():
-		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.ambient_light_color = Color(str(amb.get("color", "#c9c3d6")))
-		env.ambient_light_energy = float(amb.get("energy", 0.7))
-	var fog: Dictionary = map_cfg.get("fog", {})
-	if not fog.is_empty():
-		env.fog_enabled = true
-		env.fog_light_color = Color(str(fog.get("color", "#c98f7a")))
-		env.fog_density = float(fog.get("density", 0.0035))
-		env.fog_sky_affect = float(fog.get("sky_affect", 0.4))
-
-
-static func apply_light(light: DirectionalLight3D, map_cfg: Dictionary) -> void:
-	var lc: Dictionary = map_cfg.get("light", {})
-	if light == null or lc.is_empty():
-		return
-	var r: Array = lc.get("rotation_deg", [-45.0, 30.0, 0.0])
-	light.rotation_degrees = Vector3(float(r[0]), float(r[1]), float(r[2]))
-	light.light_color = Color(str(lc.get("color", "#ffffff")))
-	light.light_energy = float(lc.get("energy", 1.0))
+## 版90：空・霧・まわりの明るさ・太陽は、scripts/stage/time_of_day.gd（夕方と夜）。
 
 
 ## 戦いの場所のさかい：床の光る線と、下が濃く上がうすい、すけた壁（ここから外へは出られない、の目じるし）

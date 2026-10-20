@@ -51,6 +51,7 @@ const BattleSkills := preload("res://scripts/prototype/battle_skills.gd")
 const BattleRevive := preload("res://scripts/prototype/battle_revive.gd")
 const BattleAudio := preload("res://scripts/prototype/battle_audio.gd")
 const MapLoader := preload("res://scripts/stage/map_loader.gd")
+const TimeOfDay := preload("res://scripts/stage/time_of_day.gd")
 const TargetLock := preload("res://scripts/combat/target_lock.gd")
 const Projectiles := preload("res://scripts/combat/projectiles.gd")
 const SkillHits := preload("res://scripts/combat/skill_hits.gd")
@@ -97,6 +98,8 @@ var revive_sys := BattleRevive.new(self)  ## 版84：倒れた仲間の蘇生（
 var audio := BattleAudio.new(self)  ## 版85：戦いの音（ボスの足音・飛ぶ物の音。battle_audio.gd）
 var map_cfg: Dictionary = {}  ## 版88：戦いのマップの設定（data/maps.json）
 var map_root: Node3D = null  ## 版88：戦いのマップ（渋谷のスクランブル交差点。scripts/stage/map_loader.gd）
+var tod := TimeOfDay.new()  ## 版90：時間帯（ふだんは夕方・ボスの覚醒の間は夜。scripts/stage/time_of_day.gd）
+var sun: DirectionalLight3D = null
 ## 版78：キャラごとの攻撃の状態（battle_skills.gd が使う）
 var skill_fx: Array = []  ## 出している見た目 [{node, follow}]
 var skill_fx_log: Array = []  ## 出した見た目の種類（テスト用）
@@ -293,9 +296,8 @@ func _build_world() -> void:
 	light.light_energy = float(config["light_energy"])
 	var rot: Array = config["light_rotation_deg"]
 	light.rotation_degrees = Vector3(rot[0], rot[1], rot[2])
-	if map_root != null:
-		MapLoader.apply_light(light, map_cfg)
 	add_child(light)
+	sun = light
 
 	player = _make_box("Player", float(config["player_size"]), Color(str(config["player_color"])))
 	player_material = (player.mesh as BoxMesh).material as StandardMaterial3D
@@ -336,11 +338,23 @@ func _build_world() -> void:
 	camera_offset = Vector3(off[0], off[1], off[2])
 	camera.environment = make_environment(config)
 	if map_root != null:
-		MapLoader.apply_environment(camera.environment, map_cfg)
+		tod.setup(map_cfg, camera.environment, sun, map_root)  # 版90：空・光・霧（夕方から）
 	add_child(camera)
 	camera.look_at_from_position(camera_offset, Vector3.ZERO, Vector3.UP)
 	player_marker_material = _add_marker(player, Color(str(config["player_color"])))
 	_attach_character()
+
+
+## 版90：時間帯。ボスの覚醒（第2形態）の間は夜、それ以外（ふだん・勝った・負けた）は夕方。なめらかに切りかえる
+func night_wanted() -> bool:
+	return phase.is_awake() and not won and not lost
+
+
+func _time_of_day_update(delta: float) -> void:
+	if not tod.is_ready():
+		return
+	tod.set_night(night_wanted())
+	tod.step(delta)
 
 
 ## 版88：戦いの場所（±bounds。交差点の中）から外へは出られない（念のための最後の守り。動きの計算でも止めている）。
@@ -630,6 +644,7 @@ func _process(delta: float) -> void:
 		boss_model.set_flash(hit_flash > float(config["hit_flash_sec"]) - bfs)
 	net_update(delta, Time.get_ticks_msec())
 	combat_update(delta)
+	_time_of_day_update(delta)
 	boss_clock += delta
 	if boss_model != null and boss.visible:
 		_pose_boss(delta)
@@ -826,6 +841,7 @@ func _begin_round(start_ms: float) -> void:
 	round_count += 1
 	won = false
 	lost = false
+	tod.snap(false)  # 版90：戦いは夕方から
 	round_end_ms = 0.0
 	downed = false
 	my_hits = 0.0

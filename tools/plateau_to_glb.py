@@ -519,6 +519,12 @@ def up_tris(pts):
     return np.array([[0, 1, 2], [0, 2, 3]]) if n[1] > 0 else np.array([[0, 2, 1], [0, 3, 2]])
 
 
+def down_tris(pts):
+    """4つの点の四角を、下から見て表になる向きの三角形2つに"""
+    n = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+    return np.array([[0, 1, 2], [0, 2, 3]]) if n[1] < 0 else np.array([[0, 2, 1], [0, 3, 2]])
+
+
 # ---------------------------------------------------------------- 横断歩道
 
 def build_crosswalks(data, fr, b, stats, height):
@@ -639,8 +645,72 @@ def build_crosswalks(data, fr, b, stats, height):
             bar(A + w * s - side * dband / 2, w, side, stripe, dband, 0.025)
             s += stripe + gap
         stats["diagonals"] += 1
+    walk_lines = [np.array(w.coords).tolist() for w in wp if w.length >= 2.0]
     return m, {"outline": np.array(cl.exterior.coords).tolist(), "mouths": made, "corners": [c.tolist() for c in corners],
-               "diagonals": [[A.tolist(), B.tolist()] for A, B in diag], "cross_center": [cl.centroid.x, cl.centroid.y]}
+               "diagonals": [[A.tolist(), B.tolist()] for A, B in diag], "cross_center": [cl.centroid.x, cl.centroid.y],
+               "walk_lines": walk_lines}
+
+
+def build_lamps(info, b, stats, height):
+    """版90：街灯（交差点の歩道の角に沿って）。柱（色だけ）と、光る頭（頂点の色 a=1）。
+    下の地面の光の輪（LightPools）は、夜（覚醒）に明るくなる（シェーダー city_light_pool.gdshader）。数値は build.lamps"""
+    from shapely.geometry import Polygon, Point, LineString
+    lc = b["lamps"]
+    lamps, pools = Mesh("Lamps"), Mesh("LightPools", uv=True)
+    if not info:
+        return lamps, pools
+    cl = Polygon(info["outline"])
+    pole_c = (*hex_rgb(lc["pole_color"]), 0.0)
+    head_c = (1.0, 1.0, 1.0, 1.0)
+    H, arm, every, outm = float(lc["pole_h_m"]), float(lc["arm_m"]), float(lc["every_m"]), float(lc["out_m"])
+    pm = float(lc["pool_m"])
+    placed = []
+    for coords in info["walk_lines"]:
+        ln = LineString(coords)
+        n_l = max(1, int(round(ln.length / every)))
+        for k in range(n_l):
+            d = ln.length * (k + 0.5) / n_l
+            pt = ln.interpolate(d)
+            a = ln.interpolate(max(d - 0.5, 0.0))
+            c = ln.interpolate(min(d + 0.5, ln.length))
+            tv = np.array([c.x - a.x, c.y - a.y])
+            if np.linalg.norm(tv) < 1e-6:
+                continue
+            tv /= np.linalg.norm(tv)
+            nv = np.array([-tv[1], tv[0]])
+            p0 = np.array([pt.x, pt.y])
+            if cl.contains(Point(*(p0 + nv * 1.0))):
+                nv = -nv  # 外（歩道）へ
+            base = p0 + nv * outm
+            if max(abs(base[0]), abs(base[1])) < float(lc["min_from_center_m"]):
+                continue
+            if any(np.linalg.norm(base - q) < every * 0.6 for q in placed):
+                continue
+            placed.append(base)
+            y0 = float(height(base.reshape(1, 2))[0]) + 0.05
+            inward = -nv
+            # 柱
+            P = np.array([base[0], y0 + H / 2, base[1]])
+            box(lamps, P, np.array([inward[0], 0.0, inward[1]]), 0.09, 0.09, H / 2, pole_c)
+            # うで（道のほうへ）
+            A = np.array([base[0] + inward[0] * arm / 2, y0 + H - 0.1, base[1] + inward[1] * arm / 2])
+            box(lamps, A, np.array([inward[0], 0.0, inward[1]]), arm / 2, 0.06, 0.06, pole_c)
+            # 光る頭（下の面も見えるように、箱の横4面＋下の面）
+            Hd = np.array([base[0] + inward[0] * arm, y0 + H - 0.25, base[1] + inward[1] * arm])
+            box(lamps, Hd, np.array([inward[0], 0.0, inward[1]]), 0.35, 0.18, 0.1, head_c)
+            av = np.array([inward[0], 0.0, inward[1]])
+            bv = np.cross(YAXIS, av)
+            lo = Hd - YAXIS * 0.1
+            q = np.array([lo - av * 0.35 - bv * 0.18, lo + av * 0.35 - bv * 0.18, lo + av * 0.35 + bv * 0.18, lo - av * 0.35 + bv * 0.18])
+            lamps.add(q, down_tris(q), (0.0, -1.0, 0.0), head_c)
+            # 地面の光の輪
+            g = np.array([Hd[0], Hd[2]])
+            sq = np.array([g + [-pm / 2, -pm / 2], g + [pm / 2, -pm / 2], g + [pm / 2, pm / 2], g + [-pm / 2, pm / 2]])
+            ys = height(sq) + float(lc["pool_lift_m"])
+            pts = np.stack([sq[:, 0], ys, sq[:, 1]], 1)
+            pools.add(pts, up_tris(pts), UP, (1.0, 1.0, 1.0, 1.0), np.array([[0, 0], [1, 0], [1, 1], [0, 1]], np.float32))
+            stats["lamps"] = stats.get("lamps", 0) + 1
+    return lamps, pools
 
 
 def arena_flatness(arrs, half, step=0.5):
@@ -978,7 +1048,7 @@ def preview(path, meshes, b, info, extent=140.0):
         for name, arrs in meshes:
             pos, nor, col, idx = arrs[:4]
             t = idx.reshape(-1, 3)
-            if name in ("Signs", "Screens"):
+            if name in ("Signs", "Screens", "LightPools"):
                 continue
             if name.startswith("Bldg"):
                 up = nor[t[:, 0], 1] > 0.5
@@ -1046,10 +1116,12 @@ def main():
     stats = {k: 0 for k in ("inside_arena", "bad_poly", "bldg_near", "bldg_far", "road_tris", "terrain_tris", "terrain_hidden", "crosswalks", "diagonals")}
     near, far = build_buildings(data, fr, b, stats)
     ground, terrain, road_pts = build_ground(data, fr, b, stats)
-    cross, info = build_crosswalks(data, fr, b, stats, road_height(road_pts))
+    rh = road_height(road_pts)
+    cross, info = build_crosswalks(data, fr, b, stats, rh)
     signs, screens = build_signs(data, fr, b, stats)
+    lamps, pools = build_lamps(info, b, stats, rh)
     meshes = []
-    for m in (terrain, ground, cross, near, far, signs, screens):
+    for m in (terrain, ground, cross, near, far, signs, screens, lamps, pools):
         arrs = m.arrays()
         if arrs is None:
             continue
@@ -1062,7 +1134,7 @@ def main():
     out = Path(args.out) if args.out else ROOT / mc["glb"].replace("res://", "")
     out.parent.mkdir(parents=True, exist_ok=True)
     extras = {"attribution": mc["attribution"], "center": [b["center_lat"], b["center_lon"]], "heading_deg": b["heading_deg"],
-              "ground_h": h0, "stats": stats, "crossing": {k: v for k, v in (info or {}).items() if k != "outline"}}
+              "ground_h": h0, "stats": stats, "crossing": {k: v for k, v in (info or {}).items() if k not in ("outline", "walk_lines")}}
     write_glb(out, meshes, extras)
     log("書いた:", out, "%.1f MB" % (out.stat().st_size / 1e6), stats, "%.0f秒" % (time.time() - t0))
     if args.preview:
