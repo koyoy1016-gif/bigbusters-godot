@@ -39,6 +39,8 @@ func _initialize() -> void:
 	s.sfx = null
 	s.start_round()
 	s.set_process(false)
+	for i in int(mc["time_of_day"].get("pool_warm_frames", 0)) + 1:
+		s._time_of_day_update(1.0 / 60.0)  # 版100：戦いの画面ができた直後の数コマは、先に描くため出している（見えない）。それが終わってから
 	var pools: Array = s.map_root.get_meta("light_pools", [])
 	var lamps: Array = []
 	for mi in s.map_root.find_children("*", "MeshInstance3D", true, false):

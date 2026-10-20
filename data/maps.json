@@ -215,6 +215,7 @@
         "to_night_sec": 1.6,
         "to_evening_sec": 3.0,
         "pool_show_from": 0.02,
+        "pool_warm_frames": 2,
         "light_rotation_deg": [
           -14.0,
           -105.0,
@@ -262,7 +263,7 @@
         }
       },
       "lamps": {
-        "_memo": "版90：街灯の見た目。glow は光る頭の強さ、pool は地面の光の輪（夕方 → *_night 夜）。版98：夕方の光の輪は 0（前は 0.04 でほぼ見えなかった）。夜の割合が time_of_day.pool_show_from より小さい間は、光の輪の形ごと隠す（軽くするため）",
+        "_memo": "版90：街灯の見た目。glow は光る頭の強さ、pool は地面の光の輪（夕方 → *_night 夜）。版98：夕方の光の輪は 0（前は 0.04 でほぼ見えなかった）。夜の割合が time_of_day.pool_show_from より小さい間は、光の輪の形ごと隠す（軽くするため）。版100：戦いの画面ができた直後の time_of_day.pool_warm_frames コマだけは出しておく（夕方の強さ 0 なので見えない。はじめて描く準備を、覚醒の瞬間ではなく、戦いの始まりにすませる）",
         "color": "#ffd59a",
         "glow": 0.4,
         "glow_night": 3.0,

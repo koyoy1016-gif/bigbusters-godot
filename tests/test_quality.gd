@@ -54,6 +54,9 @@ func _initialize() -> void:
 	var PerfOverlay := load("res://scripts/core/perf_overlay.gd")
 	var txt: String = PerfOverlay.build_text(58.6, 41.2, 80, Vector2i(540, 1170), "low")
 	check(txt.contains("FPS 59") and txt.contains("41 ms") and txt.contains("80") and txt.contains("540x1170"), "重さの表示（?perf=1）に、FPS・いちばん長い1コマ・描画の回数・3Dの大きさが出る：" + txt.replace("\n", " / "))
+	var txt2: String = PerfOverlay.build_text(58.6, 41.2, 80, Vector2i(540, 1170), "low", 49.4, 173.4)
+	var txt3: String = PerfOverlay.build_text(58.6, 41.2, 80, Vector2i(540, 1170), "low", 49.4, 0.0)
+	check(txt2.contains("がぞう 49 MB") and txt2.contains("メモリ 173 MB") and txt3.contains("がぞう 49 MB") and not txt3.contains("メモリ") and not txt.contains("がぞう"), "版100：画像のメモリ・ゲームのメモリ（数えられる時だけ）も出せる：" + txt2.replace("\n", " / "))
 	Quality.apply("zzz", cfg, null, [])
 	check(Engine.max_fps == 0, "壊れた名前は、既定（低）になる。描画の設定がなくても落ちない")
 	Engine.max_fps = 0

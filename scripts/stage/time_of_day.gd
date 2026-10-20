@@ -17,6 +17,9 @@ var glass_mat: ShaderMaterial  ## 建物（ガラスにうつす空の色）
 var cross_mat: StandardMaterial3D  ## 横断歩道（夜は少し光らせて、白線を見えやすく）
 var pools: Array = []  ## 版98：街灯の光の輪。夜の割合が pool_show_from より小さい間（夕方）は隠す（見えないのに透明の重ね描きをしないため）
 var applied := -1.0
+## 版100：戦いの画面ができた直後の数コマだけ、光の輪を出しておく（夕方の強さは 0 なので見えない）。
+## はじめて描く時の準備（シェーダー作り）を、覚醒の瞬間ではなく、戦いの始まりにすませるため。step 1回で1コマ減る
+var warm_left := 0
 
 
 ## env・light・マップ（map_loader.build の結果）をつなぐ。夕方から始める
@@ -43,6 +46,7 @@ func setup(map_cfg: Dictionary, environment: Environment, sun: DirectionalLight3
 		glass_mat = map_root.get_meta("building_material", null)
 		cross_mat = map_root.get_meta("crosswalk_material", null)
 		pools = map_root.get_meta("light_pools", [])
+	warm_left = int(cfg.get("pool_warm_frames", 0))
 	snap(false)
 
 
@@ -64,6 +68,10 @@ func snap(on: bool) -> void:
 
 ## 時間を進める。変わったら true
 func step(delta: float) -> bool:
+	if warm_left > 0:
+		warm_left -= 1
+		if warm_left == 0:
+			applied = -1.0  # 光の輪を隠すため、もう一度あてる
 	if is_equal_approx(t, target):
 		if not is_equal_approx(applied, t):
 			apply()
@@ -127,7 +135,7 @@ func apply() -> void:
 	var show_from := float(cfg.get("pool_show_from", 0.02))
 	for pm in pools:
 		if is_instance_valid(pm):
-			(pm as Node3D).visible = k >= show_from
+			(pm as Node3D).visible = k >= show_from or warm_left > 0
 	if glass_mat != null:
 		glass_mat.set_shader_parameter("sky_top", value("sky_top"))
 		glass_mat.set_shader_parameter("sky_horizon", value("sky_horizon"))
