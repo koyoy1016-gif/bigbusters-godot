@@ -9,6 +9,7 @@ const AnimRetime := preload("res://scripts/characters/anim_retime.gd")
 const AnimCompose := preload("res://scripts/characters/anim_compose.gd")
 const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
 const BodyBuilder := preload("res://scripts/characters/body_builder.gd")
+const SkinMerge := preload("res://scripts/core/skin_merge.gd")
 const ATTACHMENTS_PATH := "res://data/attachments.json"
 
 var character: Dictionary = {}
@@ -46,7 +47,160 @@ func setup(def: Dictionary) -> bool:
 		BodyBuilder.apply(model, BodyBuilder.load_looks()[look_id])
 	attach_items(model, def.get("attachments", []))
 	bake_items(model)
+	build_proxies(model, str(def.get("id", "")) + "#" + str(def.hash()))
 	return true
+
+
+## 版103（軽量化）：影と輪郭線を、キャラ全体で少ない回数で描く。
+## 前は、面（材質）の数だけ、輪郭線（画質「高」）と影（画質「高」）を描いていた（キャラ1人で 線 約10〜19回・影 約20〜36回）。
+## 骨で動く形の面を、輪郭線だけの形（OutlineProxy：画質「高」の時だけ出す・面は最大3つ）と、
+## 影だけの形（ShadowProxy_back / _both：影の時だけ描く）にまとめる（SkinMerge）。元の形は、輪郭線を付けず（材質はこの形だけの写しに替える）、
+## 不透明な形は影も落とさない（影の形が落とす）。見た目は同じ：同じ点・同じ骨の動き・同じ輪郭線の材質・同じ影の面の向き。
+## 前は輪郭線（ふくらませた殻）も影を落としていたので、輪郭線の形も影を落とす。切り抜き（髪・まゆ）の形の影は、元のまま自分で描く。
+## まとめた形は、同じキャラなら使いまわす（cache_key ごと。2回目からは、まとめる計算をしない）。まとめた数を返す（0：元のまま）
+static var proxies_enabled := true  ## 測る道具・テストで、前（まとめない）と比べるため
+static var _proxy_cache := {}  ## cache_key → {sig, skin, outline, back, both}
+
+
+static func build_proxies(model: Node, cache_key: String = "") -> int:
+	if not proxies_enabled:
+		return 0
+	var found := model.find_children("*", "Skeleton3D", true, false)
+	if found.is_empty():
+		return 0
+	var sk := found[0] as Skeleton3D
+	var group_a: Array = []  ## 不透明・片面（影：ShadowProxy_back）
+	var group_c: Array = []  ## 不透明・両面など（影：ShadowProxy_both）
+	var group_s: Array = []  ## 切り抜き・透明（影は元のまま）
+	var outline_mis: Array = []
+	var shadow_mis: Array = []
+	var sig := PackedStringArray()
+	for c in sk.get_children():
+		if not (c is MeshInstance3D):
+			continue
+		var mi := c as MeshInstance3D
+		if mi.mesh == null or mi.mesh is PrimitiveMesh or mi.has_meta("proxy") or not mi.visible:
+			continue
+		if mi.skin == null and mi.skeleton == NodePath(""):
+			continue
+		if not mi.transform.is_equal_approx(Transform3D.IDENTITY):
+			continue
+		var all_std := true
+		var all_opaque := true
+		for si in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(si)
+			if not (m is StandardMaterial3D):
+				all_std = false
+			elif (m as StandardMaterial3D).transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+				all_opaque = false
+		if not all_std:
+			continue
+		outline_mis.append(mi)
+		var casts := all_opaque and mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if casts:
+			shadow_mis.append(mi)
+		for si in mi.mesh.get_surface_count():
+			var part := {"mi": mi, "surface": si}
+			sig.append("%s:%d:%d" % [mi.name, si, mi.mesh.surface_get_array_len(si)])
+			if not casts:
+				group_s.append(part)
+			elif (mi.mesh.surface_get_material(si) as StandardMaterial3D).cull_mode == BaseMaterial3D.CULL_BACK:
+				group_a.append(part)
+			else:
+				group_c.append(part)
+	if outline_mis.is_empty():
+		return 0
+	var sig_text := "|".join(sig)
+	var cached: Dictionary = _proxy_cache.get(cache_key, {}) if cache_key != "" else {}
+	if cached.is_empty() or str(cached.get("sig", "")) != sig_text:
+		cached = _build_proxy_meshes(sk, group_a, group_c, group_s)
+		if cached.is_empty():
+			return 0
+		cached["sig"] = sig_text
+		if cache_key != "":
+			_proxy_cache[cache_key] = cached
+	# 輪郭線
+	var op := _proxy_node(sk, "OutlineProxy", cached["outline"], cached["skin"])
+	op.set_meta("outline_proxy", true)
+	op.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON  # 前は線の殻も影を落としていた
+	op.material_override = StyleFx.outline_material(StyleFx._width_for(op, StyleFx.config()))
+	op.visible = StyleFx.outline_on
+	for mi in outline_mis:
+		var m3 := mi as MeshInstance3D
+		m3.set_meta("outline_merged", true)
+		for si in m3.mesh.get_surface_count():
+			var dup := (m3.mesh.surface_get_material(si) as StandardMaterial3D).duplicate() as StandardMaterial3D
+			dup.next_pass = null  # 線は OutlineProxy が描く
+			m3.set_surface_override_material(si, dup)
+	var made := 1
+	# 影
+	for key in ["back", "both"]:
+		if cached.get(key) == null:
+			continue
+		var sp := _proxy_node(sk, "ShadowProxy_" + key, cached[key], cached["skin"])
+		sp.set_meta("shadow_proxy", true)
+		sp.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		sp.material_override = _shadow_material(key == "both")
+		made += 1
+	for mi in shadow_mis:
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return made
+
+
+## まとめた形を作る：輪郭線（面 A・C・S）、影（A）、影（C）。骨の表は1つを共有
+static func _build_proxy_meshes(sk: Skeleton3D, group_a: Array, group_c: Array, group_s: Array) -> Dictionary:
+	var skin := Skin.new()
+	var bind_index := {}
+	var outline_groups: Array = []
+	var out := {"skin": skin, "back": null, "both": null}
+	# 体（いちばん大きい A）を先に：骨の表の土台になる
+	for g in [group_a, group_c, group_s]:
+		if (g as Array).is_empty():
+			outline_groups.append({})
+			continue
+		var m := SkinMerge.merge(g, sk, skin, bind_index)
+		if m.is_empty():
+			return {}
+		outline_groups.append(m)
+	var non_empty: Array = outline_groups.filter(func(x: Dictionary) -> bool: return not x.is_empty())
+	if non_empty.is_empty():
+		return {}
+	out["outline"] = SkinMerge.to_mesh(non_empty)
+	# 面の材質も入れておく（材質を調べる所が、空で止まらないように。描く時は material_override を使う）
+	var line_mat := StyleFx.outline_material(float(StyleFx.config().get("outline_width", 0.014)))
+	for si in (out["outline"] as ArrayMesh).get_surface_count():
+		(out["outline"] as ArrayMesh).surface_set_material(si, line_mat)
+	if not (outline_groups[0] as Dictionary).is_empty():
+		out["back"] = SkinMerge.to_mesh([outline_groups[0]])
+		(out["back"] as ArrayMesh).surface_set_material(0, _shadow_material(false))
+	if not (outline_groups[1] as Dictionary).is_empty():
+		out["both"] = SkinMerge.to_mesh([outline_groups[1]])
+		(out["both"] as ArrayMesh).surface_set_material(0, _shadow_material(true))
+	return out
+
+
+static func _proxy_node(sk: Skeleton3D, nm: String, mesh: Mesh, skin: Skin) -> MeshInstance3D:
+	var p := MeshInstance3D.new()
+	p.name = nm
+	p.mesh = mesh
+	p.set_meta("proxy", true)
+	sk.add_child(p)
+	p.skin = skin
+	p.skeleton = p.get_path_to(sk)
+	return p
+
+
+static var _shadow_mats := {}
+
+
+## 影だけの形の材質（影を描く時の面の向き：両面か片面か）
+static func _shadow_material(both: bool) -> StandardMaterial3D:
+	if not _shadow_mats.has(both):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED if both else BaseMaterial3D.CULL_BACK
+		_shadow_mats[both] = m
+	return _shadow_mats[both]
 
 
 ## 骨に付けた小物（Item_*）を、骨の動きについていく1つの形（スキン）にまとめて、描く回数を減らす。

@@ -200,6 +200,8 @@ func _initialize() -> void:
 	var hair_ok := false
 	var body_ok := false
 	for m in rv.model.find_children("*", "MeshInstance3D", true, false):
+		if m.has_meta("proxy"):
+			continue  # 版103：影だけ・輪郭線だけの形（同じ点の写し。色を塗る形ではない）は数えない
 		var mesh := (m as MeshInstance3D).mesh
 		for i in mesh.get_surface_count():
 			var arr := mesh.surface_get_arrays(i)

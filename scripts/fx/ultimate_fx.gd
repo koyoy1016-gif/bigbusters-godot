@@ -82,8 +82,8 @@ static func bake_ghost(view: Node3D) -> Array:
 	var inv := view.global_transform.affine_inverse()
 	for n in view.find_children("*", "MeshInstance3D", true, false):
 		var m: MeshInstance3D = n
-		if not m.visible or m.mesh == null:
-			continue
+		if not m.visible or m.mesh == null or m.has_meta("proxy"):
+			continue  # 版103：影だけ・輪郭線だけの形（proxy）は写さない（重なって色が濃くなるため）
 		var baked: Mesh = m.bake_mesh_from_current_skeleton_pose() if m.skin != null or m.skeleton != NodePath("") else m.mesh
 		if baked == null:
 			continue

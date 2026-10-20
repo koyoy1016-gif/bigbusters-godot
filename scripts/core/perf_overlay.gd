@@ -5,7 +5,8 @@ extends CanvasLayer
 ## 公開している書き出し（release）では、Godot はメモリを数えないので出ない）も出す（実機で、戦いのあとに増えたままかを見るため）
 ## 版101：カクつきの原因を分けるために、
 ##   おそい：その1秒で、1コマが slow_ms（25 ms＝60コマ/秒の1.5コマ分）より長かった回数（カクつきの回数）
-##   しょり：1コマの、スクリプトと動きの計算などの CPU の時間（平均。Godot の TIME_PROCESS）
+##   しょり さいだい：その1秒で、いちばん長かった「スクリプトと動きの計算など」の CPU の時間（Godot の TIME_PROCESS は、1秒ごとの最大）
+##     （版103 で直した：版101 は平均と書いていたが、実は1秒ごとの最大だった）
 ##   びょうがCPU：1コマの、絵を描く命令を作って送る CPU の時間（平均。描く前の準備＋画面を描く命令）
 ##   この2つの合計が 16 ms に近ければ CPU が重い。1コマ（1000/FPS）よりずっと小さければ、GPU（絵を描く部品）の方が重い見こみ
 
@@ -17,7 +18,7 @@ var quality_name := ""
 var last_text := ""
 var font: Font  ## 版102：日本語の字が入った文字の形（画面の流れが渡す。前は渡していなかったので、かなが □ になっていた）
 var slow := 0  ## 版101：おそいコマの数（この1秒）
-var cpu_sum := 0.0  ## 版101：しょり（秒）の合計
+var cpu_sum := 0.0  ## 版103：しょり（秒）の、この1秒の最大
 var render_sum := 0.0  ## 版101：びょうがCPU（ミリ秒）の合計
 const SLOW_MS := 25.0
 
@@ -28,7 +29,7 @@ static func build_text(fps: float, worst_ms: float, draws: int, res: Vector2i, q
 		t += "  おそい %d" % slow_n
 	t += "\nびょうが %d かい  3D %dx%d  %s" % [draws, res.x, res.y, quality]
 	if cpu_ms >= 0.0 and render_ms >= 0.0:
-		t += "\nしょり %.1f ms  びょうがCPU %.1f ms" % [cpu_ms, render_ms]
+		t += "\nしょりさいだい %.1f ms  びょうがCPU %.1f ms" % [cpu_ms, render_ms]
 	if tex_mb >= 0.0:
 		t += "\nがぞう %d MB" % roundi(tex_mb)
 		if mem_mb > 0.0:
@@ -60,7 +61,7 @@ func _process(delta: float) -> void:
 	worst = maxf(worst, delta)
 	if delta * 1000.0 > SLOW_MS:
 		slow += 1
-	cpu_sum += Performance.get_monitor(Performance.TIME_PROCESS)
+	cpu_sum = maxf(cpu_sum, Performance.get_monitor(Performance.TIME_PROCESS))  # 1秒ごとの最大（Godot が1秒ごとに決める）
 	render_sum += RenderingServer.viewport_get_measured_render_time_cpu(get_viewport().get_viewport_rid()) + RenderingServer.get_frame_setup_time_cpu()
 	if elapsed < 1.0:
 		return
@@ -71,7 +72,7 @@ func _process(delta: float) -> void:
 	var draws := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
 	var tex := Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0
 	var mem := Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0
-	last_text = build_text(frames / elapsed, worst * 1000.0, draws, px, quality_name, tex, mem, slow, cpu_sum * 1000.0 / frames, render_sum / frames)
+	last_text = build_text(frames / elapsed, worst * 1000.0, draws, px, quality_name, tex, mem, slow, cpu_sum * 1000.0, render_sum / frames)
 	label.text = last_text
 	frames = 0
 	elapsed = 0.0

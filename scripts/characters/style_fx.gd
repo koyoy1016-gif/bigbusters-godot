@@ -79,6 +79,10 @@ static func set_outline(root: Node, on: bool) -> int:
 	return _walk(root)
 
 
+static func on_now() -> bool:
+	return outline_on
+
+
 static func _walk(node: Node) -> int:
 	var n := 0
 	var cfg := config()
@@ -88,7 +92,13 @@ static func _walk(node: Node) -> int:
 		if om is StandardMaterial3D:
 			apply_outline(om, _width_for(node, cfg))
 			n += 1
-	if node is MeshInstance3D and _styled(node):
+	# 版103：キャラ全体の輪郭線の形（OutlineProxy）は、出す／隠すだけ。元の形（outline_merged）の材質には線を付けない
+	if node.has_meta("outline_proxy"):
+		var px := node as MeshInstance3D
+		px.material_override = outline_material(_width_for(px, cfg))
+		px.visible = on_now()
+		return n + 1
+	if node is MeshInstance3D and _styled(node) and not node.has_meta("outline_merged") and not node.has_meta("proxy"):
 		var mi := node as MeshInstance3D
 		if mi.mesh != null:
 			var w := _width_for(mi, cfg)
