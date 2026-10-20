@@ -17,6 +17,8 @@ const CheckScreen := preload("res://scripts/experiments/firebase_check.gd")
 const SfxPlayer := preload("res://scripts/audio/sfx.gd")
 const BgmPlayer := preload("res://scripts/audio/bgm.gd")
 const PerfOverlay := preload("res://scripts/core/perf_overlay.gd")
+const LobbyUI := preload("res://scripts/flow/lobby_ui.gd")
+const LobbyStage := preload("res://scripts/flow/lobby_stage.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -100,6 +102,8 @@ var rematch_wait_reward: Label
 var rematch_wait_next: Label
 var my_rematch_vote := false
 var starter_cooldown := 0.0
+var lobby_ui: RefCounted = null  ## 版81：新しいロビーの画面（lobby_ui.gd）
+var lobby_stage: Node3D = null  ## 版81：ロビーの3Dのキャラ（lobby_stage.gd）。戦いの間は消す
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -142,6 +146,7 @@ func _ready() -> void:
 	# 画面の大きさが変わったら（向き・ブラウザの大きさ）、3Dの細かさを計算し直す
 	if get_tree() != null and not get_tree().root.size_changed.is_connected(_apply_quality):
 		get_tree().root.size_changed.connect(_apply_quality)
+		get_tree().root.size_changed.connect(_fit_lobby_camera)
 	if OS.has_feature("web") and str(js_eval.call("new URLSearchParams(window.location.search).get('perf') || ''")) != "":
 		show_perf()
 	goto(Logic.TITLE)
@@ -153,6 +158,8 @@ func _apply_window_scale() -> void:
 	if win == null:
 		return
 	var size := Vector2(win.size)
+	if lobby_stage != null and is_instance_valid(lobby_stage):
+		lobby_stage.fit_camera(size)
 	var base: Array = config["portrait_base_size"] if size.y > size.x else config["landscape_base_size"]
 	win.content_scale_size = Vector2i(int(base[0]), int(base[1]))
 
@@ -252,6 +259,48 @@ func _paint_button(button: Button, color: Color) -> void:
 		button.add_theme_stylebox_override(pair[0], sb)
 
 
+func _build_lobby() -> void:
+	lobby_ui = LobbyUI.new(self)
+	lobby_ui.build_lobby()
+
+
+func _build_room_panel() -> void:
+	lobby_ui.build_room_panel()
+
+
+func _build_nav_bar() -> void:
+	lobby_ui.build_nav_bar()
+
+
+## 版81：ロビーの3Dの場面を出す（なければ作る）。画面の木に入っていない時（テストの一部）は作らない
+func _ensure_lobby_stage() -> void:
+	if lobby_stage == null or not is_instance_valid(lobby_stage):
+		if not is_inside_tree():
+			return
+		lobby_stage = LobbyStage.new()
+		lobby_stage.setup(characters_cfg)
+		add_child(lobby_stage)
+		var win := get_window()
+		if win != null:
+			lobby_stage.fit_camera(Vector2(win.size))
+	lobby_stage.visible = true
+	if lobby_stage.camera != null:
+		lobby_stage.camera.current = true
+	lobby_stage.set_team(lobby_ui.team())
+
+
+func _fit_lobby_camera() -> void:
+	var win := get_window()
+	if win != null and lobby_stage != null and is_instance_valid(lobby_stage):
+		lobby_stage.fit_camera(Vector2(win.size))
+
+
+func _free_lobby_stage() -> void:
+	if lobby_stage != null and is_instance_valid(lobby_stage):
+		lobby_stage.queue_free()
+	lobby_stage = null
+
+
 func _build_panels() -> void:
 	var text_color := Color(str(config["text_color"]))
 	var heading := int(config["heading_font_size"])
@@ -265,76 +314,8 @@ func _build_panels() -> void:
 	t.add_child(title_label)
 	t.add_child(_make_label(str(config["title_loading"]), text_size, text_color))
 
-	# ロビー（上：ランク・コイン／まんなか：ステージとプレイ／下：ボタンの並び）。縦が足りないときは、スクロールできる
-	var l := _make_lobby_panel(Logic.LOBBY, int(config["lobby_separation"]))
-	var top_card := _make_card(Color(str(config["lobby_card_color"])))
-	var top_box := VBoxContainer.new()
-	top_box.add_theme_constant_override("separation", 6)
-	top_card.add_child(top_box)
-	lobby_info = _make_label("", text_size, text_color)
-	top_box.add_child(lobby_info)
-	room_label = _make_label("", int(config["lobby_small_font_size"]), Color(str(config["lobby_sub_color"])))
-	top_box.add_child(room_label)
-	l.add_child(top_card)
-	var stage_card := _make_card(Color(str(config["lobby_card_color"])))
-	var stage_row := HBoxContainer.new()
-	stage_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	stage_row.add_theme_constant_override("separation", 12)
-	stage_row.add_child(_make_button(str(config["stage_prev"]), [100, 90], func(): change_stage(-1)))
-	stage_label = _make_label("", heading, text_color)
-	stage_label.custom_minimum_size = Vector2(316, 0)
-	stage_row.add_child(stage_label)
-	stage_row.add_child(_make_button(str(config["stage_next"]), [100, 90], func(): change_stage(1)))
-	stage_card.add_child(stage_row)
-	l.add_child(stage_card)
-	play_button = _make_button(str(config["play_label"]), [int(config["lobby_card_width"]), 150], play)
-	play_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_paint_button(play_button, Color(str(config["lobby_play_color"])))
-	l.add_child(play_button)
-	var room_row := HBoxContainer.new()
-	room_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	room_row.add_theme_constant_override("separation", 16)
-	invite_button = _make_button(str(config["invite_label"]), [292, 84], invite)
-	leave_button = _make_button(str(config["new_room_label"]), [292, 84], new_room)
-	_paint_button(invite_button, Color(str(config["lobby_nav_color"])))
-	_paint_button(leave_button, Color(str(config["lobby_nav_color"])))
-	room_row.add_child(invite_button)
-	room_row.add_child(leave_button)
-	l.add_child(room_row)
-	party_box = VBoxContainer.new()
-	party_box.add_theme_constant_override("separation", 8)
-	l.add_child(party_box)
-	invite_join_button = _make_button("", big, join_invite)
-	invite_join_button.visible = false
-	l.add_child(invite_join_button)
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 12)
-	grid.add_theme_constant_override("v_separation", 12)
-	var grid_holder := CenterContainer.new()
-	grid_holder.add_child(grid)
-	for name_text in config["lobby_buttons"]:
-		var cb: Callable = show_toast
-		if str(name_text) == str(config["formation_label"]):
-			cb = func(): event("formation")
-		elif str(name_text) == str(config["account_label"]):
-			cb = func(): event("account")
-		elif str(name_text) == str(config["friends_label"]):
-			cb = func(): event("friends")
-		var nav := _make_button(str(name_text), [196, 96], cb)
-		nav.add_theme_font_size_override("font_size", int(config["lobby_nav_font_size"]))
-		_paint_button(nav, Color(str(config["lobby_nav_color"])))
-		grid.add_child(nav)
-	l.add_child(grid_holder)
-	quality_button = _make_button("", [400, 80], change_quality)
-	var quality_holder := CenterContainer.new()
-	_paint_button(quality_button, Color(str(config["lobby_card_color"])))
-	quality_holder.add_child(quality_button)
-	l.add_child(quality_holder)
-	lobby_char = _make_label("", int(config["lobby_small_font_size"]), Color(str(config["lobby_sub_color"])))
-	l.add_child(lobby_char)
-	toast_label = _make_label("", text_size, Color(1.0, 0.85, 0.4))
-	l.add_child(toast_label)
+	# ロビー（版81：3Dのキャラを主役にした画面。くわしくは _build_lobby）
+	_build_lobby()
 
 	# へんせい（キャラを選ぶ）
 	var f := _make_lobby_panel(Logic.FORMATION, 20)
@@ -374,6 +355,9 @@ func _build_panels() -> void:
 	f.add_child(ai_row)
 	_refresh_ai_buttons()
 	f.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
+	var nav_space := Control.new()  # 版81：いちばん下の「編成・ロビー・ガチャ」に隠れないように
+	nav_space.custom_minimum_size = Vector2(0, float(config["nav_height"]))
+	f.add_child(nav_space)
 
 	# アカウント
 	var acc_panel := _make_panel(Logic.ACCOUNT, 18)
@@ -383,6 +367,16 @@ func _build_panels() -> void:
 	account_box.add_theme_constant_override("separation", 14)
 	acc_panel.add_child(account_box)
 	acc_panel.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
+
+	# 版81：画質のボタンは、プロフィール（アカウント）の画面へ移した
+	quality_button = _make_button("", [400, 80], change_quality)
+	_paint_button(quality_button, Color(str(config["lobby_card_color"])))
+	var q_holder := CenterContainer.new()
+	q_holder.add_child(quality_button)
+	acc_panel.add_child(q_holder)
+
+	# へや（版81：右端の「へやを つくる」から。いまの へやの コード・なかま・しょうたい・はじめる）
+	_build_room_panel()
 
 	# フレンド
 	var fr_panel := _make_panel(Logic.FRIENDS, 18)
@@ -427,6 +421,9 @@ func _build_panels() -> void:
 	n.add_child(rematch_wait_next)
 	n.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
 
+
+	# 版81：いちばん下の「編成・ロビー・ガチャ」（ロビーと編成の画面で出す）
+	_build_nav_bar()
 
 	# LINEのフレンドURLを開いたとき：「ついかする／キャンセル」
 	friend_box = Control.new()
@@ -484,6 +481,16 @@ func goto(new_state: String) -> void:
 			bgm.start()
 	for key in panels:
 		(panels[key] as Control).visible = (key == new_state)
+	if lobby_ui != null:
+		lobby_ui.set_nav_selected(new_state)
+		if lobby_ui.stage_picker != null:
+			lobby_ui.stage_picker.visible = false
+	if new_state == Logic.LOBBY:
+		_ensure_lobby_stage()
+	elif new_state == Logic.BATTLE:
+		_free_lobby_stage()  # 戦いの間は、ロビーの3Dを残さない
+	elif lobby_stage != null and is_instance_valid(lobby_stage):
+		lobby_stage.visible = false
 	if new_state == Logic.BATTLE:
 		if battle != null and battle.dormant:
 			battle.set_dormant(false)
@@ -506,6 +513,12 @@ func goto(new_state: String) -> void:
 		Logic.FRIENDS:
 			account_signature = ""
 			_refresh_friends()
+		Logic.ROOM:
+			party_signature = ""
+			_refresh_room_label()
+			_refresh_play_button()
+			_refresh_party()
+			lobby_ui.refresh_room()
 		Logic.HIGHLIGHT:
 			highlight_best.text = best_text if best_text != "" else str(config["highlight_none"])
 			highlight_replay.visible = not highlight_info.is_empty()
@@ -691,12 +704,8 @@ func _refresh_formation() -> void:
 
 
 func _refresh_lobby() -> void:
-	var rank := Logic.player_rank(int(save.get("wins", 0)), int(config["wins_per_rank"]))
-	lobby_info.text = str(config["lobby_rank_label"]) + " " + str(rank) + "    " + str(config["lobby_coin_label"]) + " " + str(int(save.get("coins", 0)))
-	var stage: Dictionary = config["stages"][stage_index]
-	stage_label.text = str(stage["name"])
-	var cdef := CharacterData.find(characters_cfg, selected_character)
-	lobby_char.text = (str(config["lobby_char_label"]) + "：" + str(cdef["role"]) + " " + str(cdef["name"])) if not cdef.is_empty() else ""
+	if lobby_ui != null:
+		lobby_ui.refresh()
 	_refresh_room_label()
 	_refresh_play_button()
 	quality_button.text = str(config["quality_label"]) + "：" + Quality.label_of(quality_name, quality_config)
@@ -1110,7 +1119,7 @@ func _poll_room(delta: float) -> void:
 		if not st.is_empty():
 			room_state = st
 	_sync_phase()
-	if state == Logic.LOBBY:
+	if state in [Logic.LOBBY, Logic.ROOM]:
 		_refresh_room_label()
 		_refresh_play_button()
 		_refresh_party()
@@ -1267,6 +1276,8 @@ func _process(delta: float) -> void:
 
 ## タイトルは、タッチで飛ばせる
 func _unhandled_input(ev: InputEvent) -> void:
+	if state == Logic.LOBBY and lobby_ui != null and lobby_ui.on_key(ev):
+		return
 	if state == Logic.TITLE and (ev is InputEventScreenTouch or ev is InputEventMouseButton) and ev.is_pressed():
 		if bgm != null:
 			bgm.start()

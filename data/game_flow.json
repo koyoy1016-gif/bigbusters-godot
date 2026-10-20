@@ -18,12 +18,32 @@
     {
       "id": "kitasenju",
       "name": "きたせんじゅ",
-      "open": true
+      "open": true,
+      "icon": "city"
     },
     {
       "id": "locked_2",
       "name": "？？？",
-      "open": false
+      "open": false,
+      "icon": "lock"
+    },
+    {
+      "id": "locked_3",
+      "name": "？？？",
+      "open": false,
+      "icon": "lock"
+    },
+    {
+      "id": "locked_4",
+      "name": "？？？",
+      "open": false,
+      "icon": "lock"
+    },
+    {
+      "id": "locked_5",
+      "name": "？？？",
+      "open": false,
+      "icon": "lock"
     }
   ],
   "stage_prev": "＜",
@@ -207,5 +227,47 @@
   "ai_picks_path": "user://ai_picks.json",
   "ai_button_font_size": 28,
   "ai_title_font_size": 40,
-  "formation_content_width": 580
+  "formation_content_width": 580,
+  "_lobby_v81_memo": "版81：新しいロビー。左上：名前、右上：ランクとコイン、右端：フレンド・へや、まんなか：3Dのキャラ4人（scripts/flow/lobby_stage.gd・data/lobby.json）、下：ステージとプレイ、いちばん下：編成・ロビー・ガチャ",
+  "lobby_guest_name": "ゲスト",
+  "lobby_profile_hint": "タップで プロフィール",
+  "lobby_rank_up": "ランクアップ！",
+  "lobby_friends_button": "フレンド",
+  "lobby_room_button": "へやを\nつくる",
+  "nav_formation": "編成",
+  "nav_lobby": "ロビー",
+  "nav_gacha": "ガチャ",
+  "nav_height": 128,
+  "nav_color": "#18202c",
+  "nav_selected_color": "#e8742a",
+  "nav_button_color": "#2a3648",
+  "lobby_top_color": "#101828cc",
+  "lobby_side_button_size": [
+    112,
+    132
+  ],
+  "lobby_side_font_size": 20,
+  "lobby_stage_button_size": [
+    138,
+    138
+  ],
+  "lobby_play_size": [
+    330,
+    138
+  ],
+  "lobby_play_font_size": 54,
+  "lobby_name_font_size": 34,
+  "lobby_arrow_size": [
+    72,
+    72
+  ],
+  "stage_picker_title": "ステージを えらぶ",
+  "stage_locked_note": "まだ あそべません",
+  "stage_locked_toast": "このステージは まだ あそべません",
+  "room_title": "へや",
+  "room_code_label": "へやの コード",
+  "room_team_label": "あなたの 編成",
+  "room_start_label": "この へやで はじめる",
+  "room_name_note": "へやの名前・公開／非公開・へやの一覧は、まだありません（サーバーの決まりの変更が必要）",
+  "gacha_soon": "ガチャは つぎの版で つくります"
 }

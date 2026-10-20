@@ -82,7 +82,7 @@ func _initialize() -> void:
 	var missing := ""
 	for s in texts:
 		for ch in str(s):
-			if not font.has_char(ch.unicode_at(0)) and not missing.contains(ch):
+			if ch != "\n" and not font.has_char(ch.unicode_at(0)) and not missing.contains(ch):  # 改行は字ではない（版81）
 				missing += ch
 	check(missing == "", "画面の流れの文字が、すべてフォントにある（足りない字：%s）" % missing)
 	var base: Array = cfg["portrait_base_size"]
@@ -105,7 +105,8 @@ func _initialize() -> void:
 		check(flow.state == "title", "少しのあいだは、タイトルのまま")
 		flow._process(2.0)
 		check(flow.state == "lobby" and flow.panels["lobby"].visible, "タイトルのあと、自動でロビーに移る")
-		check(str(flow.lobby_info.text).contains("ランク 1") and str(flow.lobby_info.text).contains("コイン 0"), "ロビーに、ランクとコイン：" + str(flow.lobby_info.text))
+		# 版81：ランクは右上の lobby_info、コインはその下の coin_label
+		check(str(flow.lobby_info.text).contains("ランク 1") and flow.lobby_ui.coin_label.text == "0", "ロビーに、ランクとコイン：" + str(flow.lobby_info.text) + " / " + flow.lobby_ui.coin_label.text)
 		check(flow.stage_label.text == "きたせんじゅ" and not flow.play_button.disabled, "ステージ1が選ばれていて、プレイできる")
 		check(str(flow.quality_button.text).begins_with("がしつ："), "ロビーに、画質のボタン：" + str(flow.quality_button.text))
 		var q0: String = flow.quality_name
@@ -117,8 +118,8 @@ func _initialize() -> void:
 		check(flow.play_button.disabled and flow.stage_label.text == "？？？", "次のステージ（未開放）は、プレイできない")
 		flow.play()
 		check(flow.state == "lobby" and flow.toast_label.text == "じゅんびちゅう", "未開放を押すと、「じゅんびちゅう」と出る")
-		flow.change_stage(1)
-		check(flow.stage_label.text == "きたせんじゅ", "ステージ選択は、ぐるっと戻る")
+		flow.change_stage(-1)
+		check(flow.stage_label.text == "きたせんじゅ", "ステージ選択は、もどせる（版81：5つの枠）")
 		# へんせい：キャラを選ぶ
 		check(flow.selected_character == "hero_swordsman" and str(flow.lobby_char.text).contains("ファイター けんし"), "最初のキャラは、主人公のけんし：" + str(flow.lobby_char.text))
 		flow.event("formation")
@@ -169,7 +170,7 @@ func _initialize() -> void:
 		flow.event("next")
 		check(flow.state == "next", "つぎへ")
 		flow.event("lobby")
-		check(flow.state == "lobby" and flow.battle == null and str(flow.lobby_info.text).contains("コイン 60"), "ロビーに戻ると、コインが増えている")
+		check(flow.state == "lobby" and flow.battle == null and flow.lobby_ui.coin_label.text == "60", "ロビーに戻ると、コインが増えている")
 		root.remove_child(flow)
 		flow.free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEMP_SAVE))

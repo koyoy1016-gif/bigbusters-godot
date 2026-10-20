@@ -1,0 +1,115 @@
+{
+  "_memo": "版81：3Dのロビー（scripts/flow/lobby_stage.gd）。位置は m。キャラの背は約3.4m。slots[0] がまんなかのメインキャラ、1〜3 が後ろの3人",
+  "slots": [
+    [
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      -2.7,
+      0.0,
+      -3.0
+    ],
+    [
+      1.5,
+      0.0,
+      -7.2
+    ],
+    [
+      2.7,
+      0.0,
+      -3.0
+    ]
+  ],
+  "slot_scale": [
+    1.0,
+    0.9,
+    0.9,
+    0.9
+  ],
+  "slot_turn_deg": [
+    0.0,
+    16.0,
+    -6.0,
+    -16.0
+  ],
+  "camera_pos": [
+    0.0,
+    2.6,
+    8.6
+  ],
+  "camera_look": [
+    0.0,
+    1.75,
+    -1.2
+  ],
+  "fov_portrait": 62.0,
+  "fov_landscape": 48.0,
+  "move_sec": 0.38,
+  "spin_deg": 40.0,
+  "pick_height_m": 1.7,
+  "pick_radius_px": 150.0,
+  "swipe_px": 70.0,
+  "sky_top": "#2b3a78",
+  "sky_horizon": "#f2a072",
+  "ground_color": "#3a3550",
+  "ground_bottom": "#262238",
+  "stage_disc_color": "#ffd86a",
+  "ambient_color": "#9aa6d8",
+  "ambient_energy": 0.55,
+  "sun_color": "#ffe2c0",
+  "sun_energy": 1.1,
+  "sun_dir_deg": [
+    -38.0,
+    28.0,
+    0.0
+  ],
+  "rim_color": "#8fb4ff",
+  "rim_energy": 2.4,
+  "rim_pos": [
+    0.0,
+    3.4,
+    -2.6
+  ],
+  "city_layers": [
+    {
+      "z": -26.0,
+      "count": 16,
+      "width": [
+        2.6,
+        4.2
+      ],
+      "height": [
+        6.0,
+        15.0
+      ],
+      "color": "#3b3466",
+      "window": "#ffcf7a",
+      "spread": 34.0
+    },
+    {
+      "z": -17.0,
+      "count": 11,
+      "width": [
+        2.4,
+        3.6
+      ],
+      "height": [
+        3.5,
+        9.0
+      ],
+      "color": "#4a3f6e",
+      "window": "#ffd98f",
+      "spread": 26.0
+    }
+  ],
+  "city_seed": 81,
+  "_slots_memo": "版81：まんなかの後ろだと、メインの体にかくれるので、3人目（slots[2]）は右の奥にずらした",
+  "camera_look_landscape": [
+    0.0,
+    -0.35,
+    -1.2
+  ],
+  "_landscape_memo": "横長の画面：下のプレイの列にキャラがかくれないよう、カメラを下に向けて、キャラを画面の上のほうへ"
+}
