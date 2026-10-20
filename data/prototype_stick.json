@@ -376,5 +376,19 @@
         "burst_color": "#ffd0c0"
       }
     }
-  }
+  },
+  "revive": {
+    "_memo": "版84：倒れた仲間の蘇生（scripts/combat/revive.gd・battle_revive.gd）。window_sec 秒以内に、味方が輪の中に hold_sec 秒いれば、体力 hp_ratio で起きる。輪の半径 = player_size × radius_factor",
+    "window_sec": 20.0,
+    "hold_sec": 4.0,
+    "hp_ratio": 0.3,
+    "radius_factor": 2.3,
+    "guard_sec": 1.5,
+    "blink_sec": 5.0
+  },
+  "revive_left_text": "%d",
+  "revive_progress_text": "ふっかつ %.1f",
+  "revive_me_wait": "なかまが そばに 4びょう いれば ふっかつ（あと %d びょう）",
+  "revive_me_progress": "ふっかつ まで %.1f びょう",
+  "revive_gone_text": "ふっかつ できる 時間が すぎました"
 }

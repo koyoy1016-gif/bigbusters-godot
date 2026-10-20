@@ -46,6 +46,7 @@ const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
 const BattleUltFx := preload("res://scripts/prototype/battle_ult_fx.gd")
 const BattleNet := preload("res://scripts/prototype/battle_net.gd")
 const BattleSkills := preload("res://scripts/prototype/battle_skills.gd")
+const BattleRevive := preload("res://scripts/prototype/battle_revive.gd")
 const TargetLock := preload("res://scripts/combat/target_lock.gd")
 const Projectiles := preload("res://scripts/combat/projectiles.gd")
 const SkillHits := preload("res://scripts/combat/skill_hits.gd")
@@ -88,6 +89,7 @@ var rage := BossRage.new()  ## 版69：近くからの攻撃が多い間、ボ�
 var ult_fx := BattleUltFx.new(self)  ## 必殺技の見た目（battle_ult_fx.gd）
 var net := BattleNet.new(self)  ## 通信（battle_net.gd）
 var skills := BattleSkills.new(self)  ## 版78：キャラごとの攻撃の効果と見た目（battle_skills.gd）
+var revive_sys := BattleRevive.new(self)  ## 版84：倒れた仲間の蘇生（battle_revive.gd）
 ## 版78：キャラごとの攻撃の状態（battle_skills.gd が使う）
 var skill_fx: Array = []  ## 出している見た目 [{node, follow}]
 var skill_fx_log: Array = []  ## 出した見た目の種類（テスト用）
@@ -799,6 +801,7 @@ func _begin_round(start_ms: float) -> void:
 		actions = Actions.new(acfg)
 	actions.reset()
 	skills.reset()
+	revive_sys.reset()
 	boss_freeze_total = 0.0
 	gauge.reset()
 	banner["left"] = 0.0
@@ -1597,6 +1600,7 @@ func combat_update(delta: float) -> void:
 		grab_state = {}
 		return
 	skills.update(delta)
+	revive_sys.update(delta)
 	_target_lock_update(delta)
 	# 版78：時間停止の間は、ボスの攻撃の時計を止める（止まっていた時間を、攻撃の時計から引く）
 	if skills.boss_frozen():

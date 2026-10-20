@@ -152,6 +152,7 @@ func _ai_update(delta: float) -> void:
 		ctx["forecast"] = b.ai_forecast
 		ctx["forecast_age"] = maxf(0.0, rt - b.ai_forecast_t)
 		ctx["next_attack_in"] = boss_next_attack_in()
+		ctx["revive_at"] = b.revive_sys.ai_targets()  # 版84：倒れた仲間を起こしに行く
 		var dealt_total := 0.0
 		for slot in b.ai_allies:
 			var a: Dictionary = b.ai_allies[slot]

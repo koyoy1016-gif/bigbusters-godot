@@ -223,6 +223,9 @@ func _initialize() -> void:
 	s.free()
 	# 剣士が倒れていれば、出さない（待つ）
 	s = make_scene(true)
+	# 版84：AIの味方が起こしに来るので、この確かめでは蘇生をなくす（倒れたままにする）
+	s.config["revive"] = {"window_sec": 0.01, "hold_sec": 4.0, "hp_ratio": 0.3, "radius_factor": 2.3}
+	s.revive_sys.reset()
 	s.downed = true
 	s.quick_grab_at = 1.0
 	for slot in s.ai_allies:

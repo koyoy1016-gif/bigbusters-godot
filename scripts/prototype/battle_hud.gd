@@ -117,6 +117,10 @@ func _draw_overlay() -> void:
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.12), str(b.config["enrage_text"]), Color(str(b.config["enrage_color"])), 1.4)
 	if float(b.phase_text["left"]) > 0.0 and str(b.phase_text["text"]) != "":
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(b.phase_text["text"]), Color(str(b.config.get("bossbar_color_awake", "#ffffff"))), 1.8)
+	# 版84：自分が倒れている時：起こしてもらえる のこり時間・起こしてもらっている進み
+	var rs: String = b.revive_sys.my_status() if b.get("revive_sys") != null else ""
+	if rs != "":
+		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.56), rs, Color("#c8ffd8"), 1.2)
 	_draw_reticle()
 	_draw_damage_numbers(screen)
 	_draw_banner(screen)

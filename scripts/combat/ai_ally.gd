@@ -132,8 +132,16 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 	var ev2: Vector2 = a["evade"]
 	var moved := Vector2.ZERO
 	var reach := float(st.get("attack_reach", 2.0)) + float(ctx["boss_radius"])
+	# 版84：倒れた仲間の輪へ行き、中で待つ（よける方が先。起こしている間は攻撃しない）
+	var rv: Variant = (ctx.get("revive_at", {}) as Dictionary).get(str(ctx.get("slot", "")))
+	a["reviving"] = rv is Vector2
 	if ev2 != Vector2.ZERO:
 		moved = ev2 * speed * float(cfg["evade_speed_factor"]) * delta
+	elif rv is Vector2:
+		var to_r: Vector2 = (rv as Vector2) - pos
+		if to_r.length() > 0.25:
+			moved = to_r.normalized() * minf(speed * delta, to_r.length())
+			a["face"] = to_r.normalized()
 	else:
 		var ang := deg_to_rad(float((cfg["approach_angles_deg"] as Array)[int(a["index"]) % (cfg["approach_angles_deg"] as Array).size()]))
 		var stand := reach * float(cfg["stand_factor"])
@@ -148,7 +156,7 @@ static func step(a: Dictionary, delta: float, ctx: Dictionary) -> float:
 		pos = Vector2(clampf(pos.x + moved.x, -half, half), clampf(pos.y + moved.y, -half, half))
 		a["pos"] = pos
 	# こうげき：届くところにいて、よけなくてよく、待っていないときだけ（どの攻撃を使うかは、すきの長さで決める）
-	if bool(ctx.get("can_hit_boss", true)) and ev2 == Vector2.ZERO and not bool(a.get("hold", false)) and (boss - pos).length() <= reach:
+	if bool(ctx.get("can_hit_boss", true)) and ev2 == Vector2.ZERO and not bool(a.get("hold", false)) and not bool(a.get("reviving", false)) and (boss - pos).length() <= reach:
 		_choose_attack(a, ctx, delta)
 	return _flush(a, dealt)
 
