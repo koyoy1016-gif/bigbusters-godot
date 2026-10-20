@@ -164,6 +164,18 @@
           "min_from_center_m": 17.0,
           "pole_color": "#3b3e44",
           "max_z_m": 10.0
+        },
+        "split": {
+          "_memo": "版97：大きな形を、前（近い）・前（遠い：far_m より遠い＝名前に _Far）・後ろ（全部の点の z が back_z_m より大きい＝_Back）に分ける。戦いのカメラはいつも -Z を向き、いちばん手前でも z≈41m・高さ≈14m なので、z>56m の形は箱ごとカメラの後ろになり、描かれない（箱の角が見える範囲にかからないよう、カメラから十分はなす）。画質「低」では _Far を隠す（visible_m.low より遠い）",
+          "parts": [
+            "Ground",
+            "Terrain",
+            "BldgNear",
+            "BldgFar",
+            "Signs"
+          ],
+          "back_z_m": 56.0,
+          "far_m": 330.0
         }
       },
       "visible_m": {

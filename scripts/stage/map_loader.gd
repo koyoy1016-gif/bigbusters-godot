@@ -2,6 +2,7 @@ extends RefCounted
 ## 版88：戦いのマップを読む（data/maps.json の current。いまは渋谷のスクランブル交差点）。
 ## マップの 3D は tools/plateau_to_glb.py が PLATEAU から作った .glb（Terrain・Ground・Crosswalk・BldgNear・BldgFar・Signs・Screens）。
 ## 版89：建物の材質（タイル・ガラス・パネル）、自作の看板・大画面（絵は signs.png）。
+## 版97：大きな形は、前・遠い前（_Far）・カメラの後ろ（_Back）に分けてある（見えない所・遠い所を描かない）。
 ## 交差点のまん中がゲームの (0,0,0)。戦いの場所（±bounds）は平らで、高さ 0（今までの緑の板と同じ高さ）。
 ## ここでは：材質（頂点の色・建物の窓のシェーダー）・見える距離（画質ごと）・影・空と霧と光・戦いの場所のさかい（光る線とうすい壁）を付ける。
 ## 動ける範囲そのもの（外へ出られない）は、今までどおり prototype_stick.json の bounds で、動きの計算が決める。
@@ -101,7 +102,11 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 	root.set_meta("crosswalk_material", cross_mat)
 	for mi in scene.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
-		var nm := str(m.name)
+		var full := str(m.name)
+		# 版97：分けた形（名前に _Far・_Back）は、元の部品と同じ材質。map_part は元の名前、map_zone は near・far・back
+		var nm := part_base(full)
+		m.set_meta("map_zone", "far" if full.ends_with("_Far") else ("back" if full.ends_with("_Back") else "near"))
+		m.set_meta("map_piece", full)
 		if nm in GROUND_MESHES:
 			m.material_override = cross_mat if nm == "Crosswalk" else ground_mat
 			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -120,20 +125,27 @@ static func build(map_cfg: Dictionary, quality: String, bounds: float) -> Node3D
 
 
 ## 画質：遠い建物の見える距離・建物の影
+## 版97：分けた形の名前（Ground_Far・Ground_Back）→ 元の部品の名前（Ground）
+static func part_base(full: String) -> String:
+	return full.trim_suffix("_Far").trim_suffix("_Back")
+
+
+## 画質：遠い所（_Far）を出すか・建物の影。
+## 版97：前は「見える距離」（visibility_range）で遠い建物を消していたが、形が1つだったので、まん中からの距離で決まり、
+##   いつも全部出ていた（効いていなかった）。形を分けたので、遠い形（_Far）を、見える距離が far_m より短い画質では隠す
 static func set_quality(root: Node3D, map_cfg: Dictionary, quality: String) -> void:
 	if root == null:
 		return
 	var vis: Dictionary = map_cfg.get("visible_m", {})
 	var far := float(vis.get(quality, vis.get("low", 330.0)))
+	var split_far := float(((map_cfg.get("build", {}) as Dictionary).get("split", {}) as Dictionary).get("far_m", 330.0))
 	for mi in root.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		var part := str(m.get_meta("map_part", ""))
 		if part == "":
 			continue
-		if part == "BldgFar" or part == "Terrain":
-			m.visibility_range_end = far
-			m.visibility_range_end_margin = 20.0
-			m.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
+		if str(m.get_meta("map_zone", "near")) == "far":
+			m.visible = far > split_far + 1.0
 		if part == "BldgNear":
 			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if quality == "high" else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		elif part == "BldgFar":

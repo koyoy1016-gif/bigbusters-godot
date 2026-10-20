@@ -978,6 +978,31 @@ def build_signs(data, fr, b, stats):
     return signs, screens
 
 
+
+def split_mesh(name, arrs, back_z, far_m):
+    """版97：1つの形を「前（近い）」「前（遠い）＝_Far」「カメラの後ろ＝_Back」に分ける（遠いは重心の距離、後ろは3つの点すべての z）。
+    戦いのカメラはいつも -Z を向くので、_Back は自動で描かれない（見えない所を描かない）。
+    _Far は画質「低」では隠す（遠い所を描かない）。形は分けるだけで、点も色も変えない"""
+    pos, nor, col, idx = arrs[:4]
+    uv = arrs[4] if len(arrs) > 4 else None
+    t = idx.reshape(-1, 3)
+    c = pos[t].mean(axis=1)
+    # 後ろ：3つの点がすべて back_z より後ろ（形の箱が、カメラの後ろにきちんと収まり、自動で描かれなくなる）
+    back = pos[t][:, :, 2].min(axis=1) > back_z
+    far = (~back) & (np.hypot(c[:, 0], c[:, 2]) >= far_m)
+    near = ~(back | far)
+    out = []
+    for suffix, sel in (("", near), ("_Far", far), ("_Back", back)):
+        if not sel.any():
+            continue
+        tt = t[sel]
+        used, inv = np.unique(tt.reshape(-1), return_inverse=True)
+        piece = (pos[used], nor[used], col[used], inv.astype(np.uint32))
+        if uv is not None:
+            piece = piece + (uv[used],)
+        out.append((name + suffix, piece))
+    return out
+
 # ---------------------------------------------------------------- glb を書く
 
 def write_glb(path, meshes, extras):
@@ -1133,6 +1158,19 @@ def main():
         log("%-10s 三角形 %7d  点 %7d" % (m.name, len(arrs[3]) // 3, len(arrs[0])))
     stats["arena_max_dev_m"] = arena_flatness(dict(meshes)["Ground"], float(b.get("check_half_m", 15.0)))
     log("戦いの場所の床の高さのずれ（いちばん大きい所）: %.3f m" % stats["arena_max_dev_m"])
+    # 版97：大きな形を、前・遠い前・後ろに分ける（見えない所・遠い所を描かないため）
+    sp = b.get("split", {})
+    if sp:
+        split = []
+        for name, arrs in meshes:
+            if name in sp.get("parts", []):
+                pieces = split_mesh(name, arrs, float(sp["back_z_m"]), float(sp["far_m"]))
+                for pn, pa in pieces:
+                    log("  分けた %-14s 三角形 %7d" % (pn, len(pa[3]) // 3))
+                split += pieces
+            else:
+                split.append((name, arrs))
+        meshes = split
     out = Path(args.out) if args.out else ROOT / mc["glb"].replace("res://", "")
     out.parent.mkdir(parents=True, exist_ok=True)
     extras = {"attribution": mc["attribution"], "center": [b["center_lat"], b["center_lon"]], "heading_deg": b["heading_deg"],

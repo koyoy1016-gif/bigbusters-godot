@@ -119,9 +119,16 @@ func _initialize() -> void:
 	check(s.get_node_or_null("Ground") == null, "前の緑の板（Ground）は作らない")
 	var maps := s.find_children("Map", "Node3D", false, false)
 	check(maps.size() == 1 and s.map_root == maps[0], "マップは1つだけ")
+	# 版97：大きな形は、前（near）・遠い前（far）・後ろ（back）に分けた。parts は前の形、pieces は全部
 	var parts := {}
+	var pieces := {}
 	for mi in s.map_root.find_children("*", "MeshInstance3D", true, false):
-		parts[str(mi.get_meta("map_part", ""))] = mi
+		var base := str(mi.get_meta("map_part", ""))
+		if str(mi.get_meta("map_zone", "near")) == "near":
+			parts[base] = mi
+		if not pieces.has(base):
+			pieces[base] = []
+		(pieces[base] as Array).append(mi)
 	check(parts.has("Terrain") and parts.has("Ground") and parts.has("Crosswalk") and parts.has("BldgNear") and parts.has("BldgFar"), "マップの部品：地形・道路・横断歩道・近い建物・遠い建物 %s" % str(parts.keys()))
 
 	# ---- 3. 交差点のまん中 ----
@@ -144,7 +151,9 @@ func _initialize() -> void:
 		x += 1.0
 	check(holes == 0 and max_dy <= 0.06, "戦いの場所の床は平らで、すきまがない（%d 点を調べた・高さのずれ %.3f m・すきま %d）" % [samples, max_dy, holes])
 	var in_b := 0
-	var bv := verts_of(parts["BldgNear"])
+	var bv := PackedVector3Array()
+	for m in pieces["BldgNear"]:
+		bv.append_array(verts_of(m))
 	for v in bv:
 		if absf(v.x) <= half + 2.0 and absf(v.z) <= half + 2.0:
 			in_b += 1
@@ -173,8 +182,9 @@ func _initialize() -> void:
 	# ---- 5. 背景：まわりのどの方向にも建物 ----
 	var dirs := [0, 0, 0, 0, 0, 0, 0, 0]
 	var far_max := 0.0
-	for v in verts_of(parts["BldgFar"]):
-		far_max = maxf(far_max, Vector2(v.x, v.z).length())
+	for m in pieces["BldgFar"]:
+		for v in verts_of(m):
+			far_max = maxf(far_max, Vector2(v.x, v.z).length())
 	for v in bv:
 		var d := Vector2(v.x, v.z)
 		if d.length() > 30.0:
@@ -198,11 +208,22 @@ func _initialize() -> void:
 	check(is_equal_approx(s.player.position.y, s.ground_y) and not is_nan(under) and absf(under) <= 0.06, "足もとの床の高さは 0（キャラの足と同じ。埋まらない・浮かない。ずれ %.3f）" % under)
 
 	# ---- 7. 画質・空 ----
+	# 版97：遠い形（_Far）は、画質「低」では隠す（前の visibility_range は、形が1つだったので効いていなかった）
+	var far_pieces := []
+	for base in pieces:
+		for m in pieces[base]:
+			if str(m.get_meta("map_zone", "")) == "far":
+				far_pieces.append(m)
 	s.set_map_quality("low")
-	var far_m: MeshInstance3D = parts["BldgFar"]
-	check(is_equal_approx(far_m.visibility_range_end, float(mc["visible_m"]["low"])) and (parts["BldgNear"] as MeshInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "画質「低」：遠くの建物は %.0f m まで・建物の影なし" % far_m.visibility_range_end)
+	var all_hidden := not far_pieces.is_empty()
+	for m in far_pieces:
+		all_hidden = all_hidden and not (m as MeshInstance3D).visible
+	check(all_hidden and (parts["BldgNear"] as MeshInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "画質「低」：%.0f m より遠い形（%d こ）は出さない・建物の影なし" % [float(mc["build"]["split"]["far_m"]), far_pieces.size()])
 	s.set_map_quality("high")
-	check(is_equal_approx(far_m.visibility_range_end, float(mc["visible_m"]["high"])) and (parts["BldgNear"] as MeshInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "画質「高」：遠くの建物は %.0f m まで・近い建物の影あり" % far_m.visibility_range_end)
+	var all_shown := true
+	for m in far_pieces:
+		all_shown = all_shown and (m as MeshInstance3D).visible
+	check(all_shown and (parts["BldgNear"] as MeshInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "画質「高」：遠い形も出す（%.0f m まで）・近い建物の影あり" % float(mc["visible_m"]["high"]))
 	var env: Environment = s.camera.environment
 	check(env.background_mode == Environment.BG_SKY and env.sky != null and env.fog_enabled, "空（夕方のグラデーション）と霧")
 	check((parts["BldgNear"] as MeshInstance3D).material_override is ShaderMaterial, "建物は、窓を描くシェーダー（shaders/city_buildings.gdshader）")
@@ -210,8 +231,9 @@ func _initialize() -> void:
 
 	# ---- 8. 重さ ----
 	var total := 0
-	for k in parts:
-		total += tri_count(parts[k])
+	for k in pieces:
+		for m in pieces[k]:
+			total += tri_count(m)
 	check(total < 160000, "マップの三角形は 16万未満（%d）" % total)
 	var size := FileAccess.get_file_as_bytes(str(mc["glb"])).size()
 	check(size < 8000000, "マップのファイルは 8MB 未満（%.1f MB）" % (size / 1000000.0))
