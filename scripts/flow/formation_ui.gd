@@ -1,0 +1,594 @@
+extends RefCounted
+## 版82：編成の画面（game_flow.gd から分けた）。
+## 上：4つの枠（メイン＋なかま3人。顔の絵・名前・役の色）。
+## まんなか：選んだキャラのくわしい情報（顔・レア度・名前・役・装備2枠（まだ空）・説明・体力/攻撃/防御/速さ/届く・技の名前・覚醒）。
+## 下：キャラの一覧（顔の絵のカード。持っていないキャラは暗く、かぎ）。
+## 入れかえ：枠をタップ → 別の枠をタップで入れかえ、または一覧のキャラをタップで、その枠に入れる。
+##           一覧のキャラをタップだけなら、くわしい情報を見る（「この枠に セット」で入れる）。
+## 編成のデータ：メイン＝selected_character、なかま＝ai_picks（ロビー・戦いと同じ）。持っているキャラだけ入れられる。
+
+const LobbyIcon := preload("res://scripts/ui/lobby_icon.gd")
+const FancyRect := preload("res://scripts/ui/fancy_rect.gd")
+const UiKit := preload("res://scripts/ui/ui_kit.gd")
+const CharacterData := preload("res://scripts/characters/character_data.gd")
+const Actions := preload("res://scripts/combat/player_actions.gd")
+const Roster := preload("res://scripts/flow/roster.gd")
+const Logic := preload("res://scripts/flow/flow_logic.gd")
+
+var f: Node
+var lobby_ui: RefCounted
+var root: Control
+var slot_buttons: Array = []
+var card_buttons: Dictionary = {}  # id → Button
+var selected_slot := 0
+var armed_slot := -1  # 枠をタップした直後（次のタップで入れかえる）
+var focus_id := ""
+var hint_label: Label
+var grid: GridContainer
+var detail: Dictionary = {}  # くわしい情報の部品
+var set_button: Button
+var bold: Font
+
+
+func _init(flow: Node, lui: RefCounted) -> void:
+	f = flow
+	lobby_ui = lui
+
+
+func _k(key: String, def: Variant) -> Variant:
+	return (f.config.get("ui_kit", {}) as Dictionary).get(key, def)
+
+
+func _label(text: String, size: int, color: Color, use_bold: bool = false) -> Label:
+	var l: Label = f._make_label(text, size, color)
+	if use_bold and bold != null:
+		l.add_theme_font_override("font", bold)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+func _style(color: Color, radius: int, margin: int = 0) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = color
+	sb.set_corner_radius_all(radius)
+	sb.set_content_margin_all(margin)
+	sb.anti_aliasing = true
+	return sb
+
+
+func _rarity_color(r: String) -> Color:
+	return Color(str((f.profiles.get("rarity_colors", {}) as Dictionary).get(r, "#9aa4b8")))
+
+
+## 顔の絵の入った、角の丸い枠（役の色の背景・下に暗いグラデーション）
+func portrait_box(id: String, box_size: Vector2, radius: int) -> Control:
+	var d := CharacterData.find(f.characters_cfg, id)
+	var frame := Panel.new()
+	frame.custom_minimum_size = box_size
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var role_col: Color = lobby_ui.role_color(str(d.get("role", "")))
+	frame.add_theme_stylebox_override("panel", _style(role_col.darkened(0.35), radius))
+	frame.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+	var bgfx := FancyRect.new().setup(role_col.darkened(0.05), role_col.darkened(0.55), radius)
+	bgfx.shine = 0.12
+	bgfx.border_width = 0.0
+	bgfx.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.add_child(bgfx)
+	var ph := LobbyIcon.new("person", Color(1, 1, 1, 0.55))
+	ph.name = "Placeholder"
+	ph.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.add_child(ph)
+	var tr := TextureRect.new()
+	tr.name = "Face"
+	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(tr)
+	if f.portraits != null and not d.is_empty():
+		f.portraits.request(id, d, func(tex: Texture2D):
+			if is_instance_valid(tr):
+				tr.texture = tex
+				ph.visible = false)
+	return frame
+
+
+func _rarity_pill(r: String, font_size: int = 15) -> PanelContainer:
+	var p := PanelContainer.new()
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var c := _rarity_color(r)
+	var sb := _style(c.darkened(0.15), 8, 2)
+	sb.set_content_margin(SIDE_LEFT, 7)
+	sb.set_content_margin(SIDE_RIGHT, 7)
+	sb.set_border_width_all(1)
+	sb.border_color = c.lightened(0.45)
+	p.add_theme_stylebox_override("panel", sb)
+	var l := _label(r, font_size, Color.WHITE, true)
+	UiKit.outline(l, 3, Color(0, 0, 0, 0.5))
+	p.add_child(l)
+	return p
+
+
+# ---------------------------------------------------------------- 画面を作る
+
+func build() -> void:
+	bold = UiKit.bold(f.font, float(_k("bold", 0.7)))
+	root = Control.new()
+	root.name = Logic.FORMATION
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var bg := FancyRect.new().setup(Color("#1b2140"), Color("#0b0e1c"), 0)
+	bg.shine = 0.0
+	bg.border_width = 0.0
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(bg)
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	root.add_child(scroll)
+	var page := VBoxContainer.new()
+	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override("separation", 14)
+	scroll.add_child(page)
+	f.layer.add_child(root)
+	f.panels[Logic.FORMATION] = root
+
+	# 見出し
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 12)
+	var pad := Control.new()
+	pad.custom_minimum_size = Vector2(6, 0)
+	head.add_child(pad)
+	var back: Button = lobby_ui.icon_button("left", "", Vector2(64, 64), 1, Color(str(_k("arrow_color", "#0e1526a0"))), func(): f.event("back"), 32)
+	back.name = "Back"
+	head.add_child(back)
+	var hcol := VBoxContainer.new()
+	hcol.add_theme_constant_override("separation", 0)
+	var title := _label(str(f.config["formation_title"]), 40, Color.WHITE, true)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	hcol.add_child(title)
+	hint_label = _label("", 19, Color(str(_k("sub_text", "#b9c4dc"))))
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	hcol.add_child(hint_label)
+	head.add_child(hcol)
+	var top_pad := Control.new()
+	top_pad.custom_minimum_size = Vector2(0, 8)
+	page.add_child(top_pad)
+	page.add_child(head)
+
+	# 4つの枠
+	var slots_row := HBoxContainer.new()
+	slots_row.name = "Slots"
+	slots_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	slots_row.add_theme_constant_override("separation", 10)
+	slot_buttons = []
+	for i in Roster.TEAM_SIZE:
+		var b := Button.new()
+		b.name = "Slot%d" % i
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(146, 200)
+		UiKit.clear_button(b)
+		b.pressed.connect(f._on_menu_press)
+		b.pressed.connect(func(): tap_slot(i))
+		UiKit.juice(b)
+		slot_buttons.append(b)
+		slots_row.add_child(b)
+	page.add_child(slots_row)
+
+	# くわしい情報
+	page.add_child(_build_detail())
+
+	# 一覧
+	var list_head := _label(str(f.config["formation_list_title"]), 24, Color.WHITE, true)
+	page.add_child(list_head)
+	var gholder := CenterContainer.new()
+	grid = GridContainer.new()
+	grid.name = "Grid"
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 10)
+	grid.add_theme_constant_override("v_separation", 10)
+	gholder.add_child(grid)
+	page.add_child(gholder)
+	var nav_space := Control.new()
+	nav_space.custom_minimum_size = Vector2(0, float(f.config["nav_height"]) + 20)
+	page.add_child(nav_space)
+
+
+func _build_detail() -> Control:
+	var card := PanelContainer.new()
+	card.name = "Detail"
+	card.custom_minimum_size = Vector2(612, 0)
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var csb := UiKit.glass(f.config, 24)
+	csb.set_content_margin_all(16)
+	card.add_theme_stylebox_override("panel", csb)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 16)
+	var face_holder := Control.new()
+	face_holder.name = "FaceHolder"
+	face_holder.custom_minimum_size = Vector2(150, 150)
+	top.add_child(face_holder)
+	var info := VBoxContainer.new()
+	info.add_theme_constant_override("separation", 6)
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var rrow := HBoxContainer.new()
+	rrow.add_theme_constant_override("separation", 8)
+	var rholder := Control.new()
+	rholder.name = "RarityHolder"
+	rholder.custom_minimum_size = Vector2(56, 26)
+	rrow.add_child(rholder)
+	var stars := HBoxContainer.new()
+	stars.name = "Stars"
+	stars.add_theme_constant_override("separation", 2)
+	rrow.add_child(stars)
+	info.add_child(rrow)
+	var name_l := _label("", 36, Color.WHITE, true)
+	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	info.add_child(name_l)
+	var role_row := HBoxContainer.new()
+	var role_holder := PanelContainer.new()
+	role_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var role_l := _label("", 18, Color.WHITE, true)
+	role_holder.add_child(role_l)
+	role_row.add_child(role_holder)
+	var own_l := _label("", 18, Color(str(_k("sub_text", "#b9c4dc"))))
+	role_row.add_child(own_l)
+	role_row.add_theme_constant_override("separation", 10)
+	info.add_child(role_row)
+	# 装備の2枠（まだ空）
+	var equip := HBoxContainer.new()
+	equip.add_theme_constant_override("separation", 8)
+	for i in 2:
+		var e := PanelContainer.new()
+		e.custom_minimum_size = Vector2(170, 46)
+		var esb := _style(Color(1, 1, 1, 0.05), 12, 4)
+		esb.set_border_width_all(2)
+		esb.border_color = Color(1, 1, 1, 0.18)
+		e.add_theme_stylebox_override("panel", esb)
+		var el := _label(str(f.config["formation_equip_empty"]) % (i + 1), 16, Color(1, 1, 1, 0.45))
+		e.add_child(el)
+		equip.add_child(e)
+	info.add_child(equip)
+	top.add_child(info)
+	col.add_child(top)
+	var desc := _label("", 20, Color("#dfe6f5"))
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	desc.custom_minimum_size = Vector2(580, 0)
+	col.add_child(desc)
+	# 能力（数とバー）
+	var stats := GridContainer.new()
+	stats.name = "Stats"
+	stats.columns = 2
+	stats.add_theme_constant_override("h_separation", 18)
+	stats.add_theme_constant_override("v_separation", 6)
+	col.add_child(stats)
+	# 技
+	var moves := VBoxContainer.new()
+	moves.name = "Moves"
+	moves.add_theme_constant_override("separation", 6)
+	col.add_child(moves)
+	var note := _label(str(f.config["formation_note"]), 15, Color(1, 1, 1, 0.45))
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(580, 0)
+	col.add_child(note)
+	# この枠に セット
+	var sh := Control.new()
+	sh.custom_minimum_size = Vector2(580, 84)
+	var skin := FancyRect.new().setup(Color(str(_k("play_top", "#ffb84d"))), Color(str(_k("play_bottom", "#f04e23"))), 22, Color(str(_k("play_glow", "#ff7a2a"))), 6)
+	skin.name = "Skin"
+	skin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sh.add_child(skin)
+	set_button = f._make_button("", [580, 84], set_focus_to_slot)
+	set_button.name = "SetButton"
+	set_button.set_anchors_preset(Control.PRESET_FULL_RECT)
+	UiKit.clear_button(set_button)
+	if bold != null:
+		set_button.add_theme_font_override("font", bold)
+	set_button.add_theme_font_size_override("font_size", 30)
+	set_button.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.6))
+	sh.add_child(set_button)
+	col.add_child(sh)
+	card.add_child(col)
+	detail = {"face": face_holder, "rarity": rholder, "stars": stars, "name": name_l, "role": role_l, "role_holder": role_holder, "own": own_l,
+		"desc": desc, "stats": stats, "moves": moves, "skin": skin}
+	return card
+
+
+# ---------------------------------------------------------------- 表示を合わせる
+
+func team() -> Array:
+	return lobby_ui.team()
+
+
+func refresh() -> void:
+	if root == null:
+		return
+	var t := team()
+	if focus_id == "" or CharacterData.find(f.characters_cfg, focus_id).is_empty():
+		focus_id = str(t[selected_slot]) if selected_slot < t.size() else str(t[0])
+	_refresh_slots(t)
+	_refresh_grid(t)
+	_refresh_detail(t)
+	hint_label.text = str(f.config["formation_hint_armed"]) if armed_slot >= 0 else str(f.config["formation_hint"])
+
+
+func _refresh_slots(t: Array) -> void:
+	for i in slot_buttons.size():
+		var b: Button = slot_buttons[i]
+		for c in b.get_children():
+			b.remove_child(c)
+			c.queue_free()
+		var col := VBoxContainer.new()
+		col.set_anchors_preset(Control.PRESET_FULL_RECT)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_theme_constant_override("separation", 4)
+		var tag := _label(str(f.config["formation_main"]) if i == 0 else str(f.config["formation_mate"]) % i, 17,
+			Color(str(_k("gold", "#ffd45a"))) if i == 0 else Color(str(_k("sub_text", "#b9c4dc"))), true)
+		col.add_child(tag)
+		var holder := CenterContainer.new()
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if i < t.size():
+			var id := str(t[i])
+			holder.add_child(portrait_box(id, Vector2(132, 132), 20))
+			col.add_child(holder)
+			var d := CharacterData.find(f.characters_cfg, id)
+			col.add_child(_label(str(d.get("name", id)), 20, Color.WHITE, true))
+		else:
+			var empty := PanelContainer.new()
+			empty.custom_minimum_size = Vector2(132, 132)
+			var esb := _style(Color(1, 1, 1, 0.05), 20)
+			esb.set_border_width_all(2)
+			esb.border_color = Color(1, 1, 1, 0.25)
+			empty.add_theme_stylebox_override("panel", esb)
+			empty.add_child(_label(str(f.config["formation_empty"]), 22, Color(1, 1, 1, 0.6), true))
+			holder.add_child(empty)
+			col.add_child(holder)
+		b.add_child(col)
+		# 選んでいる枠：金のふちと光（入れかえ待ちは、もっと強く）
+		if i == selected_slot:
+			var mark := FancyRect.new().setup(Color(1, 0.8, 0.3, 0.1), Color(1, 0.6, 0.2, 0.04), 22,
+				Color(1, 0.7, 0.25, 0.9 if armed_slot == i else 0.45), 10 if armed_slot == i else 6)
+			mark.shine = 0.0
+			mark.border_color = Color(str(_k("gold", "#ffd45a")))
+			mark.border_width = 3.0
+			mark.set_anchors_preset(Control.PRESET_FULL_RECT)
+			mark.show_behind_parent = true
+			b.add_child(mark)
+
+
+func _columns() -> int:
+	var w := 648.0
+	if f.get_viewport() != null:
+		w = f.get_viewport().get_visible_rect().size.x
+	return clampi(int((w - 24.0) / 150.0), 3, 7)
+
+
+func _refresh_grid(t: Array) -> void:
+	grid.columns = _columns()
+	f._clear_box(grid)
+	card_buttons = {}
+	var owned: Array = f.owned
+	for c in f.characters_cfg.get("characters", []):
+		var id := str(c["id"])
+		var b := Button.new()
+		b.name = "Card_" + id
+		b.focus_mode = Control.FOCUS_NONE
+		b.custom_minimum_size = Vector2(140, 178)
+		UiKit.clear_button(b)
+		var box := portrait_box(id, Vector2(140, 178), 18)
+		box.set_anchors_preset(Control.PRESET_FULL_RECT)
+		b.add_child(box)
+		var shade := UiKit.vignette(false, 70, Color(0.02, 0.03, 0.08, 0.95))
+		box.add_child(shade)
+		var nm := UiKit.outline(_label(str(c["name"]), 21, Color.WHITE, true), 4)
+		nm.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		nm.offset_top = -36
+		nm.offset_bottom = -6
+		b.add_child(nm)
+		var rp := _rarity_pill(Roster.rarity(f.profiles, id))
+		rp.position = Vector2(6, 6)
+		b.add_child(rp)
+		var in_team := t.find(id)
+		if in_team >= 0:
+			var badge := PanelContainer.new()
+			badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var bsb := _style(Color(str(_k("play_bottom", "#f04e23"))), 10, 2)
+			bsb.set_content_margin(SIDE_LEFT, 6)
+			bsb.set_content_margin(SIDE_RIGHT, 6)
+			badge.add_theme_stylebox_override("panel", bsb)
+			badge.add_child(_label(str(f.config["formation_main"]) if in_team == 0 else str(f.config["formation_mate"]) % in_team, 14, Color.WHITE, true))
+			b.add_child(badge)
+			badge.reset_size()
+			badge.position = Vector2(140.0 - badge.get_combined_minimum_size().x - 6.0, 6.0)
+		if not owned.has(id):
+			var dim := ColorRect.new()
+			dim.color = Color(0.02, 0.03, 0.08, 0.62)
+			dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+			dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			b.add_child(dim)
+			var lock := LobbyIcon.new("lock", Color(1, 1, 1, 0.8))
+			b.add_child(lock)
+			lock.size = Vector2(46, 46)
+			lock.position = Vector2(47, 44)
+			var nl := _label(str(f.config["formation_not_owned"]), 15, Color(1, 1, 1, 0.8), true)
+			nl.position = Vector2(0, 96)
+			nl.size = Vector2(140, 22)
+			b.add_child(nl)
+		if id == focus_id:
+			# 見ているキャラ：金のふちと、外へのやわらかい光（中はおおわない）
+			var mark := Panel.new()
+			mark.name = "Focus"
+			mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var msb := _style(Color(0, 0, 0, 0), 18)
+			msb.set_border_width_all(4)
+			msb.border_color = Color(str(_k("gold", "#ffd45a")))
+			mark.add_theme_stylebox_override("panel", msb)
+			mark.set_anchors_preset(Control.PRESET_FULL_RECT)
+			b.add_child(mark)
+			var glow := Panel.new()
+			glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			glow.show_behind_parent = true
+			var gsb := _style(Color(1, 0.75, 0.3, 0.9), 18)
+			gsb.shadow_color = Color(1, 0.65, 0.2, 0.6)
+			gsb.shadow_size = 12
+			glow.add_theme_stylebox_override("panel", gsb)
+			glow.set_anchors_preset(Control.PRESET_FULL_RECT)
+			b.add_child(glow)
+		b.pressed.connect(f._on_menu_press)
+		b.pressed.connect(func(): tap_card(id))
+		UiKit.juice(b)
+		card_buttons[id] = b
+		grid.add_child(b)
+
+
+func _refresh_detail(t: Array) -> void:
+	var id := focus_id
+	var d := CharacterData.find(f.characters_cfg, id)
+	var pr: Dictionary = Roster.profile(f.profiles, id)
+	var r := Roster.rarity(f.profiles, id)
+	var face: Control = detail["face"]
+	f._clear_box(face)
+	face.add_child(portrait_box(id, Vector2(150, 150), 24))
+	var rh: Control = detail["rarity"]
+	f._clear_box(rh)
+	rh.add_child(_rarity_pill(r, 18))
+	var stars: HBoxContainer = detail["stars"]
+	f._clear_box(stars)
+	for k in int((f.profiles.get("rarity_stars", {}) as Dictionary).get(r, 1)):
+		var si := LobbyIcon.new("star", _rarity_color(r).lightened(0.2))
+		si.custom_minimum_size = Vector2(24, 24)
+		stars.add_child(si)
+	(detail["name"] as Label).text = str(d.get("name", id))
+	var role := str(d.get("role", ""))
+	(detail["role"] as Label).text = role
+	var rc: Color = lobby_ui.role_color(role)
+	var psb := _style(rc, 12, 3)
+	psb.set_content_margin(SIDE_LEFT, 12)
+	psb.set_content_margin(SIDE_RIGHT, 12)
+	(detail["role_holder"] as PanelContainer).add_theme_stylebox_override("panel", psb)
+	var owned: bool = f.owned.has(id)
+	(detail["own"] as Label).text = str(f.config["formation_owned"]) if owned else str(f.config["formation_not_owned_long"])
+	(detail["desc"] as Label).text = str(pr.get("desc", ""))
+	# 能力
+	var stats: GridContainer = detail["stats"]
+	f._clear_box(stats)
+	var st: Dictionary = d.get("stats", {})
+	var labels: Dictionary = f.config["stat_labels"]
+	var maxes: Dictionary = f.config["formation_stat_max"]
+	var rows := [["hp", float(st.get("hp", 0)), "%d" % ceili(float(st.get("hp", 0)))],
+		["attack_power", float(st.get("attack_power", 0)), "%.1f" % float(st.get("attack_power", 0))],
+		["defense", float(pr.get("defense", 0)), "%d" % int(pr.get("defense", 0))],
+		["move_speed", float(st.get("move_speed", 0)), "%.1f" % float(st.get("move_speed", 0))],
+		["attack_reach", float(st.get("attack_reach", 0)), "%.1fm" % float(st.get("attack_reach", 0))]]
+	for row in rows:
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 8)
+		var nl := _label(str(labels.get(row[0], row[0])), 18, Color(str(_k("sub_text", "#b9c4dc"))))
+		nl.custom_minimum_size = Vector2(90, 0)
+		nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		cell.add_child(nl)
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(110, 10)
+		bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		bar.show_percentage = false
+		bar.max_value = float(maxes.get(row[0], 100.0))
+		bar.value = float(row[1])
+		bar.add_theme_stylebox_override("background", _style(Color(1, 1, 1, 0.12), 5))
+		bar.add_theme_stylebox_override("fill", _style(rc.lightened(0.15), 5))
+		cell.add_child(bar)
+		var vl := _label(str(row[2]), 19, Color.WHITE, true)
+		vl.custom_minimum_size = Vector2(66, 0)
+		vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		cell.add_child(vl)
+		stats.add_child(cell)
+	# 技
+	var moves: VBoxContainer = detail["moves"]
+	f._clear_box(moves)
+	var acts: Dictionary = Actions.config_for(id).get("actions", {})
+	var move_rows := [["normal", "formation_move_normal"], ["sub", "formation_move_sub"], ["main", "formation_move_main"], ["ultimate", "formation_move_ult"]]
+	for mr in move_rows:
+		var a: Dictionary = acts.get(mr[0], {})
+		moves.add_child(_move_row(str(f.config[mr[1]]), str(a.get("name", "-")), rc))
+	var aw: Dictionary = pr.get("awaken", {})
+	moves.add_child(_move_row(str(f.config["formation_move_awaken"]), str(aw.get("name", "-")) + "：" + str(aw.get("text", "")), Color("#8a6cff")))
+	# セットの ボタン
+	var in_slot := t.find(id)
+	var can := owned and in_slot != selected_slot
+	set_button.disabled = not can
+	var skin: Control = detail["skin"]
+	skin.top_color = Color(str(_k("play_top", "#ffb84d"))) if can else Color("#59617a")
+	skin.bottom_color = Color(str(_k("play_bottom", "#f04e23"))) if can else Color("#3a4052")
+	skin.glow_color = Color(str(_k("play_glow", "#ff7a2a"))) if can else Color(0, 0, 0, 0)
+	if not owned:
+		set_button.text = str(f.config["formation_set_locked"])
+	elif in_slot == selected_slot:
+		set_button.text = str(f.config["formation_set_already"])
+	else:
+		set_button.text = (str(f.config["formation_set_main"]) if selected_slot == 0 else str(f.config["formation_set_mate"]) % selected_slot)
+
+
+func _move_row(tag: String, text: String, col: Color) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var p := PanelContainer.new()
+	p.custom_minimum_size = Vector2(118, 0)
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := _style(col.darkened(0.35), 10, 3)
+	sb.set_border_width_all(1)
+	sb.border_color = col.lightened(0.2)
+	p.add_theme_stylebox_override("panel", sb)
+	p.add_child(_label(tag, 15, Color.WHITE, true))
+	row.add_child(p)
+	var l := _label(text, 19, Color.WHITE)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(l)
+	return row
+
+
+# ---------------------------------------------------------------- 操作
+
+## 枠をタップ：入れかえ待ちの時に別の枠なら入れかえ。そうでなければ、その枠を選んで入れかえ待ちに
+func tap_slot(i: int) -> void:
+	var t := team()
+	if armed_slot >= 0 and armed_slot != i:
+		_apply(Roster.swap(t, armed_slot, i))
+		selected_slot = i
+		armed_slot = -1
+	elif armed_slot == i:
+		armed_slot = -1
+	else:
+		selected_slot = i
+		armed_slot = i
+	focus_id = str(team()[selected_slot]) if selected_slot < team().size() else focus_id
+	refresh()
+
+
+## 一覧のキャラをタップ：入れかえ待ちなら、その枠に入れる。そうでなければ、くわしい情報を見る
+func tap_card(id: String) -> void:
+	focus_id = id
+	if armed_slot >= 0:
+		if f.owned.has(id):
+			_apply(Roster.assign(team(), armed_slot, id))
+			armed_slot = -1
+		else:
+			f.toast_label.text = str(f.config["formation_set_locked"])
+			f.toast_time = 2.0
+	refresh()
+
+
+## くわしい情報のキャラを、選んでいる枠に入れる
+func set_focus_to_slot() -> void:
+	if not f.owned.has(focus_id):
+		return
+	_apply(Roster.assign(team(), selected_slot, focus_id))
+	armed_slot = -1
+	refresh()
+
+
+func _apply(t: Array) -> void:
+	lobby_ui._apply_team(t)

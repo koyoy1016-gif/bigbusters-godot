@@ -13,6 +13,13 @@ var queue: Array = []  # [{id, def, cbs: [Callable]}]
 var busy: Dictionary = {}  # いま作っている：{id, vp, view, frames, cbs}
 
 
+## 端末に保存する場所（形を変えたら data/game_flow.json の portrait.version を上げると、作り直す）
+func _disk_path(id: String) -> String:
+	if str(cfg.get("version", "")) == "":
+		return ""
+	return "user://portraits/%s_%s.png" % [id, str(cfg["version"])]
+
+
 static func can_render() -> bool:
 	return DisplayServer.get_name() != "headless"
 
@@ -22,6 +29,14 @@ func request(id: String, def: Dictionary, cb: Callable) -> void:
 	if cache.has(id):
 		cb.call(cache[id])
 		return
+	# 版82：前に作って端末に保存した絵があれば、それを使う（2回目からは、すぐ出る・重くない）
+	var disk := _disk_path(id)
+	if disk != "" and FileAccess.file_exists(disk):
+		var img := Image.load_from_file(disk)
+		if img != null and not img.is_empty():
+			cache[id] = ImageTexture.create_from_image(img)
+			cb.call(cache[id])
+			return
 	if not can_render() or def.is_empty() or not CharacterData.has_model(def):
 		return
 	if not busy.is_empty() and str(busy["id"]) == id:
@@ -116,6 +131,10 @@ func _finish() -> void:
 	if tex == null:
 		return
 	cache[id] = tex
+	var disk := _disk_path(id)
+	if disk != "":
+		DirAccess.make_dir_recursive_absolute(disk.get_base_dir())
+		img.save_png(disk)
 	for cb in cbs:
 		if (cb as Callable).is_valid():
 			(cb as Callable).call(tex)

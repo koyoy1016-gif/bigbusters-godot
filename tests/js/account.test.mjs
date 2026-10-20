@@ -365,3 +365,37 @@ test('LINEのフレンドURL：だれのコードか調べる（ついかする�
   b.acc.clearPreview();
   assert.equal(b.acc.state.preview, null);
 });
+
+test('版82：自分で決めたID・なまえでログインを作る／使われているIDと、形のちがうIDは断る', async () => {
+  const world = makeWorld();
+  const a = device(world);
+  await a.acc.init(CFG);
+  assert.equal(a.acc.checkId('K7QM3XRT9B').ok, true, '英大文字と数字の10もじ');
+  assert.equal(a.acc.checkId('k7qm3xrt9b').id, 'K7QM3XRT9B', '小文字は大文字にする');
+  assert.equal(a.acc.checkId('123456789').ok, true, '数字だけ9けたまで');
+  assert.equal(a.acc.checkId('K7QM3XRT90').ok, false, '0 と 1 と O と I は、まぎらわしいので使えない（10もじのとき）');
+  assert.equal(a.acc.checkId('ABC').ok, false, '短すぎる');
+  assert.match(a.acc.genId(), /^[A-Z2-9]{10}$/, 'じどうで作るIDは、使える形');
+  const bad = await a.acc.register('secret-pass', { loginId: 'AB', nickname: 'たろう', idBad: 'かたちが ちがう' });
+  assert.equal(bad.ok, false);
+  assert.equal(a.acc.state.message, 'かたちが ちがう', '形のちがうIDは断る');
+  const r = await a.acc.register('secret-pass', { loginId: 'k7qm3xrt9b', nickname: '  たろう１２３４５６７８９０ＡＢ  ' });
+  assert.equal(r.ok, true, a.acc.state.message);
+  assert.equal(r.loginId, 'K7QM3XRT9B', '自分で決めたIDで作る');
+  assert.equal(a.acc.state.nickname, 'たろう１２３４５６７８９', 'なまえは12もじまで（前後の空白はのぞく）');
+  const sid = a.acc.state.sid;
+  assert.equal(world.store.get('profiles/' + sid).nickname, 'たろう１２３４５６７８９', 'なまえをプロフィールに保存');
+  same({ sid, gen: '1' }, world.store.get('ids/K7QM3XRT9B'), 'IDの台帳');
+  // もう1台：同じIDは使えない
+  const b = device(world);
+  await b.acc.init(CFG);
+  const dup = await b.acc.register('another-pass', { loginId: 'K7QM3XRT9B', nickname: 'じろう', idTaken: 'つかわれています' });
+  assert.equal(dup.ok, false, '使われているIDは断る');
+  assert.equal(b.acc.state.message, 'つかわれています');
+  assert.equal(b.acc.state.signedIn, false, '断ったら、ゲストのまま');
+  // 自分で決めたIDとパスワードで、別の端末からログインできる
+  const c = device(world);
+  await c.acc.init(CFG);
+  const li = await c.acc.login('k7qm3xrt9b', 'secret-pass');
+  assert.equal(li.ok, true, c.acc.state.message);
+});

@@ -205,7 +205,8 @@ func _initialize() -> void:
 		if (g["node"] as Control).modulate.a < 0.99:
 			all_shown = false
 	check(all_shown and prof.get_global_rect().position.x < screen.x * 0.2, "出る動きのあと、部品はもとの場所に、はっきり出る")
-	check(flow.portraits != null and (flow.portraits.can_render() or flow.portraits.cache.is_empty()), "顔の絵は、画面のある所でだけ作る（テストでは図形のアイコン）")
+	check(flow.portraits != null and (flow.portraits.can_render() or (flow.portraits.queue.is_empty() and flow.portraits.busy.is_empty())),
+		"顔の絵は、画面のある所でだけ作る（画面のないテストでは作らない。前に作って保存した絵は使う）")
 	flow.toast_label.text = ""
 	ui.tick(0.1)
 	check(not ui.toast_pill.visible, "おしらせがない時は、帯を出さない")

@@ -20,6 +20,12 @@ const PerfOverlay := preload("res://scripts/core/perf_overlay.gd")
 const LobbyUI := preload("res://scripts/flow/lobby_ui.gd")
 const LobbyStage := preload("res://scripts/flow/lobby_stage.gd")
 const PortraitMaker := preload("res://scripts/ui/portrait_maker.gd")
+const Roster := preload("res://scripts/flow/roster.gd")
+const FormationUI := preload("res://scripts/flow/formation_ui.gd")
+const StartUI := preload("res://scripts/flow/start_ui.gd")
+const ProfileUI := preload("res://scripts/flow/profile_ui.gd")
+const UiKit := preload("res://scripts/ui/ui_kit.gd")
+const FancyRect := preload("res://scripts/ui/fancy_rect.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -58,10 +64,7 @@ var quality_button: Button
 var characters_cfg: Dictionary = {}
 var selected_character := ""
 var lobby_char: Label
-var formation_stats: Label
-var formation_buttons: Dictionary = {}
 var ai_picks: Array = []
-var ai_buttons: Array = []
 var room_code := ""
 var room_from_url := false
 var account: RefCounted = null
@@ -106,6 +109,11 @@ var starter_cooldown := 0.0
 var lobby_ui: RefCounted = null  ## 版81：新しいロビーの画面（lobby_ui.gd）
 var lobby_stage: Node3D = null  ## 版81：ロビーの3Dのキャラ（lobby_stage.gd）。戦いの間は消す
 var portraits: Node = null  ## 版81b：キャラの顔の絵を作って覚える（portrait_maker.gd）
+var profiles: Dictionary = {}  ## 版82：キャラのくわしい情報（data/character_profiles.json）
+var owned: Array = []  ## 版82：持っているキャラ
+var formation_ui: RefCounted = null  ## 版82：編成の画面（formation_ui.gd）
+var start_ui: RefCounted = null  ## 版82：はじめの画面（start_ui.gd）
+var profile_ui: RefCounted = null  ## 版82：プロフィールの上の部分（profile_ui.gd）
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -122,6 +130,12 @@ func _ready() -> void:
 	selected_character = str(save.get("character", ""))
 	if CharacterData.find(characters_cfg, selected_character).is_empty():
 		selected_character = str(characters_cfg.get("player_character", ""))
+	# 版82：持っているキャラと、編成（持っているキャラだけ・同じキャラは1回）
+	profiles = Roster.load_profiles()
+	owned = Roster.owned_list(save.get("owned", []), profiles, _all_ids(), selected_character)
+	save["owned"] = owned.duplicate()
+	ai_picks = _ai_picks_filled(SaveData.load_ai_picks(str(config["ai_picks_path"])))
+	_fix_team()
 	quality_config = Quality.load_config()
 	quality_name = Quality.resolve(str(save.get("quality", "")), quality_config)
 	layer = CanvasLayer.new()
@@ -188,6 +202,9 @@ func _make_button(text: String, min_size: Array, callback: Callable) -> Button:
 	button.add_theme_font_size_override("font_size", int(config["button_font_size"]))
 	button.pressed.connect(_on_menu_press)
 	button.pressed.connect(callback)
+	# 版82：ボタンの見た目をそろえる（ガラス・押した時に少しちぢむ）。プレイなど、あとで上書きするものもある
+	UiKit.glass_button(button, config, 24)
+	UiKit.juice(button, 0.95)
 	return button
 
 
@@ -199,15 +216,22 @@ func _on_menu_press() -> void:
 		bgm.start()
 
 
+## 版82：メニューの画面の背景（上が明るい紺 → 下が暗い紺のグラデーション）
+func _panel_bg() -> Control:
+	var bg := FancyRect.new().setup(Color(str(config.get("panel_top", "#1b2140"))), Color(str(config.get("panel_bottom", "#0b0e1c"))), 0)
+	bg.name = "Bg"
+	bg.shine = 0.0
+	bg.border_width = 0.0
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	return bg
+
+
 ## 画面いっぱいの背景と、真ん中に縦に並べる入れ物を作る
 func _make_panel(panel_name: String, separation: int = 28) -> VBoxContainer:
 	var root := Control.new()
 	root.name = panel_name
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg := ColorRect.new()
-	bg.color = Color(str(config["bg_color"]))
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_child(bg)
+	root.add_child(_panel_bg())
 	var box := VBoxContainer.new()
 	box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -223,10 +247,7 @@ func _make_lobby_panel(panel_name: String, separation: int) -> VBoxContainer:
 	var root := Control.new()
 	root.name = panel_name
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	var bg := ColorRect.new()
-	bg.color = Color(str(config["bg_color"]))
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_child(bg)
+	root.add_child(_panel_bg())
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -324,48 +345,13 @@ func _build_panels() -> void:
 
 	# ロビー（版81：3Dのキャラを主役にした画面。くわしくは _build_lobby）
 	_build_lobby()
+	# はじめの画面（版82）
+	start_ui = StartUI.new(self)
+	start_ui.build()
 
-	# へんせい（キャラを選ぶ）
-	var f := _make_lobby_panel(Logic.FORMATION, 20)
-	f.add_child(_make_label(str(config["formation_title"]), heading, Color(str(config["title_color"]))))
-	var fgrid := GridContainer.new()
-	fgrid.columns = 2
-	fgrid.add_theme_constant_override("h_separation", 16)
-	fgrid.add_theme_constant_override("v_separation", 16)
-	for c in characters_cfg.get("characters", []):
-		var id := str(c["id"])
-		var label := str(c["role"]) + "\n" + str(c["name"])
-		var b := _make_button(label, [250, 110], func(): select_character(id))
-		b.add_theme_font_size_override("font_size", int(config["formation_button_font_size"]))
-		formation_buttons[id] = b
-		fgrid.add_child(b)
-	var fholder := CenterContainer.new()
-	fholder.add_child(fgrid)
-	f.add_child(fholder)
-	formation_stats = _make_label("", int(config["formation_stats_font_size"]), text_color)
-	formation_stats.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-	formation_stats.custom_minimum_size = Vector2(int(config["formation_content_width"]), 0)
-	f.add_child(formation_stats)
-	var ai_head := _make_label(str(config["ai_title"]), int(config["ai_title_font_size"]), Color(str(config["title_color"])))
-	ai_head.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-	ai_head.custom_minimum_size = Vector2(int(config["formation_content_width"]), 0)
-	f.add_child(ai_head)
-	var ai_row := HBoxContainer.new()
-	ai_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	ai_row.add_theme_constant_override("separation", 12)
-	ai_picks = _ai_picks_filled(SaveData.load_ai_picks(str(config["ai_picks_path"])))
-	ai_buttons = []
-	for i in 3:
-		var ab := _make_button("", [190, 110], func(): cycle_ai_pick(i))
-		ab.add_theme_font_size_override("font_size", int(config["ai_button_font_size"]))
-		ai_buttons.append(ab)
-		ai_row.add_child(ab)
-	f.add_child(ai_row)
-	_refresh_ai_buttons()
-	f.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
-	var nav_space := Control.new()  # 版81：いちばん下の「編成・ロビー・ガチャ」に隠れないように
-	nav_space.custom_minimum_size = Vector2(0, float(config["nav_height"]))
-	f.add_child(nav_space)
+	# 編成（版82：上に4つの枠・くわしい情報・顔の一覧。formation_ui.gd）
+	formation_ui = FormationUI.new(self, lobby_ui)
+	formation_ui.build()
 
 	# アカウント
 	var acc_panel := _make_panel(Logic.ACCOUNT, 18)
@@ -375,6 +361,8 @@ func _build_panels() -> void:
 	account_box.add_theme_constant_override("separation", 14)
 	acc_panel.add_child(account_box)
 	acc_panel.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
+	profile_ui = ProfileUI.new(self)
+	profile_ui.build(acc_panel, panels[Logic.ACCOUNT])
 
 	# 版81：画質のボタンは、プロフィール（アカウント）の画面へ移した
 	quality_button = _make_button("", [400, 80], change_quality)
@@ -494,9 +482,9 @@ func goto(new_state: String) -> void:
 		lobby_ui.set_nav_selected(new_state)
 		if lobby_ui.stage_picker != null:
 			lobby_ui.stage_picker.visible = false
-	if new_state == Logic.LOBBY:
-		_ensure_lobby_stage()
-		if lobby_ui != null and state_was != Logic.LOBBY:
+	if new_state == Logic.LOBBY or new_state == Logic.START:
+		_ensure_lobby_stage()  # はじめの画面でも、うしろに3Dのキャラを出す
+		if lobby_ui != null and new_state == Logic.LOBBY and state_was != Logic.LOBBY:
 			lobby_ui.play_enter()
 	elif new_state == Logic.BATTLE:
 		_free_lobby_stage()  # 戦いの間は、ロビーの3Dを残さない
@@ -524,6 +512,8 @@ func goto(new_state: String) -> void:
 		Logic.FRIENDS:
 			account_signature = ""
 			_refresh_friends()
+		Logic.START:
+			start_ui.refresh()
 		Logic.ROOM:
 			party_signature = ""
 			_refresh_room_label()
@@ -661,61 +651,72 @@ func show_toast() -> void:
 	toast_time = float(config["toast_sec"])
 
 
-## キャラを選ぶ（自分の端末に保存。戦いは、選んだキャラの性能で動く）
-func select_character(id: String) -> void:
-	if CharacterData.find(characters_cfg, id).is_empty():
-		return
-	selected_character = id
-	save["character"] = id
-	_write_save()
-	_refresh_formation()
-
-
-## AIの3人の選びを、3つにそろえる（足りなければ、既定の3人で埋める）
-func _ai_picks_filled(saved: Array) -> Array:
-	var defaults: Array = ["guardian", "gunner", "mage"]
+func _all_ids() -> Array:
 	var out: Array = []
-	for i in 3:
-		var id := str(saved[i]) if i < saved.size() else ""
-		if CharacterData.find(characters_cfg, id).is_empty():
-			id = str(defaults[i])
-		out.append(id)
+	for c in characters_cfg.get("characters", []):
+		out.append(str(c["id"]))
 	return out
 
 
-## AIの i 番めの人を、次のキャラにかえる（保存する）
-func cycle_ai_pick(i: int) -> void:
-	var list: Array = characters_cfg.get("characters", [])
-	if list.is_empty() or i < 0 or i >= ai_picks.size():
+## 版82：編成を、持っているキャラだけ・同じキャラは1回・4人に、なおす
+func _fix_team() -> void:
+	var t := Roster.fix_team([selected_character] + ai_picks, owned)
+	if t.is_empty():
 		return
-	var idx := 0
-	for k in list.size():
-		if str(list[k]["id"]) == str(ai_picks[i]):
-			idx = k
-	ai_picks[i] = str(list[(idx + 1) % list.size()]["id"])
-	SaveData.write_ai_picks(str(config["ai_picks_path"]), ai_picks)
-	_refresh_ai_buttons()
+	selected_character = str(t[0])
+	save["character"] = selected_character
+	ai_picks = t.slice(1)
+
+
+## メインのキャラを選ぶ（持っているキャラだけ。ほかの枠にいれば入れかえ）
+func select_character(id: String) -> void:
+	if CharacterData.find(characters_cfg, id).is_empty() or not owned.has(id):
+		return
+	lobby_ui._apply_team(Roster.assign([selected_character] + ai_picks, 0, id))
+	_refresh_formation()
+
+
+## AIの3人の選びを、3つにそろえる（足りなければ、持っているキャラで埋める）
+func _ai_picks_filled(saved: Array) -> Array:
+	var out: Array = []
+	for v in saved:
+		if not CharacterData.find(characters_cfg, str(v)).is_empty():
+			out.append(str(v))
+	return out
+
+
+## なかま（i 番め）を、持っている次のキャラにかえる（ほかの枠のキャラとは入れかえ）
+func cycle_ai_pick(i: int) -> void:
+	if i < 0 or i >= ai_picks.size() or owned.is_empty():
+		return
+	var idx := owned.find(str(ai_picks[i]))
+	var next := str(ai_picks[i])
+	for k in owned.size():
+		var cand := str(owned[(idx + 1 + k) % owned.size()])
+		if cand != selected_character:  # メインはかえない
+			next = cand
+			break
+	lobby_ui._apply_team(Roster.assign([selected_character] + ai_picks, i + 1, next))
+	_refresh_formation()
 
 
 func _refresh_ai_buttons() -> void:
-	for i in ai_buttons.size():
-		var def := CharacterData.find(characters_cfg, str(ai_picks[i]))
-		(ai_buttons[i] as Button).text = (str(def["role"]) + "\n" + str(def["name"])) if not def.is_empty() else "-"
+	pass  # 版82：AIのボタンは、編成の画面の枠になった
 
 
 func _refresh_formation() -> void:
-	var def := CharacterData.find(characters_cfg, selected_character)
-	for id in formation_buttons:
-		(formation_buttons[id] as Button).disabled = (id == selected_character)
-	if def.is_empty():
-		formation_stats.text = ""
-		return
-	var labels: Dictionary = config["stat_labels"]
-	var st: Dictionary = def["stats"]
-	formation_stats.text = str(config["formation_selected"]) + "：" + str(def["role"]) + " " + str(def["name"]) + "\n" \
-		+ str(labels["hp"]) + " " + str(ceili(float(st["hp"]))) + "  " + str(labels["move_speed"]) + " " + str(int(st["move_speed"])) + "\n" \
-		+ str(labels["attack_power"]) + " " + str(int(st["attack_power"])) + "  " + str(labels["attack_reach"]) + " " + str(int(st["attack_reach"])) \
-		+ "  " + str(labels["skill"]) + "：" + str(def["skill"])
+	if formation_ui != null:
+		formation_ui.refresh()
+
+
+## 版82：キャラを手に入れる（ガチャ。版83）。持っているキャラに足して保存する
+func add_owned(id: String) -> bool:
+	if CharacterData.find(characters_cfg, id).is_empty() or owned.has(id):
+		return false
+	owned = Roster.owned_list(owned + [id], profiles, _all_ids())
+	save["owned"] = owned.duplicate()
+	_write_save()
+	return true
 
 
 func _refresh_lobby() -> void:
@@ -987,7 +988,11 @@ func _info(text: String) -> Label:
 
 
 func _small_button(text: String, callback: Callable) -> Button:
-	return _make_button(text, [int(config["portrait_base_size"][0]) - 80, 80], callback)
+	var b := _make_button(text, [int(config["portrait_base_size"][0]) - 80, 80], callback)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	UiKit.glass_button(b, config, 24)
+	UiKit.juice(b, 0.96)
+	return b
 
 
 func _show_form(kind: String) -> void:
@@ -996,6 +1001,8 @@ func _show_form(kind: String) -> void:
 
 
 func _refresh_account() -> void:
+	if profile_ui != null:
+		profile_ui.refresh()
 	_clear_box(account_box)
 	if account == null:
 		account_box.add_child(_info(str(config["account_unavailable"])))
@@ -1269,7 +1276,9 @@ func _process(delta: float) -> void:
 	match state:
 		Logic.TITLE:
 			if state_time >= float(config["title_sec"]):
-				event("loaded")
+				_leave_title()
+		Logic.START:
+			start_ui.poll()
 		Logic.BATTLE:
 			# 「さいせん」のときは、戦いの画面の用意ができしだい、すぐ始める（最初の1回は、画面の「はじめる」を押す）
 			if _rematch_pending and battle != null and not battle.config.is_empty():
@@ -1291,6 +1300,16 @@ func _process(delta: float) -> void:
 				event("done")
 
 
+## 版82：タイトルのあと：ログインずみ（またはログインの仕組みがない）ならロビー、そうでなければ、はじめの画面
+func _leave_title() -> void:
+	var st := account_state
+	var next: String = Logic.after_title(account != null, str(st.get("status", "")), bool(st.get("signedIn", false)),
+		state_time - float(config["title_sec"]), float(config.get("start_wait_sec", 4.0)), bool(config.get("start_offline", false)))
+	if next == "wait":
+		return
+	event("loaded" if next == "lobby" else "start")
+
+
 ## タイトルは、タッチで飛ばせる
 func _unhandled_input(ev: InputEvent) -> void:
 	if state == Logic.LOBBY and lobby_ui != null and lobby_ui.on_key(ev):
@@ -1298,4 +1317,5 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if state == Logic.TITLE and (ev is InputEventScreenTouch or ev is InputEventMouseButton) and ev.is_pressed():
 		if bgm != null:
 			bgm.start()
-		event("loaded")
+		state_time = maxf(state_time, float(config["title_sec"]))
+		_leave_title()

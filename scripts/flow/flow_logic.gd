@@ -12,9 +12,11 @@ const FORMATION := "formation"
 const ACCOUNT := "account"
 const FRIENDS := "friends"
 const ROOM := "room"  # 版81：へやの画面（ロビーの右端「へやを つくる」から）
+const START := "start"  # 版82：はじめの画面（新しく作る・ログイン・ログインせずに遊ぶ）
 
 const TRANSITIONS := {
-	"title": {"loaded": "lobby"},
+	"title": {"loaded": "lobby", "start": "start"},
+	"start": {"enter": "lobby"},
 	"lobby": {"play": "battle", "formation": "formation", "account": "account", "friends": "friends", "room": "room"},
 	"room": {"back": "lobby"},
 	"account": {"back": "lobby"},
@@ -31,6 +33,18 @@ const TRANSITIONS := {
 static func next_state(state: String, event: String) -> String:
 	var table: Dictionary = TRANSITIONS.get(state, {})
 	return str(table.get(event, state))
+
+
+## 版82：タイトルのあと、はじめの画面を出すか。online：ログインの仕組みがある（ブラウザ）。status：ログインの準備の状態。
+## 戻り値："wait"（まだ準備中。少し待つ）・"start"（はじめの画面）・"lobby"（ログインずみ・またはログインの仕組みがない）
+static func after_title(online: bool, status: String, signed_in: bool, waited_sec: float, max_wait_sec: float, offline_start: bool) -> String:
+	if not online:
+		return "start" if offline_start else "lobby"
+	if signed_in:
+		return "lobby"
+	if status in ["idle", "pending", ""] and waited_sec < max_wait_sec:
+		return "wait"
+	return "start"
 
 
 ## 報酬のコイン（倒したら多く、全滅でも少しもらえる）
@@ -127,7 +141,7 @@ static func phase_of(state_name: String, waiting_ready: bool) -> String:
 			return "battle"
 		HIGHLIGHT, REWARD, NEXT:
 			return "result"
-		LOBBY, ROOM:
+		LOBBY, ROOM, START:
 			return "ready" if waiting_ready else "lobby"
 	return "lobby"
 

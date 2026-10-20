@@ -2,7 +2,7 @@ extends RefCounted
 ## 遊んだ記録（コイン、倒した回数、画質の選び）の保存。ブラウザでは、そのブラウザの中に残る（消すと失われる）。
 ## 引き継ぎ（別の端末へ）は未対応（ログインの仕組みを入れるかは未決）。
 
-const DEFAULTS := {"coins": 0, "wins": 0, "quality": "", "character": ""}
+const DEFAULTS := {"coins": 0, "wins": 0, "quality": "", "character": "", "owned": [], "icon_char": ""}
 
 
 static func load_save(path: String) -> Dictionary:
@@ -19,6 +19,16 @@ static func load_save(path: String) -> Dictionary:
 			data["quality"] = parsed["quality"]
 		if parsed.get("character", null) is String:
 			data["character"] = parsed["character"]
+		# 版82：持っているキャラ（ID の並び）と、プロフィールのアイコンにするキャラ
+		if parsed.get("owned", null) is Array:
+			var owned: Array = []
+			for v in parsed["owned"]:
+				if v is String and not owned.has(v):
+					owned.append(v)
+			data["owned"] = owned
+		if parsed.get("icon_char", null) is String:
+			data["icon_char"] = parsed["icon_char"]
+	data["owned"] = (data["owned"] as Array).duplicate()
 	return data
 
 
@@ -26,7 +36,12 @@ static func write_save(path: String, data: Dictionary) -> bool:
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify({"coins": int(data.get("coins", 0)), "wins": int(data.get("wins", 0)), "quality": str(data.get("quality", "")), "character": str(data.get("character", ""))}))
+	var owned: Array = []
+	for v in data.get("owned", []):
+		if not owned.has(str(v)):
+			owned.append(str(v))
+	file.store_string(JSON.stringify({"coins": int(data.get("coins", 0)), "wins": int(data.get("wins", 0)), "quality": str(data.get("quality", "")),
+		"character": str(data.get("character", "")), "owned": owned, "icon_char": str(data.get("icon_char", ""))}))
 	return true
 
 
