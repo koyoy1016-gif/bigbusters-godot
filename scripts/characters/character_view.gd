@@ -62,7 +62,9 @@ static var proxies_enabled := true  ## 測る道具・テストで、前（ま�
 static var _proxy_cache := {}  ## cache_key → {sig, skin, outline, back, both}
 
 
-static func build_proxies(model: Node, cache_key: String = "") -> int:
+## exclude：まとめない形（出したり隠したりする小物など。元のまま自分で線と影を描く）。
+## dup_materials：false なら、材質を写さず、その材質の線（next_pass）を外す（ボス：材質はボスだけの物で、光らせる時に材質を直接さわるため）
+static func build_proxies(model: Node, cache_key: String = "", exclude: Array = [], dup_materials: bool = true) -> int:
 	if not proxies_enabled:
 		return 0
 	var found := model.find_children("*", "Skeleton3D", true, false)
@@ -79,7 +81,7 @@ static func build_proxies(model: Node, cache_key: String = "") -> int:
 		if not (c is MeshInstance3D):
 			continue
 		var mi := c as MeshInstance3D
-		if mi.mesh == null or mi.mesh is PrimitiveMesh or mi.has_meta("proxy") or not mi.visible:
+		if mi.mesh == null or mi.mesh is PrimitiveMesh or mi.has_meta("proxy") or not mi.visible or exclude.has(mi):
 			continue
 		if mi.skin == null and mi.skeleton == NodePath(""):
 			continue
@@ -129,9 +131,12 @@ static func build_proxies(model: Node, cache_key: String = "") -> int:
 		var m3 := mi as MeshInstance3D
 		m3.set_meta("outline_merged", true)
 		for si in m3.mesh.get_surface_count():
-			var dup := (m3.mesh.surface_get_material(si) as StandardMaterial3D).duplicate() as StandardMaterial3D
-			dup.next_pass = null  # 線は OutlineProxy が描く
-			m3.set_surface_override_material(si, dup)
+			if dup_materials:
+				var dup := (m3.mesh.surface_get_material(si) as StandardMaterial3D).duplicate() as StandardMaterial3D
+				dup.next_pass = null  # 線は OutlineProxy が描く
+				m3.set_surface_override_material(si, dup)
+			else:
+				(m3.mesh.surface_get_material(si) as StandardMaterial3D).next_pass = null
 	var made := 1
 	# 影
 	for key in ["back", "both"]:

@@ -92,6 +92,17 @@ func build(config: Dictionary, skin_material: StandardMaterial3D) -> void:
 	anim.apply(pose)
 	_flash_ready = false
 	set_flash(false)
+	# 版103（軽量化）：いつも出ている服・小物などの、影と輪郭線をまとめて描く（キャラと同じ CharacterView.build_proxies）。
+	# まとめない物：出し入れする小物（バット・覚醒の小物）と、肌の材質（skin）を使う形（肌の材質は、長い手 SweepHand と同じ物で、
+	# その線の太さは長い手の側で決まっている。まとめると線の太さが変わって見えるため）。
+	# 材質はボスだけの物なので写さない（光らせる set_flash がそのまま効く）
+	var keep: Array = [normal_items, awake_items]
+	for mi in skel.get_children():
+		if mi is MeshInstance3D and (mi as MeshInstance3D).mesh != null:
+			for si in (mi as MeshInstance3D).mesh.get_surface_count():
+				if (mi as MeshInstance3D).mesh.surface_get_material(si) == skin:
+					keep.append(mi)
+	CharacterView.build_proxies(model, "boss#" + str(cfg.hash()), keep, false)
 
 
 func _rest_global(bi: int) -> Transform3D:

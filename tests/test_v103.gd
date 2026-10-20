@@ -10,6 +10,7 @@ extends SceneTree
 ##   5. 画質の切りかえ（StyleFx.set_outline）：輪郭線の形を出す／隠すだけ。元の形の材質に線を付けない
 ##   6. 必殺技の残像（bake_ghost）は、まとめた形を写さない
 ##   7. 描く回数の見こみ（画質「高」）：前より大きく減る
+##   8. ボス：いつも出ている服・小物だけまとめる（バット・覚醒の小物・肌の材質の形は元のまま）。光らせる仕組みはそのまま
 
 const CV := preload("res://scripts/characters/character_view.gd")
 const CD := preload("res://scripts/characters/character_data.gd")
@@ -181,6 +182,35 @@ func _initialize() -> void:
 		ok_toggle = ok_toggle and hidden and shown and no_line
 		v.queue_free()
 		v2.queue_free()
+	# ---- ボス（版103）：いつも出ている服・小物だけまとめる。出し入れする小物と肌の材質の形はまとめない。光らせる仕組みはそのまま ----
+	var BM := load("res://scripts/boss/boss_model.gd")
+	var bm: Node3D = BM.new()
+	root.add_child(bm)
+	bm.build(BM.load_config(), StandardMaterial3D.new())
+	await process_frame
+	var bpx := proxies(bm)
+	var boss_ok: bool = bpx.has("OutlineProxy") and not bm.normal_items.has_meta("outline_merged") and not bm.awake_items.has_meta("outline_merged") \
+			and bm.normal_items.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var merged_n := 0
+	for mi in originals(bm):
+		var m5 := mi as MeshInstance3D
+		if not m5.has_meta("outline_merged"):
+			continue
+		merged_n += 1
+		for si in m5.mesh.get_surface_count():
+			boss_ok = boss_ok and m5.mesh.surface_get_material(si) != bm.skin and m5.get_active_material(si) == m5.mesh.surface_get_material(si)
+	bm.set_flash(true)
+	var flash_ok := false
+	for mi in originals(bm):
+		var m6 := mi as MeshInstance3D
+		if m6.has_meta("outline_merged"):
+			var am := m6.get_active_material(0) as StandardMaterial3D
+			flash_ok = am != null and am.emission_enabled and am.emission_energy_multiplier > 0.0
+			break
+	bm.set_flash(false)
+	check(boss_ok and merged_n >= 3, "ボス：服・小物（%d こ）をまとめる。バット・覚醒の小物・肌の材質の形はまとめず、元のまま線と影" % merged_n)
+	check(flash_ok, "ボス：まとめた形の材質は元のまま（当たった時に光る仕組みが効く）")
+	bm.queue_free()
 	for n in notes:
 		print("     ", n)
 	check(ok_struct, "輪郭線の形（面は3つまで・影を落とす）と影の形ができる。元の形は線なしの材質の写し、不透明は影を落とさない、切り抜きは自分で落とす")
