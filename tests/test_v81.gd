@@ -131,7 +131,12 @@ func _initialize() -> void:
 	stage3d.finish()
 	await process_frame
 	var p2: Vector2 = stage3d.screen_point(2)
-	check(ui.gesture(p2, p2 + Vector2(3, 2)) == "pick" and ui.team()[0] == t0[2] and ui.team()[2] == t0[0], "後ろの人をタップすると、メインになる（入れかわる）")
+	check(ui.gesture(p2, p2 + Vector2(3, 2)) == "pick" and ui.team() == t0 and flow.state == "formation" and flow.formation_ui.selected_slot == 2 and flow.formation_ui.armed_slot == 2,
+		"後ろの人をタップすると、そのキャラの枠を選んだ編成の画面が開く（版87。前はメインと入れかわっていた）")
+	flow.goto("lobby")
+	await process_frame
+	ui.pick_slot(2)
+	check(ui.team()[0] == t0[2] and ui.team()[2] == t0[0], "pick_slot：後ろの人とメインを入れかえる（キーボードなど）")
 	ui.pick_slot(2)
 	check(ui.team() == t0, "もう一度で、もとにもどる")
 	var kev := InputEventKey.new()

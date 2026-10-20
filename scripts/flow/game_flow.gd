@@ -549,6 +549,17 @@ func goto(new_state: String) -> void:
 			reward_label.text = str(config["reward_coin_prefix"]) + str(last_reward)
 			if last_reward > 0 and menu_sfx != null:
 				menu_sfx.play("coin")
+	_scroll_friendly_panel(new_state)
+
+
+## 版87：スクロールのある画面は、どこを押して動かしてもスクロールできるように（ui_kit.gd の scroll_friendly）
+func _scroll_friendly_panel(key: String) -> void:
+	var p: Control = panels.get(key, null)
+	if p == null:
+		return
+	for c in p.get_children():
+		if c is ScrollContainer:
+			UiKit.scroll_friendly(c)
 
 
 ## 出来事で次の状態へ（決まりは flow_logic.gd）
@@ -1078,6 +1089,7 @@ func _show_form(kind: String) -> void:
 func _refresh_account() -> void:
 	if profile_ui != null:
 		profile_ui.refresh()
+	_scroll_friendly_panel.call_deferred(Logic.ACCOUNT)
 	_clear_box(account_box)
 	if account == null:
 		account_box.add_child(_info(str(config["account_unavailable"])))
@@ -1349,6 +1361,8 @@ func _process(delta: float) -> void:
 	state_time += delta
 	if lobby_ui != null:
 		lobby_ui.tick(delta)
+	if formation_ui != null and state == Logic.FORMATION:
+		formation_ui.tick(delta)  # 版87：長押しで持ち上げる
 	_poll_room(delta)
 	_poll_account(delta)
 	if toast_time > 0.0:

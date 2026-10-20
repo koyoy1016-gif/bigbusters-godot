@@ -128,3 +128,15 @@ static func soft_dot(size_px: int = 64, inner: Color = Color(1, 1, 1, 1)) -> Gra
 	gt.fill_from = Vector2(0.5, 0.5)
 	gt.fill_to = Vector2(1.0, 0.5)
 	return gt
+
+
+## 版87：スクロールの中の部品を、押して動かした時にスクロールできるようにする。
+## 「止める（STOP）」の設定の部品（パネル・ボタン・入れ物など）を「下へ伝える（PASS）」にする。
+## すべりバー・文字の入力・スクロールのバーは、そのまま（それ自体を動かすため）
+static func scroll_friendly(node: Node) -> void:
+	if node is Control:
+		var c := node as Control
+		if c.mouse_filter == Control.MOUSE_FILTER_STOP and not (c is Slider or c is ScrollBar or c is LineEdit or c is TextEdit or c is ScrollContainer):
+			c.mouse_filter = Control.MOUSE_FILTER_PASS
+	for ch in node.get_children():
+		scroll_friendly(ch)

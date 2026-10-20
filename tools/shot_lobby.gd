@@ -26,12 +26,29 @@ func _initialize() -> void:
 			flow.lobby_ui.open_stage_picker()
 		"room":
 			flow.event("room")
-		"formation", "formation2":
+		"formation", "formation2", "formation_drag":
 			flow.event("formation")
 			if mode == "formation2":
 				for k in 3:
 					await process_frame
 				(flow.panels["formation"].find_child("Scroll", true, false) as ScrollContainer).scroll_vertical = 760
+			if mode == "formation_drag":
+				# 版87：一覧のキャラを長押しして、なかま2の枠の上へ持ってきた所
+				for k in 5:
+					await process_frame
+				var fu: RefCounted = flow.formation_ui
+				var cid := ""
+				for id in flow.owned:
+					if not fu.team().has(id):
+						cid = str(id)
+				if cid == "":
+					cid = str(fu.team()[3])
+				fu.pointer_down("card", cid, (fu.card_buttons[cid] as Control).get_global_rect().get_center())
+				fu.tick(0.5)
+				for k in 10:
+					await process_frame
+				var to: Vector2 = (fu.slot_buttons[2] as Control).get_global_rect().get_center()
+				fu.pointer_move(to + Vector2(10, 40))
 		"guest":
 			flow.start_ui.ask_guest()
 		"gacha", "gacha_aim", "gacha_dash", "gacha_result", "gacha_odds":

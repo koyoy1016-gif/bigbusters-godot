@@ -5,6 +5,9 @@ extends RefCounted
 ## 下：キャラの一覧（顔の絵のカード。持っていないキャラは暗く、かぎ）。
 ## 入れかえ：枠をタップ → 別の枠をタップで入れかえ、または一覧のキャラをタップで、その枠に入れる。
 ##           一覧のキャラをタップだけなら、くわしい情報を見る（「この枠に セット」で入れる）。
+## 版87：キャラ（枠・一覧）を長押しすると持ち上がり、指についてくる。枠の上で離すと入る（キャラが入っている枠なら、2人が入れかわる）。
+##       枠の外で離すと、元にもどる。少し動かしてから長押しにならなければ、ふつうのスクロール。画面は下までスクロールできる。
+##       ロビーでキャラをタップすると、そのキャラの枠を選んだ状態で、この画面が開く（open_slot）。
 ## 編成のデータ：メイン＝selected_character、なかま＝ai_picks（ロビー・戦いと同じ）。持っているキャラだけ入れられる。
 
 const LobbyIcon := preload("res://scripts/ui/lobby_icon.gd")
@@ -28,6 +31,13 @@ var grid: GridContainer
 var detail: Dictionary = {}  # くわしい情報の部品
 var set_button: Button
 var bold: Font
+var scroll: ScrollContainer
+var drag_layer: Control  ## 版87：持ち上げたキャラの絵（いちばん上）
+var press: Dictionary = {}  ## 版87：押している所 {kind: "slot"/"card", key, pos, t, moved}
+var dragging := false
+var ghost: Control = null
+var hover_slot := -1
+var drag_log: Array = []  ## テスト用（lift・drop・cancel）
 
 
 func _init(flow: Node, lui: RefCounted) -> void:
@@ -121,7 +131,7 @@ func build() -> void:
 	bg.border_width = 0.0
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(bg)
-	var scroll := ScrollContainer.new()
+	scroll = ScrollContainer.new()
 	scroll.name = "Scroll"
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -130,6 +140,11 @@ func build() -> void:
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.add_theme_constant_override("separation", 14)
 	scroll.add_child(page)
+	drag_layer = Control.new()
+	drag_layer.name = "DragLayer"
+	drag_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	drag_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(drag_layer)
 	f.layer.add_child(root)
 	f.panels[Logic.FORMATION] = root
 
@@ -168,8 +183,8 @@ func build() -> void:
 		b.focus_mode = Control.FOCUS_NONE
 		b.custom_minimum_size = Vector2(146, 200)
 		UiKit.clear_button(b)
-		b.pressed.connect(f._on_menu_press)
-		b.pressed.connect(func(): tap_slot(i))
+		b.mouse_filter = Control.MOUSE_FILTER_PASS  # 版87：押したまま動かすと、スクロールできる
+		b.gui_input.connect(func(ev: InputEvent): _on_pointer(ev, "slot", i, b))
 		UiKit.juice(b)
 		slot_buttons.append(b)
 		slots_row.add_child(b)
@@ -313,6 +328,8 @@ func refresh() -> void:
 	_refresh_grid(t)
 	_refresh_detail(t)
 	hint_label.text = str(f.config["formation_hint_armed"]) if armed_slot >= 0 else str(f.config["formation_hint"])
+	# 版87：止める設定の部品（パネル・字の入れ物など）を、下へ伝える設定に（どこを押して動かしても、スクロールできる）
+	UiKit.scroll_friendly(scroll)
 
 
 func _refresh_slots(t: Array) -> void:
@@ -437,8 +454,8 @@ func _refresh_grid(t: Array) -> void:
 			glow.add_theme_stylebox_override("panel", gsb)
 			glow.set_anchors_preset(Control.PRESET_FULL_RECT)
 			b.add_child(glow)
-		b.pressed.connect(f._on_menu_press)
-		b.pressed.connect(func(): tap_card(id))
+		b.mouse_filter = Control.MOUSE_FILTER_PASS
+		b.gui_input.connect(func(ev: InputEvent): _on_pointer(ev, "card", id, b))
 		UiKit.juice(b)
 		card_buttons[id] = b
 		grid.add_child(b)
@@ -592,3 +609,282 @@ func set_focus_to_slot() -> void:
 
 func _apply(t: Array) -> void:
 	lobby_ui._apply_team(t)
+
+
+# ---------------------------------------------------------------- 版87：長押しで持って入れかえる
+
+func _cfg_f(key: String, def: float) -> float:
+	return float(f.config.get(key, def))
+
+
+## 枠・カードの押す・動かす・離す（マウスと、タッチから作られるマウスの出来事）。座標は、画面（キャンバス）の位置にそろえる
+func _on_pointer(ev: InputEvent, kind: String, key: Variant, ctrl: Control) -> void:
+	if ev is InputEventMouseButton and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		var gp: Vector2 = ctrl.get_global_transform() * (ev as InputEventMouseButton).position
+		if (ev as InputEventMouseButton).pressed:
+			pointer_down(kind, key, gp)
+		else:
+			var was := dragging
+			pointer_up(gp)
+			if was:
+				ctrl.accept_event()
+	elif ev is InputEventMouseMotion and not press.is_empty():
+		pointer_move(ctrl.get_global_transform() * (ev as InputEventMouseMotion).position)
+		if dragging:
+			ctrl.accept_event()  # 持っている間は、スクロールしない
+
+
+func pointer_down(kind: String, key: Variant, pos: Vector2) -> void:
+	_end_drag(false)
+	press = {"kind": kind, "key": key, "pos": pos, "t": 0.0, "moved": false, "last": pos}
+
+
+func pointer_move(pos: Vector2) -> void:
+	if press.is_empty():
+		return
+	press["last"] = pos
+	if dragging:
+		_move_ghost(pos)
+		return
+	if pos.distance_to(press["pos"]) > _cfg_f("formation_drag_tolerance_px", 14.0):
+		press["moved"] = true  # 長押しの前に動いた：スクロール
+
+
+## 毎コマ（編成の画面の時。game_flow._process から）：動かさずに長押しの秒になったら、持ち上げる
+func tick(delta: float) -> void:
+	if press.is_empty() or dragging or bool(press["moved"]):
+		return
+	press["t"] = float(press["t"]) + delta
+	if float(press["t"]) >= _cfg_f("formation_long_press_sec", 0.35):
+		_lift()
+
+
+func pointer_up(pos: Vector2) -> void:
+	if press.is_empty():
+		return
+	var p := press
+	if dragging:
+		drop(pos)
+	elif not bool(p["moved"]):
+		# 長押しにならなかった：ふつうのタップ
+		press = {}
+		f._on_menu_press()
+		if str(p["kind"]) == "slot":
+			tap_slot(int(p["key"]))
+		else:
+			tap_card(str(p["key"]))
+	press = {}
+
+
+## 持ち上げたキャラの id（枠なら、その枠のキャラ）
+func _press_id() -> String:
+	if str(press.get("kind", "")) == "slot":
+		var t := team()
+		var i := int(press["key"])
+		return str(t[i]) if i < t.size() else ""
+	return str(press.get("key", ""))
+
+
+func _lift() -> void:
+	var id := _press_id()
+	if id == "":
+		press["moved"] = true
+		return
+	if str(press["kind"]) == "card" and not f.owned.has(id):
+		# 持っていないキャラは、入れられない
+		press["moved"] = true
+		f.toast_label.text = str(f.config["formation_set_locked"])
+		f.toast_time = 2.0
+		drag_log.append("locked")
+		return
+	dragging = true
+	drag_log.append("lift:" + id)
+	if f.menu_sfx != null:
+		f.menu_sfx.play("pull_tick", 0.0, 1.3)
+	Input.vibrate_handheld(25)
+	var src := _source_control()
+	if src != null:
+		src.modulate = Color(1, 1, 1, 0.35)
+	ghost = Control.new()
+	ghost.name = "Ghost"
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var gs := Vector2(132, 164)
+	ghost.size = gs
+	ghost.pivot_offset = gs * 0.5
+	var shadow := Panel.new()
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ssb := _style(Color(0, 0, 0, 0.0), 22)
+	ssb.shadow_color = Color(0, 0, 0, 0.55)
+	ssb.shadow_size = 18
+	ssb.shadow_offset = Vector2(0, 10)
+	shadow.add_theme_stylebox_override("panel", ssb)
+	shadow.position = Vector2(0, 0)
+	shadow.size = Vector2(132, 132)
+	ghost.add_child(shadow)
+	var box := portrait_box(id, Vector2(132, 132), 22)
+	box.size = Vector2(132, 132)
+	ghost.add_child(box)
+	var ring := Panel.new()
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var rsb := _style(Color(0, 0, 0, 0), 22)
+	rsb.set_border_width_all(4)
+	rsb.border_color = Color(str(_k("gold", "#ffd45a")))
+	ring.add_theme_stylebox_override("panel", rsb)
+	ring.size = Vector2(132, 132)
+	ghost.add_child(ring)
+	var d := CharacterData.find(f.characters_cfg, id)
+	# 名前は、暗い札の上に（下の枠の名前と重なっても読める）
+	var plate := PanelContainer.new()
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var psb := _style(Color(0.04, 0.06, 0.12, 0.92), 12, 2)
+	psb.set_border_width_all(2)
+	psb.border_color = Color(str(_k("gold", "#ffd45a")))
+	plate.add_theme_stylebox_override("panel", psb)
+	plate.add_child(_label(str(d.get("name", id)), 20, Color.WHITE, true))
+	plate.position = Vector2(6, 128)
+	plate.size = Vector2(120, 34)
+	ghost.add_child(plate)
+	drag_layer.add_child(ghost)
+	ghost.rotation = 0.06
+	_move_ghost(press["last"])
+	if ghost.is_inside_tree():
+		ghost.scale = Vector2(0.9, 0.9)
+		ghost.create_tween().tween_property(ghost, "scale", Vector2(1.12, 1.12), 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	hint_label.text = str(f.config.get("formation_hint_drag", ""))
+
+
+func _source_control() -> Control:
+	if str(press.get("kind", "")) == "slot":
+		var i := int(press["key"])
+		return slot_buttons[i] if i >= 0 and i < slot_buttons.size() else null
+	return card_buttons.get(str(press.get("key", "")), null)
+
+
+## 指の少し上に絵を置く（指で隠れないように）。下の枠を光らせる
+func _move_ghost(pos: Vector2) -> void:
+	if ghost == null:
+		return
+	ghost.global_position = pos - ghost.size * 0.5 + Vector2(0, -_cfg_f("formation_ghost_lift_px", 56.0))
+	var hs := slot_at(pos)
+	if hs != hover_slot:
+		hover_slot = hs
+		var src := _source_control()
+		for i in slot_buttons.size():
+			var b: Control = slot_buttons[i]
+			b.pivot_offset = b.size * 0.5
+			b.scale = Vector2(1.08, 1.08) if i == hs else Vector2.ONE
+			if i == hs:
+				b.modulate = Color(1.25, 1.15, 0.9)
+			elif b == src:
+				b.modulate = Color(1, 1, 1, 0.35)
+			else:
+				b.modulate = Color.WHITE
+			_drop_mark(b, i == hs)
+
+
+## 置ける枠の印（金の太いふちと、外への光）。on でなければ消す
+func _drop_mark(b: Control, on: bool) -> void:
+	var old := b.get_node_or_null("DropMark")
+	if old != null:
+		b.remove_child(old)
+		old.queue_free()
+	if not on:
+		return
+	var m := Panel.new()
+	m.name = "DropMark"
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := _style(Color(1, 0.85, 0.35, 0.12), 22)
+	sb.set_border_width_all(5)
+	sb.border_color = Color(str(_k("gold", "#ffd45a")))
+	sb.shadow_color = Color(1, 0.7, 0.2, 0.7)
+	sb.shadow_size = 14
+	m.add_theme_stylebox_override("panel", sb)
+	m.set_anchors_preset(Control.PRESET_FULL_RECT)
+	b.add_child(m)
+
+
+## その位置の枠（なければ -1）
+func slot_at(pos: Vector2) -> int:
+	for i in slot_buttons.size():
+		var r: Rect2 = (slot_buttons[i] as Control).get_global_rect()
+		if r.grow(6.0).has_point(pos):
+			return i
+	return -1
+
+
+## 離した：枠の上なら入れる（キャラがいれば入れかえ）。枠の外なら元にもどす
+func drop(pos: Vector2) -> bool:
+	if not dragging:
+		return false
+	var id := _press_id()
+	var target := slot_at(pos)
+	var ok := false
+	if target >= 0:
+		var t := team()
+		if str(press["kind"]) == "slot":
+			var from := int(press["key"])
+			if from != target:
+				_apply(Roster.swap(t, from, target))
+				ok = true
+		else:
+			if t.find(id) != target:
+				_apply(Roster.assign(t, target, id))
+				ok = true
+	if ok:
+		drag_log.append("drop:%s>%d" % [id, target])
+		selected_slot = target
+		focus_id = id
+		armed_slot = -1
+		if f.menu_sfx != null:
+			f.menu_sfx.play("free")
+		_end_drag(true)
+		refresh()
+		var b: Control = slot_buttons[target]
+		if b.is_inside_tree():
+			b.pivot_offset = b.size * 0.5
+			b.scale = Vector2(1.18, 1.18)
+			b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	else:
+		drag_log.append("cancel:" + id)
+		_end_drag(false)
+	press = {}
+	return ok
+
+
+## 持ち上げをやめる。placed でなければ、絵は元の所へもどって消える
+func _end_drag(placed: bool) -> void:
+	if not dragging and ghost == null:
+		return
+	var src := _source_control() if not press.is_empty() else null
+	dragging = false
+	hover_slot = -1
+	for b in slot_buttons:
+		(b as Control).scale = Vector2.ONE
+		(b as Control).modulate = Color.WHITE
+		_drop_mark(b, false)
+	for k in card_buttons:
+		(card_buttons[k] as Control).modulate = Color.WHITE
+	if ghost != null and is_instance_valid(ghost):
+		var g := ghost
+		if not placed and src != null and is_instance_valid(src) and g.is_inside_tree() and src.is_inside_tree():
+			var tw := g.create_tween().set_parallel(true)
+			tw.tween_property(g, "global_position", src.get_global_rect().get_center() - g.size * 0.5, 0.18)
+			tw.tween_property(g, "scale", Vector2(0.8, 0.8), 0.18)
+			tw.tween_property(g, "modulate:a", 0.0, 0.18)
+			tw.chain().tween_callback(g.queue_free)
+		else:
+			g.queue_free()
+	ghost = null
+	if hint_label != null:
+		hint_label.text = str(f.config["formation_hint_armed"]) if armed_slot >= 0 else str(f.config["formation_hint"])
+
+
+## 版87：ロビーでキャラをタップした時：その枠を選んだ状態（入れかえ待ち）で、編成の画面を開く
+func open_slot(slot: int) -> void:
+	var t := team()
+	selected_slot = clampi(slot, 0, maxi(0, t.size() - 1))
+	armed_slot = selected_slot
+	focus_id = str(t[selected_slot]) if selected_slot < t.size() else focus_id
+	if scroll != null:
+		scroll.scroll_vertical = 0
+	refresh()

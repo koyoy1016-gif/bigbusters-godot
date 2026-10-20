@@ -692,10 +692,19 @@ func gesture(from: Vector2, to: Vector2) -> String:
 		return "swipe"
 	if d.length() < swipe_px * 0.5 and f.lobby_stage != null:
 		var slot: int = f.lobby_stage.pick(to)
-		if slot > 0:
-			pick_slot(slot)
+		if slot >= 0:
+			open_formation(slot)  # 版87：タップしたキャラの編成へ（前は、メインと入れかえていた）
 			return "pick"
 	return ""
+
+
+## 版87：ロビーでキャラをタップした：編成の画面を、そのキャラの枠を選んだ状態（入れかえ待ち）で開く
+func open_formation(slot: int) -> void:
+	if f.formation_ui != null:
+		f.formation_ui.open_slot(slot)
+	if f.menu_sfx != null:
+		f.menu_sfx.play("click")
+	nav_press("formation")
 
 
 ## キーボード（パソコン）：左右の矢印
