@@ -57,6 +57,8 @@ func _initialize() -> void:
 	var txt2: String = PerfOverlay.build_text(58.6, 41.2, 80, Vector2i(540, 1170), "low", 49.4, 173.4)
 	var txt3: String = PerfOverlay.build_text(58.6, 41.2, 80, Vector2i(540, 1170), "low", 49.4, 0.0)
 	check(txt2.contains("がぞう 49 MB") and txt2.contains("メモリ 173 MB") and txt3.contains("がぞう 49 MB") and not txt3.contains("メモリ") and not txt.contains("がぞう"), "版100：画像のメモリ・ゲームのメモリ（数えられる時だけ）も出せる：" + txt2.replace("\n", " / "))
+	var txt4: String = PerfOverlay.build_text(41.0, 88.0, 130, Vector2i(456, 987), "low", 49.4, 0.0, 7, 4.25, 6.1)
+	check(txt4.contains("おそい 7") and txt4.contains("しょり 4.2 ms") and txt4.contains("びょうがCPU 6.1 ms") and not txt.contains("おそい") and not txt.contains("しょり"), "版101：おそいコマの数・しょり・びょうがCPU も出せる（渡さなければ出さない）：" + txt4.replace("\n", " / "))
 	Quality.apply("zzz", cfg, null, [])
 	check(Engine.max_fps == 0, "壊れた名前は、既定（低）になる。描画の設定がなくても落ちない")
 	Engine.max_fps = 0
