@@ -33,6 +33,7 @@ const BossAI := preload("res://scripts/combat/boss_ai.gd")
 const BossRage := preload("res://scripts/combat/boss_rage.gd")
 const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const DamageNumbers := preload("res://scripts/ui/damage_numbers.gd")
+const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
 const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
 const BottleMesh := preload("res://scripts/boss/sake_bottle_mesh.gd")
 const SakeField := preload("res://scripts/combat/sake_field.gd")
@@ -375,7 +376,16 @@ func _flying_bat() -> Node3D:
 		_fly_bat.add_child(pivot)
 		for part in (catalog.get("oni_bat", {}) as Dictionary).get("parts", []):
 			pivot.add_child(CharacterView._make_part(part))
+		# 版105（軽量化）：44この部品を1つの形にまとめる（手に持っているバットと同じまとめ方。描画の回数が 44回→数回、作る時間も短い）
+		MeshMerge.merge_children(pivot, [], {})
+		_fly_bat.visible = false
 	return _fly_bat
+
+
+## 版105（軽量化）：戦いの始まりに、投げるバットを先に作っておく（はじめて投げた瞬間に作ると、その1コマが長くなるため）
+func prewarm() -> void:
+	if b.boss_model != null and b.is_inside_tree():
+		_flying_bat()
 
 
 func _drop_node(i: int) -> MeshInstance3D:

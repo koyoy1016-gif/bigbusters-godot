@@ -12,9 +12,62 @@ const BodyBuilder := preload("res://scripts/characters/body_builder.gd")
 const MeshMerge := preload("res://scripts/core/mesh_merge.gd")
 const DOME_SHADER := preload("res://shaders/skill_dome.gdshader")
 const PROPS_PATH := "res://data/props.json"
+const FxPool := preload("res://scripts/fx/fx_pool.gd")
 
 static var _props: Dictionary = {}
 static var _prop_meshes: Dictionary = {}
+## 版105（軽量化）：形（球・輪・筒・板・星）は、同じ大きさなら1回だけ作って使いまわす（前は出すたびに作り直していて、
+## 技を出した瞬間の1コマが長くなっていた）。色とすけ方は、形ではなく、その見た目だけの材質（material_override）に持たせる
+static var _shapes: Dictionary = {}
+
+
+static func _shape(key: String, make_fn: Callable) -> Mesh:
+	if not _shapes.has(key):
+		_shapes[key] = make_fn.call()
+	return _shapes[key]
+
+
+static func _sphere(radius: float, height: float, seg: int, rings: int, hemi: bool = false) -> Mesh:
+	return _shape("sphere|%s|%s|%d|%d|%s" % [radius, height, seg, rings, hemi], func() -> Mesh:
+		var m := SphereMesh.new()
+		m.radius = radius
+		m.height = height
+		m.radial_segments = seg
+		m.rings = rings
+		m.is_hemisphere = hemi
+		return m)
+
+
+static func _torus(inner: float, outer: float, rings: int, seg: int) -> Mesh:
+	return _shape("torus|%s|%s|%d|%d" % [inner, outer, rings, seg], func() -> Mesh:
+		var m := TorusMesh.new()
+		m.inner_radius = inner
+		m.outer_radius = outer
+		m.rings = rings
+		m.ring_segments = seg
+		return m)
+
+
+static func _cylinder(radius: float, height: float, seg: int) -> Mesh:
+	return _shape("cyl|%s|%s|%d" % [radius, height, seg], func() -> Mesh:
+		var m := CylinderMesh.new()
+		m.top_radius = radius
+		m.bottom_radius = radius
+		m.height = height
+		m.radial_segments = seg
+		m.rings = 1
+		return m)
+
+
+## 見た目の材質（形の材質ではなく、この見た目だけの材質。消える時に色のすけ具合を変える）
+static func mat_of(mi: GeometryInstance3D) -> Material:
+	if mi == null:
+		return null
+	if mi.material_override != null:
+		return mi.material_override
+	if mi is MeshInstance3D and (mi as MeshInstance3D).mesh != null and (mi as MeshInstance3D).mesh.get_surface_count() > 0:
+		return (mi as MeshInstance3D).mesh.surface_get_material(0)
+	return null
 
 
 static func props() -> Dictionary:
@@ -47,8 +100,16 @@ static func prop_mesh(name: String) -> ArrayMesh:
 	return merged
 
 
-static func _mat(color: Color, emission: float = 1.2, alpha: float = 1.0) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
+## 見た目の材質。版105：同じ種類（色・光・すけ具合・板の向き）の、使い終わった材質があれば使いまわす（fx_pool.gd）。
+## 使っている間に変わる所（色のすけ具合・光の強さ）は、ここで元にもどす
+static func _mat(color: Color, emission: float = 1.2, alpha: float = 1.0, billboard: int = BaseMaterial3D.BILLBOARD_DISABLED) -> StandardMaterial3D:
+	var key := "std|%s|%.3f|%.3f|%d" % [color.to_html(), emission, alpha, billboard]
+	var m := FxPool.take(key) as StandardMaterial3D
+	if m != null:
+		m.albedo_color = Color(color.r, color.g, color.b, alpha)
+		m.emission_energy_multiplier = emission
+		return m
+	m = StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.albedo_color = Color(color.r, color.g, color.b, alpha)
 	if alpha < 0.999:
@@ -57,15 +118,27 @@ static func _mat(color: Color, emission: float = 1.2, alpha: float = 1.0) -> Sta
 	m.emission_enabled = emission > 0.0
 	m.emission = color
 	m.emission_energy_multiplier = emission
+	if billboard != BaseMaterial3D.BILLBOARD_DISABLED:
+		m.billboard_mode = billboard
+	FxPool.mark(m, key)
 	return m
 
 
-static func dome_material(color: Color, alpha: float) -> ShaderMaterial:
-	var sm := ShaderMaterial.new()
-	sm.shader = DOME_SHADER
+## 膜の材質（aura：体を包む光の作り）。版105：使いまわす（消えていく具合 fade・脈 pulse は元にもどす）
+static func dome_material(color: Color, alpha: float, aura: bool = false) -> ShaderMaterial:
+	var key := "dome|%s|%.3f|%s" % [color.to_html(), alpha, aura]
+	var sm := FxPool.take(key) as ShaderMaterial
+	if sm == null:
+		sm = ShaderMaterial.new()
+		sm.shader = DOME_SHADER
+		if aura:
+			sm.set_shader_parameter("hex_alpha", 0.0)
+			sm.set_shader_parameter("rim_alpha", 0.9)
+		FxPool.mark(sm, key)
 	sm.set_shader_parameter("color", color)
 	sm.set_shader_parameter("alpha", alpha)
 	sm.set_shader_parameter("fade", 0.0)
+	sm.set_shader_parameter("pulse", 0.0)
 	return sm
 
 
@@ -85,12 +158,12 @@ static func _particles(color: Color, amount: int, life: float, spread: float, ve
 	p.gravity = gravity
 	p.scale_amount_min = size * 0.6
 	p.scale_amount_max = size
-	var qm := QuadMesh.new()
-	qm.size = Vector2(0.12, 0.12)
-	var mat := _mat(color, 2.0, 0.9)
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	qm.material = mat
-	p.mesh = qm
+	var mat := _mat(color, 2.0, 0.9, BaseMaterial3D.BILLBOARD_PARTICLES)
+	p.mesh = _shape("quad|0.12", func() -> Mesh:
+		var qm := QuadMesh.new()
+		qm.size = Vector2(0.12, 0.12)
+		return qm)
+	p.material_override = mat
 	p.emitting = true
 	return p
 
@@ -117,39 +190,26 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 			if not bool(spec.get("tilt", false)):
 				d.y = 0.0
 			var len := maxf(d.length(), 0.1)
-			var cm := CylinderMesh.new()
 			var w := float(spec.get("width", 0.25))
-			cm.top_radius = w
-			cm.bottom_radius = w
-			cm.height = len
-			cm.radial_segments = 10
-			cm.rings = 1
-			cm.material = _mat(col, 2.0, float(spec.get("alpha", 0.85)))
-			mi.mesh = cm
+			# 長さ1の筒を、長さの分だけのばす（前は長さごとに筒を作っていた。形は同じ）
+			mi.mesh = _cylinder(w, 1.0, 10)
+			mi.scale = Vector3(1.0, len, 1.0)
+			mi.material_override = _mat(col, 2.0, float(spec.get("alpha", 0.85)))
+			root.set_meta("len", len)
 			root.position = from + Vector3(0, height, 0) + d * 0.5
 			var dir := d.normalized() if d.length() > 0.001 else Vector3.FORWARD
 			root.basis = Basis(Quaternion(Vector3.UP, dir))
 			if kind == "beam":
 				var core := MeshInstance3D.new()
-				var c2 := CylinderMesh.new()
-				c2.top_radius = w * 0.4
-				c2.bottom_radius = w * 0.4
-				c2.height = len
-				c2.radial_segments = 8
-				c2.rings = 1
-				c2.material = _mat(Color(1, 1, 1), 2.5, 0.95)
-				core.mesh = c2
+				core.mesh = _cylinder(w * 0.4, 1.0, 8)
+				core.scale = Vector3(1.0, len, 1.0)
+				core.material_override = _mat(Color(1, 1, 1), 2.5, 0.95)
 				root.add_child(core)
 				# ビームの通り道の、うず巻く輪（3つ、流れる）
 				for k in 3:
 					var ring := MeshInstance3D.new()
-					var tm := TorusMesh.new()
-					tm.inner_radius = w * 1.3
-					tm.outer_radius = w * 1.7
-					tm.rings = 16
-					tm.ring_segments = 4
-					tm.material = _mat(col, 2.2, 0.7)
-					ring.mesh = tm
+					ring.mesh = _torus(w * 1.3, w * 1.7, 16, 4)
+					ring.material_override = _mat(col, 2.2, 0.7)
 					ring.name = "Ring%d" % k
 					ring.position = Vector3(0, -len * 0.5 + len * (k + 0.5) / 3.0, 0)
 					root.add_child(ring)
@@ -159,14 +219,9 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 				mi.mesh = pm
 				root.scale = Vector3.ONE * float(spec.get("scale", 1.0))
 			else:
-				var sm := SphereMesh.new()
 				var r := float(spec.get("radius", 0.2))
-				sm.radius = r
-				sm.height = r * 2.0
-				sm.radial_segments = 12
-				sm.rings = 6
-				sm.material = _mat(col, 2.0, 1.0)
-				mi.mesh = sm
+				mi.mesh = _sphere(r, r * 2.0, 12, 6)
+				mi.material_override = _mat(col, 2.0, 1.0)
 			root.position = from + Vector3(0, height, 0)
 		"prop":
 			mi.mesh = prop_mesh(str(spec.get("prop", "")))
@@ -177,30 +232,16 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 			if aimv.length() > 0.01:
 				root.rotation.y = atan2(aimv.x, aimv.z)
 		"blast":
-			var s2 := SphereMesh.new()
-			s2.radius = 1.0
-			s2.height = 2.0
-			s2.radial_segments = 20
-			s2.rings = 10
-			s2.material = _mat(col, 1.4, 0.7)
-			mi.mesh = s2
+			mi.mesh = _sphere(1.0, 2.0, 20, 10)
+			mi.material_override = _mat(col, 1.4, 0.7)
 			root.position = to
 			root.scale = Vector3.ONE * 0.05
 			# 外へ飛ぶ火の粉
 			root.add_child(_particles(col.lightened(0.3), 18, 0.5, 70.0, Vector2(4.0, 8.0), Vector3(0, -9, 0), 1.2, Vector3(0.3, 0.3, 0.3), true))
 		"dome", "heal_dome", "clock", "aura":
-			var s3 := SphereMesh.new()
-			s3.radius = 1.0
-			s3.height = 1.0 if kind in ["dome", "heal_dome"] else 2.0
-			s3.is_hemisphere = kind in ["dome", "heal_dome"]
-			s3.radial_segments = 28
-			s3.rings = 14
-			var dm := dome_material(col, float(spec.get("alpha", 0.18)))
-			if kind == "aura":
-				dm.set_shader_parameter("hex_alpha", 0.0)
-				dm.set_shader_parameter("rim_alpha", 0.9)
-			s3.material = dm
-			mi.mesh = s3
+			var hemi: bool = kind in ["dome", "heal_dome"]
+			mi.mesh = _sphere(1.0, 1.0 if hemi else 2.0, 28, 14, hemi)
+			mi.material_override = dome_material(col, float(spec.get("alpha", 0.18)), kind == "aura")
 			root.position = to if kind == "clock" else from
 			root.scale = Vector3.ONE * 0.05
 			if kind == "aura":
@@ -208,13 +249,8 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 				mi.scale = Vector3(0.8, 1.25, 0.8)
 				mi.position = Vector3(0, 1.0, 0)
 				var ring2 := MeshInstance3D.new()
-				var tm2 := TorusMesh.new()
-				tm2.inner_radius = 0.9
-				tm2.outer_radius = 1.0
-				tm2.rings = 28
-				tm2.ring_segments = 4
-				tm2.material = _mat(col, 2.2, 0.85)
-				ring2.mesh = tm2
+				ring2.mesh = _torus(0.9, 1.0, 28, 4)
+				ring2.material_override = _mat(col, 2.2, 0.85)
 				ring2.name = "Ground"
 				ring2.scale = Vector3(1.0, 0.3, 1.0)
 				ring2.position = Vector3(0, 0.05, 0)
@@ -223,29 +259,20 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 			if kind == "heal_dome":
 				root.add_child(_particles(Color("#9dffb8"), 28, 1.6, 8.0, Vector2(0.8, 1.6), Vector3(0, 0.6, 0), 0.9, Vector3(0.8, 0.05, 0.8), false))
 		"ring":
-			var tm := TorusMesh.new()
-			tm.inner_radius = 0.9
-			tm.outer_radius = 1.0
-			tm.rings = 24
-			tm.ring_segments = 4
-			tm.material = _mat(col, 1.8, 0.8)
-			mi.mesh = tm
+			mi.mesh = _torus(0.9, 1.0, 24, 4)
+			mi.material_override = _mat(col, 1.8, 0.8)
 			root.position = to + Vector3(0, 0.08, 0)
 			root.scale = Vector3(0.1, 0.4, 0.1)
 		"pillar":
-			var cm2 := CylinderMesh.new()
 			var pr := float(spec.get("radius", 1.0))
-			cm2.top_radius = pr
-			cm2.bottom_radius = pr
-			cm2.height = float(spec.get("tall", 8.0))
-			cm2.radial_segments = 14
-			cm2.rings = 1
-			cm2.material = _mat(col, 1.8, 0.45)
-			mi.mesh = cm2
-			root.position = to + Vector3(0, cm2.height * 0.5, 0)
+			var tall := float(spec.get("tall", 8.0))
+			mi.mesh = _cylinder(pr, tall, 14)
+			mi.material_override = _mat(col, 1.8, 0.45)
+			root.position = to + Vector3(0, tall * 0.5, 0)
 		"spark":
 			# 当たった所：星形の光（すぐ消える）、広がる輪、飛び散る火花
 			mi.mesh = _star_mesh(float(spec.get("size", 0.6)), col)
+			mi.material_override = _star_material(col)
 			root.position = to
 			root.add_child(_particles(col.lightened(0.35), int(spec.get("amount", 12)), 0.35, 80.0, Vector2(3.0, 6.0), Vector3(0, -6, 0), 0.8,
 				Vector3(0.1, 0.1, 0.1), true))
@@ -254,23 +281,13 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 			if fl > 0.0:
 				var fm := MeshInstance3D.new()
 				fm.name = "Flash"
-				var fs := SphereMesh.new()
-				fs.radius = fl
-				fs.height = fl * 2.0
-				fs.radial_segments = 10
-				fs.rings = 5
-				fs.material = _mat(Color(1, 1, 0.92), 3.0, 0.85)
-				fm.mesh = fs
+				fm.mesh = _sphere(fl, fl * 2.0, 10, 5)
+				fm.material_override = _mat(Color(1, 1, 0.92), 3.0, 0.85)
 				fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				root.add_child(fm)
 		"ripple":
-			var tm3 := TorusMesh.new()
-			tm3.inner_radius = 0.85
-			tm3.outer_radius = 1.0
-			tm3.rings = 24
-			tm3.ring_segments = 4
-			tm3.material = _mat(col, 2.2, 0.85)
-			mi.mesh = tm3
+			mi.mesh = _torus(0.85, 1.0, 24, 4)
+			mi.material_override = _mat(col, 2.2, 0.85)
 			root.position = to
 			var nrm := (to - from).normalized()
 			if nrm.length() > 0.5:
@@ -283,12 +300,13 @@ static func make(spec: Dictionary, from: Vector3, to: Vector3, height: float) ->
 		"smoke":
 			root.position = to
 			var sp := _particles(Color(str(spec.get("color", "#e8e4dc"))), 10, 0.7, 60.0, Vector2(0.6, 1.4), Vector3(0, 0.4, 0), 3.0, Vector3(0.3, 0.1, 0.3), true)
-			(sp.mesh.material as StandardMaterial3D).emission_energy_multiplier = 0.2
-			(sp.mesh.material as StandardMaterial3D).albedo_color.a = 0.6
+			(sp.material_override as StandardMaterial3D).emission_energy_multiplier = 0.2
+			(sp.material_override as StandardMaterial3D).albedo_color.a = 0.6
 			root.add_child(sp)
 		"rise":
 			root.position = to
 			root.add_child(_particles(col, 20, 0.9, 6.0, Vector2(2.5, 4.0), Vector3(0, 1.5, 0), 0.9, Vector3(0.4, 0.05, 0.4), true))
+	FxPool.track(root)  # 版105：消える時に、材質を返す（次の見た目で使いまわす）
 	return root
 
 
@@ -301,7 +319,16 @@ static func trail(col: Color, k: float = 1.0) -> CPUParticles3D:
 	return p
 
 
-static func _star_mesh(size: float, col: Color) -> ArrayMesh:
+## 星の形（大きさごとに1回だけ作る。色は _star_material）
+static func _star_mesh(size: float, _col: Color = Color.WHITE) -> Mesh:
+	return _shape("star|%s" % size, func() -> Mesh: return _make_star(size))
+
+
+static func _star_material(col: Color) -> StandardMaterial3D:
+	return _mat(col.lightened(0.4), 3.0, 0.95, BaseMaterial3D.BILLBOARD_ENABLED)
+
+
+static func _make_star(size: float) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var n := 8
@@ -318,11 +345,7 @@ static func _star_mesh(size: float, col: Color) -> ArrayMesh:
 		st.add_vertex(Vector3.ZERO)
 		st.add_vertex(p1)
 		st.add_vertex(p2)
-	var m := st.commit()
-	var mat := _mat(col.lightened(0.4), 3.0, 0.95)
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	m.surface_set_material(0, mat)
-	return m
+	return st.commit()
 
 
 ## 1コマ進める。まだ続くなら true。follow：ついていく位置（INF ならついていかない）
@@ -342,7 +365,7 @@ static func tick(n: Node3D, delta: float, follow: Vector3 = Vector3.INF) -> bool
 			for i in 3:
 				var r := n.get_node_or_null("Ring%d" % i) as Node3D
 				if r != null and mi != null:
-					var len := float((mi.mesh as CylinderMesh).height)
+					var len := float(n.get_meta("len", 1.0))
 					r.position.y = fposmod(r.position.y + len * 0.5 + delta * 18.0, len) - len * 0.5
 		"slash":
 			n.scale = Vector3(1.0 - k, 1.0, 1.0 - k)
@@ -365,28 +388,28 @@ static func tick(n: Node3D, delta: float, follow: Vector3 = Vector3.INF) -> bool
 			var r := float(spec.get("radius", 2.0))
 			n.scale = Vector3.ONE * r * (0.3 + 0.7 * sqrt(k))
 			if mi != null:
-				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.7 * (1.0 - k)
+				(mat_of(mi) as StandardMaterial3D).albedo_color.a = 0.7 * (1.0 - k)
 		"ring":
 			var r2 := float(spec.get("radius", 3.0))
 			n.scale = Vector3(r2 * k + 0.1, 0.4, r2 * k + 0.1)
 			if mi != null:
-				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.8 * (1.0 - k)
+				(mat_of(mi) as StandardMaterial3D).albedo_color.a = 0.8 * (1.0 - k)
 		"ripple":
 			var r4 := float(spec.get("radius", 0.9))
 			n.scale = Vector3(r4 * (0.2 + k), 0.25, r4 * (0.2 + k))
 			if mi != null:
-				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.85 * (1.0 - k)
+				(mat_of(mi) as StandardMaterial3D).albedo_color.a = 0.85 * (1.0 - k)
 		"spark":
 			if mi != null:
 				mi.scale = Vector3.ONE * (0.6 + 0.8 * k)
-				(mi.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.95 * (1.0 - smoothstep(0.2, 0.6, k))
+				(mat_of(mi) as StandardMaterial3D).albedo_color.a = 0.95 * (1.0 - smoothstep(0.2, 0.6, k))
 			var fm := n.get_node_or_null("Flash") as MeshInstance3D
 			if fm != null:
 				# 一瞬ふくらんで、すぐ消える（0.1秒）
 				var kf := clampf(age / 0.1, 0.0, 1.0)
 				fm.scale = Vector3.ONE * (0.6 + 0.6 * kf)
 				fm.visible = kf < 1.0
-				(fm.mesh.surface_get_material(0) as StandardMaterial3D).albedo_color.a = 0.85 * (1.0 - kf)
+				(mat_of(fm) as StandardMaterial3D).albedo_color.a = 0.85 * (1.0 - kf)
 		"dome", "heal_dome", "aura", "clock":
 			var r3 := float(spec.get("radius", 3.0))
 			# 3段階：広がる（はじめの 0.35 秒）→ たもつ（ゆっくり脈打つ）→ うすくなって消える（さいごの 0.6 秒）
@@ -395,8 +418,8 @@ static func tick(n: Node3D, delta: float, follow: Vector3 = Vector3.INF) -> bool
 			n.scale = Vector3.ONE * r3 * (0.3 + 0.7 * grow2) * (1.0 + 0.02 * sin(age * 5.0))
 			if follow != Vector3.INF:
 				n.position = follow
-			if mi != null and mi.mesh.surface_get_material(0) is ShaderMaterial:
-				var smat := mi.mesh.surface_get_material(0) as ShaderMaterial
+			if mi != null and mat_of(mi) is ShaderMaterial:
+				var smat := mat_of(mi) as ShaderMaterial
 				smat.set_shader_parameter("fade", fade2 * grow2)
 				var pulse := float(n.get_meta("pulse", 0.0))
 				if pulse > 0.0:

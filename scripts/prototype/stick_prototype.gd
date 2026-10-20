@@ -324,6 +324,7 @@ func _build_world() -> void:
 	boss_model.name = "BossModel"
 	boss.add_child(boss_model)
 	boss_model.build(bcfg, boss_material)
+	attack_fx.prewarm()  # 版105：投げるバットを先に作っておく（はじめて投げた瞬間の引っかかりをなくす）
 
 	# サブ敵の群れ（見た目だけ。時間で動くので通信は要らない）
 	sub_crowd = SubCrowd.new()

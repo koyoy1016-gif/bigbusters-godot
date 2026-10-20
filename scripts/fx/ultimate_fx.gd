@@ -3,6 +3,9 @@ extends Node3D
 ## kind："charge"（足もとの金の輪が、ちぢみながら明るくなる＝力をためる）／"ghost"（剣士の形の残像。版72b）／"slash"（大きな三日月の斬撃）。
 ## 数値は data/actions.json の ultimate の fx。残像の形は、踏み込みの始めに1回だけ写し取り、同じ形を何体も使う（重くしない）。
 
+const FxPool := preload("res://scripts/fx/fx_pool.gd")
+static var _meshes: Dictionary = {}  ## 版105：輪・三日月の形（大きさごとに1回だけ作る）
+
 var kind := ""
 var life := 0.3
 var age := 0.0
@@ -17,16 +20,24 @@ static func spawn(parent: Node, kind_name: String, pos: Vector3, aim: Vector2, f
 	n.kind = kind_name
 	parent.add_child(n)
 	n.call("_build", pos, aim, fx, extra)
+	FxPool.track(n)  # 版105：消える時に材質を返す（次の必殺技で使いまわす）
 	return n
 
 
+## 版105：材質は使いまわす（新しい材質は、はじめて使う時の準備が重いため。fx_pool.gd）。すけ具合は使う時に元にもどす
 func _make_mat(color: Color) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
+	var key := "ult|%s" % color.to_html()
+	var m := FxPool.take(key) as StandardMaterial3D
+	if m != null:
+		m.albedo_color = color
+		return m
+	m = StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	m.albedo_color = color
+	FxPool.mark(m, key)
 	return m
 
 
@@ -39,13 +50,16 @@ func _build(pos: Vector3, aim: Vector2, fx: Dictionary, extra: Dictionary) -> vo
 	match kind:
 		"charge":
 			life = float(fx.get("charge_sec", 0.3))
-			var tm := TorusMesh.new()
 			var r := float(fx.get("ring_r", 1.6))
-			tm.inner_radius = r * 0.88
-			tm.outer_radius = r
-			tm.rings = 32
-			tm.ring_segments = 4
-			mi.mesh = tm
+			var tkey := "torus|%s" % r
+			if not _meshes.has(tkey):
+				var tm := TorusMesh.new()
+				tm.inner_radius = r * 0.88
+				tm.outer_radius = r
+				tm.rings = 32
+				tm.ring_segments = 4
+				_meshes[tkey] = tm
+			mi.mesh = _meshes[tkey]
 			mat = _make_mat(Color(str(fx.get("ring_color", "#ffd24a"))))
 			position = Vector3(pos.x, pos.y + 0.06, pos.z)
 		"ghost":
@@ -65,7 +79,10 @@ func _build(pos: Vector3, aim: Vector2, fx: Dictionary, extra: Dictionary) -> vo
 				add_child(pm)
 		"slash":
 			life = float(fx.get("slash_life", 0.32))
-			mi.mesh = arc_mesh(float(fx.get("slash_radius", 2.8)))
+			var akey := "arc|%s" % float(fx.get("slash_radius", 2.8))
+			if not _meshes.has(akey):
+				_meshes[akey] = arc_mesh(float(fx.get("slash_radius", 2.8)))
+			mi.mesh = _meshes[akey]
 			mat = _make_mat(Color(str(fx.get("slash_color", "#fff3c4"))))
 			position = Vector3(pos.x, pos.y + 1.2, pos.z) + Vector3(a.x, 0.0, a.y) * 0.6
 			rotation = Vector3(0.0, yaw, deg_to_rad(float(fx.get("slash_tilt_deg", -28.0))))
