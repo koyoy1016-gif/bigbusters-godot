@@ -18,6 +18,10 @@ run/main_scene.stick_prototype="res://scenes/game_flow.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[audio]
+
+driver/output_latency.web=100
+
 [display]
 
 window/stretch/mode="canvas_items"

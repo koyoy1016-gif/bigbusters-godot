@@ -88,6 +88,36 @@ static func active_index(schedule: Array, t: float) -> int:
 	return -1
 
 
+## ---- 版108（軽量化）：覚えておく計算 ----
+## 同じ入力なら同じ答えになる計算（巨大酒瓶ライドの道・投げる瓶・酒の大雨の安全地帯・チラシの向き・酒瓶の落ちる所）を、覚えておく。
+## 前は、1コマに何回も（自分・AI の味方3人・ボスの動き・見た目）、毎コマ計算しなおしていた（ライドは 40回ためす場所えらびを瓶ごとに）。
+## キーは、その計算に使う値だけ（攻撃の番号・戦いの開始時刻・広さ・設定の値）なので、答えは前と同じ。
+## 返す配列・辞書は、読むだけにする（書きかえると、覚えている答えも変わる）。
+const MEMO_MAX := 64
+static var _memo := {}
+static var memo_hits := 0  ## 覚えていた答えを使った回数（テスト・測る用）
+static var memo_misses := 0  ## 計算した回数
+
+
+static func _memo_get(key: Array) -> Variant:
+	var v: Variant = _memo.get(key, null)
+	if v != null:
+		memo_hits += 1
+	return v
+
+
+static func _memo_put(key: Array, v: Variant) -> Variant:
+	memo_misses += 1
+	if _memo.size() >= MEMO_MAX:
+		_memo.clear()
+	_memo[key] = v
+	return v
+
+
+static func memo_clear() -> void:
+	_memo.clear()
+
+
 ## 戦いの開始時刻と攻撃の番号から作る、乱数。全員の画面で同じ値が出る
 static func rng_for(round_start_ms: float, n: int) -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
@@ -232,10 +262,19 @@ static func _exit_dist(c: Vector2, d: Vector2, half: float) -> float:
 
 
 static func ride_plan(k: Dictionary, ctx: Dictionary) -> Array:
-	var out: Array = []
 	var half := ride_half(k, ctx)
 	var n := int(ctx.get("n", 0))
 	var rs := float(ctx.get("round_start_ms", 0.0))
+	var key := ["rp", n, rs, half, k["passes_min"], k["passes_max"], k["ride_intro"], k["offscreen"], k["half_len"], k["lane_spread"],
+		k["ride_speed"], k["speed_min"], k["speed_max"], k["ride_tele"], k["ride_switch"]]
+	var hit: Variant = _memo_get(key)
+	if hit != null:
+		return hit
+	return _memo_put(key, _ride_plan_calc(k, half, n, rs))
+
+
+static func _ride_plan_calc(k: Dictionary, half: float, n: int, rs: float) -> Array:
+	var out: Array = []
 	var count_rng := rng_for(rs, n * 97 + 5)
 	var passes := count_rng.randi_range(int(k["passes_min"]), int(k["passes_max"]))
 	var t := float(k["ride_intro"])
@@ -339,8 +378,18 @@ static func ride_at(u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
 ## 投げる時刻：突入の始めから終わりまで、等しい間をあけて（版65）。落ちる所：ステージの中で、走る道から離れた所（乱数）。
 ## おたがい throw_min_gap m 以上はなす（予告が重なりすぎないように）
 static func ride_throws(ps: Dictionary, k: Dictionary, ctx: Dictionary = {}) -> Array:
-	var out: Array = []
 	var half := ride_half(k, ctx)
+	var key := ["rt", int(ctx.get("n", 0)), half, ps["start"], ps["end"], ps["dir_i"], ps["i"], ps["d"], ps["from"], ps["to"], ps["c"],
+		k["bottles_per_pass"], k["seat_back"], k["half_width"], k["throw_radius"], k["throw_min_gap"], k["throw_flight"], k["throw_hand_up"],
+		k["ride_clear"], k["bottle_radius"], k["seat_butt"], k["seat_hip"]]
+	var hit: Variant = _memo_get(key)
+	if hit != null:
+		return hit
+	return _memo_put(key, _ride_throws_calc(ps, k, ctx, half))
+
+
+static func _ride_throws_calc(ps: Dictionary, k: Dictionary, ctx: Dictionary, half: float) -> Array:
+	var out: Array = []
 	var d: Vector2 = ps["d"]
 	var from: Vector2 = ps["from"]
 	var to: Vector2 = ps["to"]
@@ -426,6 +475,16 @@ static func _bottle_ride(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary
 ## 投げる瓶の一覧：[{id, i, throw, land, from: Vector3（手の位置）, to: Vector2（落ちる所）}]。同じ攻撃なら全員の画面で同じ
 ## 酒瓶落とし：1本めは、ねらう人の所。ほかは、ボスの前の扇の中。火祭り：ボスの前に、つながるように並べる
 static func sake_bottles(a: Dictionary, k: Dictionary, ctx: Dictionary) -> Array:
+	var key := ["sb", int(a["n"]), str(a["kind"]), float(ctx["round_start_ms"]), ctx["boss"], float(ctx.get("yaw", 0.0)), ctx.get("target"), float(ctx.get("area", 13.0)),
+		k.get("hand_ahead", 1.5), k.get("hand_height", 5.0), k["bottles"], k["first_sec"], k["every_sec"], k.get("angle_deg"), k.get("dist"),
+		k.get("min_dist"), k.get("max_dist"), k["flight_sec"]]
+	var hit: Variant = _memo_get(key)
+	if hit != null:
+		return hit
+	return _memo_put(key, _sake_bottles_calc(a, k, ctx))
+
+
+static func _sake_bottles_calc(a: Dictionary, k: Dictionary, ctx: Dictionary) -> Array:
 	var out: Array = []
 	var boss: Vector2 = ctx["boss"]
 	var yaw := float(ctx.get("yaw", 0.0))
@@ -933,10 +992,9 @@ static func _typhoon(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) ->
 
 ## チラシ：ボスから、前のほうへ、いろいろな向きに飛ぶ
 static func flyer_state(a: Dictionary, i: int, u: float, k: Dictionary, ctx: Dictionary) -> Dictionary:
-	var rng := rng_for(float(ctx["round_start_ms"]), int(a["n"]) * 100 + i)
 	var count := int(k["count"])
 	var s := float(k["start_sec"]) + float(k["spread_sec"]) * float(i) / float(maxi(count - 1, 1))
-	var ang := deg_to_rad(rng.randf_range(-float(k["angle_deg"]), float(k["angle_deg"])))
+	var ang := _flyer_angle(int(a["n"]), i, float(ctx["round_start_ms"]), float(k["angle_deg"]))
 	var yaw := float(ctx.get("yaw", 0.0))
 	var dir := Vector2(sin(ang + yaw), cos(ang + yaw))
 	var age := u - s
@@ -944,6 +1002,16 @@ static func flyer_state(a: Dictionary, i: int, u: float, k: Dictionary, ctx: Dic
 	var boss: Vector2 = ctx["boss"]
 	var pos := boss + dir * (float(k["speed"]) * maxf(age, 0.0) + 1.5)
 	return {"alive": alive, "pos": pos, "age": age, "dir": dir}
+
+
+## チラシ i の飛ぶ向き（ボスの前からの角度。ラジアン）。乱数は前と同じ（番号ごとの種）。覚えておく
+static func _flyer_angle(n: int, i: int, rs: float, angle_deg: float) -> float:
+	var key := ["fa", n, i, rs, angle_deg]
+	var hit: Variant = _memo_get(key)
+	if hit != null:
+		return float(hit)
+	var rng := rng_for(rs, n * 100 + i)
+	return float(_memo_put(key, deg_to_rad(rng.randf_range(-angle_deg, angle_deg))))
 
 
 static func _flyers(a: Dictionary, u: float, k: Dictionary, ctx: Dictionary) -> Array:
@@ -976,6 +1044,15 @@ static func storm_spot(a: Dictionary, i: int, k: Dictionary, ctx: Dictionary) ->
 ## ---- 酒の大雨（版68で作り直し）：ステージ全体に酒が降る。安全地帯の円 safe_count か所の中にいればダメージなし ----
 ## 安全地帯：ステージの中に、おたがい離して置く（戦いの開始の時刻と攻撃の番号から決まる。全員の画面で同じ）。[Vector2, ...]
 static func storm_safe(a: Dictionary, k: Dictionary, ctx: Dictionary) -> Array:
+	var key := ["ss", int(a["n"]), float(ctx.get("round_start_ms", 0.0)), float(ctx.get("bounds", 15.0)), k["safe_radius"], k.get("safe_margin", 1.0),
+		k["safe_count"], k.get("safe_min_gap", 1.0)]
+	var hit: Variant = _memo_get(key)
+	if hit != null:
+		return hit
+	return _memo_put(key, _storm_safe_calc(a, k, ctx))
+
+
+static func _storm_safe_calc(a: Dictionary, k: Dictionary, ctx: Dictionary) -> Array:
 	var half := float(ctx.get("bounds", 15.0))
 	var r := float(k["safe_radius"])
 	var lim := half - r - float(k.get("safe_margin", 1.0))

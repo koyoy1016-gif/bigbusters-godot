@@ -125,9 +125,20 @@ func _revive(slot: String) -> void:
 func _make_zone(slot: String, pos: Vector2) -> void:
 	if not b.is_inside_tree():
 		return
-	var root := Node3D.new()
+	var v := _zone_visual()
+	var root: Node3D = v["root"]
 	root.name = "ReviveZone_" + slot
 	root.position = Vector3(pos.x, b.ground_y + 0.04, pos.y)
+	b.add_child(root)
+	# 出る時：少し大きく出て、すっと合う
+	root.scale = Vector3.ONE * 1.4
+	root.create_tween().tween_property(root, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	nodes[slot] = {"root": root, "mat": v["mat"], "label": v["label"], "rise_t": 0.0}
+
+
+## 蘇生の輪の見た目（輪の面と、上の数字）。{root, mat, label}
+func _zone_visual() -> Dictionary:
+	var root := Node3D.new()
 	var mi := MeshInstance3D.new()
 	var pm := PlaneMesh.new()
 	var r := zone_radius()
@@ -149,11 +160,21 @@ func _make_zone(slot: String, pos: Vector2) -> void:
 	label.modulate = Color(1, 1, 1)
 	label.outline_modulate = Color(0.05, 0.1, 0.08, 0.9)
 	root.add_child(label)
-	b.add_child(root)
-	# 出る時：少し大きく出て、すっと合う
-	root.scale = Vector3.ONE * 1.4
-	root.create_tween().tween_property(root, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	nodes[slot] = {"root": root, "mat": mat, "label": label, "rise_t": 0.0}
+	return {"root": root, "mat": mat, "label": label}
+
+
+## 版108：はじめて倒れた時の準備（輪のシェーダー・数字の描き方）を、戦いの始まりにすませるための見た目。
+## 数字は地面を通して見える（深さを無視）ので、色をすきとおらせる（描くけれど、見えない）
+func prewarm_source() -> Node3D:
+	var v := _zone_visual()
+	var label: Label3D = v["label"]
+	label.text = "0123456789"
+	label.modulate = Color(1, 1, 1, 0)
+	label.outline_modulate = Color(0, 0, 0, 0)
+	var root: Node3D = v["root"]
+	root.name = "WarmReviveZone"
+	root.set_meta("warm_temp", true)
+	return root
 
 
 func _remove_zone(slot: String, revived: bool) -> void:

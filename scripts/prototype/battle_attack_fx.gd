@@ -285,6 +285,11 @@ func _rain_fx_update(on: bool) -> void:
 		if b._rain_fx != null:
 			b._rain_fx.emitting = false
 		return
+	_rain_fx_node().emitting = true
+
+
+## 酒の大雨の雨の粒（はじめて使う時に作る。版108：先に作れるように分けた）
+func _rain_fx_node() -> CPUParticles3D:
 	if b._rain_fx == null:
 		var half := float(b.config["bounds"]) + 2.0
 		b._rain_fx = CPUParticles3D.new()
@@ -308,8 +313,9 @@ func _rain_fx_update(on: bool) -> void:
 		bm.material = m
 		b._rain_fx.mesh = bm
 		b._rain_fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		b._rain_fx.emitting = false
 		b.add_child(b._rain_fx)
-	b._rain_fx.emitting = true
+	return b._rain_fx
 
 
 func _update_ride_bottle(on: bool) -> void:
@@ -317,6 +323,17 @@ func _update_ride_bottle(on: bool) -> void:
 		if b._ride_bottle != null:
 			b._ride_bottle.visible = false
 		return
+	_ride_bottle_node().visible = true
+	# 瓶の中心は、道の計算（boss_attacks.gd の ride_at）の bottle。ボスも同じ計算から座る位置が決まるので、ずれない
+	var bc: Variant = b.motion.path_info.get("bottle", null)
+	if bc is Vector3:
+		b._ride_bottle.position = bc  # top_level なので、position がそのまま世界の位置
+	b._ride_bottle.rotation = Vector3(0.0, float(b.motion.path_info.get("yaw", b.motion.yaw)), 0.0)
+	(b._ride_bottle.get_node("Spray") as CPUParticles3D).emitting = str(b.motion.path_info.get("phase", "")) == "pass"
+
+
+## 巨大酒瓶ライドの瓶としぶき（はじめて使う時に作る。隠れている。版108：先に作れるように分けた）
+func _ride_bottle_node() -> Node3D:
 	if b._ride_bottle == null:
 		var rk: Dictionary = b.attacks_cfg["kinds"]["bottle_ride"]
 		b._ride_bottle = Node3D.new()
@@ -353,14 +370,10 @@ func _update_ride_bottle(on: bool) -> void:
 		sm.material = smat
 		spray.mesh = sm
 		spray.local_coords = false
+		spray.emitting = false
 		b._ride_bottle.add_child(spray)
-	b._ride_bottle.visible = true
-	# 瓶の中心は、道の計算（boss_attacks.gd の ride_at）の bottle。ボスも同じ計算から座る位置が決まるので、ずれない
-	var bc: Variant = b.motion.path_info.get("bottle", null)
-	if bc is Vector3:
-		b._ride_bottle.position = bc  # top_level なので、position がそのまま世界の位置
-	b._ride_bottle.rotation = Vector3(0.0, float(b.motion.path_info.get("yaw", b.motion.yaw)), 0.0)
-	(b._ride_bottle.get_node("Spray") as CPUParticles3D).emitting = str(b.motion.path_info.get("phase", "")) == "pass"
+		b._ride_bottle.visible = false
+	return b._ride_bottle
 
 
 func _flying_bat() -> Node3D:
@@ -541,10 +554,8 @@ func _lighter_node() -> Node3D:
 	return _lighter
 
 
-## 一回だけ飛び散る粒（ガラスとしぶき／火花）。何こかを使いまわす
-func _burst_fx(pos: Vector3, kind: String) -> void:
-	if not b.is_inside_tree():
-		return
+## 一回だけ飛び散る粒の置き場（6こ。版108：先に作れるように分けた）
+func _burst_pool() -> Array:
 	while _fx_pool.size() < 6:
 		var p := CPUParticles3D.new()
 		p.one_shot = true
@@ -568,6 +579,14 @@ func _burst_fx(pos: Vector3, kind: String) -> void:
 		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		b.add_child(p)
 		_fx_pool.append(p)
+	return _fx_pool
+
+
+## 一回だけ飛び散る粒（ガラスとしぶき／火花）。何こかを使いまわす
+func _burst_fx(pos: Vector3, kind: String) -> void:
+	if not b.is_inside_tree():
+		return
+	_burst_pool()
 	var e: CPUParticles3D = _fx_pool[_fx_next % _fx_pool.size()]
 	_fx_next += 1
 	e.global_position = pos
@@ -687,6 +706,20 @@ func _sake_spray_update() -> void:
 
 
 func _update_jump_shadow() -> void:
+	_jump_shadow_node()
+	var h := b.motion.height
+	var riding := bool(b.motion.path_info.get("riding", false))
+	# 覚醒のオーラの床の光は、跳んでいる間・酒瓶に乗っている間は消す（空中に円盤が浮いて見えるので）
+	if b.boss_model != null and b.boss_model.aura_ground != null:
+		b.boss_model.aura_ground.visible = h < 0.3
+	_shadow.visible = h > 0.3 and not riding
+	if _shadow.visible:
+		_shadow.position = Vector3(b.motion.pos.x, 0.02, b.motion.pos.y)
+		_shadow.scale = Vector3.ONE * lerpf(3.0, 1.6, clampf(h / 8.0, 0.0, 1.0))
+
+
+## 跳んでいるボスの影（版108：先に作れるように分けた）
+func _jump_shadow_node() -> MeshInstance3D:
 	if _shadow == null:
 		_shadow = MeshInstance3D.new()
 		_shadow.name = "BossShadow"
@@ -703,13 +736,37 @@ func _update_jump_shadow() -> void:
 		c.material = m
 		_shadow.mesh = c
 		_shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_shadow.visible = false
 		b.add_child(_shadow)
-	var h := b.motion.height
-	var riding := bool(b.motion.path_info.get("riding", false))
-	# 覚醒のオーラの床の光は、跳んでいる間・酒瓶に乗っている間は消す（空中に円盤が浮いて見えるので）
-	if b.boss_model != null and b.boss_model.aura_ground != null:
-		b.boss_model.aura_ground.visible = h < 0.3
-	_shadow.visible = h > 0.3 and not riding
-	if _shadow.visible:
-		_shadow.position = Vector3(b.motion.pos.x, 0.02, b.motion.pos.y)
-		_shadow.scale = Vector3.ONE * lerpf(3.0, 1.6, clampf(h / 8.0, 0.0, 1.0))
+	return _shadow
+
+
+## 版108：ボスの攻撃・覚醒で出る見た目のうち、はじめて出る時に作る物を、いま作る（隠れたまま）。
+## 戻り値：その見た目の元のノード（写しを作って、見えない所で1回描くため。scripts/fx/draw_warm.gd）
+func prewarm_sources() -> Array:
+	var out: Array = []
+	if not b.is_inside_tree():
+		return out
+	prewarm()
+	if _fly_bat != null:
+		out.append(_fly_bat)
+	out.append(_rain_fx_node())
+	out.append(_ride_bottle_node())
+	out.append(_bottle_node(0))
+	out.append(_drop_node(0))
+	out.append(_lighter_node())
+	out.append(_burst_pool()[0])
+	out.append(_fire_node(0))
+	out.append(_wet_node(0))
+	out.append(_jump_shadow_node())
+	# 予告の面：材質が2つ（紙・ふつうの板の材質と、予告のシェーダー）。それぞれを付けた板を返す
+	var hz := _hazard_node(0)
+	for key in ["mat", "zmat"]:
+		var plate := MeshInstance3D.new()
+		plate.name = "WarmHazard_" + key
+		plate.mesh = _floor_mesh("disc_f", PI, 0.0)
+		plate.material_override = hz.get_meta(key)
+		plate.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		plate.set_meta("warm_temp", true)  # 先に描くためだけの板（写さずに、そのまま出して消す）
+		out.append(plate)
+	return out

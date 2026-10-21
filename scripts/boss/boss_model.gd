@@ -448,6 +448,20 @@ func _build_spray() -> void:
 	add_child(spray)
 
 
+## 版108：覚醒・必殺技の時だけ出る見た目（隠れている）。戦いの始まりに、写しを見えない所で1回描いて、はじめての準備をすませるため
+func prewarm_sources() -> Array:
+	var out: Array = []
+	if awake_items != null:
+		out.append(awake_items)
+	if sweep_hands.has("L"):
+		out.append(sweep_hands["L"])
+	if spray != null:
+		out.append(spray)
+	if aura != null and bool((cfg.get("aura", {}) as Dictionary).get("enabled", true)):
+		out.append(aura)
+	return out
+
+
 ## 酒を空へまく（左手の一升瓶から）
 func spray_sake() -> void:
 	if spray == null:

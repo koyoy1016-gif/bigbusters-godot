@@ -48,6 +48,11 @@ func _ensure_player() -> void:
 		var p := AudioStreamPlayer.new()
 		p.name = "Player%d" % i
 		p.volume_db = -80.0
+		# 版108：曲は「流しながら少しずつ読みほどく」（ストリーム）で鳴らす。ブラウザの書き出しの決まり（サンプル）では、
+		# はじめて鳴らす瞬間に、曲の全部（35〜40 秒）を読みほどいてブラウザに渡すため、その1コマが止まり（覚醒の曲で PC 55 ms）、
+		# 読みほどいた音（1曲 13〜15 MB）がメモリに残っていた。ストリームなら、止まらず、メモリも曲のファイルの大きさだけ。
+		# 効果音は短いので、いままでどおりサンプル（sfx.gd。読みこみの時に先に読みほどく）
+		p.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 		add_child(p)
 		players.append(p)
 	player = players[0]
@@ -79,6 +84,15 @@ func stream_of(name: String) -> AudioStream:
 		(st as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD if is_loop(name) else AudioStreamWAV.LOOP_DISABLED
 	streams[name] = st
 	return st
+
+
+## 版108：曲を先に読みこんでおく（切りかえの瞬間に読みこまないように）。読みこめた数
+func preload_tracks(list: Array) -> int:
+	var n := 0
+	for name in list:
+		if stream_of(str(name)) != null:
+			n += 1
+	return n
 
 
 ## プレイヤーが決めた大きさ（0〜1）。0 にすると止め、0 からもどすと、頼まれている曲を流し直す

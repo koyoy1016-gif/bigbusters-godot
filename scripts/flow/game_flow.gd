@@ -1309,6 +1309,9 @@ func _start_battle() -> void:
 	battle.round_ended.connect(_on_round_ended)
 	battle.round_started.connect(_on_round_started)
 	battle.music_cue.connect(_on_music_cue)
+	# 版108：戦いの中で切りかえる曲（覚醒・勝ち・負け）を、戦いの前に読みこんでおく（覚醒の瞬間に読みこむと、その1コマが長くなる）
+	if bgm != null and bgm.has_method("preload_tracks"):
+		bgm.preload_tracks(["battle", "awake", "win", "lose"])
 	# 版92・95：戦いの体力の表示の、丸いアイコンに入れる顔の絵は、ロビーと同じ係に作ってもらう（作れない所では、図形のまま）
 	battle.portrait_source = portraits
 	add_child(battle)

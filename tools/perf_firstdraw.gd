@@ -27,9 +27,10 @@ static func mat_key(m: Material) -> String:
 
 
 static func node_keys(g: GeometryInstance3D) -> Array:
-	var kind := g.get_class()
-	if g is MeshInstance3D and (g as MeshInstance3D).skin != null:
-		kind += "+skin"
+	# 版108：骨で動く形（skin）かどうかは、描き方の種類に入れない。Compatibility の描き方（drivers/gles3/shaders/scene.glsl）には
+	# 骨の種類の作り分けがなく（骨の計算は別の小さなシェーダーで先にすませる）、同じシェーダーを使うため。
+	# 粒（CPUParticles3D）と MultiMesh は、たくさん並べる描き方（USE_INSTANCING）なので、別の種類にする
+	var kind := "inst" if (g is CPUParticles3D or g is MultiMeshInstance3D or g is GPUParticles3D) else "mesh"
 	var shadow := "sh" if g.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF else ""
 	var mats: Array = []
 	if g.material_override != null:

@@ -36,6 +36,24 @@ static func volume_to_db(v: float) -> float:
 
 func _ready() -> void:
 	_ensure_pool()
+	if OS.has_feature("web"):
+		preload_samples()
+
+
+## 版108：ブラウザでは、効果音を「はじめて鳴らす瞬間」に、音の全部を読みほどいてブラウザに渡す（その1コマが止まる）。
+## 画面を作る時（読みこみの間）に、まとめて先にすませる。すませた数（前にすませた音は数えない）
+func preload_samples() -> int:
+	_ensure_pool()
+	var n := 0
+	var sounds: Dictionary = cfg.get("sounds", {})
+	for sound in sounds:
+		if not streams.has(sound):
+			streams[sound] = load(str((sounds[sound] as Dictionary).get("file", ""))) as AudioStream
+		var st: AudioStream = streams[sound]
+		if st != null and st.can_be_sampled() and not AudioServer.is_stream_registered_as_sample(st):
+			AudioServer.register_stream_as_sample(st)
+			n += 1
+	return n
 
 
 func _ensure_pool() -> void:

@@ -23,6 +23,7 @@ const UltFx := preload("res://scripts/fx/ultimate_fx.gd")
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const CharacterView := preload("res://scripts/characters/character_view.gd")
 const Actions := preload("res://scripts/combat/player_actions.gd")
+const DrawWarm := preload("res://scripts/fx/draw_warm.gd")
 
 var b: StickPrototype  ## まとめ役（stick_prototype.gd）
 
@@ -874,9 +875,11 @@ func prewarm_fx() -> void:
 		if not ids.has(str(id)) and not CharacterData.find(b.characters_cfg, str(id)).is_empty():
 			ids.append(str(id))
 	var specs: Array = []
+	var props := {}
 	var hc: Dictionary = b.config.get("hit_fx", {})
 	for id in ids:
 		_collect_fx_specs(Actions.config_for(str(id)), specs)
+		_collect_props(Actions.config_for(str(id)), props)
 		var meta: Dictionary = Actions.meta_for(str(id))
 		var sc := str(meta.get("spark", "#ffd24a"))
 		specs.append({"kind": "spark", "color": sc, "size": 0.6 * float(hc.get("spark_scale", 1.0)), "flash": float(hc.get("flash_scale", 0.0)), "life": 0.35})
@@ -892,12 +895,43 @@ func prewarm_fx() -> void:
 		b.add_child(n)
 		n.global_position = at
 		prewarm_nodes.append(n)
+	# 版108：弾・銃口の光など、形が自分の色を持つ物（prop）
+	for pname in props:
+		var pm := SkillFx.prop_mesh(str(pname))
+		if pm == null:
+			continue
+		var pmi := MeshInstance3D.new()
+		pmi.name = "WarmProp_" + str(pname)
+		pmi.mesh = pm
+		pmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		b.add_child(pmi)
+		pmi.global_position = at
+		prewarm_nodes.append(pmi)
 	var ufx: Dictionary = b.actions.def("ultimate").get("fx", {}) if b.actions.has_action("ultimate") else {}
 	for k in ["charge", "slash"]:
 		var u := UltFx.spawn(b, k, at, Vector2(0, 1), ufx)
 		u.global_position = at
 		prewarm_nodes.append(u)
+	# 版108：ボスの攻撃・覚醒・倒れた時だけ出る見た目も（酒の雨・巨大酒瓶・酒瓶・しずく・火・ぬれた床・跳ぶ影・予告の面・
+	# 覚醒の小物・大きな手・酒のしぶき・蘇生の輪）。はじめて出る時に作る物は、いま作る（隠れたまま）。写しを同じ所に出す
+	var sources: Array = b.attack_fx.prewarm_sources()
+	if b.boss_model != null:
+		sources.append_array(b.boss_model.prewarm_sources())
+	sources.append(b.revive_sys.prewarm_source())
+	prewarm_draw(sources, at)
 	_prewarm_frames = 3
+
+
+## 版108：元の見た目の写し（scripts/fx/draw_warm.gd）を、at（見えない所）に出す。先に描くためだけの物（meta warm_temp）は、そのまま出す
+func prewarm_draw(sources: Array, at: Vector3) -> void:
+	for src in sources:
+		if src == null:
+			continue
+		var list: Array = [src] if (src as Node).has_meta("warm_temp") else DrawWarm.copies_under(src)
+		for n in list:
+			b.add_child(n)
+			(n as Node3D).global_position = at
+			prewarm_nodes.append(n)
 
 
 ## 先に出した見た目を消す（2コマ描いたあと。毎コマ呼ぶ）
@@ -917,13 +951,30 @@ func prewarm_step() -> void:
 static func _collect_fx_specs(x: Variant, out: Array) -> void:
 	if x is Dictionary:
 		var d := x as Dictionary
-		if d.has("kind") and PREWARM_KINDS.has(str(d["kind"])) and d.has("color"):
+		# 版108：色のない見た目（弾・銃口の光など、形が自分の色を持つ prop）も入れる
+		if d.has("kind") and PREWARM_KINDS.has(str(d["kind"])) and (d.has("color") or d.has("prop")):
 			out.append(d.duplicate())
 		for k in d:
 			_collect_fx_specs(d[k], out)
 	elif x is Array:
 		for v in x:
 			_collect_fx_specs(v, out)
+
+
+## 版108：技の設定の中の、形の名前（prop。弾・銃口の光など）を集める
+static func _collect_props(x: Variant, out: Dictionary) -> void:
+	if x is Dictionary:
+		var d := x as Dictionary
+		if d.get("prop") is String and str(d["prop"]) != "":
+			out[str(d["prop"])] = true
+		if str(d.get("on_land", "")) == "present":
+			for pn in ["present_box", "present_lid", "jack_spring"]:  # プレゼントが開く時の形（_start_present）
+				out[pn] = true
+		for k in d:
+			_collect_props(d[k], out)
+	elif x is Array:
+		for v in x:
+			_collect_props(v, out)
 
 
 ## 決まった所に、見た目を出す（from→to の向き）
