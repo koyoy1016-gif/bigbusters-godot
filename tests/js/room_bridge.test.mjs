@@ -196,6 +196,20 @@ test('入っていれば、位置を自分の枠に書き、送った数を数�
   assert.equal(bb.state.sent, 1);
 });
 
+test('版107：位置の時刻は、サーバーの時計（自分の時計＋サーバーとのずれ）', async () => {
+  const sdk = makeFakeSdk({ uid: 'abc' });
+  sdk.store.set('.info/serverTimeOffset', 50000);
+  const bb = load(sdk);
+  await bb.joinRoom(CFG, '1234');
+  assert.equal(bb.state.offset, 50000);
+  const before = Date.now();
+  bb.sendPosition(0.25, 0.75);
+  const after = Date.now();
+  const pos = sdk.store.get('rooms/1234/positions/p1');
+  assert.ok(pos.t >= before + 50000 && pos.t <= after + 50000, `t=${pos.t}`);
+  assert.deepEqual(Object.keys(pos).sort(), ['t', 'x', 'y']); // ルール（x, y, t だけ）は変えない
+});
+
 test('他の人の位置を受け取り、受けた数を数える', async () => {
   const sdk = makeFakeSdk({ uid: 'abc' });
   const bb = load(sdk);

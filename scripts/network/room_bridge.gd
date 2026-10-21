@@ -67,6 +67,11 @@ static func build_state_query() -> String:
 	return "JSON.stringify(window.bbFirebase.state)"
 
 
+## 版107：ほかの人の位置だけ（よく変わる物だけを、こまめに読む。全部の状態は、少しあけて読む）
+static func build_positions_query() -> String:
+	return "JSON.stringify((window.bbFirebase && window.bbFirebase.state && window.bbFirebase.state.positions) || {})"
+
+
 ## JSの状態（JSON文字列）を辞書にする。壊れていれば空の辞書
 static func parse_state(raw: String) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(raw)
@@ -121,3 +126,13 @@ func start_round() -> void:
 
 func read_state() -> Dictionary:
 	return parse_state(str(js_eval.call(build_state_query())))
+
+
+## 版107：位置だけ読む（{枠: {x, y, t}}）。
+## 読めなかった時（JSのまちがい・まだ準備中）は null。null の時は、ほかの人を消さない（前の位置のまま）
+func read_positions() -> Variant:
+	var raw: Variant = js_eval.call(build_positions_query())
+	if raw == null:
+		return null
+	var parsed: Variant = JSON.parse_string(str(raw))
+	return parsed if parsed is Dictionary else null

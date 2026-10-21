@@ -40,6 +40,7 @@ const BattleAttackFx := preload("res://scripts/prototype/battle_attack_fx.gd")
 const WARNING_SHADER := preload("res://shaders/warning_zone.gdshader")
 const BottleMesh := preload("res://scripts/boss/sake_bottle_mesh.gd")
 const SakeField := preload("res://scripts/combat/sake_field.gd")
+const SnapshotBuffer := preload("res://scripts/network/snapshot_buffer.gd")
 
 var b: StickPrototype  ## まとめ役（stick_prototype.gd）
 
@@ -53,11 +54,23 @@ func net_update(delta: float, now_ms: int) -> void:
 	if not b.net_active:
 		return
 	b.since_poll += delta
-	if b.since_poll >= float(b.config["net_poll_sec"]):
+	b.since_pos_poll += delta
+	# 版107：全部の状態（体力・ダメージ・開始など）は net_poll_sec ごと、よく変わる位置だけは net_pos_poll_sec ごとに読む
+	# （前は全部を 0.05 秒ごとに文字にして読んでいた）
+	# 自分の枠がまだ分からない間（入ったばかり）は、位置の間隔で全部を読む
+	var pos_due := b.since_pos_poll >= float(b.config.get("net_pos_poll_sec", 0.05))
+	if b.since_poll >= float(b.config["net_poll_sec"]) or (pos_due and str(b.net_state.get("slot", "")) == ""):
 		b.since_poll = 0.0
+		b.since_pos_poll = 0.0
 		var state := b.bridge.read_state()
 		if not state.is_empty():
 			apply_net_state(state)
+	elif pos_due:
+		b.since_pos_poll = 0.0
+		var raw: Variant = b.bridge.read_positions()
+		if raw is Dictionary:
+			b.net_state["positions"] = raw
+			apply_positions(raw)
 	b._share_my_character(now_ms)
 	var me := str(b.net_state.get("slot", ""))
 	if me != "" and Sync.should_send(now_ms, b.last_sent_ms, int(b.config["send_interval_ms"])):
@@ -84,32 +97,66 @@ func apply_net_state(state: Dictionary) -> void:
 			b._begin_round(r)
 	b._recompute_boss_hp()
 	b._check_wipe()
-	var positions := Sync.parse_positions(state.get("positions", {}))
-	positions.erase(me)
+	apply_positions(state.get("positions", {}))
+
+
+## 版107：ほかの人の位置（{枠: {x, y, t}}）を受け取る。送った時刻（サーバーの時計）つきで、枠ごとの記録（SnapshotBuffer）にためる
+func apply_positions(raw: Variant) -> void:
+	var me := str(b.net_state.get("slot", ""))
+	var members: Array = b.net_state.get("members", [])
+	var samples := Sync.parse_samples(raw)
+	samples.erase(me)
 	# いま部屋にいる人（members）の位置だけ出す。前の人の古い位置が残っていても、箱は出さない
-	if state.has("members"):
-		for slot in positions.keys():
+	if b.net_state.has("members"):
+		for slot in samples.keys():
 			if not members.has(str(slot)):
-				positions.erase(slot)
-	for slot in positions:
-		b.other_target[slot] = positions[slot]
+				samples.erase(slot)
+	var arrival: float = b.server_now_ms()
+	for slot in samples:
+		var smp: Dictionary = samples[slot]
+		if not b.net_buffers.has(slot):
+			var nb := SnapshotBuffer.new()
+			var ic := _ic()
+			nb.snap_dist = float(ic.get("snap_m", 3.0)) / (2.0 * float(b.config["bounds"]))
+			nb.quantile = float(ic.get("delay_quantile", 0.9))
+			b.net_buffers[slot] = nb
+		var t: float = float(smp["t"]) if float(smp["t"]) > 0.0 else arrival
+		(b.net_buffers[slot] as SnapshotBuffer).push(t, smp["p"], arrival, float(_ic().get("skew_ms", 3000.0)))
+		b.other_target[slot] = smp["p"]
 	for slot in b.other_target.keys():
-		if not positions.has(slot) and not b.ai_allies.has(slot):
+		if not samples.has(slot) and not b.ai_allies.has(slot):
 			b.other_target.erase(slot)
 			b.other_pos.erase(slot)
+			b.net_buffers.erase(slot)
 			if b.others.has(slot):
 				(b.others[slot] as Node).queue_free()
 				b.others.erase(slot)
 				b.other_views.erase(slot)
 
 
+## なめらかにつなぐ設定（data/prototype_stick.json の net_interp）
+func _ic() -> Dictionary:
+	return b.config.get("net_interp", {})
+
+
 func _update_others(delta: float) -> void:
 	var half := float(b.config["bounds"])
 	var weight := Sync.smooth_weight(delta, float(b.config["smooth_per_sec"]))
+	var ic := _ic()
 	for slot in b.other_target:
 		var target: Vector2 = b.other_target[slot]
 		var current: Vector2 = b.other_pos.get(slot, target)
-		current = current.lerp(target, weight)
+		if b.net_buffers.has(slot):
+			# 版107：通信のなかま：少し前の時刻（サーバーの時計 − 遅れ）の位置を、記録の間でなめらかにつなぐ
+			var buf: SnapshotBuffer = b.net_buffers[slot]
+			buf.update_delay(float(b.config["send_interval_ms"]), float(ic.get("min_delay_ms", 80.0)), float(ic.get("max_delay_ms", 350.0)),
+					delta, float(ic.get("delay_rate_ms_per_sec", 30.0)), float(ic.get("delay_deadband_ms", 15.0)))
+			buf.ease_correction(delta, float(ic.get("correction_per_sec", 10.0)))
+			var rt: float = b.server_now_ms() - buf.delay_ms
+			current = buf.sample(rt, float(ic.get("extrap_ms", 120.0)), target)
+			buf.trim(rt)
+		else:
+			current = current.lerp(target, weight)  # AI の味方（同じ画面の中）は、いままでどおり
 		b.other_pos[slot] = current
 		var node := _other_node(str(slot))
 		var old_pos := node.position

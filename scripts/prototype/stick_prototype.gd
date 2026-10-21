@@ -201,6 +201,8 @@ var others := {}
 var other_target := {}
 var other_pos := {}
 var since_poll := 0.0
+var since_pos_poll := 0.0  ## 版107：位置だけを読む間隔の時計
+var net_buffers: Dictionary = {}  ## 版107：通信のなかまの位置の記録（枠 → SnapshotBuffer）
 var last_sent_ms := -100000
 
 

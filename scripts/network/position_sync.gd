@@ -32,3 +32,16 @@ static func parse_positions(raw: Variant) -> Dictionary:
 
 static func _is_number(value: Variant) -> bool:
 	return value is float or value is int
+
+
+## 版107：受け取った位置を、時刻つきで（{"p1": {"x":..,"y":..,"t":..}}）→ {枠: {"p": Vector2, "t": 送った時刻}}。t がなければ -1
+static func parse_samples(raw: Variant) -> Dictionary:
+	var out := {}
+	if not (raw is Dictionary):
+		return out
+	for slot in raw:
+		var item: Variant = raw[slot]
+		if item is Dictionary and item.has("x") and item.has("y") and _is_number(item["x"]) and _is_number(item["y"]):
+			var t: Variant = item.get("t", -1.0)
+			out[str(slot)] = {"p": Vector2(float(item["x"]), float(item["y"])), "t": float(t) if _is_number(t) else -1.0}
+	return out

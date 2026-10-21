@@ -75,7 +75,20 @@
   "button_text_color": "#202020",
   "text_color": "#ffffff",
   "default_room": "1111",
-  "net_poll_sec": 0.05,
+  "net_poll_sec": 0.1,
+  "net_pos_poll_sec": 0.05,
+  "net_interp": {
+    "_memo": "版107：通信のなかまの位置を、なめらかにつなぐ（scripts/network/snapshot_buffer.gd）。送った時刻（サーバーの時計）で並べ、少し前（遅れ）の位置を見せる。遅れ＝「前の記録の送った時刻から、次の記録が届くまで」の多め（delay_quantile）の値を、min_delay_ms〜max_delay_ms に収め、delay_deadband_ms より大きくずれた時だけ、1秒に delay_rate_ms_per_sec までずつ変える。記録が足りない時は extrap_ms まで先へのばす。遅れて届いた記録で見せる位置がずれたら、1秒に correction_per_sec の割合で少しずつもどす（snap_m より遠く飛んだ時は、そのまま飛ぶ）。送った時刻と受けた時刻が skew_ms 以上ちがえば、受けた時刻を使う。net_poll_sec：全部の状態を読む間隔（前は 0.05）。net_pos_poll_sec：位置だけを読む間隔",
+    "min_delay_ms": 80.0,
+    "max_delay_ms": 350.0,
+    "delay_quantile": 0.9,
+    "delay_rate_ms_per_sec": 30.0,
+    "delay_deadband_ms": 15.0,
+    "extrap_ms": 120.0,
+    "correction_per_sec": 10.0,
+    "snap_m": 3.0,
+    "skew_ms": 3000.0
+  },
   "send_interval_ms": 100,
   "smooth_per_sec": 10.0,
   "slot_colors": [
@@ -174,7 +187,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "106",
+  "build_id": "107",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {

@@ -330,7 +330,8 @@ window.bbFirebase = {
     var ref = d.ref(s.database, 'rooms/' + this.state.room + '/positions/' + slot);
     var self = this;
     this.state.sent += 1;
-    d.set(ref, { x: x, y: y, t: Date.now() }).catch(function (e) {
+    // 版107：送った時刻は、サーバーの時計（Date.now() ＋ サーバーとのずれ）。受け取る側が、全員同じ時計で並べて、なめらかにつなぐ
+    d.set(ref, { x: x, y: y, t: Date.now() + (this.state.offset || 0) }).catch(function (e) {
       self.state.error = String((e && e.message) || e);
     });
     return true;
