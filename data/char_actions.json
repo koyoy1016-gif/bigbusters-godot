@@ -37,68 +37,6 @@
     "duration_from_cooldown": true,
     "note": "すばやい左ジャブ。待ち時間はキャラの attack_cooldown_sec（0.3秒）"
    },
-   "sub": {
-    "label": "Y",
-    "name": "ダッシュキック",
-    "cooldown_sec": 4.0,
-    "duration_sec": 0.75,
-    "move_scale": 0.0,
-    "aim_boss": true,
-    "cleave": true,
-    "radius_scale": 1.4,
-    "hits": [
-     {
-      "t": 0.38,
-      "multiplier": 3.6,
-      "impact": [
-       0.04,
-       0.16,
-       0.0
-      ],
-      "fx": {
-       "kind": "blast",
-       "color": "#ff8a4a",
-       "radius": 1.2,
-       "life": 0.22,
-       "at": "front",
-       "dist": 1.7,
-       "size": 1.0
-      }
-     }
-    ],
-    "steps": [
-     {
-      "t": 0.0,
-      "anim": "Brawler_Y",
-      "speed": 1.0
-     }
-    ],
-    "path": [
-     {
-      "t": 0.0,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.08,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.3,
-      "fwd": 2.8,
-      "h": 0.0
-     },
-     {
-      "t": 0.75,
-      "fwd": 3.0,
-      "h": 0.0
-     }
-    ],
-    "stop_at_boss": true,
-    "i_frames": true,
-    "note": "しずんでから前へ踏みこみ、右足で前げり。踏みこむ間は無敵"
-   },
    "main": {
     "label": "X",
     "name": "20連パンチ",
@@ -430,8 +368,8 @@
     "stop_at_boss": false,
     "duration_from_cooldown": true
    },
-   "sub": {
-    "label": "Y",
+   "main": {
+    "label": "X",
     "name": "バニッシュ",
     "cooldown_sec": 8.0,
     "duration_sec": 0.4,
@@ -470,53 +408,6 @@
      }
     ],
     "note": "姿が消える（青い残像と粒）。3秒、ボスの攻撃に当たらず、1.3倍の速さで動ける。攻撃すると現れ、その技のダメージが1.5倍"
-   },
-   "main": {
-    "label": "X",
-    "name": "超高速モード",
-    "cooldown_sec": 15.0,
-    "duration_sec": 0.7,
-    "move_scale": 0.0,
-    "aim_boss": false,
-    "cleave": true,
-    "radius_scale": 1.0,
-    "hits": [],
-    "steps": [
-     {
-      "t": 0.0,
-      "anim": "Sprinter_X",
-      "speed": 1.0
-     }
-    ],
-    "path": [],
-    "stop_at_boss": false,
-    "fx_events": [
-     {
-      "t": 0.35,
-      "kind": "ring",
-      "color": "#5fd6ff",
-      "radius": 3.0,
-      "life": 0.4,
-      "at": "self"
-     },
-     {
-      "t": 0.35,
-      "kind": "rise",
-      "color": "#8fe8ff",
-      "life": 0.8,
-      "at": "self"
-     }
-    ],
-    "effects": [
-     {
-      "t": 0.35,
-      "type": "speed_mode",
-      "sec": 6.0,
-      "mult": 1.75,
-      "color": "#5fd6ff"
-     }
-    ],
-    "note": "6秒、動く速さと攻撃の速さ（待ち時間の減り・通常攻撃の間かく）が1.75倍"
    },
    "ultimate": {
     "label": "必殺",
@@ -799,136 +690,6 @@
     "stop_at_boss": false,
     "duration_from_cooldown": true,
     "note": "左右の腕の大砲から1発ずつ（大きな銃口の光・金色の弾・当たった所の火花。ダメージは当たった時）"
-   },
-   "sub": {
-    "label": "Y",
-    "name": "バックステップ射撃",
-    "cooldown_sec": 4.5,
-    "duration_sec": 0.8,
-    "move_scale": 0.0,
-    "aim_boss": true,
-    "cleave": true,
-    "radius_scale": 1.0,
-    "hits": [
-     {
-      "t": 0.3,
-      "multiplier": 0.9,
-      "side": -0.9,
-      "proj": {
-       "mode": "straight",
-       "from": "muzzle_L",
-       "speed": 24.0,
-       "prop": "bullet",
-       "scale": 2.4,
-       "size": 0.14,
-       "range": 18.0,
-       "radius": 0.35,
-       "aim_h": 0.42,
-       "color": "#ffffff",
-       "life": 1.5,
-       "muzzle": {
-        "prop": "muzzle_flash",
-        "scale": 1.4,
-        "life": 0.07
-       },
-       "trail": "#ffd36a"
-      },
-      "fx": {
-       "size": 0.85
-      }
-     },
-     {
-      "t": 0.38,
-      "multiplier": 0.9,
-      "side": 0.0,
-      "proj": {
-       "mode": "straight",
-       "from": "muzzle_R",
-       "speed": 24.0,
-       "prop": "bullet",
-       "scale": 2.4,
-       "size": 0.14,
-       "range": 18.0,
-       "radius": 0.35,
-       "aim_h": 0.42,
-       "color": "#ffffff",
-       "life": 1.5,
-       "muzzle": {
-        "prop": "muzzle_flash",
-        "scale": 1.4,
-        "life": 0.07
-       },
-       "trail": "#ffd36a"
-      },
-      "fx": {
-       "size": 0.85
-      }
-     },
-     {
-      "t": 0.46,
-      "multiplier": 0.9,
-      "side": 0.9,
-      "proj": {
-       "mode": "straight",
-       "from": "muzzle_L",
-       "speed": 24.0,
-       "prop": "bullet",
-       "scale": 2.4,
-       "size": 0.14,
-       "range": 18.0,
-       "radius": 0.35,
-       "aim_h": 0.42,
-       "color": "#ffffff",
-       "life": 1.5,
-       "muzzle": {
-        "prop": "muzzle_flash",
-        "scale": 1.4,
-        "life": 0.07
-       },
-       "trail": "#ffd36a"
-      },
-      "fx": {
-       "size": 0.85
-      }
-     }
-    ],
-    "steps": [
-     {
-      "t": 0.0,
-      "anim": "Gunner_Y",
-      "speed": 1.0
-     }
-    ],
-    "path": [
-     {
-      "t": 0.0,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.1,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.45,
-      "fwd": -3.2,
-      "h": 0.9
-     },
-     {
-      "t": 0.62,
-      "fwd": -3.4,
-      "h": 0.0
-     },
-     {
-      "t": 0.8,
-      "fwd": -3.4,
-      "h": 0.0
-     }
-    ],
-    "stop_at_boss": false,
-    "i_frames": true,
-    "note": "後ろへ跳びながら、扇の形に3発。跳んでいる間は無敵"
    },
    "main": {
     "label": "X",
@@ -1719,80 +1480,6 @@
     ],
     "note": "プレゼントの爆弾を、放物線で投げる（12m まで）。落ちた所で爆発（半径2m＝ダメージの範囲）"
    },
-   "sub": {
-    "label": "Y",
-    "name": "置きプレゼント＆バックジャンプ",
-    "cooldown_sec": 5.0,
-    "duration_sec": 0.95,
-    "move_scale": 0.0,
-    "aim_boss": true,
-    "cleave": true,
-    "radius_scale": 1.0,
-    "hits": [
-     {
-      "t": 0.15,
-      "multiplier": 3.0,
-      "proj": {
-       "mode": "arc",
-       "from": "hand_L",
-       "speed": 6.0,
-       "prop": "present_green",
-       "scale": 2.2,
-       "size": 0.2,
-       "range": 12.0,
-       "radius": 0.2,
-       "aim_h": 0.45,
-       "color": "#ffffff",
-       "life": 3.2,
-       "arc": 0.6,
-       "spin": 3.5,
-       "trail": "#ffe27a",
-       "land_at": "self",
-       "on_land": "present",
-       "open_sec": 0.55,
-       "boom_sec": 1.1,
-       "blast": 3.0
-      }
-     }
-    ],
-    "steps": [
-     {
-      "t": 0.0,
-      "anim": "Bomber_Y",
-      "speed": 1.0
-     }
-    ],
-    "path": [
-     {
-      "t": 0.0,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.3,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.6,
-      "fwd": -3.5,
-      "h": 0.9
-     },
-     {
-      "t": 0.75,
-      "fwd": -3.6,
-      "h": 0.0
-     },
-     {
-      "t": 0.95,
-      "fwd": -3.6,
-      "h": 0.0
-     }
-    ],
-    "stop_at_boss": false,
-    "i_frames": true,
-    "note": "足もとにプレゼントを置いて、後ろへ跳ぶ（跳んでいる間は無敵）。箱がゆれ、ふたが飛び、バネの道化が飛び出して爆発（半径3m）"
-   },
    "main": {
     "label": "X",
     "name": "びっくりプレゼント",
@@ -2135,8 +1822,8 @@
     ],
     "note": "つえの先から、むらさきの魔法の玉。ゆるく敵を追いかける（1秒に140度まで曲がる）"
    },
-   "sub": {
-    "label": "Y",
+   "main": {
+    "label": "X",
     "name": "チャージ魔法",
     "cooldown_sec": 6.0,
     "duration_sec": 1.6,
@@ -2214,56 +1901,6 @@
      }
     ],
     "note": "足もとに魔法陣。0.95秒ためてから、大きな魔法の玉（ゆっくり追いかける）"
-   },
-   "main": {
-    "label": "X",
-    "name": "時間停止",
-    "cooldown_sec": 18.0,
-    "duration_sec": 1.0,
-    "move_scale": 0.0,
-    "aim_boss": true,
-    "cleave": true,
-    "radius_scale": 1.0,
-    "hits": [],
-    "steps": [
-     {
-      "t": 0.0,
-      "anim": "Mage_X",
-      "speed": 1.0
-     }
-    ],
-    "path": [],
-    "stop_at_boss": false,
-    "fx_events": [
-     {
-      "t": 0.5,
-      "kind": "ring",
-      "color": "#b9a8ff",
-      "radius": 8.0,
-      "life": 0.6,
-      "at": "self"
-     },
-     {
-      "t": 0.3,
-      "kind": "prop",
-      "prop": "magic_circle",
-      "scale": 2.2,
-      "life": 0.7,
-      "at": "self",
-      "y": 0.06
-     }
-    ],
-    "effects": [
-     {
-      "t": 0.55,
-      "type": "time_stop",
-      "sec": 3.0,
-      "resist_sec": 20.0,
-      "resist_mult": 0.5,
-      "color": "#b9a8ff"
-     }
-    ],
-    "note": "ボスを3秒止める（攻撃も止まる。味方は普通に攻撃できる）。止めて20秒以内にまた使うと、ボスの耐性で半分（1.5秒）"
    },
    "ultimate": {
     "label": "必殺",
@@ -2376,68 +2013,6 @@
     "stop_at_boss": false,
     "duration_from_cooldown": true,
     "note": "とげ鉄球の棍棒を、ふりかぶって振り下ろす"
-   },
-   "sub": {
-    "label": "Y",
-    "name": "シールドチャージ",
-    "cooldown_sec": 5.0,
-    "duration_sec": 0.8,
-    "move_scale": 0.0,
-    "aim_boss": true,
-    "cleave": true,
-    "radius_scale": 1.3,
-    "hits": [
-     {
-      "t": 0.42,
-      "multiplier": 3.0,
-      "impact": [
-       0.04,
-       0.16,
-       0.0
-      ],
-      "fx": {
-       "kind": "blast",
-       "color": "#7fb4ff",
-       "radius": 1.4,
-       "life": 0.25,
-       "at": "front",
-       "dist": 1.5,
-       "size": 1.0
-      }
-     }
-    ],
-    "steps": [
-     {
-      "t": 0.0,
-      "anim": "Guardian_Y",
-      "speed": 1.0
-     }
-    ],
-    "path": [
-     {
-      "t": 0.0,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.1,
-      "fwd": 0.0,
-      "h": 0.0
-     },
-     {
-      "t": 0.42,
-      "fwd": 3.5,
-      "h": 0.0
-     },
-     {
-      "t": 0.8,
-      "fwd": 3.6,
-      "h": 0.0
-     }
-    ],
-    "stop_at_boss": true,
-    "i_frames": true,
-    "note": "盾を前に、体当たり。走っている間は無敵"
    },
    "main": {
     "label": "X",
@@ -2636,53 +2211,6 @@
     "duration_from_cooldown": true,
     "note": "小さなくまのぬいぐるみを投げる（10m まで、落ちた所の半径1.2m）"
    },
-   "sub": {
-    "label": "Y",
-    "name": "ぬいぐるみの突撃",
-    "cooldown_sec": 10.0,
-    "duration_sec": 0.8,
-    "move_scale": 0.0,
-    "aim_boss": true,
-    "cleave": true,
-    "radius_scale": 1.0,
-    "hits": [],
-    "steps": [
-     {
-      "t": 0.0,
-      "anim": "Toy_Y",
-      "speed": 1.0
-     }
-    ],
-    "path": [],
-    "stop_at_boss": false,
-    "fx_events": [
-     {
-      "t": 0.3,
-      "kind": "ring",
-      "color": "#f2b6c6",
-      "radius": 2.0,
-      "life": 0.4,
-      "at": "self"
-     }
-    ],
-    "effects": [
-     {
-      "t": 0.3,
-      "type": "summon",
-      "unit": "plush",
-      "count": 2,
-      "sec": 8.0,
-      "interval": 0.8,
-      "multiplier": 0.6,
-      "speed": 5.5,
-      "reach": 1.0,
-      "max_active": 9,
-      "spread": 1.8,
-      "unit_height": 1.6
-     }
-    ],
-    "note": "ぬいぐるみを2体呼ぶ（8秒。敵へ跳ねて行き、0.8秒ごとにたたく）"
-   },
    "main": {
     "label": "X",
     "name": "兵隊よ、進め！",
@@ -2856,38 +2384,6 @@
     "stop_at_boss": false,
     "duration_from_cooldown": true,
     "note": "金の弓で、ハートの矢を射る（16m まで。当たった時にダメージ）"
-   },
-   "sub": {
-    "label": "Y",
-    "name": "いやしの光",
-    "cooldown_sec": 6.0,
-    "duration_sec": 0.8,
-    "move_scale": 0.0,
-    "aim_boss": false,
-    "cleave": true,
-    "radius_scale": 1.0,
-    "hits": [],
-    "steps": [
-     {
-      "t": 0.0,
-      "anim": "Angel_Y",
-      "speed": 1.0
-     }
-    ],
-    "path": [],
-    "stop_at_boss": false,
-    "effects": [
-     {
-      "t": 0.45,
-      "type": "heal_shot",
-      "amount": 40.0,
-      "speed": 12.0,
-      "prop": "heal_orb",
-      "from": "hand_R",
-      "scale": 2.2
-     }
-    ],
-    "note": "いちばん減っている味方（味方をタップすれば、その味方）へ、回復の光を飛ばす（40回復）"
    },
    "main": {
     "label": "X",

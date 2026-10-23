@@ -82,26 +82,7 @@ func _draw_overlay() -> void:
 	b.overlay.draw_circle(c, r, _cc("stick_base_color"))
 	b.overlay.draw_circle(c + b.stick_vec * r, r * 0.4, _cc("stick_knob_color"))
 
-	var br := float(b.config["button_radius_px"])
-	var held := b._me_held()
-	for id in b.actions.ids():
-		var bc := _button_center(str(id), screen)
-		var color := "button_pressed_color" if float(b.button_flash.get(id, 0.0)) > 0.0 else ("button_cooldown_color" if b.actions.cooldown_left(str(id)) > 0.0 or b.actions.busy() or held else "button_color")
-		var label := str(b.actions.def(str(id)).get("label", id))
-		var is_ult := str(id) == "ultimate"
-		if is_ult and not held:
-			if b.gauge.is_ready():
-				var pulse := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.012)
-				color = "button_pressed_color" if float(b.button_flash.get(id, 0.0)) > 0.0 else "ultimate_ready_color"
-				b.overlay.draw_circle(bc, br + 4.0 + 6.0 * pulse, _cc("ultimate_ring_color").darkened(0.1))
-			elif b.actions.busy():
-				color = "button_cooldown_color"
-		if held:
-			label = "×"  # 版70：つかまれている間は、どのボタンも効かない
-		b.overlay.draw_circle(bc, br, _cc(color))
-		if is_ult and not b.gauge.is_ready():
-			b.overlay.draw_arc(bc, br + 6.0, -PI * 0.5, -PI * 0.5 + TAU * b.gauge.ratio(), 40, _cc("ultimate_ring_color"), 7.0)
-		_draw_centered(bc, label, button_text)
+	_draw_buttons(screen)
 
 	# 版92：上の文字の行（説明・BOSS HP・やく/体力・なかま・通信）はやめた。体力は、画面に固定した新しい表示（battle_hp_hud.gd）
 	# 版102：体力の表示は、自分の板（b.hp_hud.layer）に、見た目が変わった時だけ描く（ここでは描かない）
@@ -132,8 +113,111 @@ func _draw_overlay() -> void:
 	if rs != "":
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.56), rs, Color("#c8ffd8"), 1.2)
 	_draw_reticle()
+	_draw_dodge_text()
 	_draw_damage_numbers(screen)
 	_draw_banner(screen)
+
+
+## 版110：A・X・Y・必殺のボタン（右下に2×2・同じ大きさ・角ばった板）。中に大きく A／X／Y／必殺、その下に小さく技の名前。
+## 押すと短く光ってふくらむ（button_flash）。使えない時は暗く、待ち時間の残りを上から暗い帯で。必殺はゲージを下からためる
+func _draw_buttons(screen: Vector2) -> void:
+	var bc: Dictionary = b.config.get("battle_buttons", {})
+	var held := b._me_held()
+	var accent := _my_accent()
+	for id in b.actions.ids():
+		var key := str(id)
+		var rect := _button_rect(key, screen)
+		var flash := float(b.button_flash.get(key, 0.0)) > 0.0
+		var is_ult := key == "ultimate"
+		var cd_left := b.actions.cooldown_left(key)
+		var ready := not held and not b.actions.busy() and cd_left <= 0.0 and (not is_ult or b.gauge.is_ready())
+		var edge := accent
+		if key == "sub":
+			edge = _cc(str(bc.get("edge_sub", "#9fe8ff")))
+		elif is_ult:
+			edge = _cc(str(bc.get("edge_ultimate", "#ffd24a")))
+		if flash:
+			var k := float(bc.get("press_scale", 1.08))
+			rect = Rect2(rect.get_center() - rect.size * k * 0.5, rect.size * k)
+		var sk := float(bc.get("skew_px", 12.0))
+		var poly := PackedVector2Array([rect.position + Vector2(sk, 0), Vector2(rect.end.x, rect.position.y), rect.end - Vector2(sk, 0), Vector2(rect.position.x, rect.end.y)])
+		# 光（押した時・必殺技が使える時）
+		if flash or (is_ult and ready):
+			var pulse := 1.0 if flash else 0.55 + 0.45 * sin(float(Time.get_ticks_msec()) * 0.012)
+			for i in 3:
+				var e := 3.0 + 3.0 * i
+				var g := PackedVector2Array([poly[0] + Vector2(0, -e), poly[1] + Vector2(e, -e), poly[2] + Vector2(0, e), poly[3] + Vector2(-e, e)])
+				b.overlay.draw_colored_polygon(g, Color(edge.r, edge.g, edge.b, 0.16 * pulse / float(i + 1)))
+		b.overlay.draw_colored_polygon(poly, _cc(str(bc.get("fill" if ready or flash else "fill_disabled", "#0b0f1ce6"))))
+		if flash:
+			b.overlay.draw_colored_polygon(poly, Color(edge.r, edge.g, edge.b, 0.35))
+		# 必殺技のゲージ（下からたまる）
+		if is_ult and not b.gauge.is_ready():
+			var fr := clampf(b.gauge.ratio(), 0.0, 1.0)
+			var top := rect.end.y - rect.size.y * fr
+			var clip := Geometry2D.intersect_polygons(poly, PackedVector2Array([Vector2(rect.position.x - sk, top), Vector2(rect.end.x + sk, top), Vector2(rect.end.x + sk, rect.end.y + 1), Vector2(rect.position.x - sk, rect.end.y + 1)]))
+			for cp in clip:
+				b.overlay.draw_colored_polygon(cp, Color(edge.r, edge.g, edge.b, 0.32))
+		# 待ち時間の残り（上から暗い帯）
+		var cd_total := float(b.actions.def(key).get("cooldown_sec", 0.0)) if key != "normal" else b.role_value("attack_cooldown_sec")
+		if cd_left > 0.0 and cd_total > 0.0:
+			var frac := clampf(cd_left / cd_total, 0.0, 1.0)
+			var bottom := rect.position.y + rect.size.y * frac
+			var shade := Geometry2D.intersect_polygons(poly, PackedVector2Array([Vector2(rect.position.x - sk, rect.position.y - 1), Vector2(rect.end.x + sk, rect.position.y - 1), Vector2(rect.end.x + sk, bottom), Vector2(rect.position.x - sk, bottom)]))
+			for sp in shade:
+				b.overlay.draw_colored_polygon(sp, _cc(str(bc.get("cooldown_shade", "#000000a0"))))
+		var ec := edge if ready or flash else edge.darkened(0.55)
+		var loop := poly.duplicate()
+		loop.append(poly[0])
+		b.overlay.draw_polyline(loop, ec, 3.0 if ready else 2.0, true)
+		# 字：大きく A／X／Y／必殺、その下に小さく技の名前
+		var letters: Dictionary = bc.get("letters", {})
+		var letter := "×" if held else str(letters.get(key, key))
+		var lpx := int(bc.get("letter_px_ultimate" if is_ult else "letter_px", 40))
+		var npx := int(bc.get("name_px", 16))
+		var tc := Color.WHITE if ready or flash else Color(1, 1, 1, 0.45)
+		var lw := b.font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx).x
+		var ly := rect.position.y + rect.size.y * 0.52
+		b.overlay.draw_string_outline(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, 6, Color(0, 0, 0, 0.8))
+		b.overlay.draw_string(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, tc)
+		var nm := str(b.actions.def(key).get("name", ""))
+		if nm != "" and not held:
+			var px := npx
+			var nw := b.font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+			var room := rect.size.x - sk * 2.0 - 8.0
+			if nw > room and nw > 0.0:
+				px = maxi(10, int(float(px) * room / nw))  # 長い名前は、字を小さくして入れる（大きさは決まった数段）
+				px = px - px % 2
+				nw = b.font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+			var ny := rect.end.y - rect.size.y * 0.16
+			b.overlay.draw_string_outline(b.font, Vector2(rect.get_center().x - nw * 0.5, ny), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 4, Color(0, 0, 0, 0.8))
+			b.overlay.draw_string(b.font, Vector2(rect.get_center().x - nw * 0.5, ny), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(tc.r, tc.g, tc.b, tc.a * 0.92))
+
+
+## 自分のキャラの役職の色（ボタンのふち）。キャラがなければ白
+func _my_accent() -> Color:
+	var key := "accent:" + str(b.selected_character)
+	var c: Variant = _color_cache.get(key)
+	if c == null:
+		var def: Dictionary = b.selected_def()
+		c = Color(str(def.get("role_color", "#ffffff")))
+		_color_cache[key] = c
+	return c
+
+
+## 版110：Y の回避に成功した時の「回避！」（自分の頭の上。短く）
+func _draw_dodge_text() -> void:
+	if float(b.dodge_text_left) <= 0.0 or b.camera == null or DisplayServer.get_name() == "headless":
+		return
+	var dc: Dictionary = b.config.get("dodge", {})
+	var w := Vector3(b.player.position.x, b.ground_y + 4.2, b.player.position.z)
+	if b.camera.is_position_behind(w):
+		return
+	var p := b.camera.unproject_position(w)
+	var a := clampf(float(b.dodge_text_left) / 0.25, 0.0, 1.0)
+	var col := Color(str(dc.get("color", "#bff4ff")))
+	col.a = a
+	_draw_centered(p, str(dc.get("text", "回避！")), col, 1.3)
 
 
 ## 版79：ロックした敵の、赤い照準（敵の体の中心。顔を隠さない大きさ。ロックした瞬間に、外から縮んで合う）。
@@ -373,10 +457,18 @@ func _button_center(id: String, screen: Vector2) -> Vector2:
 	return Vector2(screen.x * f[0], screen.y * f[1])
 
 
-## 触れた場所にある、攻撃ボタンの id。なければ ""
+## 版110：ボタンの四角（同じ大きさ。battle_buttons.size。縦長なら size_portrait）
+func _button_rect(id: String, screen: Vector2) -> Rect2:
+	var bc: Dictionary = b.config.get("battle_buttons", {})
+	var sz: Array = bc.get("size_portrait", [140, 104]) if is_portrait(screen) else bc.get("size", [130, 96])
+	var size := Vector2(float(sz[0]), float(sz[1]))
+	return Rect2(_button_center(id, screen) - size * 0.5, size)
+
+
+## 触れた場所にある、攻撃ボタンの id。なければ ""（版110：四角の中。ふちから少し外まで押せる）
 func _button_at(pos: Vector2, screen: Vector2) -> String:
 	for id in b.actions.ids():
-		if pos.distance_to(_button_center(str(id), screen)) <= float(b.config["button_radius_px"]):
+		if _button_rect(str(id), screen).grow(6.0).has_point(pos):
 			return str(id)
 	return ""
 

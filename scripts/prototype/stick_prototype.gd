@@ -674,6 +674,7 @@ func _process(delta: float) -> void:
 	banner["left"] = maxf(0.0, float(banner["left"]) - delta)
 	for id in button_flash.keys():
 		button_flash[id] = maxf(0.0, float(button_flash[id]) - delta)
+	dodge_text_left = maxf(0.0, dodge_text_left - delta)  # 版110：「回避！」の字
 	if boss_model != null:
 		# 版80：当たった直後の短い間だけ白く光る（連射でも、1発ごとに点めつして、当たったことが分かる）
 		var bfs := float((config.get("hit_fx", {}) as Dictionary).get("boss_flash_sec", 0.15))
@@ -915,6 +916,8 @@ func _begin_round(start_ms: float) -> void:
 		actions = Actions.new(acfg)
 	actions.reset()
 	skills.reset()
+	dodge_text_left = 0.0  # 版110
+	dodge_count = 0
 	revive_sys.reset()
 	audio.reset()
 	boss_freeze_total = 0.0
@@ -1100,8 +1103,8 @@ func _screen_radius(c: Vector3, r: float) -> float:
 ## ロック中に、近くの攻撃で敵が届かない：近づく必要があるか（遠すぎる時は近づかない＝届かないことを、照準の色で示す）
 func _needs_approach(id: String) -> bool:
 	var d := actions.def(id)
-	if d.is_empty() or id == "ultimate":
-		return false
+	if d.is_empty() or id == "ultimate" or (d.get("hits", []) as Array).is_empty():
+		return false  # 版110：当たりのない技（Y の回避・効果の技）は、近づかない
 	for h in d.get("hits", []):
 		if (h as Dictionary).has("proj") or SkillHits.shape_of(h) != "melee":
 			return false
@@ -1159,9 +1162,11 @@ func perform(id: String) -> bool:
 		approach_id = id
 		approach_left = float(config.get("approach_max_sec", 0.6))
 		return true
-	if not actions.start(id, _aim_direction(id), cooldown):
+	var dodge := bool(actions.def(id).get("dodge", false))
+	if not actions.start(id, _dodge_direction() if dodge else _aim_direction(id), cooldown):
 		return false
-	vanish_bonus = skills.on_attack_start(_my_slot())  # 版79：消えていたら現れる（最初の一撃が強い）
+	if not dodge:
+		vanish_bonus = skills.on_attack_start(_my_slot())  # 版79：消えていたら現れる（最初の一撃が強い）。回避では現れない
 	if bool(actions.def(id).get("sweep_hit", false)):
 		ult_start_pos = Vector2(player.position.x, player.position.z)  # 版72b・78：駆けぬけた道で当たりを調べる（必殺技・ダッシュ技）
 	if id == "ultimate":
@@ -1170,12 +1175,39 @@ func perform(id: String) -> bool:
 		_show_banner(str(actions.def(id).get("name", "")), role_name_of(_my_slot()), float(actions.def(id).get("banner_sec", 1.6)))
 		_play_sfx("ultimate")
 	facing = actions.aim
-	if id == "sub":
-		_play_sfx("jump")
+	if dodge:
+		# 版110：回避の転がりの音（ボスの攻撃の予告の音「whoosh」とは別の音にする。同じ音は続けて鳴らないので、予告が消えないように）
+		_play_sfx(str((config.get("dodge", {}) as Dictionary).get("sfx_start", "jump")))
 	if char_view != null:
 		char_view.face_now(actions.aim)
 	_handle_action_events(actions.update(0.0))
 	return true
+
+
+## 版110：Y の回避の向き：スティックを倒していれば、その向き。倒していなければ、ねらう敵の反対（敵がいなければ、うしろ）
+func _dodge_direction() -> Vector2:
+	if stick_vec.length() > 0.2:
+		return stick_vec.normalized()
+	var ti := target_info()
+	if not ti.is_empty():
+		var away := Vector2(player.position.x - float(ti["x"]), player.position.z - float(ti["z"]))
+		if away.length() > 0.01:
+			return away.normalized()
+	return -facing if facing.length() > 0.01 else Vector2(0, 1)
+
+
+var dodge_text_left := 0.0  ## 版110：「回避！」の字を出しておく秒
+var dodge_count := 0  ## 版110：回避に成功した回数（テスト・記録用）
+
+
+## 版110：回避に成功した（よけられる時間の中に、攻撃が当たった）：その攻撃は受けない。短い光と「回避！」
+func _on_dodge_success(h: Dictionary) -> void:
+	dodge_count += 1
+	dodge_text_left = float((config.get("dodge", {}) as Dictionary).get("text_sec", 0.6))
+	var at := Vector3(player.position.x, ground_y + 1.2, player.position.z)
+	skills.spawn_at({"kind": "ring", "color": "#9fe8ff", "radius": 1.8, "life": 0.3}, at, Vector3(at.x, ground_y, at.z))
+	skills.spawn_at({"kind": "spark", "color": "#e8faff", "size": 0.9, "life": 0.25}, at, at)
+	_play_sfx(str((config.get("dodge", {}) as Dictionary).get("sfx_success", "free")))
 
 
 ## 攻撃の向き。ボスをねらう攻撃は、ボスの方へ。それ以外は、いま向いている方へ
@@ -1838,7 +1870,9 @@ func _hitstop_update() -> void:
 
 ## 当たり場所の中にいれば、ダメージ（自分の分だけ調べる）。同じ当たりは1回だけ
 func _apply_hazards(hz: Array) -> void:
-	if downed or _me_held() or actions.invulnerable() or kb_guard_left > 0.0:
+	# 版110：Y の回避の、よけられる時間の中は、当たる物を「回避成功」にする（その攻撃は受けない）
+	var dodging := actions.dodging()
+	if downed or _me_held() or (actions.invulnerable() and not dodging) or kb_guard_left > 0.0:
 		return
 	var me := _my_slot()
 	var airborne := player.position.y > ground_y + float(attacks_cfg["dodge_height"])
@@ -1856,6 +1890,9 @@ func _apply_hazards(hz: Array) -> void:
 		if not Attacks.inside(h, player.position.x, player.position.z):
 			continue
 		hazard_done[key] = true
+		if dodging:
+			_on_dodge_success(h)
+			continue
 		player_hit_flash = float(config["hit_flash_sec"])
 		_take_damage(Damage.damage_amount(float(h["power"]), float(attacks_cfg["damage_multiplier"])))
 		if h.has("stun"):

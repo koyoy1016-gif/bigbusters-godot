@@ -188,9 +188,13 @@ static func first_dt(threats: Array) -> float:
 	return best
 
 
-## 版71：Y（かわし斬り）の跳ぶ高さが DODGE_HEIGHT をこえている時間 [始め, 終わり]（秒）。跳ばなければ []
+## 版71・110：Y でよけられる時間 [始め, 終わり]（秒）。版110：Y は全員共通の回避（i_window の間は、どの攻撃もよけられる）。
+## i_window がなければ、前のとおり、跳ぶ高さが DODGE_HEIGHT をこえている時間（ジャンプでよけられる攻撃だけ）。なければ []
 static func airborne_span(actions: Actions) -> Array:
 	var d := actions.def("sub")
+	var w: Variant = d.get("i_window", null)
+	if w is Array and (w as Array).size() == 2:
+		return [float(w[0]), float(w[1])]
 	var path: Array = d.get("path", [])
 	var dur := float(d.get("duration_sec", 1.0))
 	var t0 := -1.0
@@ -212,13 +216,14 @@ static func dodge_covers(actions: Actions, threats: Array) -> bool:
 	if span.is_empty():
 		return false
 	var dur := float(actions.def("sub").get("duration_sec", 1.0))
+	var any_attack := actions.def("sub").has("i_window")  # 版110：回避は、ジャンプでよけられない攻撃もよけられる
 	var any := false
 	for th in threats:
 		var dt := float(th["dt"])
 		if dt > dur:
 			continue  # 着地のあとの当たりは、次に考える
 		any = true
-		if not bool((th["h"] as Dictionary).get("jumpable", false)):
+		if not any_attack and not bool((th["h"] as Dictionary).get("jumpable", false)):
 			return false
 		if dt < float(span[0]) or dt > float(span[1]):
 			return false
@@ -267,6 +272,7 @@ static func _think(a: Dictionary, ctx: Dictionary) -> bool:
 		var y_ready := actions.can_start("sub")
 		var can_dodge := y_ready and dodge_covers(actions, threats)
 		if can_dodge and (not can_run or rng.randf() < float(tac.get("prefer_dodge", 0.5))):
+			a["dodge_dir"] = plan["dir"]
 			if _start(a, "sub", ctx):
 				a["dodges"] = int(a.get("dodges", 0)) + 1
 				a["mode"] = "dodge"
@@ -280,7 +286,7 @@ static func _think(a: Dictionary, ctx: Dictionary) -> bool:
 		# 走っても間に合わない：Y でよけられる時刻になるまで待つ（ジャンプでよけられる物だけなら）
 		var all_jump := true
 		for th in threats:
-			if not bool((th["h"] as Dictionary).get("jumpable", false)):
+			if not bool((th["h"] as Dictionary).get("jumpable", false)) and not actions.def("sub").has("i_window"):
 				all_jump = false
 		var span := airborne_span(actions)
 		if all_jump and not span.is_empty() and eta > float(span[1]):
@@ -333,8 +339,8 @@ static func _choose_attack(a: Dictionary, ctx: Dictionary, delta: float) -> void
 		a["think_attack"] = float(cfg["attack_think_sec"])
 		if actions.can_start("main") and window >= lock_sec(a, "main") + margin and rng.randf() < float(cfg["use_main_chance"]) and _start(a, "main", ctx):
 			return
-		# Y は、よけるために残しておきたいので、攻めに使うのは体力に余裕があって、すきが長いときだけ
-		if not careful and actions.can_start("sub") and window >= lock_sec(a, "sub") + margin and rng.randf() < float(cfg["use_sub_chance"]) and _start(a, "sub", ctx):
+		# Y は、よけるために残しておきたいので、攻めに使うのは体力に余裕があって、すきが長いときだけ（版110：当たりのない Y＝回避は、攻めに使わない）
+		if not careful and not (actions.def("sub").get("hits", []) as Array).is_empty() and actions.can_start("sub") and window >= lock_sec(a, "sub") + margin and rng.randf() < float(cfg["use_sub_chance"]) and _start(a, "sub", ctx):
 			return
 	if window >= lock_sec(a, "normal") + margin:
 		_start(a, "normal", ctx)
@@ -357,7 +363,12 @@ static func _start(a: Dictionary, id: String, ctx: Dictionary) -> bool:
 	var boss: Vector2 = ctx["boss"]
 	var to := boss - (a["pos"] as Vector2)
 	var aim := to if to.length() > 0.01 else (a["face"] as Vector2)
-	a["face"] = aim.normalized()
+	if bool(actions.def(id).get("dodge", false)):
+		# 版110：Y の回避は、ボスから離れる向きへ転がる（よける向きが分かっていれば、その向き）
+		var away: Vector2 = a.get("dodge_dir", Vector2.ZERO)
+		aim = away if away.length() > 0.01 else (-to if to.length() > 0.01 else -(a["face"] as Vector2))
+	else:
+		a["face"] = aim.normalized()
 	var ok := actions.start(id, aim, cooldown if id != "ultimate" else -1.0)
 	if ok:
 		var first := actions.update(0.0)

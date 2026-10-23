@@ -787,13 +787,26 @@ def healer():
 
 CHARS = {"brawler": brawler, "sprinter": sprinter, "gunner": gunner, "bomber": bomber, "mage": mage, "guardian": guardian,
          "summoner": summoner, "healer": healer}
-NAMES = {"brawler": "ファイター", "sprinter": "スピードファイター", "gunner": "ガンナー", "bomber": "ボンバー", "mage": "魔法使い",
-         "guardian": "アーマー", "summoner": "おもちゃの兵隊", "healer": "エンジェル"}
+NAMES = {"brawler": "拳士", "sprinter": "瞬", "gunner": "銃士", "bomber": "奇術師", "mage": "魔法師",
+         "guardian": "守護士", "summoner": "兵隊", "healer": "介護士"}  # 版110：表の名前は役職名（版109）
+
+
+# 版110：Y は全キャラ共通の回避（data/actions.json の sub）。キャラの今の Y の技は、X と比べて良い方を X に残す（ユーザー決定）。
+# Y を X に移すキャラ：瞬（バニッシュ。指示書14番で時間を変える＝残す技）・魔法師（チャージ魔法。時間停止は通信中に使えないため）
+X_FROM_Y = {"sprinter", "mage"}
 
 
 def build(cid):
     _CUR["id"] = cid
-    return CHARS[cid]()
+    acts, anims = CHARS[cid]()
+    sub = acts.pop("sub", None)
+    if cid in X_FROM_Y and sub is not None:
+        sub["label"] = "X"
+        acts["main"] = sub
+    # 使わなくなった技の動きは作らない（作る時間とメモリを減らす）
+    used = {st["anim"] for a in acts.values() for st in a.get("steps", [])}
+    anims = {k: v for k, v in anims.items() if k in used or k.startswith("Mini_")}  # Mini_：呼び出す小さい兵隊の動き
+    return acts, anims
 
 
 # ------------------------------------------------------------------ 版79：キャラごとの待ちの姿勢（くり返す）
@@ -920,7 +933,7 @@ def main():
         acts, anims = build(cid)
         data["characters"][cid] = dict({"_meta": META[cid]}, **acts)
         ap = float(stats[cid]["attack_power"])
-        for key, lab in (("normal", "A"), ("sub", "Y"), ("main", "X"), ("ultimate", "必殺")):
+        for key, lab in (("normal", "A"), ("main", "X"), ("ultimate", "必殺")):
             a = acts[key]
             hs = a.get("hits", [])
             effs = ", ".join(e["type"] for e in a.get("effects", []))
@@ -929,14 +942,15 @@ def main():
             shape = ("飛ぶ物（%s）" % hs[0]["proj"]["mode"]) if hs and "proj" in hs[0] else (hs[0].get("shape", "melee") if hs else "-")
             rows.append((NAMES[cid], META[cid]["role"], lab, a["name"], len(hs), one, total(a, ap), cd, a["duration_sec"], shape, effs))
     (ROOT / "data/char_actions.json").write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    md = ["# キャラごとの攻撃（版79）", "",
+    md = ["# キャラごとの攻撃（版110）", "",
+          "版110：Y は全キャラ共通の回避（data/actions.json の sub。待ち1.2秒・よけられる時間0.02〜0.34秒）。キャラの技は A・X・必殺。", "",
           "tools/make_char_actions.py が作る表。ダメージ = 攻撃力 × 倍率（四捨五入しない値）。ゲージ制の必殺技は待ち時間 0。",
           "飛ぶ物（銃弾・魔法・プレゼント・矢・いん石）は、当たった時にダメージが入る。呼び出し（ぬいぐるみ・兵隊）は、1回ごとに 攻撃力×倍率。",
-          "剣士（基準・変えない）：A 単純斬り 22.5（0.35秒）／Y かわし斬り 58.5（4秒）／X 五段斬り 18×5＝90（6秒）／必殺 切り捨て御免 346.5", "",
+          "剣士（基準・変えない）：A 単純斬り 22.5（0.35秒）／X 五段斬り 18×5＝90（6秒）／必殺 切り捨て御免 346.5（Y のかわし斬りは版110で共通の回避に）", "",
           "| キャラ | 役 | ボタン | 技 | 当たる回数 | 1回 | 合計 | 待ち時間（秒） | 長さ（秒） | 当たりの形 | 効果 |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         md.append("| %s | %s | %s | %s | %d | %.2f | %.2f | %.2f | %.2f | %s | %s |" % r)
-    (ROOT / "docs/char-actions-v79.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+    (ROOT / "docs/char-actions-v110.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print("chars", list(data["characters"]))
 
 

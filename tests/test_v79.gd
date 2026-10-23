@@ -164,9 +164,9 @@ func _initialize() -> void:
 	# ---- 3. スピードファイターの透明化 ----
 	var sp := make("sprinter")
 	stand(sp, 1.0)
-	sp.perform("sub")
+	sp.perform("main")  # 版110：瞬のバニッシュは X
 	tick(sp, 0.3)
-	check(sp.skills.is_vanished(sp._my_slot()), "Y：姿が消える")
+	check(sp.skills.is_vanished(sp._my_slot()), "X（版110）：姿が消える")
 	check(not sp.char_view.visible, "Y：消えている間は、体が見えない")
 	check(sp.skill_ghosts.size() > 0 or sp.skill_log.has("ghost"), "Y：消える時に、青い残像が出る")
 	var hp0: float = sp.my_hp
@@ -264,14 +264,14 @@ func _initialize() -> void:
 	hl._set_my_hp(hl.role_value("hp"))
 	hl.skill_domes = []
 	hl.actions.reset()
-	hl.perform("sub")
+	hl.skills.apply_effect(hl._my_slot(), {"type": "heal_shot", "amount": 40.0, "speed": 14.0, "prop": "heal_orb", "from": "hand_R"}, Vector2(0, -1), 7.5)  # 版110：ボタンからは外した（介護士の X はいやしのドーム）。しくみだけ
 	tick(hl, 2.0)
 	check(is_equal_approx(float(hl.ai_allies[aslot]["hp"]), 60.0), "いやしの光：いちばん減っている味方へ飛んで、40回復")
 	hl.ally_lock = hl._my_slot()
 	hl._set_my_hp(30.0)
 	hl.ai_allies[aslot]["hp"] = 10.0
 	hl.actions.reset()
-	hl.perform("sub")
+	hl.skills.apply_effect(hl._my_slot(), {"type": "heal_shot", "amount": 40.0, "speed": 14.0, "prop": "heal_orb", "from": "hand_R"}, Vector2(0, -1), 7.5)  # 版110：ボタンからは外した（介護士の X はいやしのドーム）。しくみだけ
 	tick(hl, 2.0)
 	check(is_equal_approx(hl.my_hp, 70.0) and is_equal_approx(float(hl.ai_allies[aslot]["hp"]), 10.0), "いやしの光：タップで選んだ味方へ送れる")
 	hl.queue_free()

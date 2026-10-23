@@ -149,7 +149,7 @@ func _initialize() -> void:
 	var acts: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/actions.json"))["actions"]
 	var power := float(hero["attack_power"])
 	var reach := float(hero["attack_reach"])
-	var rows := {"normal": "単純斬り", "sub": "かわし斬り", "main": "五段斬り", "ultimate": "切り捨て御免"}
+	var rows := {"normal": "単純斬り", "main": "五段斬り", "ultimate": "切り捨て御免"}  # 版110：Y は共通の回避（攻撃ではない）
 	for id in rows:
 		var d: Dictionary = acts[id]
 		check(str(d["name"]) == rows[id] and doc.contains(rows[id]), "一覧に「%s」がある（データの名前と同じ）" % rows[id])
@@ -163,7 +163,9 @@ func _initialize() -> void:
 	var total := 0
 	for id in rows:
 		total += (acts[id]["hits"] as Array).size()
-	check(doc.contains("4つ全部で %d回" % total) and doc.contains("攻撃の種類は **4つ**"), "攻撃の種類4つ・当たる回数の合計 %d が一覧と同じ" % total)
+	check(doc.contains("3つ全部で %d回" % total) and doc.contains("攻撃の種類は **3つ**"), "攻撃の種類3つ・当たる回数の合計 %d が一覧と同じ" % total)
+	var y: Dictionary = acts["sub"]
+	check(str(y["name"]) == "回避" and doc.contains("0.02〜0.34秒") and is_equal_approx(float(y["i_window"][0]), 0.02) and is_equal_approx(float(y["i_window"][1]), 0.34) and doc.contains("1.2 秒"), "一覧の回避（よけられる時間・待ち時間）がデータと同じ")
 	check(doc.contains("**190**"), "一覧の体力は190")
 
 	print("")

@@ -1,9 +1,10 @@
 # 引き継ぎメモ
 
-更新：2026-10-23（版109）
+更新：2026-10-23（版110）
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-23 版110 BIGBLAST②ボタンと回避】ボタン：右下に2×2・同じ大きさ（battle_hud._draw_buttons・_button_rect。data/prototype_stick.json の battle_buttons）。下の段 Y・A、上の段 X・必殺。大きな字＋小さな技の名前・押すと光ってふくらむ・使えない時は暗く＋待ち時間の帯・必殺はゲージを下からためる。Y＝全キャラ共通の回避（data/actions.json の sub：dodge・i_window [0.02,0.34]・待ち1.2秒・約3.4m 転がる。char_actions.json に sub はない）。player_actions.dodging()／invulnerable()（i_window の間だけ）。stick_prototype._apply_hazards：よけられる時間の中の当たりは「回避成功」（_on_dodge_success：輪・火花・「回避！」・音 free。転がる音は jump＝ボスの予告の whoosh と別）。AI も同じ回避（ai_ally：dodge_covers は i_window で判定）。今の Y の技は X と比べて良い方を X に（tools/make_char_actions.py の X_FROM_Y＝瞬・魔法師は Y→X。外した技の効果 speed_mode・time_stop・heal_shot のコードは残る→版114）。体力の表示のなかまのバーの上に役職名。くわしくは docs/version110.md・docs/char-actions-v110.md。全テスト Godot 86本・Node 67件 合格。未確認：実機での押しやすさ・回避のタイミングの感じ
 - 【2026-10-23 版109 BIGBLAST①名前と流れ】ユーザーの指示書「BIGBLAST — 既存ゲーム改修・UI刷新・軽量化」（docs のどこにもない。会話の添付）を6回に分けた（了承）：109名前と流れ→110ボタンと回避→111キャラの技→112演出→113画面の見た目→114軽量化。決めたこと（AskUserQuestion）：今のYの技は「Xと比べて良い方をXに残す」／兵隊の2体投げは「Aを続けて押した2回目」／覚醒演出は「ボスの覚醒の時」。版109：BIGBLAST（start_title・project.godot）、起動はアカウント選択（start_ui の準備中→ボタン・ログインずみは「つづける」）、役職名（けんし→剣士 など。characters.json の name・role_color・old_name）、role_label.gd（役職のラベル）、結果の画面と再戦の準備（result_ui.gd。READY＝"rematch_ready"・START で始める）、コイン負け25・1試合1回（_match_serial）。role_name_of は役職名を返す。くわしくは docs/version109.md。全テスト Godot 85本・Node 67件 合格
 - 【2026-10-21 版108 覚醒が重い】09:42 ユーザー「まだ重い。プレイ中、覚醒時がとにかく重い」。調べた（tools/perf_awake.gd・perf_tris.gd）：ずっと続く重さ（CPU・描画回数・三角形）はふだんと覚醒でほぼ同じ。ちがいは「はじめて」と攻撃の計算。直した：①曲を AudioStreamPlayer.playback_type=STREAM に（ブラウザの決まりの「サンプル」は、はじめて鳴らす瞬間に曲の全部を読みほどく：覚醒の曲 PC 55ms・1曲13〜15MB をメモリに残す）。project.godot audio/driver/output_latency.web=100（ストリームの音とぎれ対策）。効果音は sfx.preload_samples（ブラウザだけ・読みこみの時）。bgm.preload_tracks（戦いを作る時に曲を読む）。②draw_warm.gd：ボスの攻撃・覚醒・蘇生・弾の見た目の写しを、地面の下に3コマ（battle_skills.prewarm_fx から。attack_fx.prewarm_sources・boss_model.prewarm_sources・revive_sys.prewarm_source・_collect_props）。③boss_attacks.gd の memo（ride_plan・ride_throws・storm_safe・sake_bottles・チラシの向き。キー＝使う値。最大64）。結果：覚醒の瞬間の最長コマ 5.3〜5.5→3.5〜3.9ms、ライド中スクリプト 1070→918µs、大雨 1028→830µs、はじめて出る描き方（下の docs）。やめた：影を輪郭線の殻だけ（2.9%の画素が変わる）。test_v108（23）。全テスト Godot 84本・Node 67件 合格。未確認：実機（覚醒で止まらないか・曲がとぎれないか）。気づき（前から・版107でも同じ）：test_stick_prototype の中で projectiles.surface_point が空の boss_info を読むエラー文が1回出る（合格はする）
 - 【2026-10-21 版107 通信① 相手の動きをなめらかに】ユーザー（08:43）「通信するとカクカク・動きが一致しない」→ ①相手の動き ②相手の技・ジャンプ・向き ③ボスを全員で同じ、の3回に分けた①。送る位置の t をサーバーの時計に（10_room.js）。snapshot_buffer.gd：送った時刻でならべ、少し前の位置を2つの記録の間でつなぐ（遅れ＝前の記録の送った時刻から次が届くまでの90%の値・1秒に30msまで変える・のばしは0.12秒まで・ずれは少しずつもどす・3m以上はとぶ）。battle_net.gd：全部の状態 0.1秒・位置だけ 0.05秒（read_positions。読めなければ消さない）。まねた通信で 1コマの動きのばらつき 57.8%→1.4%（うしろに見える時間 291→324ms）。test_v107（17）・Node 1件。全テスト Godot 83本・Node 67件 合格。未確認：実機2台。②は Firebase のルールの貼り直しが要る（positions は x,y,t だけ）
@@ -203,6 +204,7 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること（流れと優先事項。2026-10-18 14:10 更新）
+【2026-10-23 版110のあと】版111 キャラの技：兵隊（A ぬいぐるみ1体・続けて押した2回目は2体／X 小隊召集4体・それぞれ2回撃って消える／必殺 兵隊包囲攻撃8体・敵を囲んで2回撃って消える・攻撃の時に少し下がる・呼び出しの攻撃回数の管理をまとめる）、拳士 20連→10連、瞬の透明 3.0→2.5秒。「合計2回」は「そろって2回（1体2回ずつ）」と解釈した（1体ずつ数えると8体中6体が撃たないため）。報告に書く
 【2026-10-23 版109のあと】BIGBLAST の続き：版110（A・X・Y・必殺のボタンを下に・Y＝全員共通の回避・今のYの技はXと比べて良い方を残す）→111→112→113→114。2回ごとに報告
 【2026-10-21 版108のあと】ユーザーに実機で覚醒を見てもらう（?perf=1・曲のとぎれ）。重さの次の候補：キャラ・ボスの LOD（high で1コマ約79万三角形）・召喚の兵隊のはじめての作成。通信の②（相手の技・ジャンプ・向き。Firebase ルールの貼り直しが要る）③（ボスを全員で同じ）は、ユーザーの返事しだい。
 【2026-10-21 版107のあと】09:42 ユーザー：「まだ重い。プレイ中、覚醒時がとにかく重い」→ 版108 で覚醒の重さを測って直す（tools/perf_awake.gd）。通信の②（相手の技・ジャンプ・向き）③（ボスを全員で同じ）は、そのあと。

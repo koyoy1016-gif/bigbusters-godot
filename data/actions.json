@@ -33,39 +33,25 @@
       "name": "単純斬り"
     },
     "sub": {
-      "label": "かわし",
-      "cooldown_sec": 4.0,
-      "duration_sec": 1.0,
+      "label": "Y",
+      "name": "回避",
+      "cooldown_sec": 1.2,
+      "duration_sec": 0.55,
       "move_scale": 0.0,
-      "aim_boss": true,
-      "cleave": true,
-      "radius_scale": 1.6,
-      "hits": [
-        {
-          "t": 0.42,
-          "multiplier": 2.6,
-          "impact": [
-            0.04,
-            0.16,
-            0.0
-          ]
-        }
+      "aim_boss": false,
+      "cleave": false,
+      "radius_scale": 1.0,
+      "dodge": true,
+      "i_window": [
+        0.02,
+        0.34
       ],
+      "hits": [],
       "steps": [
         {
           "t": 0.0,
-          "anim": "jump_start",
-          "speed": 2.4
-        },
-        {
-          "t": 0.36,
-          "anim": "swing",
-          "speed": 3.4
-        },
-        {
-          "t": 0.7,
-          "anim": "land",
-          "speed": 2.4
+          "anim": "roll",
+          "speed": 2.7
         }
       ],
       "path": [
@@ -75,19 +61,18 @@
           "h": 0.0
         },
         {
-          "t": 0.4,
-          "fwd": 2.0,
-          "h": 2.0
+          "t": 0.32,
+          "fwd": 3.0,
+          "h": 0.0
         },
         {
-          "t": 1.0,
-          "fwd": -0.6,
+          "t": 0.55,
+          "fwd": 3.4,
           "h": 0.0
         }
       ],
-      "note": "Y。敵に向かって跳びながら斬って、下がってくる。空中にいる間は、ジャンプでよけられる攻撃を受けない",
-      "name": "かわし斬り",
-      "stop_at_boss": true
+      "stop_at_boss": true,
+      "note": "版110：Y＝全キャラ共通の回避（前の剣士の Y「かわし斬り」から変えた）。スティックの向き（倒していなければ、ねらう敵の反対）へ約3.4m 転がる。i_window の間（0.02〜0.34秒）に当たる攻撃は受けない＝回避成功（短い光と「回避！」）。それ以外の時に当たれば、ふつうに受ける。待ち時間1.2秒（続けて押しても、ずっと無敵にはならない）"
     },
     "main": {
       "label": "五段",

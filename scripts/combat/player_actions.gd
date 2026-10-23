@@ -100,9 +100,23 @@ func can_start(id: String) -> bool:
 	return not busy() and not def(id).is_empty() and cooldown_left(id) <= 0.0
 
 
-## 動いている間は、ダメージを受けない動きか（投げられて転んでいる間など）
+## 動いている間は、ダメージを受けない動きか（投げられて転んでいる間など）。
+## 版110：i_window [始め, 終わり]（秒）がある動き（Y の回避）は、その間だけ
 func invulnerable() -> bool:
-	return busy() and bool(def(active).get("i_frames", false))
+	if not busy():
+		return false
+	var d := def(active)
+	return bool(d.get("i_frames", false)) or _in_window(d)
+
+
+## 版110：Y の回避の、よけられる時間の中か（攻撃が当たれば「回避成功」）
+func dodging() -> bool:
+	return busy() and bool(def(active).get("dodge", false)) and _in_window(def(active))
+
+
+func _in_window(d: Dictionary) -> bool:
+	var w: Variant = d.get("i_window", null)
+	return w is Array and (w as Array).size() == 2 and t >= float(w[0]) and t <= float(w[1])
 
 
 ## 始める。始められたら true。cooldown_override が 0 より大きければ、待ち時間（と、それに合わせる長さ）をそれにする。

@@ -75,10 +75,11 @@ func _initialize() -> void:
 	for id in IDS:
 		var c := Actions.config_for(id)
 		var ok := true
-		for k in ["normal", "sub", "main", "ultimate"]:
+		for k in ["normal", "main", "ultimate"]:  # 版110：Y（sub）は全員共通の回避
 			if c["actions"][k] == base["actions"][k]:
 				ok = false
-		check(str(c.get("character", "")) == id and ok and c["actions"].has("thrown"), "%s：A・Y・X・必殺がキャラ専用（投げられる・ふっ飛びは共通のまま）" % id)
+		ok = ok and c["actions"]["sub"] == base["actions"]["sub"]
+		check(str(c.get("character", "")) == id and ok and c["actions"].has("thrown"), "%s：A・X・必殺がキャラ専用（版110：Y の回避・投げられる・ふっ飛びは共通）" % id)
 
 	# ---- 2. 当たりの形 ----
 	var beam := {"shape": "beam", "length": 10.0, "half_width": 0.5, "side": 0.0}
@@ -99,6 +100,7 @@ func _initialize() -> void:
 		for k in ["normal", "sub", "main", "ultimate"]:
 			var def: Dictionary = s.actions.def(k)
 			var gap := 1.0
+			s.skill_vanish = {}  # 版110：瞬の X（バニッシュ）のあとの技は1.5倍になるので、技ごとに消えるのを解く
 			var dealt := run_action(s, k, gap)
 			var want := total_mult(s, k) * ap(id) * float(s.config["attack_multiplier"])
 			if def.get("hits", []).is_empty():
@@ -129,7 +131,9 @@ func _initialize() -> void:
 	g.queue_free()
 
 	var sp := make("sprinter")
-	run_action(sp, "main", 1.0)
+	# 版110：超高速モードは今のボタンにはない（瞬の X はバニッシュ）。効果のしくみだけ確かめる
+	sp.skills.apply_effect(sp._my_slot(), {"type": "speed_mode", "sec": 6.0, "mult": 1.75}, Vector2(0, -1), 12.0)
+	sp.skills.update(0.0)
 	check(is_equal_approx(sp.skills.speed_mult(sp._my_slot()), 1.75), "超高速モード：速さ1.75倍")
 	check(is_equal_approx(sp.actions.cd_rate, 1.75), "超高速モード：待ち時間の減りも1.75倍")
 	var p0: Vector3 = sp.player.position
@@ -214,7 +218,7 @@ func _initialize() -> void:
 					miss.append(st["anim"])
 				else:
 					var dur := float(acfg["actions"][k].get("duration_sec", 0.5))
-					var len: float = v.player.get_animation(an).length
+					var len: float = v.player.get_animation(an).length / maxf(absf(float(st.get("speed", 1.0))), 0.01)  # 版110：速さを変えて流す動き（回避の転がり）
 					if absf(len - dur) > 0.05 and not bool(acfg["actions"][k].get("duration_from_cooldown", false)):
 						miss.append("%s（長さ %.2f／技 %.2f）" % [st["anim"], len, dur])
 		check(miss.is_empty(), "%s：技の動きがそろっていて、長さが技と同じ %s" % [id, str(miss)])

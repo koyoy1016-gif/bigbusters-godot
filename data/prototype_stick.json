@@ -187,7 +187,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "109",
+  "build_id": "110",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -277,36 +277,36 @@
   "ambient_color": "#b8c4d8",
   "ambient_energy": 0.55,
   "normal_center_frac": [
-    0.87,
-    0.78
+    0.915,
+    0.86
   ],
   "normal_center_frac_portrait": [
-    0.86,
-    0.9
+    0.855,
+    0.905
   ],
   "sub_center_frac": [
-    0.7,
-    0.78
+    0.79,
+    0.86
   ],
   "sub_center_frac_portrait": [
-    0.6,
-    0.9
+    0.625,
+    0.905
   ],
   "main_center_frac": [
-    0.785,
-    0.56
+    0.79,
+    0.69
   ],
   "main_center_frac_portrait": [
-    0.73,
-    0.79
+    0.625,
+    0.788
   ],
   "ultimate_center_frac_portrait": [
-    0.86,
-    0.67
+    0.855,
+    0.788
   ],
   "ultimate_center_frac": [
-    0.94,
-    0.5
+    0.915,
+    0.69
   ],
   "ultimate_ready_color": "#ffd24aee",
   "ultimate_ring_color": "#ffb020",
@@ -436,7 +436,11 @@
     "hp_low": 30,
     "hp_low_color": "#ff3b3b",
     "_text_pop_levels": "版99：ダメージの数字・必殺技の名前の「はね上がり」。文字はこの倍率の段（落ち着いた大きさ×段）だけで描き、間は拡大・縮小でつなぐ（大きさごとに文字の絵が作られて、メモリが増え続けないように）",
-    "text_pop_levels": [1.0, 1.45, 2.1],
+    "text_pop_levels": [
+      1.0,
+      1.45,
+      2.1
+    ],
     "outline_color": "#000000",
     "outline_px": 5,
     "version_alpha": 0.45,
@@ -496,5 +500,41 @@
       "w": 0.22,
       "cell_h": 0.075
     }
+  },
+  "battle_buttons": {
+    "_note": "版110：A・X・Y・必殺のボタン（画面の右下に2×2。同じ大きさ。下の段 Y・A、上の段 X・必殺。A は親指の休む右下）。中に大きく A／X／Y／必殺、その下に小さく技の名前。押すと短く光ってふくらむ。使えない時（待ち時間・技の最中・つかまれ中）は暗く、待ち時間の残りを暗い帯で出す。必殺はゲージを下からためる",
+    "size": [
+      130,
+      96
+    ],
+    "size_portrait": [
+      140,
+      104
+    ],
+    "letters": {
+      "normal": "A",
+      "main": "X",
+      "sub": "Y",
+      "ultimate": "必殺"
+    },
+    "letter_px": 40,
+    "letter_px_ultimate": 30,
+    "name_px": 16,
+    "skew_px": 12,
+    "fill": "#0b0f1ce6",
+    "fill_disabled": "#1a1d26e0",
+    "edge_sub": "#9fe8ff",
+    "edge_ultimate": "#ffd24a",
+    "press_scale": 1.08,
+    "cooldown_shade": "#000000a0"
+  },
+  "dodge": {
+    "_note": "版110：Y の回避が成功した時の字",
+    "text": "回避！",
+    "text_sec": 0.6,
+    "color": "#bff4ff",
+    "_sfx": "転がる音（start）と、成功の音（success）。ボスの攻撃の予告の音（whoosh など）と別の音にする（同じ音は少しの間、続けて鳴らないため）",
+    "sfx_start": "jump",
+    "sfx_success": "free"
   }
 }

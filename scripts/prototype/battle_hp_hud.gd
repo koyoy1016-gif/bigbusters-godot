@@ -130,7 +130,9 @@ func _calc_layout(screen: Vector2) -> Dictionary:
 		var ic := Vector2(cell.position.x + ir + 5.0, cell.position.y + cell.size.y * 0.5)
 		var bx := ic.x + ir + 8.0
 		var bh := float(pc.get("bar_h", 12.0))
-		cells.append({"cell": cell, "icon": ic, "icon_r": ir, "bar": Rect2(Vector2(bx, ic.y - bh * 0.5), Vector2(maxf(10.0, cell.end.x - bx - 8.0), bh))})
+		# 版110：バーの上に、役職名（小さく）を出すので、バーを少し下げる
+		var by := ic.y - bh * 0.5 + float(pc.get("bar_drop_px", 7.0))
+		cells.append({"cell": cell, "icon": ic, "icon_r": ir, "bar": Rect2(Vector2(bx, by), Vector2(maxf(10.0, cell.end.x - bx - 8.0), bh))})
 	# まんなかに出す文字（怒り・勝ち負け）が重ならない高さ：4人の列がまんなかまで来ていなければ、ボスの下でよい
 	var center_bottom := row.end.y if row.end.x > screen.x * 0.3 else boss_rect.end.y
 	return {"portrait": portrait, "boss_rect": boss_rect, "boss_icon": boss_icon, "boss_icon_r": bir, "bar_rect": bar_rect,
@@ -207,6 +209,17 @@ func role_color(id: String) -> Color:
 		_role_colors = (gf as Dictionary).get("role_colors", {"_": "#5a6a88"}) if gf is Dictionary else {"_": "#5a6a88"}
 	var def := CharacterData.find(b.characters_cfg, id) if not b.characters_cfg.is_empty() else {}
 	return Color(str(_role_colors.get(str(def.get("role", "")), b.hud_role_color.to_html())))
+
+
+var _labels: Dictionary = {}
+
+
+## 版110：キャラの役職名と役職の色（覚える）
+func _label_of(id: String) -> Array:
+	if not _labels.has(id):
+		var def := CharacterData.find(b.characters_cfg if not b.characters_cfg.is_empty() else CharacterData.load_config(), id)
+		_labels[id] = [str(def.get("name", "")), Color(str(def.get("role_color", "#ffffff")))]
+	return _labels[id]
 
 
 ## 顔の絵（なければ、画面の流れの portrait_source に1回だけ頼む）
@@ -349,5 +362,10 @@ func _draw_party(L: Dictionary) -> void:
 				var a := PI + PI * k / 12.0
 				sh.append(ic + Vector2(cos(a) * r * 0.55, r * 0.62 + sin(a) * r * 0.5))
 			ci.draw_colored_polygon(sh, fg)
+		# 版110：役職名（役職の色・小さく。バーの上）
+		var nm := str(_label_of(str(v["id"]))[0])
+		if nm != "":
+			var br0: Rect2 = c["bar"]
+			_text(Vector2(br0.position.x + 1.0, br0.position.y - 3.0), nm, int(pc.get("name_px", 14)), (_label_of(str(v["id"]))[1] as Color) * dim, 4)
 		# 体力のバー（数字は出さない）
 		_bar(c["bar"], float(v["ratio"]), v["color"], Color(str(pc.get("bar_back", "#14202a"))))

@@ -41,7 +41,7 @@ func _init() -> void:
 	check(s.attack() and sfx.played.has("slash") and sfx.played.has("hit"), "こうげきで音が鳴る")
 	s.actions.reset()
 	s.perform("sub")
-	check(sfx.played.has("jump"), "サブ（跳ぶ攻撃）で、跳ぶ音が鳴る")
+	check(sfx.played.has("jump") and not sfx.played.has("whoosh"), "Y（回避）で、転がる音が鳴る（版110：ボスの予告の音 whoosh とは別の音）")
 	sfx.played = []
 	var t0: float = s.round_start_ms
 	now[0] = t0 + float(s.attacks_cfg["first_delay_sec"]) * 1000.0 + 200.0
