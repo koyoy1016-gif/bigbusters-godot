@@ -39,7 +39,7 @@ window.bbAccount = {
   // 番号札：1番から順に配る。先に誰かが使っていた番号（いたずら）は飛ばす
   _issueId: function (c, tries) {
     var self = this;
-    if (tries > 20) { return Promise.reject(this._stop('IDを つくれませんでした。もういちど ためしてください')); }
+    if (tries > 20) { return Promise.reject(this._stop('IDを作れませんでした。もう一度お試しください')); }
     return c.d.runTransaction(this._ref(c, 'counter/ids'), function (cur) { return (typeof cur === 'number' ? cur : 0) + 1; }).then(function (r) {
       var id = String(r.snapshot.val());
       return self._get(c, 'ids/' + id).then(function (taken) {
@@ -49,8 +49,8 @@ window.bbAccount = {
   },
   // パスワードの強さ（Firebaseは6もじ以上）。かんたんすぎるものは断る
   _weakPassword: function (p) {
-    if (typeof p !== 'string' || p.length < 6) { return 'パスワードは 6もじ いじょうに してください'; }
-    if (p.split(p.charAt(0)).join('') === '' || /^(123456|1234567|12345678|123456789|password|qwerty|abcdef|abc123|111222)$/i.test(p)) { return 'かんたんすぎます。ほかの パスワードに してください'; }
+    if (typeof p !== 'string' || p.length < 6) { return 'パスワードは6文字以上にしてください'; }
+    if (p.split(p.charAt(0)).join('') === '' || /^(123456|1234567|12345678|123456789|password|qwerty|abcdef|abc123|111222)$/i.test(p)) { return '簡単すぎます。別のパスワードにしてください'; }
     return '';
   },
   _clean: function (text) {
@@ -71,12 +71,12 @@ window.bbAccount = {
   _explain: function (e) {
     var c = (e && e.code) ? String(e.code) : '';
     var m = String((e && e.message) || e || '');
-    if (/wrong-password|invalid-credential|user-not-found|invalid-login/.test(c)) { return 'IDかパスワードが ちがいます'; }
-    if (/weak-password/.test(c)) { return 'パスワードが みじかすぎます'; }
-    if (/network/.test(c)) { return 'つうしんに しっぱいしました'; }
-    if (/operation-not-allowed|admin-restricted/.test(c)) { return 'ログインの せっていが まだです（Firebaseで メール/パスワードを オンに してください）'; }
-    if (/too-many-requests/.test(c)) { return 'しばらく まってから もういちど ためしてください'; }
-    if (/PERMISSION_DENIED|permission/i.test(m)) { return 'Firebaseのルールが まだ 新しくなっていません'; }
+    if (/wrong-password|invalid-credential|user-not-found|invalid-login/.test(c)) { return 'IDかパスワードが違います'; }
+    if (/weak-password/.test(c)) { return 'パスワードが短すぎます'; }
+    if (/network/.test(c)) { return '通信に失敗しました'; }
+    if (/operation-not-allowed|admin-restricted/.test(c)) { return 'ログインの設定がまだです（Firebaseでメール/パスワードを有効にしてください）'; }
+    if (/too-many-requests/.test(c)) { return 'しばらく待ってから、もう一度お試しください'; }
+    if (/PERMISSION_DENIED|permission/i.test(m)) { return 'Firebaseのルールが、まだ新しくなっていません'; }
     return 'エラー：' + (c || m);
   },
   _fail: function (e) {
@@ -162,7 +162,7 @@ window.bbAccount = {
     var self = this;
     var local = String(user.email || '').split('@')[0].split('.')[0].toUpperCase();
     return this._get(c, 'links/' + user.uid).then(function (sid) {
-      if (!sid) { throw self._stop('アカウントの じょうほうが みつかりません'); }
+      if (!sid) { throw self._stop('アカウントの情報が見つかりません'); }
       self.state.sid = sid;
       self.state.loginId = local;
       var extra = self._get(c, 'saves/' + sid + '/extra').then(function (v) { return v; }, function () { return null; });
@@ -220,12 +220,12 @@ window.bbAccount = {
     var wantId = '';
     if (opts.loginId) {
       var chk = this.checkId(opts.loginId);
-      if (!chk.ok) { return Promise.resolve(this._fail(this._stop(opts.idBad || 'IDの かたちが ちがいます'))); }
+      if (!chk.ok) { return Promise.resolve(this._fail(this._stop(opts.idBad || 'IDの形式が違います'))); }
       wantId = chk.id;
     }
     var nickname = this._nick(opts.nickname);
     this.state.busy = true;
-    this.state.message = 'ログインを つくっています…';
+    this.state.message = 'アカウントを作っています…';
     var loginId = '';
     var recovery = this._rand(20);
     var sid = this._rand(12);
@@ -235,11 +235,11 @@ window.bbAccount = {
     return this._ctx().then(function (c) {
       ctx = c;
       var user = c.auth.currentUser;
-      if (!user) { throw self._stop('ログインの じゅんびが できていません'); }
-      if (!user.isAnonymous) { throw self._stop('もう ログインずみです'); }
+      if (!user) { throw self._stop('ログインの準備ができていません'); }
+      if (!user.isAnonymous) { throw self._stop('すでにログインしています'); }
       // ①IDは、自分で決めたID（だれも使っていなければ）、なければ1番から順の数字（番号札の係りを1つずつ増やす）
       var pick = wantId ? self._get(c, 'ids/' + wantId).then(function (taken) {
-        if (taken) { throw self._stop(opts.idTaken || 'その IDは もう つかわれています'); }
+        if (taken) { throw self._stop(opts.idTaken || 'そのIDは、すでに使われています'); }
         return wantId;
       }) : self._issueId(c, 0);
       return pick.then(function (id) {
@@ -272,7 +272,7 @@ window.bbAccount = {
       self.state.signedIn = true;
       self.state.recoveryCode = recovery;
       self.state.busy = false;
-      self.state.message = 'ログインを つくりました。IDと復旧コードを メモしてください';
+      self.state.message = 'アカウントを作りました。IDと復旧コードをメモしてください';
       self._watch(ctx);
       return { ok: true, loginId: loginId, recoveryCode: recovery };
     }).catch(function (e) { return self._fail(e); });
@@ -289,7 +289,7 @@ window.bbAccount = {
       ctx = c;
       return self._get(c, 'ids/' + loginId);
     }).then(function (idv) {
-      if (!idv) { throw self._stop('IDかパスワードが ちがいます'); }
+      if (!idv) { throw self._stop('IDかパスワードが違います'); }
       return self._leaveKeep().then(function (w) {
         want = w;
         return ctx.sdk.auth.signInWithEmailAndPassword(ctx.auth, self._email(loginId, idv.gen), password);
@@ -297,7 +297,7 @@ window.bbAccount = {
     }).then(function () {
       self.state.busy = false;
       self.state.needReload = true;
-      self.state.message = 'ログインしました。ページを よみこみなおします';
+      self.state.message = 'ログインしました。ページを読み込み直します';
       self._reloadSoon();
       return { ok: true };
     }).catch(function (e) { self._rejoin(want); return self._fail(e); });
@@ -318,7 +318,7 @@ window.bbAccount = {
       ctx = c;
       return self._get(c, 'ids/' + loginId);
     }).then(function (v) {
-      if (!v) { throw self._stop('IDか 復旧コードが ちがいます'); }
+      if (!v) { throw self._stop('IDか復旧コードが違います'); }
       idv = v;
       return self._leaveKeep().then(function (w) {
         want = w;
@@ -347,7 +347,7 @@ window.bbAccount = {
     }).then(function () {
       self.state.busy = false;
       self.state.needReload = true;
-      self.state.message = 'あたらしい パスワードに しました。ページを よみこみなおします';
+      self.state.message = '新しいパスワードにしました。ページを読み込み直します';
       self._reloadSoon();
       return { ok: true };
     }).catch(function (e) { return self._fail(e); });
@@ -407,12 +407,12 @@ window.bbAccount = {
   setNickname: function (name) {
     var self = this;
     var n = this._nick(name);
-    if (!this.state.signedIn) { return Promise.resolve(this._fail(this._stop('ログインが ひつようです'))); }
+    if (!this.state.signedIn) { return Promise.resolve(this._fail(this._stop('ログインが必要です'))); }
     return this._ctx().then(function (c) {
       return self._set(c, 'profiles/' + self.state.sid + '/nickname', n);
     }).then(function () {
       self.state.nickname = n;
-      self.state.message = 'なまえを かえました';
+      self.state.message = '名前を変えました';
       return { ok: true };
     }).catch(function (e) { return self._fail(e); });
   },
@@ -420,31 +420,31 @@ window.bbAccount = {
   requestFriend: function (codeRaw) {
     var self = this;
     var code = this._clean(codeRaw);
-    if (!this.state.signedIn) { return Promise.resolve(this._fail(this._stop('ログインが ひつようです'))); }
+    if (!this.state.signedIn) { return Promise.resolve(this._fail(this._stop('ログインが必要です'))); }
     return this._ctx().then(function (c) {
       return self._get(c, 'friendCodes/' + code);
     }).then(function (target) {
-      if (!target) { throw self._stop('そのコードは みつかりません'); }
+      if (!target) { throw self._stop('そのコードは見つかりません'); }
       return self._sendRequest(target);
     }).catch(function (e) { return self._fail(e); });
   },
   // 部屋でいっしょの人（アカウントの sid が分かる人）に、もうしこむ
   requestFriendSid: function (sid) {
     var self = this;
-    if (!this.state.signedIn) { return Promise.resolve(this._fail(this._stop('ログインが ひつようです'))); }
+    if (!this.state.signedIn) { return Promise.resolve(this._fail(this._stop('ログインが必要です'))); }
     return this._sendRequest(String(sid)).catch(function (e) { return self._fail(e); });
   },
   _sendRequest: function (target) {
     var self = this;
     var ctx = null;
-    if (target === this.state.sid) { return Promise.reject(this._stop('それは じぶんです')); }
+    if (target === this.state.sid) { return Promise.reject(this._stop('それは自分のコードです')); }
     return this._ctx().then(function (c) {
       ctx = c;
       return self._freshNickname(c);
     }).then(function () {
       return self._set(ctx, 'inbox/' + target + '/' + self.state.sid, { type: 'friend', nickname: self.state.nickname, t: Date.now() });
     }).then(function () {
-      self.state.message = 'フレンドの もうしこみを おくりました。あいてが ひきうけると フレンドになります';
+      self.state.message = 'フレンド申請を送りました。相手が承認すると、フレンドになります';
       return { ok: true };
     });
   },
@@ -514,7 +514,7 @@ window.bbAccount = {
         return self._set(c, 'inbox/' + friendSid + '/' + self.state.sid, { type: 'invite', room: String(room), nickname: self.state.nickname, t: Date.now() });
       });
     }).then(function () {
-      self.state.message = 'しょうたいを おくりました';
+      self.state.message = '招待を送りました';
       return { ok: true };
     }).catch(function (e) { return self._fail(e); });
   },

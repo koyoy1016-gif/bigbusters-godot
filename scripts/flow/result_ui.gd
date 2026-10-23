@@ -9,6 +9,7 @@ const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const RoleLabel := preload("res://scripts/ui/role_label.gd")
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const Logic := preload("res://scripts/flow/flow_logic.gd")
+const RayBurst := preload("res://scripts/ui/ray_burst.gd")
 
 var f: Node
 var bold: Font
@@ -25,6 +26,7 @@ var start_button: Button
 var ready_wait_label: Label
 var ready_lobby_button: Button
 var _start_tween: Tween = null
+var rays: Control  ## 版115：勝った時、VICTORY のうしろで回る光の筋
 
 
 func _init(flow: Node) -> void:
@@ -77,6 +79,14 @@ func build() -> void:
 	var gold := Color(str(_v("result_win_color", "#ffd24a")))
 	# ---- 結果 ----
 	var r := _panel(Logic.REWARD)
+	rays = RayBurst.new()
+	rays.name = "Rays"
+	rays.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rays.color = Color(str(_v("result_ray_color", "#ffd24a30")))
+	rays.rays = 16
+	rays.spin = 0.12
+	(f.panels[Logic.REWARD] as Control).add_child(rays)
+	(f.panels[Logic.REWARD] as Control).move_child(rays, 1)  # 背景のすぐ上（字・ボタンの下）
 	result_title = _label("", int(_v("result_title_size", 110)), gold)
 	result_title.name = "ResultTitle"
 	result_title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
@@ -90,23 +100,23 @@ func build() -> void:
 	r.add_child(coins_label)
 	var used_box := VBoxContainer.new()
 	used_box.add_theme_constant_override("separation", 6)
-	used_box.add_child(_label(str(_v("result_used", "つかったキャラ")), 22, Color("#b9c4dc")))
+	used_box.add_child(_label(str(_v("result_used", "使ったキャラ")), 22, Color("#b9c4dc")))
 	used_label = RoleLabel.new().setup("", Color.WHITE, bold, 34)
 	used_label.name = "UsedRole"
 	used_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	used_box.add_child(used_label)
 	r.add_child(used_box)
-	highlight_button = _button(str(_v("result_highlight", "ハイライトを 見る")), Color("#7fdcff"), false, func(): f.event("highlight"), "Highlight")
+	highlight_button = _button(str(_v("result_highlight", "ハイライトを見る")), Color("#7fdcff"), false, func(): f.event("highlight"), "Highlight")
 	r.add_child(highlight_button)
 	rematch_button = _button(str(f.config["rematch_label"]), Color("#ff7a2a"), true, func(): f.event("rematch"), "Rematch")
 	r.add_child(rematch_button)
 	wait_label = _label("", 26, Color(1.0, 0.85, 0.4))
 	r.add_child(wait_label)
-	lobby_button = _button(str(_v("result_lobby", "ロビーへ もどる")), Color("#9fb0d0"), false, func(): f.event("lobby"), "Lobby")
+	lobby_button = _button(str(_v("result_lobby", "ロビーへ戻る")), Color("#9fb0d0"), false, func(): f.event("lobby"), "Lobby")
 	r.add_child(lobby_button)
 	# ---- 再戦の準備 ----
 	var rd := _panel(Logic.READY)
-	ready_title = _label(str(_v("ready_title", "再戦の じゅんび")), 64, Color.WHITE)
+	ready_title = _label(str(_v("ready_title", "再戦の準備")), 64, Color.WHITE)
 	UiKit.outline(ready_title, 10)
 	rd.add_child(ready_title)
 	team_row = HBoxContainer.new()
@@ -123,7 +133,7 @@ func build() -> void:
 	rd.add_child(start_button)
 	ready_wait_label = _label("", 26, Color(1.0, 0.85, 0.4))
 	rd.add_child(ready_wait_label)
-	ready_lobby_button = _button(str(_v("result_lobby", "ロビーへ もどる")), Color("#9fb0d0"), false, func(): f.event("lobby"), "ReadyLobby")
+	ready_lobby_button = _button(str(_v("result_lobby", "ロビーへ戻る")), Color("#9fb0d0"), false, func(): f.event("lobby"), "ReadyLobby")
 	rd.add_child(ready_lobby_button)
 
 
@@ -138,6 +148,7 @@ func show_result(won: bool, coins: int, cid: String, has_highlight: bool) -> voi
 	used_label.text = str(def.get("name", ""))
 	used_label.color = Color(str(def.get("role_color", "#ffffff")))
 	highlight_button.visible = has_highlight
+	rays.visible = won
 	wait_label.text = ""
 	if result_title.is_inside_tree():
 		result_title.pivot_offset = result_title.size * 0.5

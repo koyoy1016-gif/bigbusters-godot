@@ -43,9 +43,9 @@
   "stick_radius_px": 90.0,
   "stick_dead_zone": 0.15,
   "button_radius_px": 64.0,
-  "hint": "左のスティックで動く。右のボタンでこうげき。サブ（跳ぶ）で輪をよけられる",
+  "hint": "左のスティックで移動。右のボタンで攻撃。Y の出始めは回避",
   "boss_hp_label": "BOSS HP",
-  "win_text": "たおした",
+  "win_text": "撃破",
   "boss_hp": 6000.0,
   "boss_size": 5.2,
   "boss_color": "#8a9098",
@@ -100,7 +100,7 @@
   "room_label": "部屋",
   "room_members_prefix": "いま",
   "room_members_suffix": "人",
-  "room_connecting": "つなぎ中",
+  "room_connecting": "接続中",
   "room_full": "満員",
   "room_reconnecting": "再接続中",
   "room_offline": "通信なし（1人）",
@@ -122,12 +122,12 @@
     0.72
   ],
   "start_radius_px": 70.0,
-  "start_label": "はじめる",
-  "restart_label": "もういちど",
-  "lose_text": "ぜんめつ",
+  "start_label": "スタート",
+  "restart_label": "もう一度",
+  "lose_text": "全滅",
   "down_text": "ダウン",
   "player_hp_label": "あなたの体力",
-  "team_label": "なかま",
+  "team_label": "仲間",
   "room_you": "あなた",
   "player_down_color": "#555555",
   "player_hit_color": "#ffffff",
@@ -168,9 +168,9 @@
       "attack_reach": 4.0
     }
   },
-  "role_label": "やく",
+  "role_label": "役",
   "char_resend_ms": 2000,
-  "others_label": "なかま",
+  "others_label": "仲間",
   "attack_cycle": [
     "slam",
     "charge"
@@ -187,7 +187,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "114",
+  "build_id": "115",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -215,14 +215,14 @@
   "bossbar_color": "#e04040",
   "enrage_after_sec": 45.0,
   "slam_interval_enraged_sec": 2.6,
-  "enrage_text": "ボスが おこった",
+  "enrage_text": "ボス激昂",
   "enrage_color": "#d04010",
-  "result_time_label": "じかん",
+  "result_time_label": "タイム",
   "result_mine_label": "あなたのダメージ",
-  "result_team_label": "なかま",
+  "result_team_label": "仲間",
   "press_flash_sec": 0.15,
   "button_cooldown_color": "#4a5a4a",
-  "result_rank_label": "じゅんい",
+  "result_rank_label": "順位",
   "landscape_base_size": [
     1152,
     648
@@ -253,7 +253,7 @@
     0.9,
     0.025
   ],
-  "hint_portrait": "スティックで動く。右下のボタンでこうげき。サブ（跳ぶ）で輪をよける",
+  "hint_portrait": "スティックで移動。右下のボタンで攻撃。Y の出始めは回避",
   "sub_enemy_enabled": false,
   "sub_enemy_enabled_note": "サブ敵（紫の小さい箱）を出すか。版59でユーザーの依頼により一旦消した（false）。true で元に戻る",
   "sub_enemy_count": 10,
@@ -331,7 +331,7 @@
   "boss_hp_label_awake": "覚醒 BOSS HP",
   "boss_hp_refill_sec": 1.2,
   "bossbar_color_awake": "#c43aff",
-  "boss_down_text": "ボスが たおれた！",
+  "boss_down_text": "ボス ダウン！",
   "boss_awake_text": "覚醒！",
   "damage_numbers": {
     "_note": "版75：与えたダメージの数字（scripts/ui/damage_numbers.gd、描くのは stick_prototype.gd の _draw_damage_numbers）。数は四捨五入した整数。format の {n} が数。kinds ごとに、色・縁取り・大きさ（ui_font_size×size_scale×size）・出た瞬間の大きさ pop・弾む秒 pop_sec・消えるまでの秒 life・衝撃線 burst・ゆれ shake_px。strong_actions：強い攻撃として出す技。critical：いまのゲームにクリティカルはないので、使う所はない（見た目だけ用意）。出す場所：ボスの体の、当てた人の側（boss_size の半分×toward）、高さ height_m",
@@ -400,10 +400,10 @@
     "blink_sec": 5.0
   },
   "revive_left_text": "%d",
-  "revive_progress_text": "ふっかつ %.1f",
-  "revive_me_wait": "なかまが そばに 4びょう いれば ふっかつ（あと %d びょう）",
-  "revive_me_progress": "ふっかつ まで %.1f びょう",
-  "revive_gone_text": "ふっかつ できる 時間が すぎました",
+  "revive_progress_text": "復活 %.1f",
+  "revive_me_wait": "仲間がそばに4秒いれば復活",
+  "revive_me_progress": "復活まで %.1f 秒",
+  "revive_gone_text": "復活できる時間が過ぎました",
   "camera_rig": {
     "_note": "版91：戦いのカメラ（scripts/prototype/camera_rig.gd）。fov はたての画角（度）。view_width_m：見る点で、横に見える広さ（m）。画面の形から、そのためのカメラの距離を計算（min_dist_m〜max_dist_m）。pitch_deg：見下ろす角度。look_height_m：見る点の床からの高さ。shake_hz・shake_sec：強い攻撃の画面のゆれ（なめらかな波）。follow_smooth_sec：自分についていく、ばねの秒（なめらかに動き始めて止まる）。shake_scale：ゆれの大きさの倍率。zoom_in_per_sec：強い攻撃でカメラが寄る速さ（1秒あたり）",
     "portrait": {

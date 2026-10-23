@@ -13,6 +13,8 @@ func _init() -> void:
 
 
 func _process(delta: float) -> void:
+	if not is_visible_in_tree():
+		return  # 版115：見えない時は描き直さない（結果の画面のうしろなど）
 	t += delta
 	queue_redraw()
 

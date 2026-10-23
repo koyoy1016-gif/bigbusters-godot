@@ -144,7 +144,7 @@ test('ログインを作る：記録の持ち主・ID・復旧コード・フレ
   await b.bb._connect(CFG);
   const bad = await b.acc.login(r.loginId, 'wrong-pass');
   assert.equal(bad.ok, false);
-  assert.match(b.acc.state.message, /ちがいます/);
+  assert.match(b.acc.state.message, /違います/);
   const unknown = await b.acc.login('ZZZZZZZZZZ', 'secret-pass');
   assert.equal(unknown.ok, false);
   const good = await b.acc.login(r.loginId.toLowerCase(), 'secret-pass');

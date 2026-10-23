@@ -62,11 +62,11 @@ func _initialize() -> void:
 	flow._process(1.0)
 	var t: Array = []
 	_texts(flow.account_box, t)
-	check(t.any(func(x): return str(x).contains("ゲスト")) and t.any(func(x): return x == "ログインを つくる") and t.any(func(x): return x == "パスワードを わすれた"), "ゲストには、ログインを作る・ログイン・わすれたが出る")
+	check(t.any(func(x): return str(x).contains("ゲスト")) and t.any(func(x): return x == "アカウントを作る") and t.any(func(x): return x == "パスワードを忘れた"), "ゲストには、ログインを作る・ログイン・わすれたが出る")
 	# 「ログインを つくる」を押すと、入力欄の画面を出す
 	sent.clear()
 	for c in flow.account_box.get_children():
-		if c is Button and (c as Button).text == "ログインを つくる":
+		if c is Button and (c as Button).text == "アカウントを作る":
 			(c as Button).pressed.emit()
 	check(sent.any(func(c): return str(c).begins_with("window.bbAccount.showForm(\"register\"")), "「ログインを つくる」で、ブラウザ側の入力欄が出る")
 	# ログインした：サーバーの記録が、この端末に反映される
@@ -89,15 +89,15 @@ func _initialize() -> void:
 	t = []
 	_texts(flow.friends_box, t)
 	check(t.any(func(x): return str(x).contains("FRIEND23")), "自分のフレンドコードが出る")
-	check(t.any(func(x): return str(x).contains("えー") and str(x).contains("もうしこみ")) and t.any(func(x): return x == "ひきうける"), "フレンドの申しこみに、ひきうけるが出る")
-	check(t.any(func(x): return str(x).contains("しー") and str(x).contains("しょうたい")) and t.any(func(x): return x == "さんかする"), "しょうたいに、さんかするが出る")
+	check(t.any(func(x): return str(x).contains("えー") and str(x).contains("フレンド申請")) and t.any(func(x): return x == "承認"), "フレンドの申しこみに、ひきうけるが出る")
+	check(t.any(func(x): return str(x).contains("しー") and str(x).contains("招待")) and t.any(func(x): return x == "参加する"), "しょうたいに、さんかするが出る")
 	check(t.any(func(x): return str(x).contains("びー")), "フレンドの一覧")
 	sent.clear()
 	flow.room_code = "4321"
 	for c in flow.friends_box.get_children():
 		if c is Button and (c as Button).text.begins_with("びー"):
 			(c as Button).pressed.emit()
-		if c is Button and (c as Button).text == "ひきうける":
+		if c is Button and (c as Button).text == "承認":
 			(c as Button).pressed.emit()
 	check(sent.any(func(c): return str(c) == "window.bbAccount.invite(\"FSID\", \"4321\")"), "フレンドの「しょうたい」で、いまの部屋の合言葉を送る")
 	check(sent.any(func(c): return str(c) == "window.bbAccount.acceptFriend(\"ASID\")"), "「ひきうける」を送る")

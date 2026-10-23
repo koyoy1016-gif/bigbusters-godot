@@ -96,13 +96,13 @@ func _initialize() -> void:
 	for st in stages:
 		if bool(st["open"]):
 			open_n += 1
-	check(stages.size() == 5 and bool(stages[0]["open"]) and str(stages[0]["name"]) == "しぶや" and open_n == 1, "ステージは5つ。遊べるのは しぶや だけ")
+	check(stages.size() == 5 and bool(stages[0]["open"]) and str(stages[0]["name"]) == "渋谷" and open_n == 1, "ステージは5つ。遊べるのは しぶや だけ")
 	ui.open_stage_picker()
 	check(ui.stage_picker.visible and ui.stage_picker_box.get_child_count() == 5, "ステージの四角をタップで、5つの中から選べる")
 	ui.pick_stage(2)
 	check(flow.stage_index == 0 and ui.stage_picker.visible and flow.toast_label.text == str(flow.config["stage_locked_toast"]), "未開放のステージは選べない（お知らせが出る）")
 	ui.pick_stage(0)
-	check(not ui.stage_picker.visible and flow.stage_index == 0 and flow.stage_label.text == "しぶや", "遊べるステージを選ぶと、閉じる")
+	check(not ui.stage_picker.visible and flow.stage_index == 0 and flow.stage_label.text == "渋谷", "遊べるステージを選ぶと、閉じる")
 	flow.change_stage(1)
 	flow.play()
 	check(flow.state == "lobby" and flow.battle == null, "未開放のステージでプレイしても、戦いは始まらない")

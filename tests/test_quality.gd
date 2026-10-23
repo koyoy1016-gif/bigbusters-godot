@@ -22,7 +22,7 @@ func _initialize() -> void:
 	check(Quality.resolve("high", cfg) == "high" and Quality.resolve("zzz", cfg) == "low" and Quality.resolve("", cfg) == "low", "名前の解決：正しければそれ、ほかは既定")
 	check(Quality.next_preset("low", cfg) == "high" and Quality.next_preset("high", cfg) == "low", "次の画質は、ぐるっと回る")
 	check(Quality.next_preset("zzz", cfg) == "low" or Quality.next_preset("zzz", cfg) == "high", "壊れた名前でも、どれかになる")
-	check(Quality.label_of("low", cfg) == "ひくい" and Quality.label_of("high", cfg) == "たかい", "画面に出す名前")
+	check(Quality.label_of("low", cfg) == "低" and Quality.label_of("high", cfg) == "高", "画面に出す名前（版115：低・高）")
 	var low: Dictionary = cfg["presets"]["low"]
 	var high: Dictionary = cfg["presets"]["high"]
 	check(not bool(low["shadow"]) and float(low["target_3d_pixels"]) < float(high["target_3d_pixels"]) and int(low["msaa"]) <= int(high["msaa"]), "「低」は、「高」より軽い設定")

@@ -114,8 +114,8 @@ func _initialize() -> void:
 	check(st_texts.has("BIGBLAST") and st_texts.has(str(flow.config["start_create"])) and st_texts.has(str(flow.config["start_guest"])), "ゲームの名前 BIGBLAST と、ボタン")
 	check(flow.lobby_stage != null and flow.lobby_stage.visible and not flow.lobby_ui.nav.visible, "うしろに3Dのキャラ。下のボタンは出さない")
 	flow._process(0.016)
-	check(flow.start_ui.ready and flow.start_ui.continue_holder.visible and not flow.start_ui.continue_button.disabled and flow.start_ui.continue_button.text == "あそぶ",
-		"ログインの仕組みがない所：「あそぶ」だけ")
+	check(flow.start_ui.ready and flow.start_ui.continue_holder.visible and not flow.start_ui.continue_button.disabled and flow.start_ui.continue_button.text == "プレイ",
+		"ログインの仕組みがない所：「プレイ」だけ（版115）")
 	# ブラウザ（ログインの仕組みがある）のまね
 	var acc := FakeAccount.new()
 	flow.account = acc
@@ -147,7 +147,7 @@ func _initialize() -> void:
 	flow._process(0.1)
 	flow._process(0.1)
 	check(flow.state == "start" and flow.start_ui.continue_holder.visible and flow.start_ui.continue_button.text.contains("たろう"), "ログインずみ：「つづける（たろう）」を出して、えらぶまで待つ")
-	check(flow.start_ui.login_button.text == "べつの アカウントで ログイン" and not (flow.start_ui.create_button.get_parent() as Control).visible, "ほかのアカウントでも ログインできる")
+	check(flow.start_ui.login_button.text == "別のアカウントでログイン" and not (flow.start_ui.create_button.get_parent() as Control).visible, "ほかのアカウントでも ログインできる")
 	flow.start_ui.open_login()
 	acc.st = {"status": "ok", "signedIn": true, "formOpen": true}
 	flow.account_state = acc.st
@@ -198,7 +198,7 @@ func _initialize() -> void:
 	texts_in(flow.panels["formation"].find_child("Detail", true, false), d_texts)
 	var moves_ok := d_texts.has("単純斬り") and d_texts.has("かわし斬り") and d_texts.has("五段斬り") and d_texts.has("切り捨て御免")  # 版114：Y は、また かわし斬り
 	check(moves_ok, "技の名前（通常・スキル・必殺）")
-	check(d_texts.has(str(flow.config["formation_move_awaken"])) and d_texts.any(func(x): return str(x).contains("剣気かいほう")), "覚醒能力")
+	check(d_texts.has(str(flow.config["formation_move_awaken"])) and d_texts.any(func(x): return str(x).contains("剣気解放")), "覚醒能力")
 	check((fu.detail["stats"] as GridContainer).get_child_count() == 5 and d_texts.has("190"), "能力5つ（体力 190 など）")
 	check(d_texts.has(str(flow.config["formation_equip_empty"]) % 1) and d_texts.has(str(flow.config["formation_equip_empty"]) % 2), "装備の2枠（まだ空）")
 	var main_before: String = flow.selected_character

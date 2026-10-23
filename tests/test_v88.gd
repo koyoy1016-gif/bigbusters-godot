@@ -95,13 +95,13 @@ func to_game(lat: float, lon: float, b: Dictionary) -> Vector2:
 func _initialize() -> void:
 	# ---- 1. 設定 ----
 	var mc := MapLoader.current_map()
-	check(str(MapLoader.load_config().get("current", "")) == "shibuya" and str(mc.get("name", "")) == "しぶや", "いまのマップは しぶや（data/maps.json）")
+	check(str(MapLoader.load_config().get("current", "")) == "shibuya" and str(mc.get("name", "")) == "渋谷", "いまのマップは しぶや（data/maps.json）")
 	check(ResourceLoader.exists(str(mc.get("glb", ""))), "渋谷の 3D（.glb）がある")
 	var attr := str(mc.get("attribution", ""))
 	check(attr.contains("PLATEAU") and attr.contains("渋谷区") and attr.contains("加工して作成"), "出典：" + attr)
 	check(FileAccess.get_file_as_string("res://assets/LICENSES.md").contains(attr), "出典は assets/LICENSES.md にも書いてある")
 	var gf := FileAccess.get_file_as_string("res://data/game_flow.json")
-	check(gf.contains("\"name\": \"しぶや\"") and not gf.contains("きたせんじゅ") and not gf.contains("kitasenju"), "ステージの名前は しぶや（きたせんじゅ は残っていない）")
+	check(gf.contains("\"name\": \"渋谷\"") and not gf.contains("きたせんじゅ") and not gf.contains("kitasenju"), "ステージの名前は しぶや（きたせんじゅ は残っていない）")
 
 	# ---- 2. 古いマップがない ----
 	var s: Node = (load(SCENE) as PackedScene).instantiate()

@@ -3,7 +3,7 @@
   "current": "shibuya",
   "maps": {
     "shibuya": {
-      "name": "しぶや",
+      "name": "渋谷",
       "glb": "res://assets/maps/shibuya/shibuya.glb",
       "attribution": "3D都市モデル（Project PLATEAU）渋谷区（2025年度）（国土交通省）を加工して作成",
       "build": {

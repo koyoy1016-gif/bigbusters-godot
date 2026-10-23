@@ -287,10 +287,11 @@ func _build_detail() -> Control:
 	moves.name = "Moves"
 	moves.add_theme_constant_override("separation", 6)
 	col.add_child(moves)
-	var note := _label(str(f.config["formation_note"]), 15, Color(1, 1, 1, 0.45))
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.custom_minimum_size = Vector2(580, 0)
-	col.add_child(note)
+	if str(f.config.get("formation_note", "")) != "":  # 版115：作る人向けのメモは、空なら出さない
+		var note := _label(str(f.config["formation_note"]), 15, Color(1, 1, 1, 0.45))
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size = Vector2(580, 0)
+		col.add_child(note)
 	# この枠に セット
 	var sh := Control.new()
 	sh.custom_minimum_size = Vector2(580, 84)

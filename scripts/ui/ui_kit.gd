@@ -78,6 +78,12 @@ static func glass_button(b: Button, cfg: Dictionary, radius: int = -1, tint: Col
 static func clear_button(b: Button) -> void:
 	for st in ["normal", "hover", "pressed", "disabled", "focus"]:
 		b.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	# 版115：色つきの板（オレンジなど）の上の字は、くっきり白く・濃い縁取り（前は少し灰色に見えた）
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(c, Color.WHITE)
+	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.45))
+	b.add_theme_color_override("font_outline_color", Color(0.1, 0.04, 0.02, 0.8))
+	b.add_theme_constant_override("outline_size", 8)
 
 
 ## 押した時に少しちぢみ、離すともどる（手ざわり）。何度つないでも1回だけ

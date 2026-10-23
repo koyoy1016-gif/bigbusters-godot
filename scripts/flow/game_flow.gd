@@ -217,7 +217,7 @@ func _make_button(text: String, min_size: Array, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = Vector2(min_size[0], min_size[1])
-	button.add_theme_font_override("font", font)
+	button.add_theme_font_override("font", _bold_font())  # 版115：ボタンの字は太く
 	button.add_theme_font_size_override("font_size", int(config["button_font_size"]))
 	button.pressed.connect(_on_menu_press)
 	button.pressed.connect(callback)
@@ -225,6 +225,40 @@ func _make_button(text: String, min_size: Array, callback: Callable) -> Button:
 	UiKit.glass_button(button, config, 24)
 	UiKit.juice(button, 0.95)
 	return button
+
+
+var _bold_cache: Font = null
+
+
+## 版115：太い字（ボタン・見出し）。1回だけ作って使いまわす
+func _bold_font() -> Font:
+	if _bold_cache == null:
+		_bold_cache = UiKit.bold(font, float((config.get("ui_kit", {}) as Dictionary).get("bold", 0.7))) if font != null else null
+	return _bold_cache if _bold_cache != null else font
+
+
+## 版115：画面の見出し（上に小さな英字・太い字・縁取り）
+func _add_heading(box: Container, title: String, caption: String) -> void:
+	var v115: Dictionary = config.get("v115", {})
+	if caption != "":
+		var c := _make_label(caption, int(v115.get("caption_px", 22)), Color(str(v115.get("caption_color", "#7fdcff"))))
+		c.add_theme_font_override("font", _bold_font())
+		c.name = "Caption"
+		box.add_child(c)
+	var t := _make_label(title, int(config["heading_font_size"]), Color(str(config["title_color"])))
+	t.add_theme_font_override("font", _bold_font())
+	UiKit.outline(t, 8)
+	t.name = "Heading"
+	box.add_child(t)
+
+
+## 版115：戻るボタン（画面の幅いっぱいに広げない・角ばった見た目）
+func _make_back_button(text: String, callback: Callable) -> Button:
+	var b := _make_button(text, [520, 96], callback)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.add_theme_font_size_override("font_size", 32)
+	UiKit.blast_button(b, Color(str((config.get("v115", {}) as Dictionary).get("back_accent", "#9fb0d0"))), false)
+	return b
 
 
 ## ボタンを押したとき：クリック音を鳴らし、BGMが止まっていれば流す（ブラウザは最初のタップのあとに音を鳴らせる）
@@ -368,12 +402,12 @@ func _build_panels() -> void:
 
 	# アカウント
 	var acc_panel := _make_lobby_panel(Logic.ACCOUNT, 18)
-	acc_panel.add_child(_make_label(str(config["account_title"]), heading, Color(str(config["title_color"]))))
+	_add_heading(acc_panel, str(config["account_title"]), str((config.get("v115", {}) as Dictionary).get("caption_account", "PROFILE")))
 	account_box = VBoxContainer.new()
 	account_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	account_box.add_theme_constant_override("separation", 14)
 	acc_panel.add_child(account_box)
-	acc_panel.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
+	acc_panel.add_child(_make_back_button(str(config["back_label"]), func(): event("back")))
 	profile_ui = ProfileUI.new(self)
 	profile_ui.build(acc_panel, panels[Logic.ACCOUNT])
 
@@ -382,19 +416,19 @@ func _build_panels() -> void:
 	quality_button = _make_button("", [400, 80], change_quality)
 	quality_button.name = "QualityButton"
 	settings_ui = SettingsUI.new(self)
-	settings_ui.build(acc_panel, 2, quality_button)
+	settings_ui.build(acc_panel, profile_ui.header.get_index() + 1 if profile_ui.get("header") != null else 2, quality_button)  # 版115：プロフィールのすぐ下
 
 	# へや（版81：右端の「へやを つくる」から。いまの へやの コード・なかま・しょうたい・はじめる）
 	_build_room_panel()
 
 	# フレンド
 	var fr_panel := _make_panel(Logic.FRIENDS, 18)
-	fr_panel.add_child(_make_label(str(config["friends_title"]), heading, Color(str(config["title_color"]))))
+	_add_heading(fr_panel, str(config["friends_title"]), str((config.get("v115", {}) as Dictionary).get("caption_friends", "FRIENDS")))
 	friends_box = VBoxContainer.new()
 	friends_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	friends_box.add_theme_constant_override("separation", 12)
 	fr_panel.add_child(friends_box)
-	fr_panel.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
+	fr_panel.add_child(_make_back_button(str(config["back_label"]), func(): event("back")))
 
 	# ハイライト
 	# 版113：ハイライト（BIGBLAST の見た目）。上に小さく HIGHLIGHT・太い見出し・ベストアタッカー（役職のラベル）・角ばった枠の中に再生・角ばったボタン
@@ -436,7 +470,7 @@ func _build_panels() -> void:
 	var replay_holder := CenterContainer.new()
 	replay_holder.add_child(replay_frame)
 	h.add_child(replay_holder)
-	var hb := _make_button(str((config.get("v109", {}) as Dictionary).get("highlight_back", "結果へ もどる")), big, func(): event("done"))
+	var hb := _make_button(str((config.get("v109", {}) as Dictionary).get("highlight_back", "結果へ戻る")), big, func(): event("done"))
 	hb.add_theme_font_override("font", hl_bold)
 	hb.add_theme_font_size_override("font_size", 32)
 	hb.custom_minimum_size = Vector2(520, 96)

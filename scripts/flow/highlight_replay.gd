@@ -56,7 +56,8 @@ func _build(config: Dictionary, flow_config: Dictionary) -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2.ONE * float(config["ground_size"])
 	var gm := StandardMaterial3D.new()
-	gm.albedo_color = Color(str(config["ground_color"]))
+	# 版115：床は、戦いの交差点に近いアスファルトの色（画面の流れの replay_ground_color。なければ戦いの ground_color）
+	gm.albedo_color = Color(str(flow_config.get("replay_ground_color", config["ground_color"])))
 	plane.material = gm
 	ground.mesh = plane
 	viewport.add_child(ground)
@@ -78,7 +79,9 @@ func _build(config: Dictionary, flow_config: Dictionary) -> void:
 	camera = Camera3D.new()
 	camera.fov = float(config["camera_fov"])
 	var env := Environment.new()
-	env.background_mode = Environment.BG_CLEAR_COLOR
+	# 版115：うしろは、夕方の空の色（前は灰色のまま）
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(str(flow_config.get("replay_bg_color", "#1d2440")))
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(str(config["ambient_color"]))
 	env.ambient_light_energy = float(config["ambient_energy"])

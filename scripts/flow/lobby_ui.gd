@@ -921,7 +921,7 @@ func set_nav_selected(state: String) -> void:
 
 func build_room_panel() -> void:
 	var p: VBoxContainer = f._make_lobby_panel(Logic.ROOM, 18)
-	p.add_child(UiKit.outline(_label(str(f.config["room_title"]), int(f.config["heading_font_size"]), Color.WHITE, true), 6))
+	f._add_heading(p, str(f.config["room_title"]), str((f.config.get("v115", {}) as Dictionary).get("caption_room", "ROOM")))  # 版115
 	# へやのコード（大きく）と人数
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(580, 0)
@@ -993,15 +993,12 @@ func build_room_panel() -> void:
 		start.add_theme_font_override("font", bold)
 	sh.add_child(start)
 	p.add_child(sh)
-	var note := _label(str(f.config["room_name_note"]), 20, Color(str(_k("sub_text", "#b9c4dc"))))
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.custom_minimum_size = Vector2(560, 0)
-	p.add_child(note)
-	var back: Button = f._make_button(str(f.config["back_label"]), f.config["small_button_min_size"], func(): f.event("back"))
-	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	UiKit.glass_button(back, f.config, 24)
-	UiKit.juice(back)
-	p.add_child(back)
+	if str(f.config.get("room_name_note", "")) != "":  # 版115：作る人向けのメモは、遊ぶ人には出さない（空なら出さない）
+		var note := _label(str(f.config["room_name_note"]), 20, Color(str(_k("sub_text", "#b9c4dc"))))
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.custom_minimum_size = Vector2(560, 0)
+		p.add_child(note)
+	p.add_child(f._make_back_button(str(f.config["back_label"]), func(): f.event("back")))
 
 
 ## へやの画面：人数の席（いる人は明るく）・編成の4人（顔の絵と名前）

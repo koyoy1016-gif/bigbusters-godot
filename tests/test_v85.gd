@@ -269,7 +269,7 @@ func _initialize() -> void:
 	var sm := panel.find_child("Slider_music", true, false) as HSlider
 	var ss := panel.find_child("Slider_sfx", true, false) as HSlider
 	check(card != null and sm != null and ss != null and card.find_child("QualityButton", true, false) == flow.quality_button, "プロフィールに「せってい」（音楽・効果音のすべりバー・画質のボタン）")
-	check(str(flow.quality_button.text).begins_with("がしつ："), "画質のボタンは、前と同じに使える：" + flow.quality_button.text)
+	check(str(flow.quality_button.text).begins_with(str(flow.config["quality_label"]) + "："), "画質のボタンは、前と同じに使える：" + flow.quality_button.text)
 	check(panel.find_child("*", true, false) != null and panel.get_child(1) is ScrollContainer, "プロフィールの画面は、はみ出したら縦にスクロールできる")
 	check(is_equal_approx(sm.value, 0.8) and is_equal_approx(ss.value, 1.0), "はじめは、音楽80%・効果音100%")
 	sm.value = 0.4

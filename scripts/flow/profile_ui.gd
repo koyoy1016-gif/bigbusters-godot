@@ -74,7 +74,8 @@ func build(box: VBoxContainer, panel_root: Control) -> void:
 	row.add_child(col)
 	header.add_child(row)
 	box.add_child(header)
-	box.move_child(header, 1)
+	var head := box.get_node_or_null("Heading")
+	box.move_child(header, head.get_index() + 1 if head != null else 1)  # 版115：見出し（上に小さな英字つき）のすぐ下
 	_build_picker(panel_root)
 
 

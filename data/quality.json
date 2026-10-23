@@ -6,7 +6,7 @@
  ],
  "presets": {
   "low": {
-   "label": "ひくい",
+   "label": "低",
    "msaa": 0,
    "shadow": false,
    "max_fps": 0,
@@ -19,7 +19,7 @@
    "shadow_size": 1024
   },
   "high": {
-   "label": "たかい",
+   "label": "高",
    "msaa": 2,
    "shadow": true,
    "max_fps": 0,

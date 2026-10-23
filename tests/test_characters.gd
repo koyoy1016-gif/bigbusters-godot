@@ -98,7 +98,7 @@ func _initialize() -> void:
 	b.net_state = {"slot": "p1", "members": ["p1", "p2", "p3"], "chars": {"p2": "healer"}}
 	check(b.role_name_of("p1") == "守護士", "通信中も、自分は自分の役職名")
 	check(b.role_name_of("p2") == "介護士", "ほかの人のキャラが共有されていれば、その役職名（介護士）")
-	check(b.role_name_of("p3") == "なかま", "まだ共有されていない人は「なかま」")
+	check(b.role_name_of("p3") == "仲間", "まだ共有されていない人は「仲間」（版115）")
 	check(str(b.char_def_of("p2").get("id", "")) == "healer" and b.char_def_of("p3").is_empty(), "枠のキャラの定義を引ける（未共有は空）")
 	check(str(b.char_def_of("p1").get("id", "")) == "guardian", "自分の枠は、選んだキャラ")
 	b.net_state["chars"] = {"p2": "no_such_character"}

@@ -208,7 +208,7 @@ func _apply_ready() -> void:
 	else:
 		continue_button.text = _v("start_continue", "つづける") + ("（" + nick + "）" if nick != "" else "")
 	(create_button.get_parent() as Control).visible = online and not signed
-	login_button.text = _v("start_other_login", "べつの アカウントで ログイン") if signed else str(f.config["start_login"])
+	login_button.text = _v("start_other_login", "別のアカウントでログイン") if signed else str(f.config["start_login"])
 	(login_button.get_parent() as Control).visible = online
 	(guest_button.get_parent() as Control).visible = online and not signed
 	note_label.text = str(f.config["start_note"]) if online else str(f.config["account_unavailable"])
