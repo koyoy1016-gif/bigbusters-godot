@@ -187,7 +187,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "115",
+  "build_id": "116",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -478,7 +478,9 @@
       "icon_face": "#5a1f2e",
       "icon_horn": "#e9dcc0",
       "icon_eye": "#ffd84a",
-      "icon_eye_awake": "#ff7bff"
+      "icon_eye_awake": "#ff7bff",
+      "rage_tag": "激昂",
+      "rage_color": "#e0281e"
     },
     "party": {
       "gap_px": 6.0,
@@ -585,5 +587,115 @@
     "_sfx": "転がる音（start）と、成功の音（success）。ボスの攻撃の予告の音（whoosh など）と別の音にする（同じ音は少しの間、続けて鳴らないため）",
     "sfx_start": "jump",
     "sfx_success": "free"
-  }
+  },
+  "_cues116": "版116：大きな見出し（headlines：ボス ダウン・激昂・撃破・全滅。priority が上の物は、下の物で消さない）・自分の見出し（personal_cues：DOWN・復活！）・倒れている時の板（revive_ui）・小さなお知らせ（toast）",
+  "headlines": {
+    "boss_down": {
+      "title": "BOSS DOWN",
+      "sub": "ボス ダウン！ …まだ終わらない",
+      "color": "#ffd24a",
+      "sec": 2.6,
+      "priority": 2,
+      "band": true,
+      "y_frac": 0.3,
+      "y_frac_portrait": 0.3,
+      "title_px": 64,
+      "sub_px": 30,
+      "shake_px": 6.0
+    },
+    "rage": {
+      "title": "RAGE",
+      "sub": "ボス 激昂！ つかみと攻撃が速くなる",
+      "color": "#ff3b1f",
+      "sec": 2.2,
+      "priority": 1,
+      "band": true,
+      "edge_px": 70,
+      "edge_alpha": 0.38,
+      "y_frac": 0.3,
+      "y_frac_portrait": 0.3,
+      "title_px": 64,
+      "sub_px": 28,
+      "shake_px": 7.0,
+      "min_gap_sec": 12.0
+    },
+    "win": {
+      "title": "BOSS DEFEATED",
+      "sub": "撃破！",
+      "color": "#ffd24a",
+      "sec": 3.0,
+      "priority": 5,
+      "band": true,
+      "y_frac": 0.36,
+      "y_frac_portrait": 0.34,
+      "title_px": 60,
+      "sub_px": 40,
+      "shake_px": 3.0,
+      "fill_tint": 0.25
+    },
+    "lose": {
+      "title": "DEFEAT",
+      "sub": "全滅…",
+      "color": "#6f86ff",
+      "sec": 3.0,
+      "priority": 5,
+      "band": true,
+      "edge_px": 90,
+      "edge_alpha": 0.35,
+      "y_frac": 0.36,
+      "y_frac_portrait": 0.34,
+      "title_px": 64,
+      "sub_px": 40,
+      "shake_px": 0.0
+    }
+  },
+  "personal_cues": {
+    "down": {
+      "title": "DOWN",
+      "sub": "",
+      "color": "#ff4a4a",
+      "sec": 1.3,
+      "edge_px": 80,
+      "edge_alpha": 0.4,
+      "y_frac": 0.44,
+      "y_frac_portrait": 0.44,
+      "title_px": 72,
+      "sub_px": 28,
+      "shake_px": 8.0
+    },
+    "revive": {
+      "title": "REVIVE",
+      "sub": "復活！",
+      "color": "#5fe08a",
+      "sec": 1.6,
+      "band": true,
+      "y_frac": 0.44,
+      "y_frac_portrait": 0.44,
+      "title_px": 64,
+      "sub_px": 34,
+      "shake_px": 0.0,
+      "fill_tint": 0.2
+    }
+  },
+  "revive_ui": {
+    "width_px": 540,
+    "height_px": 112,
+    "y_frac": 0.62,
+    "y_frac_portrait": 0.6,
+    "head_px": 34,
+    "note_px": 19,
+    "num_px": 30,
+    "head_wait": "DOWN",
+    "head_progress": "REVIVING",
+    "head_gone": "K.O.",
+    "color_wait": "#ff5a5a",
+    "color_progress": "#5fe08a",
+    "color_gone": "#8a8fa0"
+  },
+  "revive_me_progress_note": "仲間が起こしています",
+  "toast_down": "%s ダウン",
+  "toast_revived": "%s 復活！",
+  "toast_sec": 1.8,
+  "toast_px": 24,
+  "toast_color": "#9fe8ff"
 }

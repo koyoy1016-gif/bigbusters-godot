@@ -88,6 +88,12 @@ var awaken_fx := {"left": 0.0, "total": 1.0}  ## 版112：ボスの覚醒の演�
 var awaken_fx_shown := false
 var enemy_attack := {"left": 0.0, "total": 1.0, "text": "", "ult": false, "n": -1}  ## 版112：敵の攻撃の名前（右上。いつも1つだけ）
 var cue_log: Array = []  ## 版112：出した演出の記録（テスト用。最大32）
+var headline := {"left": 0.0, "total": 1.0}  ## 版116：大きな見出し（ボス ダウン・激昂・撃破・全滅）。いつも1つ
+var personal_cue := {"left": 0.0, "total": 1.0}  ## 版116：自分の見出し（DOWN・復活！）。画面の下のほう
+var toast_cue := {"left": 0.0, "total": 1.0, "text": ""}  ## 版116：小さなお知らせ（仲間が倒れた・復活した）
+var was_angry := false  ## 版116：ボスの激昂（boss_rage）が始まった時だけ、見出しを出す
+var rage_cue_after := 0.0  ## 版116：激昂の見出しを、この戦いの秒より前には出さない（続けて出さない）
+var was_downed_me := false
 var actions := Actions.new()  ## 通常・サブ・メインの攻撃の進み（data/actions.json）
 var button_flash := {}  ## 押したボタンの色を、少しのあいだ変える（ボタンid → 残り秒）
 var touch_timer := 0.0
@@ -932,6 +938,12 @@ func _begin_round(start_ms: float) -> void:
 	# 版112：演出を消してから、敵の登場を出す（前の試合の物は残さない）
 	awaken_fx = {"left": 0.0, "total": 1.0}
 	awaken_fx_shown = false
+	headline = {"left": 0.0, "total": 1.0}  # 版116
+	personal_cue = {"left": 0.0, "total": 1.0}
+	toast_cue = {"left": 0.0, "total": 1.0, "text": ""}
+	was_angry = false
+	rage_cue_after = 0.0
+	was_downed_me = false
 	enemy_attack = {"left": 0.0, "total": 1.0, "text": "", "ult": false, "n": -1}
 	show_enemy_intro()
 	button_flash = {}
@@ -1404,14 +1416,62 @@ func _show_banner(text: String, who: String, seconds: float, color: Color = Colo
 
 ## 演出の残り時間を進める（毎コマ）
 func update_cues(delta: float) -> void:
-	for d in [enemy_intro, awaken_fx, enemy_attack]:
+	for d in [enemy_intro, awaken_fx, enemy_attack, headline, personal_cue, toast_cue]:
 		d["left"] = maxf(0.0, float(d["left"]) - delta)
+	# 自分が倒れた瞬間：DOWN
+	if downed and not was_downed_me:
+		show_personal("down")
+	was_downed_me = downed
 
 
 func _cue(name: String) -> void:
 	cue_log.append(name)
 	if cue_log.size() > 32:
 		cue_log = cue_log.slice(16)
+
+
+## 版116：大きな見出し（ボス ダウン・激昂・撃破・全滅）。前の物より大事でない物（priority が下）は出さない
+func show_headline(kind: String) -> void:
+	var hc: Dictionary = (config.get("headlines", {}) as Dictionary).get(kind, {})
+	if hc.is_empty():
+		return
+	var pri := int(hc.get("priority", 0))
+	if float(headline.get("left", 0.0)) > 0.0 and int(headline.get("priority", 0)) > pri:
+		return
+	var sec := float(hc.get("sec", 2.0))
+	headline = hc.duplicate()
+	headline["kind"] = kind
+	headline["left"] = sec
+	headline["total"] = sec
+	_cue("headline:" + kind)
+
+
+## 版116：自分の見出し（down：DOWN・revive：復活！）
+func show_personal(kind: String) -> void:
+	var hc: Dictionary = (config.get("personal_cues", {}) as Dictionary).get(kind, {})
+	if hc.is_empty():
+		return
+	var sec := float(hc.get("sec", 1.2))
+	personal_cue = hc.duplicate()
+	personal_cue["kind"] = kind
+	personal_cue["left"] = sec
+	personal_cue["total"] = sec
+	_cue("personal:" + kind)
+
+
+## 版116：だれかが起きた。自分なら「復活！」、仲間なら小さなお知らせ
+func show_revived(slot: String) -> void:
+	if slot == str(_my_slot()):
+		show_personal("revive")
+		return
+	show_toast(str(config.get("toast_revived", "%s 復活！")) % role_name_of(slot))
+
+
+## 版116：小さなお知らせ（画面の上のほう。新しい物で入れかえ）
+func show_toast(text: String) -> void:
+	var sec := float(config.get("toast_sec", 1.8))
+	toast_cue = {"left": sec, "total": sec, "text": text}
+	_cue("toast:" + text)
 
 
 ## 敵の登場（ENEMY APPROACH・名前・役）。試合の始めに1回（_begin_round から）
@@ -1563,6 +1623,7 @@ func _recompute_boss_hp() -> void:
 		round_end_ms = server_now_ms()
 		if not flow_mode:
 			_play_sfx("win")  # 画面の流れの中では、勝ちの曲（音楽）を流すので、効果音は鳴らさない
+		show_headline("win")  # 版116：撃破
 		round_ended.emit(true)
 		boss.visible = false
 
@@ -1594,7 +1655,7 @@ func _on_boss_fall() -> void:
 		boss_model.begin_fall()
 	ai.interrupt(_round_t(), 999.0)
 	field.clear()  # 倒れたら、燃えている火や酒だまりも消す
-	phase_text = {"text": str(config.get("boss_down_text", "")), "left": 2.0}
+	show_headline("boss_down")  # 版116：前の「ボスが たおれた！」の字の代わり
 	enemy_attack["left"] = 0.0  # 版112：攻撃をやめたので、攻撃の名前も消す
 	_play_sfx("thud")
 	music_cue.emit("fall")
@@ -1845,6 +1906,11 @@ func combat_update(delta: float) -> void:
 	_quick_grab_check(t)
 	if not staggering:
 		ai.angry = rage.is_angry(t)  # 版69：怒っている間に決める・始める攻撃は、つかみ投げが多く、速い
+		# 版116：怒りが始まった時に「激昂」（続けて出さない）
+		if ai.angry and not was_angry and t >= rage_cue_after:
+			show_headline("rage")
+			rage_cue_after = t + float(((config.get("headlines", {}) as Dictionary).get("rage", {}) as Dictionary).get("min_gap_sec", 12.0))
+		was_angry = ai.angry
 		ai.update(t, "awake" if phase.is_awake() else "normal", _target_dist)
 		cur = ai.current()
 	var idx := 0 if not cur.is_empty() else -1
@@ -2040,12 +2106,14 @@ func _check_wipe() -> void:
 				round_end_ms = server_now_ms()
 				if not flow_mode:
 					_play_sfx("lose")
+				show_headline("lose")  # 版116：全滅
 				round_ended.emit(false)
 		elif BossSync.all_down(my_hp, net_state.get("hp", {}), str(net_state.get("slot", "")), net_state.get("members", []), round_start_ms):
 			lost = true
 			round_end_ms = server_now_ms()
 			if not flow_mode:
 				_play_sfx("lose")
+			show_headline("lose")  # 版116：全滅
 			round_ended.emit(false)
 
 

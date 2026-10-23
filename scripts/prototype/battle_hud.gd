@@ -97,27 +97,29 @@ func _draw_overlay() -> void:
 		var sc := _start_center(screen)
 		b.overlay.draw_circle(sc, float(b.config["start_radius_px"]), _cc("button_color"))
 		_draw_centered(sc, str(b.config["restart_label"]) if b.round_count > 0 else str(b.config["start_label"]), button_text)
-	if b.won or b.lost:
+	# 版116：撃破・全滅は大きな見出し（_draw_headline_state）。見出しが消えたあと（画面の流れの外だけ）、前の字と結果の行
+	var end_head := float(b.headline.get("left", 0.0)) > 0.0 and str(b.headline.get("kind", "")) in ["win", "lose"]
+	if (b.won or b.lost) and not end_head and not b.flow_mode:
 		var result := str(b.config["win_text"]) if b.won else str(b.config["lose_text"])
 		var ry := maxf(screen.y * 0.22, hud_bottom + fs * 2.2)  # 版92：体力の表示の下に
 		_draw_centered(Vector2(screen.x * 0.5, ry), result, text_color, 2.0)
 		var lines := b.build_result_lines()
 		for i in lines.size():
 			_draw_centered(Vector2(screen.x * 0.5, ry + fs * (2.2 + 1.5 * i)), str(lines[i]), text_color)
-	if b.is_enraged() and int(Time.get_ticks_msec() / 400) % 2 == 0:
-		_draw_centered(Vector2(screen.x * 0.5, maxf(screen.y * 0.12, hud_bottom + fs * 1.4)), str(b.config["enrage_text"]), _cc("enrage_color"), 1.4)  # 版92：体力の表示の下に
+	# 版116：前の「ボスが おこった」（始まって45秒からずっと点めつ）はやめた。怒りはボスの体力の表示の「激昂」と、大きな見出し
 	if float(b.phase_text["left"]) > 0.0 and str(b.phase_text["text"]) != "":
 		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.3), str(b.phase_text["text"]), _cc("bossbar_color_awake", "#ffffff"), 1.8)
-	# 版84：自分が倒れている時：起こしてもらえる のこり時間・起こしてもらっている進み
-	var rs: String = b.revive_sys.my_status() if b.get("revive_sys") != null else ""
-	if rs != "":
-		_draw_centered(Vector2(screen.x * 0.5, screen.y * 0.56), rs, Color("#c8ffd8"), 1.2)
+	# 版84・116：自分が倒れている時の板（DOWN・のこり時間・起こしてもらっている進み）
+	_draw_my_status(screen)
 	_draw_reticle()
 	_draw_dodge_text()
 	_draw_damage_numbers(screen)
 	_draw_enemy_attack(screen)  # 版112
+	_draw_toast(screen)  # 版116
 	_draw_enemy_intro(screen)
 	_draw_awakening(screen)
+	_draw_headline_state(screen, b.headline)  # 版116：ボス ダウン・激昂・撃破・全滅
+	_draw_headline_state(screen, b.personal_cue)  # 版116：DOWN・復活！
 	_draw_banner(screen)
 
 
@@ -133,7 +135,7 @@ func _draw_buttons(screen: Vector2) -> void:
 		var flash := float(b.button_flash.get(key, 0.0)) > 0.0
 		var is_ult := key == "ultimate"
 		var cd_left := b.actions.cooldown_left(key)
-		var ready := not held and not b.actions.busy() and cd_left <= 0.0 and (not is_ult or b.gauge.is_ready())
+		var ready := not held and not b.downed and not b.actions.busy() and cd_left <= 0.0 and (not is_ult or b.gauge.is_ready())  # 版116：倒れている間も暗く
 		var edge := accent
 		if key == "sub":
 			edge = _cc(str(bc.get("edge_sub", "#9fe8ff")))
@@ -682,3 +684,136 @@ func _spaced_string(center: Vector2, text: String, px: int, spacing: float, colo
 		b.overlay.draw_string(b.font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, px, color)
 		x += float(ws[i]) + spacing
 		i += 1
+
+
+## 版116：大きな見出しの演出（ボス ダウン・激昂・撃破・全滅。覚醒も同じ描き方）。
+## st：{left, total, title, sub, color, edge（画面のふちを光らせるか）, band（暗い帯）, y_frac}。字の大きさは決まった数段で、拡大・縮小で動かす
+func _draw_headline_state(screen: Vector2, st: Dictionary) -> void:
+	var left := float(st.get("left", 0.0))
+	if left <= 0.0:
+		return
+	var age := float(st["total"]) - left
+	var alpha := minf(clampf(age / 0.12, 0.0, 1.0), clampf(left / 0.5, 0.0, 1.0))
+	var col := Color(str(st.get("color", "#ffffff")))
+	var pulse := 0.6 + 0.4 * sin(age * 14.0)
+	var ep := float(st.get("edge_px", 0.0))
+	if ep > 0.0:
+		# 外は色・内は透明の、4辺の帯（頂点の色でぼかす）
+		var co := Color(col.r, col.g, col.b, float(st.get("edge_alpha", 0.42)) * alpha * pulse)
+		var ci := Color(col.r, col.g, col.b, 0.0)
+		var o := [Vector2.ZERO, Vector2(screen.x, 0), screen, Vector2(0, screen.y)]
+		var n := [Vector2(ep, ep), Vector2(screen.x - ep, ep), screen - Vector2(ep, ep), Vector2(ep, screen.y - ep)]
+		for i in 4:
+			var j := (i + 1) % 4
+			b.overlay.draw_polygon(PackedVector2Array([o[i], o[j], n[j], n[i]]), PackedColorArray([co, co, ci, ci]))
+	var cy := screen.y * float(st.get("y_frac_portrait" if is_portrait(screen) else "y_frac", 0.32))
+	var px := int(st.get("title_px", 64))
+	var spx := int(st.get("sub_px", 36))
+	if bool(st.get("band", false)):
+		# 角ばった暗い帯（まん中から左右へのびる）・上下のふちに色の線
+		var grow := 1.0 - pow(1.0 - clampf(age / 0.16, 0.0, 1.0), 3.0)
+		var hh := float(px) * 0.75 + float(spx) * 0.9
+		var sk := hh * 0.5
+		var half := (screen.x * 0.5 + sk) * grow
+		var c0 := Vector2(screen.x * 0.5, cy + float(spx) * 0.4)
+		var poly := PackedVector2Array([Vector2(c0.x - half + sk, c0.y - hh), Vector2(c0.x + half + sk, c0.y - hh),
+			Vector2(c0.x + half - sk, c0.y + hh), Vector2(c0.x - half - sk, c0.y + hh)])
+		b.overlay.draw_colored_polygon(poly, Color(0.0, 0.0, 0.02, 0.62 * alpha))
+		b.overlay.draw_line(poly[0], poly[1], Color(col.r, col.g, col.b, 0.9 * alpha), 3.0)
+		b.overlay.draw_line(poly[3], poly[2], Color(col.r, col.g, col.b, 0.9 * alpha), 3.0)
+	# 光の線（左右へ走る。はじめの0.5秒）
+	if age < 0.5:
+		var k := age / 0.5
+		var lc := Color(col.r, col.g, col.b, (1.0 - k) * 0.8 * alpha)
+		var lw := screen.x * (0.2 + 0.8 * k)
+		b.overlay.draw_line(Vector2(screen.x * 0.5 - lw * 0.5, cy - float(px) * 0.95), Vector2(screen.x * 0.5 + lw * 0.5, cy - float(px) * 0.95), lc, 2.0)
+	var title := str(st.get("title", ""))
+	var pop := 1.0 + 0.5 * maxf(0.0, 1.0 - age / 0.22)
+	var lv := pop_text(px, pop, text_pop_levels())
+	var w := b.font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"])).x * float(lv["k"])
+	var maxw := screen.x * 0.9
+	if w > maxw and w > 0.0:
+		lv["k"] = float(lv["k"]) * maxw / w
+		w = maxw
+	var shake := Vector2(sin(age * 61.0), cos(age * 47.0)) * float(st.get("shake_px", 4.0)) * maxf(0.0, 1.0 - age / 0.6)
+	var at := Vector2(screen.x * 0.5 - w * 0.5, cy) + shake
+	_scaled_string(b.font, at, title, lv, Color(0, 0, 0, 0), 24, Color(col.r, col.g, col.b, 0.3 * alpha))
+	var fill := Color.WHITE.lerp(col, float(st.get("fill_tint", 0.12)))
+	fill.a = alpha
+	_scaled_string(b.font, at, title, lv, fill, 8, Color(0.03, 0.0, 0.02, 0.9 * alpha))
+	var sub := str(st.get("sub", ""))
+	if sub != "":
+		var sw := b.font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, spx).x
+		var sp := Vector2(screen.x * 0.5 - sw * 0.5, cy + float(spx) * 1.35)
+		var sa := alpha * clampf((age - 0.2) / 0.25, 0.0, 1.0)
+		b.overlay.draw_string_outline(b.font, sp, sub, HORIZONTAL_ALIGNMENT_LEFT, -1, spx, 8, Color(0, 0, 0, 0.9 * sa))
+		b.overlay.draw_string(b.font, sp, sub, HORIZONTAL_ALIGNMENT_LEFT, -1, spx, Color(col.r, col.g, col.b, sa).lightened(0.3))
+
+
+## 版116：自分が倒れている時の板（画面の下のまん中）。DOWN・待つ／起こしてもらっている／もう起きられない・のこり時間の帯
+func _draw_my_status(screen: Vector2) -> void:
+	if b.get("revive_sys") == null:
+		return
+	var info: Dictionary = b.revive_sys.my_status_info()
+	if info.is_empty():
+		return
+	var rc: Dictionary = b.config.get("revive_ui", {})
+	var mode := str(info["mode"])
+	var col := Color(str(rc.get("color_" + mode, "#ff5a5a")))
+	var w := minf(screen.x * 0.86, float(rc.get("width_px", 520.0)))
+	var h := float(rc.get("height_px", 118.0))
+	var cy := screen.y * float(rc.get("y_frac_portrait" if is_portrait(screen) else "y_frac", 0.6))
+	var r := Rect2(Vector2(screen.x * 0.5 - w * 0.5, cy - h * 0.5), Vector2(w, h))
+	var sk := 14.0
+	var poly := PackedVector2Array([r.position + Vector2(sk, 0), Vector2(r.end.x, r.position.y), r.end - Vector2(sk, 0), Vector2(r.position.x, r.end.y)])
+	b.overlay.draw_colored_polygon(poly, Color(0.02, 0.02, 0.05, 0.82))
+	b.overlay.draw_colored_polygon(PackedVector2Array([poly[0], poly[0] + Vector2(7, 0), poly[3] + Vector2(7, 0), poly[3]]), col)
+	var loop := poly.duplicate()
+	loop.append(poly[0])
+	b.overlay.draw_polyline(loop, Color(col.r, col.g, col.b, 0.7), 2.0, true)
+	# 見出し（DOWN／REVIVING／K.O.）と説明
+	var head := str(rc.get("head_" + mode, "DOWN"))
+	var hpx := int(rc.get("head_px", 34))
+	var blink := 1.0 if mode != "wait" else 0.75 + 0.25 * sin(float(Time.get_ticks_msec()) * 0.008)
+	var hp := Vector2(r.position.x + sk + 22.0, r.position.y + float(hpx) + 8.0)
+	b.overlay.draw_string_outline(b.font, hp, head, HORIZONTAL_ALIGNMENT_LEFT, -1, hpx, 6, Color(0, 0, 0, 0.9))
+	b.overlay.draw_string(b.font, hp, head, HORIZONTAL_ALIGNMENT_LEFT, -1, hpx, Color(col.r, col.g, col.b, blink).lightened(0.15))
+	var note := str(info.get("text", ""))
+	var npx := int(rc.get("note_px", 20))
+	var nw := b.font.get_string_size(head, HORIZONTAL_ALIGNMENT_LEFT, -1, hpx).x
+	b.overlay.draw_string(b.font, hp + Vector2(nw + 16.0, -4.0), note, HORIZONTAL_ALIGNMENT_LEFT, r.end.x - hp.x - nw - 30.0, npx, Color(0.9, 0.93, 1.0))
+	# 帯（待つ：のこり時間が減る／起こしてもらっている：たまる）と数字
+	var bar := Rect2(Vector2(r.position.x + sk + 22.0, r.end.y - 34.0), Vector2(w - sk * 2.0 - 120.0, 14.0))
+	b.overlay.draw_rect(bar, Color(1, 1, 1, 0.12))
+	var frac := clampf(float(info.get("frac", 0.0)), 0.0, 1.0)
+	if frac > 0.0:
+		b.overlay.draw_rect(Rect2(bar.position, Vector2(bar.size.x * frac, bar.size.y)), col)
+	var num := str(info.get("num", ""))
+	if num != "":
+		var mpx := int(rc.get("num_px", 30))
+		var mp := Vector2(bar.end.x + 16.0, bar.end.y + 4.0)
+		b.overlay.draw_string_outline(b.font, mp, num, HORIZONTAL_ALIGNMENT_LEFT, -1, mpx, 6, Color(0, 0, 0, 0.9))
+		b.overlay.draw_string(b.font, mp, num, HORIZONTAL_ALIGNMENT_LEFT, -1, mpx, Color.WHITE)
+
+
+## 版116：小さなお知らせ（仲間が倒れた・復活した）。画面の上のまん中・角ばった板・新しい物で入れかえ
+func _draw_toast(screen: Vector2) -> void:
+	var tc: Dictionary = b.toast_cue
+	var left := float(tc.get("left", 0.0))
+	if left <= 0.0 or str(tc.get("text", "")) == "":
+		return
+	var age := float(tc["total"]) - left
+	var alpha := minf(clampf(age / 0.15, 0.0, 1.0), clampf(left / 0.3, 0.0, 1.0))
+	var px := int(b.config.get("toast_px", 24))
+	var text := str(tc["text"])
+	var w := b.font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 44.0
+	var h := float(px) + 20.0
+	var L: Dictionary = b.hp_hud.layout(screen)
+	var y := maxf(float(L["center_bottom"]) + 10.0, screen.y * 0.16)
+	var r := Rect2(Vector2(screen.x * 0.5 - w * 0.5, y), Vector2(w, h))
+	var sk := h * 0.35
+	var poly := PackedVector2Array([r.position + Vector2(sk, 0), Vector2(r.end.x, r.position.y), r.end - Vector2(sk, 0), Vector2(r.position.x, r.end.y)])
+	b.overlay.draw_colored_polygon(poly, Color(0.02, 0.03, 0.06, 0.8 * alpha))
+	var col := Color(str(b.config.get("toast_color", "#9fe8ff")))
+	b.overlay.draw_line(poly[3], poly[2], Color(col.r, col.g, col.b, 0.8 * alpha), 2.0)
+	b.overlay.draw_string(b.font, Vector2(r.position.x + 22.0, r.end.y - 10.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(1, 1, 1, alpha))

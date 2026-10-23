@@ -84,7 +84,7 @@ func _initialize() -> void:
 	hh.step(0.016)
 	var bv: Dictionary = hh.boss_view()
 	check(absf(float(bv["frac"]) - s.boss_hp / s.phase.max_hp()) < 0.0001 and int(bv["hp"]) == ceili(s.boss_hp) and int(bv["max"]) == int(s.phase.max_hp()), "ボスのメーターと数字は、本当の体力（%d / %d）" % [int(bv["hp"]), int(bv["max"])])
-	check(str(bv["label"]) == str(hc["boss"]["label"]) and (bv["color"] as Color).is_equal_approx(Color(str(hc["boss"]["bar_color"]))), "第1形態：BOSS・赤")
+	check(str(bv["label"]) == str(hc["boss"]["label"]).replace("BOSS", s.hp_hud.boss_name()) and (bv["color"] as Color).is_equal_approx(Color(str(hc["boss"]["bar_color"]))), "第1形態：ボスの名前（版116）・赤（%s）" % bv["label"])
 	var before: float = float(bv["frac"])
 	s.boss_hp = s.boss_hp - s.phase.max_hp() * 0.2
 	hh.step(0.016)
@@ -98,7 +98,7 @@ func _initialize() -> void:
 	s.boss_hp = s.phase.max_hp()
 	hh.step(0.016)
 	bv = hh.boss_view()
-	check(str(bv["label"]) == str(hc["boss"]["label_awake"]) and (bv["color"] as Color).is_equal_approx(Color(str(hc["boss"]["bar_color_awake"]))), "覚醒（第2形態）：%s・むらさき" % str(bv["label"]))
+	check(str(bv["label"]) == str(hc["boss"]["label_awake"]).replace("BOSS", s.hp_hud.boss_name()) and (bv["color"] as Color).is_equal_approx(Color(str(hc["boss"]["bar_color_awake"]))), "覚醒（第2形態）：%s・むらさき" % str(bv["label"]))
 	check(is_equal_approx(float(bv["trail"]), float(bv["frac"])), "満タンにもどる時は、帯もすぐ合わせる")
 	s.phase.phase = BossPhase.NORMAL
 

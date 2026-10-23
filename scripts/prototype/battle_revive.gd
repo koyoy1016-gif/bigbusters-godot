@@ -68,6 +68,8 @@ func update(delta: float) -> void:
 		if not bool(was_down.get(s, false)):
 			if logic.on_down(s, downs[s]):
 				log.append("down:" + s)
+				if s != me:
+					b.show_toast(str(b.config.get("toast_down", "%s ダウン")) % b.role_name_of(s))  # 版116：仲間が倒れた
 				_make_zone(s, downs[s])
 				b.audio.play("down")  # 版85：倒れた音
 	# ほかの方法で起きた人の輪は消す
@@ -116,6 +118,7 @@ func _revive(slot: String) -> void:
 		a["kb_guard"] = float(cfg().get("guard_sec", 1.5))
 	was_down.erase(slot)
 	log.append("revive:" + slot)
+	b.show_revived(slot)  # 版116：「復活！」の演出
 	_remove_zone(slot, true)
 	b.audio.play("revive")  # 版85：起きた音（上がるきらきら）
 
@@ -216,7 +219,26 @@ func _update_visuals(delta: float) -> void:
 			label.modulate = Color(1, 0.55, 0.5) if left < float(cfg().get("blink_sec", 5.0)) else Color.WHITE
 
 
-## 自分が倒れている時の、画面のまんなかの字（battle_hud.gd が描く）。なければ ""
+## 版116：自分が倒れている時の板の中身（battle_hud._draw_my_status が描く）。倒れていなければ {}。
+## {mode: wait（仲間を待つ）／progress（起こしてもらっている）／gone（もう起きられない）, text, frac（帯の長さ 0〜1）, num（数字）}
+func my_status_info() -> Dictionary:
+	var me := str(b._my_slot())
+	if not b.downed:
+		return {}
+	var z: Dictionary = logic.zones.get(me, {})
+	if z.is_empty():
+		if logic.expired.has(me):
+			return {"mode": "gone", "text": str(b.config.get("revive_gone_text", "")), "frac": 0.0, "num": ""}
+		return {}
+	if str(z["by"]) != "":
+		var left := maxf(0.0, logic.hold_sec() - float(z["progress"]))
+		return {"mode": "progress", "text": str(b.config.get("revive_me_progress_note", "")), "frac": clampf(float(z["progress"]) / logic.hold_sec(), 0.0, 1.0),
+			"num": "%.1f" % left}
+	return {"mode": "wait", "text": str(b.config.get("revive_me_wait", "")), "frac": clampf(float(z["left"]) / logic.window_sec(), 0.0, 1.0),
+		"num": "%d" % ceili(float(z["left"]))}
+
+
+## 自分が倒れている時の、画面のまんなかの字（前の形。テスト・記録用）。なければ ""
 func my_status() -> String:
 	var me := str(b._my_slot())
 	var z: Dictionary = logic.zones.get(me, {})
@@ -226,4 +248,5 @@ func my_status() -> String:
 		return str(b.config.get("revive_gone_text", "")) if logic.expired.has(me) else ""
 	if str(z["by"]) != "":
 		return str(b.config.get("revive_me_progress", "")) % maxf(0.0, logic.hold_sec() - float(z["progress"]))
-	return str(b.config.get("revive_me_wait", "")) % ceili(float(z["left"]))
+	var w := str(b.config.get("revive_me_wait", ""))
+	return (w % ceili(float(z["left"]))) if w.contains("%") else w + "（%d）" % ceili(float(z["left"]))

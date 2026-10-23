@@ -73,7 +73,7 @@ func refresh() -> void:
 
 ## 見た目を決める数（これが前のコマと同じなら、描き直さない）。party_views より軽い：同じ元の数だけを集める
 func signature(screen: Vector2) -> Array:
-	var sig: Array = [screen, snappedf(float(b.boss_hp_ratio()), 0.0005), snappedf(trail, 0.0005), b.phase.phase != BossPhase.NORMAL,
+	var sig: Array = [screen, snappedf(float(b.boss_hp_ratio()), 0.0005), snappedf(trail, 0.0005), b.phase.phase != BossPhase.NORMAL, bool(b.ai.angry),
 			ceili(maxf(float(b.my_hp), 0.0)), b.role_value("hp"), bool(b.downed), float(b.player_hit_flash) > 0.0, b.selected_character, b.hud_portraits.size()]
 	for slot in SLOTS:
 		if b.ai_allies.has(slot):
@@ -183,8 +183,15 @@ func boss_view() -> Dictionary:
 	var bc: Dictionary = cfg().get("boss", {})
 	var awake: bool = b.phase.phase != BossPhase.NORMAL
 	return {"frac": b.boss_hp_ratio(), "trail": trail, "awake": awake, "hp": ceili(maxf(float(b.boss_hp), 0.0)), "max": int(b.phase.max_hp()),
-			"label": str(bc.get("label_awake", "覚醒 BOSS")) if awake else str(bc.get("label", "BOSS")),
+			"label": (str(bc.get("label_awake", "覚醒 BOSS")) if awake else str(bc.get("label", "BOSS"))).replace("BOSS", boss_name()),
+			"angry": bool(b.ai.angry),
 			"color": Color(str(bc.get("bar_color_awake", "#b23cff"))) if awake else Color(str(bc.get("bar_color", "#e23b3b")))}
+
+
+## 版116：ボスの名前（敵の登場の名前と同じ。なければ BOSS）
+func boss_name() -> String:
+	var n := str((b.config.get("enemy_intro", {}) as Dictionary).get("name", ""))
+	return n if n != "" else "BOSS"
 
 
 ## 時間を進める（ボスの減った分の帯）
@@ -301,6 +308,15 @@ func _draw_boss(L: Dictionary) -> void:
 	# ラベル（BOSS／覚醒 BOSS）。数字は出さない（版95）
 	var fs := int(float(b.config["ui_font_size"]) * float(bc.get("text_size", 0.62)))
 	_text(Vector2(bar.position.x, bar.position.y - 6.0), str(v["label"]), fs, v["color"].lightened(0.35), 4)
+	# 版116：怒っている間（boss_rage）は、名前の右に赤い「激昂」
+	if bool(v.get("angry", false)):
+		var tag := str(bc.get("rage_tag", "激昂"))
+		var lw: float = b.font.get_string_size(str(v["label"]), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var tw: float = b.font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var tp := Vector2(bar.position.x + lw + 14.0, bar.position.y - 6.0)
+		var tr := Rect2(tp + Vector2(-6.0, -float(fs) - 1.0), Vector2(tw + 12.0, float(fs) + 6.0))
+		ci.draw_rect(tr, Color(str(bc.get("rage_color", "#e0281e"))))
+		_text(tp, tag, fs, Color.WHITE, 3)
 	# メーター：うしろ・おくれて縮む帯・いまの体力・つや
 	ci.draw_rect(bar.grow(2.0), Color(0, 0, 0, 0.85))
 	ci.draw_rect(bar, Color(str(bc.get("bar_back_color", "#3a1420"))))
