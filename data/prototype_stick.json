@@ -187,7 +187,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "110",
+  "build_id": "111",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -501,6 +501,9 @@
       "cell_h": 0.075
     }
   },
+  "_summon": "版111：呼び出した物（兵隊・ぬいぐるみ）。決まった回数を撃ち終わってから消えるまでの秒・戦いの場所のふちから離す距離（m）",
+  "summon_linger_sec": 0.5,
+  "summon_edge_margin": 0.4,
   "battle_buttons": {
     "_note": "版110：A・X・Y・必殺のボタン（画面の右下に2×2。同じ大きさ。下の段 Y・A、上の段 X・必殺。A は親指の休む右下）。中に大きく A／X／Y／必殺、その下に小さく技の名前。押すと短く光ってふくらむ。使えない時（待ち時間・技の最中・つかまれ中）は暗く、待ち時間の残りを暗い帯で出す。必殺はゲージを下からためる",
     "size": [

@@ -180,7 +180,8 @@ func _draw_buttons(screen: Vector2) -> void:
 		var ly := rect.position.y + rect.size.y * 0.52
 		b.overlay.draw_string_outline(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, 6, Color(0, 0, 0, 0.8))
 		b.overlay.draw_string(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, tc)
-		var nm := str(b.actions.def(key).get("name", ""))
+		var nx: String = b.actions.combo_next(key)  # 版111：続けて押せる間は、次の技の名前（兵隊の「ぬいぐるみ2体投げ」）
+		var nm := str(b.actions.def(nx if nx != "" else key).get("name", ""))
 		if nm != "" and not held:
 			var px := npx
 			var nw := b.font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x

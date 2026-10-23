@@ -256,6 +256,9 @@ def tremble(t0, t1, amp=2.0, period=0.08, bone_axis=2):
 
 
 # ------------------------------------------------------------------ ファイター（赤）
+RUSH_N = 10  # 版111：拳士の連打の数（20 → 10）
+
+
 def brawler():
     st = (FIGHT_F, FIGHT_B)  # 左足が前の、ボクシングの構え
     ready = P(GUARD, GUARD, spine=[8, -12, 0], head=[-6, 10, 0])
@@ -275,16 +278,18 @@ def brawler():
         (0.62, mix(ready, legR=KNEE_UP, spine=[0, 6, 0], plant="L")),
         (0.75, ready)], legs=st)
     xk = [(0.0, ready), (0.18, mix(ready, legL=LUNGE_F, legR=LUNGE_B, spine=[16, 0, 0]))]
-    for i in range(20):
+    # 版111：20連 → 10連（左右の拳を交互に9発、最後に右の大きな1発。動きと当たりは同じ時刻）
+    for i in range(RUSH_N):
         t = 0.27 + 0.1 * i
         left = i % 2 == 0
         tw = -24 if left else 24
         xk.append((t - 0.045, mix(ready, armL=GUARD, armR=GUARD, legL=LUNGE_F, legR=LUNGE_B, spine=[16, tw * 0.3, 0])))
-        if i == 19:
+        if i == RUSH_N - 1:
             xk.append((t, mix(ready, armR=GIANT, armL=PULL, legL=LUNGE_F, legR=LUNGE_B, spine=[22, 34, 0])))
         else:
             xk.append((t, mix(ready, armL=JAB if left else PULL, armR=PULL if left else CROSS, legL=LUNGE_F, legR=LUNGE_B, spine=[18, tw, 0])))
-    xk += [(2.3, mix(ready, armR=GIANT, armL=PULL, legL=LUNGE_F, legR=LUNGE_B, spine=[22, 34, 0])), (2.4 + 0.15, ready)]
+    rush_end = 0.27 + 0.1 * (RUSH_N - 1)
+    xk += [(rush_end + 0.13, mix(ready, armR=GIANT, armL=PULL, legL=LUNGE_F, legR=LUNGE_B, spine=[22, 34, 0])), (rush_end + 0.38, ready)]
     X = pose_anim(xk, legs=st)
     wind = mix(ready, armR=WIND, armL=((0.2, -0.3, 0.95), (-0.3, 0.6, 0.75)), legL=CROUCH_F, legR=CROUCH_B, spine=[-6, -38, 0], head=[-10, 20, 0])
     U = pose_anim([
@@ -302,10 +307,10 @@ def brawler():
         "sub": act("Y", 0.75, 4.0, [hit(0.38, 3.6, impact=IMPACT_S, fx={"kind": "blast", "color": "#ff8a4a", "radius": 1.2, "life": 0.22, "at": "front", "dist": 1.7, "size": 1.0})],
                    step(0.0, "Brawler_Y"), path_=path((0.0, 0.0, 0.0), (0.08, 0.0, 0.0), (0.3, 2.8, 0.0), (0.75, 3.0, 0.0)), i_frames=True,
                    radius_scale=1.4, name="ダッシュキック", note="しずんでから前へ踏みこみ、右足で前げり。踏みこむ間は無敵"),
-        "main": act("X", 2.55, 7.0, [hit(0.27 + 0.1 * i, 0.38, fx=hit_fx) for i in range(19)] +
-                    [hit(2.17, 1.6, impact=IMPACT_S, fx={"kind": "blast", "color": "#ff6a3a", "radius": 1.6, "life": 0.25, "at": "front", "dist": 1.8, "size": 1.2})],
-                    step(0.0, "Brawler_X"), path_=path((0.0, 0.0, 0.0), (0.2, 0.4, 0.0), (2.2, 1.2, 0.0), (2.55, 1.2, 0.0)), radius_scale=1.25,
-                    name="20連パンチ", note="左右の拳を交互に19発、最後に右の大きな1発。1発ずつ計算する。2秒以上その場に立つので、反撃を受けやすい"),
+        "main": act("X", round(rush_end + 0.38, 2), 7.0, [hit(0.27 + 0.1 * i, 0.38, fx=hit_fx) for i in range(RUSH_N - 1)] +
+                    [hit(rush_end, 1.6, impact=IMPACT_S, fx={"kind": "blast", "color": "#ff6a3a", "radius": 1.6, "life": 0.25, "at": "front", "dist": 1.8, "size": 1.2})],
+                    step(0.0, "Brawler_X"), path_=path((0.0, 0.0, 0.0), (0.2, 0.4, 0.0), (rush_end + 0.03, 1.2, 0.0), (rush_end + 0.38, 1.2, 0.0)), radius_scale=1.25,
+                    name="%d連パンチ" % RUSH_N, note="左右の拳を交互に%d発、最後に右の大きな1発。1発ずつ計算する（1発の強さは20連の時と同じ）" % (RUSH_N - 1)),
         "ultimate": act("必殺", 1.6, 0.0, [hit(0.9, 23.0, impact=IMPACT_ULT, fx={"kind": "blast", "color": "#ff5a2e", "radius": 3.0, "life": 0.45, "at": "front", "dist": 1.8, "size": 1.6})],
                         step(0.0, "Brawler_Ult"), i_frames=True, radius_scale=2.0, name="ギガトンブロー",
                         path_=path((0.0, 0.0, 0.0), (0.72, -0.3, 0.0), (0.88, 2.6, 0.0), (1.6, 2.6, 0.0)),
@@ -362,9 +367,9 @@ def sprinter():
         "normal": act("A", 0.25, 0.25, [hit(0.07, 1.0, fx={"size": 0.55})], step(0.0, "Sprinter_A"), from_cd=True, aim=False, stop=False, cleave=False,
                       name="高速ジャブ"),
         "sub": act("Y", 0.4, 8.0, [], step(0.0, "Sprinter_Y"), stop=False, aim=False, name="バニッシュ",
-                   effects=[{"t": 0.18, "type": "vanish", "sec": 3.0, "speed": 1.3, "bonus": 1.5, "color": "#5fd6ff"}],
+                   effects=[{"t": 0.18, "type": "vanish", "sec": 2.5, "speed": 1.3, "bonus": 1.5, "color": "#5fd6ff"}],  # 版111：3.0 → 2.5秒
                    fx=[{"t": 0.18, "kind": "ring", "color": "#5fd6ff", "radius": 1.8, "life": 0.35, "at": "self"}],
-                   note="姿が消える（青い残像と粒）。3秒、ボスの攻撃に当たらず、1.3倍の速さで動ける。攻撃すると現れ、その技のダメージが1.5倍"),
+                   note="姿が消える（青い残像と粒）。2.5秒、ボスの攻撃に当たらず、1.3倍の速さで動ける。攻撃すると現れ、その技のダメージが1.5倍"),
         "main": act("X", 0.7, 15.0, [], step(0.0, "Sprinter_X"), effects=[{"t": 0.35, "type": "speed_mode", "sec": 6.0, "mult": 1.75, "color": "#5fd6ff"}],
                     fx=[{"t": 0.35, "kind": "ring", "color": "#5fd6ff", "radius": 3.0, "life": 0.4, "at": "self"},
                         {"t": 0.35, "kind": "rise", "color": "#8fe8ff", "life": 0.8, "at": "self"}], aim=False, stop=False,
@@ -701,29 +706,46 @@ def summoner():
         (0.08, shoot),
         (0.12, mix(shoot, armR=((0.15, -0.15, 0.98), (-0.04, 0.3, 0.95)), spine=[-2, -6, 0])),   # 反動
         (0.28, shoot), (0.45, shoot)])
-    anims = {"Toy_A": A, "Toy_Y": Y, "Toy_X": X, "Toy_Ult": U, "Mini_Idle": MI, "Mini_March": MM, "Mini_Shoot": MS}
+    # 版111：続けて押した2回目の A：右手・左手の順に、ぬいぐるみを1体ずつ投げる（2体）
+    A2 = pose_anim([
+        (0.0, ready),
+        (0.08, mix(ready, armR=BACK, spine=[-6, -14, 0])),
+        (0.16, mix(ready, armR=THROW, spine=[12, 10, 0], legL=((0.06, -0.9, 0.4), (0.02, -1, -0.04)))),     # 右で投げる
+        (0.22, mix(ready, armR=FOLLOW, armL=BACK, spine=[4, 8, 0], legL=((0.06, -0.9, 0.4), (0.02, -1, -0.04)))),
+        (0.3, mix(ready, armR=FOLLOW, armL=THROW, spine=[12, -10, 0], legR=((0.06, -0.9, 0.4), (0.02, -1, -0.04)))),  # 左で投げる
+        (0.38, mix(ready, armL=FOLLOW, spine=[12, -10, 0], legR=((0.06, -0.9, 0.4), (0.02, -1, -0.04)))),
+        (0.5, ready)], legs=st)
+    anims = {"Toy_A": A, "Toy_A2": A2, "Toy_Y": Y, "Toy_X": X, "Toy_Ult": U, "Mini_Idle": MI, "Mini_March": MM, "Mini_Shoot": MS}
+    plush = lambda prop: proj("arc", "hand_R", speed=12.0, prop=prop, scale=PLUSH_THROW_SCALE, rng=10.0, arc=2.2, blast=1.2, spin=5.0, trail="#ffd0e0")
+    plush_l = lambda prop: proj("arc", "hand_L", speed=12.0, prop=prop, scale=PLUSH_THROW_SCALE, rng=10.0, arc=2.2, blast=1.2, spin=5.0, trail="#ffd0e0")
+    plush_fx = {"kind": "blast", "color": "#ffd0e0", "radius": 1.2, "life": 0.22}
+    # 版111：攻撃の時は、少し下がる（敵から離れる。戦いの場所の外へは出ない：stick_prototype・ai_ally が止める）
+    back_a = path((0.0, 0.0, 0.0), (0.1, -0.15, 0.0), (0.26, -0.45, 0.0), (0.4, -0.45, 0.0))
+    back_a2 = path((0.0, 0.0, 0.0), (0.16, -0.25, 0.0), (0.38, -0.55, 0.0), (0.5, -0.55, 0.0))
+    back_x = path((0.0, 0.0, 0.0), (0.2, -0.3, 0.0), (0.5, -0.7, 0.0), (1.0, -0.7, 0.0))
+    back_u = path((0.0, 0.0, 0.0), (0.25, -0.3, 0.0), (1.1, -0.9, 0.0), (1.6, -0.9, 0.0))
+    normal = act("A", 0.4, 0.4, [hit(0.18, 1.3, proj=plush("plush_bear"), fx=plush_fx)], step(0.0, "Toy_A"),
+                 from_cd=True, stop=False, path_=back_a, name="ぬいぐるみ投げ",
+                 note="小さなくまのぬいぐるみを1体投げる（10m まで、落ちた所の半径1.2m）。続けて押すと（0.8秒以内）、2回目は2体投げる")
+    normal["combo"] = {"next": "normal2", "window_sec": 0.8}
     acts = {
-        "normal": act("A", 0.4, 0.4, [hit(0.18, 1.3, proj=proj("arc", "hand_R", speed=12.0, prop="plush_bear", scale=PLUSH_THROW_SCALE, rng=10.0, arc=2.2, blast=1.2, spin=5.0, trail="#ffd0e0"),
-                                      fx={"kind": "blast", "color": "#ffd0e0", "radius": 1.2, "life": 0.22})], step(0.0, "Toy_A"),
-                      from_cd=True, stop=False, name="ぬいぐるみ投げ", note="小さなくまのぬいぐるみを投げる（10m まで、落ちた所の半径1.2m）"),
-        "sub": act("Y", 0.8, 10.0, [], step(0.0, "Toy_Y"), stop=False,
-                   effects=[{"t": 0.3, "type": "summon", "unit": "plush", "count": 2, "sec": 8.0, "interval": 0.8, "multiplier": 0.6, "speed": 5.5,
-                             "reach": 1.0, "max_active": 9, "spread": 1.8, "unit_height": PLUSH_UNIT_HEIGHT}],
-                   fx=[{"t": 0.3, "kind": "ring", "color": "#f2b6c6", "radius": 2.0, "life": 0.4, "at": "self"}],
-                   name="ぬいぐるみの突撃", note="ぬいぐるみを2体呼ぶ（8秒。敵へ跳ねて行き、0.8秒ごとにたたく）"),
-        "main": act("X", 1.0, 16.0, [], step(0.0, "Toy_X"), stop=False,
-                    effects=[{"t": 0.45, "type": "summon", "unit": "soldier", "count": 3, "sec": 10.0, "interval": 0.9, "multiplier": 0.55, "speed": 4.5,
-                              "reach": 1.0, "max_active": 9, "spread": 2.2}],
+        "normal": normal,
+        # 版111：A を続けて押した2回目（ボタンはない。player_actions.start が normal から切りかえる）
+        "normal2": act("A", 0.5, 0.5, [hit(0.16, 1.3, proj=plush("plush_bunny"), side=-0.5, fx=plush_fx),
+                                       hit(0.3, 1.3, proj=plush_l("plush_bear2"), side=0.5, fx=plush_fx)],
+                       step(0.0, "Toy_A2"), stop=False, path_=back_a2, name="ぬいぐるみ2体投げ",
+                       note="A を続けて押した2回目：右手・左手でぬいぐるみを1体ずつ投げる（1体ずつ A と同じ強さ。2回当たる）"),
+        "main": act("X", 1.0, 8.0, [], step(0.0, "Toy_X"), stop=False, path_=back_x,
+                    effects=[{"t": 0.45, "type": "summon", "unit": "soldier", "count": 4, "attacks": 2, "formation": "line",
+                              "sec": 8.0, "first": 0.9, "interval": 0.7, "multiplier": 1.0, "speed": 4.5, "reach": 1.0, "max_active": 12, "spread": 2.2}],
                     fx=[{"t": 0.45, "kind": "ring", "color": "#ffd24a", "radius": 3.0, "life": 0.5, "at": "self"}],
-                    name="兵隊よ、進め！", note="小さいおもちゃの兵隊を3人呼ぶ（10秒）。重ならずに並び、立ち上がり、敵へ行進して、小さな弾を撃つ。本体の攻撃力には足さない"),
-        "ultimate": act("必殺", 1.6, 0.0, [], step(0.0, "Toy_Ult"), i_frames=True, stop=False, name="おもちゃの大行進",
-                        effects=[{"t": 1.1, "type": "summon", "unit": "soldier", "count": 6, "sec": 9.0, "interval": 0.7, "multiplier": 0.5, "speed": 5.0,
-                                  "reach": 1.0, "max_active": 12, "spread": 2.8},
-                                 {"t": 1.15, "type": "summon", "unit": "plush", "count": 3, "sec": 9.0, "interval": 0.6, "multiplier": 0.5, "speed": 6.5,
-                                  "reach": 1.1, "max_active": 12, "spread": 1.6, "unit_height": PLUSH_UNIT_HEIGHT}],
+                    name="小隊召集", note="小さいおもちゃの兵隊を4人呼ぶ。並んで立ち上がり、敵へ行進して、そろって2回撃つ（1人2発）。撃ち終わったら消える（8秒たっても消える）。本体の攻撃力には足さない"),
+        "ultimate": act("必殺", 1.6, 0.0, [], step(0.0, "Toy_Ult"), i_frames=True, stop=False, path_=back_u, name="兵隊包囲攻撃",
+                        effects=[{"t": 1.1, "type": "summon", "unit": "soldier", "count": 8, "attacks": 2, "formation": "surround",
+                                  "ring": 3.0, "sec": 6.0, "first": 0.9, "interval": 0.7, "multiplier": 2.3, "speed": 5.0, "reach": 1.0, "max_active": 12}],
                         fx=[{"t": 1.1, "kind": "ring", "color": "#ffd24a", "radius": 5.0, "life": 0.6, "at": "self"},
                             {"t": 1.1, "kind": "confetti", "life": 1.2, "at": "self"}],
-                        note="兵隊6人とぬいぐるみ3体の大行進（9秒）"),
+                        note="兵隊8人を、ねらう敵のまわりに輪にして呼ぶ（戦いの場所の中）。そろって2回撃つ（1人2発）。撃ち終わったら消える"),
     }
     return acts, anims
 
@@ -919,7 +941,20 @@ def anim_overrides():
 
 
 def total(a, ap):
-    return sum(h["multiplier"] for h in a.get("hits", [])) * ap
+    """全部当たった時の合計。版111：呼び出し（攻撃の回数が決まった物）は、人数 × 回数 × 倍率も足す"""
+    t = sum(h["multiplier"] for h in a.get("hits", [])) * ap
+    for e in a.get("effects", []):
+        if e.get("type") == "summon" and e.get("attacks", 0) > 0:
+            t += e["count"] * e["attacks"] * e["multiplier"] * ap
+    return t
+
+
+def count_hits(a):
+    n = len(a.get("hits", []))
+    for e in a.get("effects", []):
+        if e.get("type") == "summon" and e.get("attacks", 0) > 0:
+            n += e["count"] * e["attacks"]
+    return n
 
 
 def main():
@@ -933,24 +968,30 @@ def main():
         acts, anims = build(cid)
         data["characters"][cid] = dict({"_meta": META[cid]}, **acts)
         ap = float(stats[cid]["attack_power"])
-        for key, lab in (("normal", "A"), ("main", "X"), ("ultimate", "必殺")):
+        for key, lab in (("normal", "A"), ("normal2", "A（続けて2回目）"), ("main", "X"), ("ultimate", "必殺")):
+            if key not in acts:
+                continue
             a = acts[key]
             hs = a.get("hits", [])
             effs = ", ".join(e["type"] for e in a.get("effects", []))
-            one = hs[0]["multiplier"] * ap if hs else 0.0
+            sm = [e for e in a.get("effects", []) if e.get("type") == "summon" and e.get("attacks", 0) > 0]
+            one = hs[0]["multiplier"] * ap if hs else (sm[0]["multiplier"] * ap if sm else 0.0)
             cd = float(stats[cid]["attack_cooldown_sec"]) if key == "normal" else a["cooldown_sec"]
             shape = ("飛ぶ物（%s）" % hs[0]["proj"]["mode"]) if hs and "proj" in hs[0] else (hs[0].get("shape", "melee") if hs else "-")
-            rows.append((NAMES[cid], META[cid]["role"], lab, a["name"], len(hs), one, total(a, ap), cd, a["duration_sec"], shape, effs))
+            if sm and not hs:
+                shape = "呼び出し（%d人 × %d回）" % (sm[0]["count"], sm[0]["attacks"])
+            rows.append((NAMES[cid], META[cid]["role"], lab, a["name"], count_hits(a), one, total(a, ap), cd, a["duration_sec"], shape, effs))
     (ROOT / "data/char_actions.json").write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    md = ["# キャラごとの攻撃（版110）", "",
-          "版110：Y は全キャラ共通の回避（data/actions.json の sub。待ち1.2秒・よけられる時間0.02〜0.34秒）。キャラの技は A・X・必殺。", "",
+    md = ["# キャラごとの攻撃（版111）", "",
+          "版110：Y は全キャラ共通の回避（data/actions.json の sub。待ち1.2秒・よけられる時間0.02〜0.34秒）。キャラの技は A・X・必殺。",
+          "版111：兵隊（A を続けて押した2回目は2体投げ・X 小隊召集・必殺 兵隊包囲攻撃。呼び出しは人数×回数が決まっていて、撃ち終わったら消える）・拳士 10連パンチ・瞬の透明 2.5秒。", "",
           "tools/make_char_actions.py が作る表。ダメージ = 攻撃力 × 倍率（四捨五入しない値）。ゲージ制の必殺技は待ち時間 0。",
           "飛ぶ物（銃弾・魔法・プレゼント・矢・いん石）は、当たった時にダメージが入る。呼び出し（ぬいぐるみ・兵隊）は、1回ごとに 攻撃力×倍率。",
           "剣士（基準・変えない）：A 単純斬り 22.5（0.35秒）／X 五段斬り 18×5＝90（6秒）／必殺 切り捨て御免 346.5（Y のかわし斬りは版110で共通の回避に）", "",
           "| キャラ | 役 | ボタン | 技 | 当たる回数 | 1回 | 合計 | 待ち時間（秒） | 長さ（秒） | 当たりの形 | 効果 |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         md.append("| %s | %s | %s | %s | %d | %.2f | %.2f | %.2f | %.2f | %s | %s |" % r)
-    (ROOT / "docs/char-actions-v110.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+    (ROOT / "docs/char-actions-v111.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print("chars", list(data["characters"]))
 
 

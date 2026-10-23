@@ -2,7 +2,7 @@ extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_v78.gd
 ## 版78：8人の味方の、キャラごとの攻撃（A・Y・X・必殺）。data/char_actions.json・scripts/combat/skill_hits.gd・scripts/prototype/battle_skills.gd。
 ## 確かめること：剣士は変わらない／キャラを選ぶと、そのキャラの攻撃になる／当たりの形（ビーム・爆発・まわり）／ダブルビームは2本とも当たる／
-## 20連パンチは20回／超高速モード・ドーム・回復・蘇生・時間停止・呼び出しの効果／回復に乱数がない／動き（アニメ）が全部ある
+## 10連パンチは10回（版111）／超高速モード・ドーム・回復・蘇生・時間停止・呼び出しの効果／回復に乱数がない／動き（アニメ）が全部ある
 
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const Actions := preload("res://scripts/combat/player_actions.gd")
@@ -112,10 +112,10 @@ func _initialize() -> void:
 
 	# ---- 4. 決まりの技 ----
 	var f := make("brawler")
-	check((f.actions.def("main")["hits"] as Array).size() == 20, "ファイター：20連パンチは20回")
+	check((f.actions.def("main")["hits"] as Array).size() == 10, "拳士：10連パンチは10回（版111：20連 → 10連）")
 	var d20 := run_action(f, "main", 0.8)
-	var w20 := (19.0 * 0.38 + 1.6) * ap("brawler")  # 版79：19発＋しめの大きな1発
-	check(is_equal_approx(d20, w20), "20連パンチは、1発ずつ計算して全部当たると %.1f（%.1f）" % [w20, d20])
+	var w20 := (9.0 * 0.38 + 1.6) * ap("brawler")  # 版111：9発＋しめの大きな1発（1発の強さは20連の時と同じ）
+	check(is_equal_approx(d20, w20), "10連パンチは、1発ずつ計算して全部当たると %.1f（%.1f）" % [w20, d20])
 	f.queue_free()
 
 	var g := make("gunner")

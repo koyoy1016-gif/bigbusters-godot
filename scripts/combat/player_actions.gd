@@ -26,6 +26,10 @@ var _fx_i := 0
 var _eff_i := 0
 ## 版78：待ち時間の減る速さ（スピードファイターの超高速モードで 1.75）
 var cd_rate := 1.0
+## 版111：続けて押した時の、次の技（combo：{"next": 次の技の id, "window_sec": 終わってから何秒以内}）。
+## combo_from の技が終わってから combo_left 秒の間に、同じ技を押すと、次の技になる（兵隊の A の2回目＝2体投げ）
+var combo_from := ""
+var combo_left := 0.0
 
 
 func _init(config: Dictionary = {}) -> void:
@@ -128,6 +132,13 @@ func start(id: String, aim_dir: Vector2, cooldown_override: float = -1.0, force:
 		cancel()
 	elif not can_start(id):
 		return false
+	var base_id := id
+	var nxt := combo_next(id)
+	if not force and nxt != "":
+		id = nxt  # 版111：続けて押した2回目は、次の技（待ち時間はその技の物）
+		cooldown_override = -1.0
+	combo_from = ""
+	combo_left = 0.0
 	var d := def(id)
 	var cd := cooldown_override if cooldown_override > 0.0 else float(d.get("cooldown_sec", 1.0))
 	active = id
@@ -135,6 +146,8 @@ func start(id: String, aim_dir: Vector2, cooldown_override: float = -1.0, force:
 	duration = cd if bool(d.get("duration_from_cooldown", false)) else float(d.get("duration_sec", 1.0))
 	aim = aim_dir.normalized() if aim_dir.length() > 0.001 else Vector2(0.0, -1.0)
 	cooldowns[id] = cd
+	if base_id != id:
+		cooldowns[base_id] = cd  # ボタン（もとの技）にも、待ち時間を出す
 	_hit_i = 0
 	_step_i = 0
 	_mark_i = 0
@@ -148,8 +161,18 @@ func start(id: String, aim_dir: Vector2, cooldown_override: float = -1.0, force:
 	return true
 
 
+## 版111：いま id を押したら、続けて押した時の次の技になるか。なるなら、その id。ならなければ ""
+func combo_next(id: String) -> String:
+	if combo_left <= 0.0 or combo_from != id:
+		return ""
+	var nxt := str((def(id).get("combo", {}) as Dictionary).get("next", ""))
+	return nxt if not def(nxt).is_empty() else ""
+
+
 ## 途中でやめる（ダウン、つかまれた、戦いが終わった）。待ち時間は、そのまま残る
 func cancel() -> void:
+	combo_from = ""
+	combo_left = 0.0
 	active = ""
 	frame_move = Vector2.ZERO
 	height = 0.0
@@ -168,6 +191,8 @@ func update(delta: float) -> Array:
 	for id in cooldowns.keys():
 		cooldowns[id] = maxf(0.0, float(cooldowns[id]) - delta * cd_rate)
 	frame_move = Vector2.ZERO
+	if combo_left > 0.0 and not busy():
+		combo_left = maxf(0.0, combo_left - delta)
 	if not busy():
 		var out := _queue
 		_queue = []
@@ -180,6 +205,10 @@ func update(delta: float) -> Array:
 	_last_fwd = off.x
 	height = off.y
 	if t >= duration:
+		# 版111：続けて押せる技なら、終わってから少しの間、次の技を受けつける
+		var combo: Dictionary = d.get("combo", {})
+		combo_from = active if not combo.is_empty() else ""
+		combo_left = float(combo.get("window_sec", 0.0)) if not combo.is_empty() else 0.0
 		active = ""
 		height = 0.0
 	var events := _queue

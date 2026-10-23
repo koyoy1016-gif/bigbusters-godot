@@ -39,9 +39,9 @@
    },
    "main": {
     "label": "X",
-    "name": "20連パンチ",
+    "name": "10連パンチ",
     "cooldown_sec": 7.0,
-    "duration_sec": 2.55,
+    "duration_sec": 1.55,
     "move_scale": 0.0,
     "aim_boss": true,
     "cleave": true,
@@ -112,76 +112,6 @@
      },
      {
       "t": 1.17,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 1.27,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 1.37,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 1.47,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 1.57,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 1.67,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 1.77,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 1.87,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 1.97,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 2.07,
-      "multiplier": 0.38,
-      "fx": {
-       "size": 0.7
-      }
-     },
-     {
-      "t": 2.17,
       "multiplier": 1.6,
       "impact": [
        0.04,
@@ -218,18 +148,18 @@
       "h": 0.0
      },
      {
-      "t": 2.2,
+      "t": 1.2,
       "fwd": 1.2,
       "h": 0.0
      },
      {
-      "t": 2.55,
+      "t": 1.5499999999999998,
       "fwd": 1.2,
       "h": 0.0
      }
     ],
     "stop_at_boss": true,
-    "note": "左右の拳を交互に19発、最後に右の大きな1発。1発ずつ計算する。2秒以上その場に立つので、反撃を受けやすい"
+    "note": "左右の拳を交互に9発、最後に右の大きな1発。1発ずつ計算する（1発の強さは20連の時と同じ）"
    },
    "ultimate": {
     "label": "必殺",
@@ -401,13 +331,13 @@
      {
       "t": 0.18,
       "type": "vanish",
-      "sec": 3.0,
+      "sec": 2.5,
       "speed": 1.3,
       "bonus": 1.5,
       "color": "#5fd6ff"
      }
     ],
-    "note": "姿が消える（青い残像と粒）。3秒、ボスの攻撃に当たらず、1.3倍の速さで動ける。攻撃すると現れ、その技のダメージが1.5倍"
+    "note": "姿が消える（青い残像と粒）。2.5秒、ボスの攻撃に当たらず、1.3倍の速さで動ける。攻撃すると現れ、その技のダメージが1.5倍"
    },
    "ultimate": {
     "label": "必殺",
@@ -2206,15 +2136,139 @@
       "speed": 1.0
      }
     ],
-    "path": [],
+    "path": [
+     {
+      "t": 0.0,
+      "fwd": 0.0,
+      "h": 0.0
+     },
+     {
+      "t": 0.1,
+      "fwd": -0.15,
+      "h": 0.0
+     },
+     {
+      "t": 0.26,
+      "fwd": -0.45,
+      "h": 0.0
+     },
+     {
+      "t": 0.4,
+      "fwd": -0.45,
+      "h": 0.0
+     }
+    ],
     "stop_at_boss": false,
     "duration_from_cooldown": true,
-    "note": "小さなくまのぬいぐるみを投げる（10m まで、落ちた所の半径1.2m）"
+    "note": "小さなくまのぬいぐるみを1体投げる（10m まで、落ちた所の半径1.2m）。続けて押すと（0.8秒以内）、2回目は2体投げる",
+    "combo": {
+     "next": "normal2",
+     "window_sec": 0.8
+    }
+   },
+   "normal2": {
+    "label": "A",
+    "name": "ぬいぐるみ2体投げ",
+    "cooldown_sec": 0.5,
+    "duration_sec": 0.5,
+    "move_scale": 0.0,
+    "aim_boss": true,
+    "cleave": true,
+    "radius_scale": 1.0,
+    "hits": [
+     {
+      "t": 0.16,
+      "multiplier": 1.3,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_R",
+       "speed": 12.0,
+       "prop": "plush_bunny",
+       "scale": 1.4,
+       "size": 0.2,
+       "range": 10.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 1.5,
+       "arc": 2.2,
+       "blast": 1.2,
+       "spin": 5.0,
+       "trail": "#ffd0e0"
+      },
+      "side": -0.5,
+      "fx": {
+       "kind": "blast",
+       "color": "#ffd0e0",
+       "radius": 1.2,
+       "life": 0.22
+      }
+     },
+     {
+      "t": 0.3,
+      "multiplier": 1.3,
+      "proj": {
+       "mode": "arc",
+       "from": "hand_L",
+       "speed": 12.0,
+       "prop": "plush_bear2",
+       "scale": 1.4,
+       "size": 0.2,
+       "range": 10.0,
+       "radius": 0.2,
+       "aim_h": 0.45,
+       "color": "#ffffff",
+       "life": 1.5,
+       "arc": 2.2,
+       "blast": 1.2,
+       "spin": 5.0,
+       "trail": "#ffd0e0"
+      },
+      "side": 0.5,
+      "fx": {
+       "kind": "blast",
+       "color": "#ffd0e0",
+       "radius": 1.2,
+       "life": 0.22
+      }
+     }
+    ],
+    "steps": [
+     {
+      "t": 0.0,
+      "anim": "Toy_A2",
+      "speed": 1.0
+     }
+    ],
+    "path": [
+     {
+      "t": 0.0,
+      "fwd": 0.0,
+      "h": 0.0
+     },
+     {
+      "t": 0.16,
+      "fwd": -0.25,
+      "h": 0.0
+     },
+     {
+      "t": 0.38,
+      "fwd": -0.55,
+      "h": 0.0
+     },
+     {
+      "t": 0.5,
+      "fwd": -0.55,
+      "h": 0.0
+     }
+    ],
+    "stop_at_boss": false,
+    "note": "A を続けて押した2回目：右手・左手でぬいぐるみを1体ずつ投げる（1体ずつ A と同じ強さ。2回当たる）"
    },
    "main": {
     "label": "X",
-    "name": "兵隊よ、進め！",
-    "cooldown_sec": 16.0,
+    "name": "小隊召集",
+    "cooldown_sec": 8.0,
     "duration_sec": 1.0,
     "move_scale": 0.0,
     "aim_boss": true,
@@ -2228,7 +2282,28 @@
       "speed": 1.0
      }
     ],
-    "path": [],
+    "path": [
+     {
+      "t": 0.0,
+      "fwd": 0.0,
+      "h": 0.0
+     },
+     {
+      "t": 0.2,
+      "fwd": -0.3,
+      "h": 0.0
+     },
+     {
+      "t": 0.5,
+      "fwd": -0.7,
+      "h": 0.0
+     },
+     {
+      "t": 1.0,
+      "fwd": -0.7,
+      "h": 0.0
+     }
+    ],
     "stop_at_boss": false,
     "fx_events": [
      {
@@ -2245,21 +2320,24 @@
       "t": 0.45,
       "type": "summon",
       "unit": "soldier",
-      "count": 3,
-      "sec": 10.0,
-      "interval": 0.9,
-      "multiplier": 0.55,
+      "count": 4,
+      "attacks": 2,
+      "formation": "line",
+      "sec": 8.0,
+      "first": 0.9,
+      "interval": 0.7,
+      "multiplier": 1.0,
       "speed": 4.5,
       "reach": 1.0,
-      "max_active": 9,
+      "max_active": 12,
       "spread": 2.2
      }
     ],
-    "note": "小さいおもちゃの兵隊を3人呼ぶ（10秒）。重ならずに並び、立ち上がり、敵へ行進して、小さな弾を撃つ。本体の攻撃力には足さない"
+    "note": "小さいおもちゃの兵隊を4人呼ぶ。並んで立ち上がり、敵へ行進して、そろって2回撃つ（1人2発）。撃ち終わったら消える（8秒たっても消える）。本体の攻撃力には足さない"
    },
    "ultimate": {
     "label": "必殺",
-    "name": "おもちゃの大行進",
+    "name": "兵隊包囲攻撃",
     "cooldown_sec": 0.0,
     "duration_sec": 1.6,
     "move_scale": 0.0,
@@ -2274,7 +2352,28 @@
       "speed": 1.0
      }
     ],
-    "path": [],
+    "path": [
+     {
+      "t": 0.0,
+      "fwd": 0.0,
+      "h": 0.0
+     },
+     {
+      "t": 0.25,
+      "fwd": -0.3,
+      "h": 0.0
+     },
+     {
+      "t": 1.1,
+      "fwd": -0.9,
+      "h": 0.0
+     },
+     {
+      "t": 1.6,
+      "fwd": -0.9,
+      "h": 0.0
+     }
+    ],
     "stop_at_boss": false,
     "banner_sec": 1.6,
     "fx_events": [
@@ -2306,32 +2405,21 @@
       "t": 1.1,
       "type": "summon",
       "unit": "soldier",
-      "count": 6,
-      "sec": 9.0,
+      "count": 8,
+      "attacks": 2,
+      "formation": "surround",
+      "ring": 3.0,
+      "sec": 6.0,
+      "first": 0.9,
       "interval": 0.7,
-      "multiplier": 0.5,
+      "multiplier": 2.3,
       "speed": 5.0,
       "reach": 1.0,
-      "max_active": 12,
-      "spread": 2.8
-     },
-     {
-      "t": 1.15,
-      "type": "summon",
-      "unit": "plush",
-      "count": 3,
-      "sec": 9.0,
-      "interval": 0.6,
-      "multiplier": 0.5,
-      "speed": 6.5,
-      "reach": 1.1,
-      "max_active": 12,
-      "spread": 1.6,
-      "unit_height": 1.6
+      "max_active": 12
      }
     ],
     "i_frames": true,
-    "note": "兵隊6人とぬいぐるみ3体の大行進（9秒）"
+    "note": "兵隊8人を、ねらう敵のまわりに輪にして呼ぶ（戦いの場所の中）。そろって2回撃つ（1人2発）。撃ち終わったら消える"
    }
   },
   "healer": {

@@ -26,6 +26,7 @@ const Actions := preload("res://scripts/combat/player_actions.gd")
 const DrawWarm := preload("res://scripts/fx/draw_warm.gd")
 
 var b: StickPrototype  ## まとめ役（stick_prototype.gd）
+var _squad_seq := 0  ## 版111：1回の呼び出し（小隊）の番号。同じ小隊は、そろって撃つ
 
 
 func _init(main: StickPrototype) -> void:
@@ -660,31 +661,61 @@ func _update_ghosts(delta: float) -> void:
 # ---------------------------------------------------------------- 呼び出し（おもちゃの兵隊）
 
 ## 呼び出す。unit：plush（ぬいぐるみ：跳ねて近づき、たたく）・soldier（小さい兵隊：行進して近づき、小さな弾を撃つ）。
-## 重ならないように、使った人のまわりに輪のように出し、それぞれ少しずつちがう時刻で動く
+## 版111：formation：line（使った人の前に、扇のように並ぶ。いままで）・surround（ねらう敵のまわりに、輪にして出す。ring＝敵のふちからの距離）。
+## attacks：1体が攻撃する回数（0 なら時間まで）。全員そろって撃ち（少しだけずらす）、撃ち終わったら消える。sec は消えるまでの最長の秒
 func _summon(slot: String, spec: Dictionary, ap: float) -> void:
 	var n := int(spec.get("count", 3))
 	var maxn := int(spec.get("max_active", n))
-	var mine: Array = b.skill_summons.filter(func(u: Dictionary) -> bool: return str(u["owner"]) == slot)
+	var mine: Array = b.skill_summons.filter(func(u: Dictionary) -> bool: return str(u["owner"]) == slot and float(u["life"]) > 0.0)
 	while mine.size() + n > maxn and not mine.is_empty():
 		var old: Dictionary = mine.pop_front()
 		old["life"] = 0.0
-	var origin := pos_of(slot)
-	var aim := aim_of(slot).normalized()
-	if aim.length() < 0.1:
-		aim = Vector2(0, -1)
-	var base_ang := atan2(aim.y, aim.x)
+	var attacks := int(spec.get("attacks", 0))
+	var places := summon_places(slot, spec, n)
+	_squad_seq += 1
 	for i in n:
-		var ang := base_ang + (float(i) - (n - 1) * 0.5) * (PI * 0.9 / maxf(n - 1, 1))
-		var spread := float(spec.get("spread", 1.6))
-		var p := origin + Vector2(cos(ang), sin(ang)) * spread
-		var u := {"owner": slot, "pos": p, "life": float(spec.get("sec", 10.0)), "age": 0.0, "delay": 0.12 * i,
-			"next": float(spec.get("first", 0.8)) + 0.23 * i, "interval": float(spec.get("interval", 1.0)) * (1.0 + 0.08 * (i % 3)),
+		var p: Vector2 = places[i]["pos"]
+		# 出てくる時のずれ（delay）。回数の決まった小隊は、ずれを小さくして、そろって撃つ（ずれ＝撃つ時のずれ）
+		var u := {"owner": slot, "pos": p, "life": float(spec.get("sec", 10.0)), "age": 0.0, "delay": (0.04 if attacks > 0 else 0.12) * i,
+			"next": float(spec.get("first", 0.8)) + (0.0 if attacks > 0 else 0.23 * i),
+			"interval": float(spec.get("interval", 1.0)) * (1.0 if attacks > 0 else 1.0 + 0.08 * (i % 3)),
 			"mult": float(spec.get("multiplier", 0.6)), "ap": ap, "speed": float(spec.get("speed", 5.0)) * (0.92 + 0.08 * (i % 3)),
 			"reach": float(spec.get("reach", 1.0)), "unit": str(spec.get("unit", "plush")), "slot_i": i, "n": n,
+			"attacks_left": attacks if attacks > 0 else -1, "ang": places[i].get("ang", null), "ring": float(spec.get("ring", 0.0)),
+			"squad": _squad_seq, "in_reach": false,
 			"hop": float(i) * 0.37, "node": null, "view": null, "state": "", "unit_height": float(spec.get("unit_height", 0.0))}
 		u["node"] = _make_unit(u, i)
 		b.skill_summons.append(u)
 		spawn_at({"kind": "smoke", "life": 0.6, "color": "#fff3d8"}, Vector3(p.x, b.ground_y, p.y), Vector3(p.x, b.ground_y, p.y))
+
+
+## 版111：呼び出す場所（n 個）。[{pos, ang（敵から見た角度。surround の時だけ）}]。戦いの場所（±bounds）の中にする
+func summon_places(slot: String, spec: Dictionary, n: int) -> Array:
+	var out: Array = []
+	var half := float(b.config.get("bounds", 15.0)) - float(b.config.get("summon_edge_margin", 0.4))
+	var origin := pos_of(slot)
+	var tgt := target_of(slot)
+	if str(spec.get("formation", "line")) == "surround" and not tgt.is_empty():
+		var c := Vector2(float(tgt["x"]), float(tgt["z"]))
+		var ring := float(tgt["r"]) + float(spec.get("ring", 3.0))
+		var to_me := origin - c
+		var a0 := atan2(to_me.y, to_me.x) if to_me.length() > 0.01 else PI * 0.5
+		for i in n:
+			var ang := a0 + TAU * float(i) / float(n)
+			var p := c + Vector2(cos(ang), sin(ang)) * ring
+			p = Vector2(clampf(p.x, -half, half), clampf(p.y, -half, half))
+			out.append({"pos": p, "ang": ang})
+		return out
+	var aim := aim_of(slot).normalized()
+	if aim.length() < 0.1:
+		aim = Vector2(0, -1)
+	var base_ang := atan2(aim.y, aim.x)
+	var spread := float(spec.get("spread", 1.6))
+	for i in n:
+		var ang := base_ang + (float(i) - (n - 1) * 0.5) * (PI * 0.9 / maxf(n - 1, 1))
+		var p := origin + Vector2(cos(ang), sin(ang)) * spread
+		out.append({"pos": Vector2(clampf(p.x, -half, half), clampf(p.y, -half, half))})
+	return out
 
 
 func _make_unit(u: Dictionary, i: int) -> Node3D:
@@ -754,6 +785,11 @@ func warm_mini() -> void:
 
 
 func _update_summons(delta: float) -> void:
+	# 版111：回数の決まった小隊は、全員が届く所に着いてから、そろって撃つ（前のコマの「届くか」で決める）
+	var squad_ready := {}
+	for u in b.skill_summons:
+		if int(u.get("attacks_left", -1)) > 0:
+			squad_ready[u["squad"]] = bool(squad_ready.get(u["squad"], true)) and bool(u.get("in_reach", false))
 	var keep: Array = []
 	for u in b.skill_summons:
 		u["life"] = float(u["life"]) - delta
@@ -773,11 +809,16 @@ func _update_summons(delta: float) -> void:
 		var to := Vector2.ZERO
 		if not tgt.is_empty() and age > (0.6 if soldier else 0.35):  # 兵隊は、立ち上がってから動く
 			var c := Vector2(float(tgt["x"]), float(tgt["z"]))
-			# 敵のまわりに、並んで立つ（それぞれ少しずつちがう角度）
-			var dir0 := (p - c).normalized() if (p - c).length() > 0.01 else Vector2(0, 1)
-			var ang := atan2(dir0.y, dir0.x) + (float(u["slot_i"]) - float(u["n"]) * 0.5) * 0.12
-			var stand := float(tgt["r"]) + float(u["reach"]) * (0.8 if not soldier else 3.5)
+			# 敵のまわりに、並んで立つ（それぞれ少しずつちがう角度）。版111：角度は最初に1回だけ決める
+			# （前は毎コマ、今の角度からずらしていたので、敵のまわりを回り続けていた）
+			if u.get("ang") == null:
+				var dir0 := (p - c).normalized() if (p - c).length() > 0.01 else Vector2(0, 1)
+				u["ang"] = atan2(dir0.y, dir0.x) + (float(u["slot_i"]) - float(u["n"] - 1) * 0.5) * 0.12
+			var ang := float(u["ang"])
+			var stand := float(tgt["r"]) + (float(u["ring"]) if float(u["ring"]) > 0.0 else float(u["reach"]) * (0.8 if not soldier else 3.5))
 			var goal := c + Vector2(cos(ang), sin(ang)) * stand
+			var half := float(b.config.get("bounds", 15.0)) - float(b.config.get("summon_edge_margin", 0.4))
+			goal = Vector2(clampf(goal.x, -half, half), clampf(goal.y, -half, half))
 			to = c - p
 			if p.distance_to(goal) > 0.15:
 				var stepv := (goal - p).normalized() * minf(float(u["speed"]) * delta, p.distance_to(goal))
@@ -786,8 +827,16 @@ func _update_summons(delta: float) -> void:
 				moving = true
 			u["next"] = float(u["next"]) - delta
 			var in_reach := (p - c).length() <= float(tgt["r"]) + (float(u["reach"]) + 0.4 if not soldier else float(u["reach"]) * 4.0 + 0.6)
-			if float(u["next"]) <= 0.0 and in_reach and not b.phase.invulnerable():
+			u["in_reach"] = in_reach
+			if int(u["attacks_left"]) > 0 and not bool(squad_ready.get(u["squad"], true)):
+				u["next"] = maxf(float(u["next"]), 0.001 + 0.03 * float(u["slot_i"]))  # なかまを待つ（全員が着いたら、少しずつずらして撃つ）
+			if float(u["next"]) <= 0.0 and in_reach and not b.phase.invulnerable() and int(u["attacks_left"]) != 0:
 				u["next"] = float(u["interval"])
+				if int(u["attacks_left"]) > 0:
+					# 版111：決まった回数を撃ったら、少しして消える（弾が飛ぶ間・撃つ姿が見える間だけ残る）
+					u["attacks_left"] = int(u["attacks_left"]) - 1
+					if int(u["attacks_left"]) == 0:
+						u["life"] = minf(float(u["life"]), float(b.config.get("summon_linger_sec", 0.5)))
 				var dmg := Damage.damage_amount(float(u["ap"]), float(b.config["attack_multiplier"]) * float(u["mult"]) * dealt_mult(str(u["owner"])))
 				if soldier:
 					# 小さな弾を撃つ（当たった時にダメージ）

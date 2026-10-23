@@ -206,7 +206,7 @@ func _initialize() -> void:
 	ty.perform("main")
 	tick(ty, 0.6)
 	var soldiers: Array = ty.skill_summons.filter(func(u: Dictionary) -> bool: return str(u["unit"]) == "soldier")
-	check(soldiers.size() == 3, "X：兵隊が3人出る")
+	check(soldiers.size() == 4, "X（版111 小隊召集）：兵隊が4人出る")
 	var min_d := 99.0
 	for i in soldiers.size():
 		for j in range(i + 1, soldiers.size()):
@@ -220,10 +220,10 @@ func _initialize() -> void:
 		var d: float = (u["pos"] as Vector2).distance_to(Vector2(ty.boss.position.x, ty.boss.position.z))
 		if d < float(ty.config["boss_size"]) * 0.5 + 6.0:
 			near += 1
-	check(near == 3, "兵隊は、敵の近くまで行進する")
+	check(near == 4, "兵隊は、敵の近くまで行進する")
 	check(ty.my_hits - h0 > 0.0, "兵隊が小さな弾を撃って、ダメージを与える（%.1f）" % (ty.my_hits - h0))
 	tick(ty, 7.0)
-	check(ty.skill_summons.is_empty(), "時間がたつと、兵隊は退場する")
+	check(ty.skill_summons.is_empty(), "撃ち終わると（または時間がたつと）、兵隊は退場する")
 	ty.queue_free()
 
 	# ---- 6. 守りの膜・回復の膜・回復の光 ----

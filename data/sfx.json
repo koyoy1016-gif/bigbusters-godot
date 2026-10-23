@@ -308,6 +308,14 @@
       "throw",
       "hit"
     ],
+    "plush_bunny": [
+      "throw",
+      "hit"
+    ],
+    "plush_bear2": [
+      "throw",
+      "hit"
+    ],
     "bullet_small": [
       "",
       "hit"
