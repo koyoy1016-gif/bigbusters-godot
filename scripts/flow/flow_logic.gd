@@ -1,6 +1,7 @@
 extends RefCounted
 ## 画面の流れの決まりごと（画面を持たない計算だけ。テストしやすい）。
-## タイトル → ロビー → 戦い → ハイライト → 報酬 → （さいせん → 戦い／つぎへ → さいせん → 戦い／ロビー）
+## 版109：はじめの画面（アカウントを選ぶ）→ ロビー → 戦い → 結果（勝ち負け・コイン）→（ハイライト → 結果）／
+##        再戦 → 再戦の準備（START を押すまで始めない）→ 戦い／ロビー
 
 const TITLE := "title"
 const LOBBY := "lobby"
@@ -14,6 +15,7 @@ const FRIENDS := "friends"
 const ROOM := "room"  # 版81：へやの画面（ロビーの右端「へやを つくる」から）
 const START := "start"  # 版82：はじめの画面（新しく作る・ログイン・ログインせずに遊ぶ）
 const GACHA := "gacha"  # 版83：剣士を引っぱって斬るガチャ
+const READY := "rematch_ready"  # 版109：再戦の準備（START を押すまで、戦いを始めない）
 
 const TRANSITIONS := {
 	"title": {"loaded": "lobby", "start": "start"},
@@ -24,10 +26,11 @@ const TRANSITIONS := {
 	"account": {"back": "lobby"},
 	"friends": {"back": "lobby"},
 	"formation": {"back": "lobby"},
-	"battle": {"ended": "highlight"},
+	"battle": {"ended": "reward"},
 	"highlight": {"done": "reward"},
-	"reward": {"rematch": "battle", "next": "next", "lobby": "lobby"},
-	"next": {"rematch": "battle", "lobby": "lobby"},
+	"reward": {"highlight": "highlight", "rematch": "rematch_ready", "lobby": "lobby"},
+	"rematch_ready": {"start": "battle", "lobby": "lobby"},
+	"next": {"rematch": "rematch_ready", "lobby": "lobby"},
 }
 
 
@@ -37,16 +40,13 @@ static func next_state(state: String, event: String) -> String:
 	return str(table.get(event, state))
 
 
-## 版82：タイトルのあと、はじめの画面を出すか。online：ログインの仕組みがある（ブラウザ）。status：ログインの準備の状態。
-## 戻り値："wait"（まだ準備中。少し待つ）・"start"（はじめの画面）・"lobby"（ログインずみ・またはログインの仕組みがない）
-static func after_title(online: bool, status: String, signed_in: bool, waited_sec: float, max_wait_sec: float, offline_start: bool) -> String:
+## 版109：はじめの画面（アカウントを選ぶ）のボタンを、押せるようにしてよいか。
+## online：ログインの仕組みがある（ブラウザ）。status：ログインの準備の状態。準備中（idle・pending）は待つ。
+## 長く待っても準備ができなければ（max_wait_sec）、押せるようにする（ゲストで遊べる）。ログインの仕組みがない所は、すぐ
+static func start_ready(online: bool, status: String, waited_sec: float, max_wait_sec: float) -> bool:
 	if not online:
-		return "start" if offline_start else "lobby"
-	if signed_in:
-		return "lobby"
-	if status in ["idle", "pending", ""] and waited_sec < max_wait_sec:
-		return "wait"
-	return "start"
+		return true
+	return not (status in ["idle", "pending", ""]) or waited_sec >= max_wait_sec
 
 
 ## 報酬のコイン（倒したら多く、全滅でも少しもらえる）
@@ -141,7 +141,7 @@ static func phase_of(state_name: String, waiting_ready: bool) -> String:
 	match state_name:
 		BATTLE:
 			return "battle"
-		HIGHLIGHT, REWARD, NEXT:
+		HIGHLIGHT, REWARD, NEXT, READY:
 			return "result"
 		LOBBY, ROOM, START, GACHA:
 			return "ready" if waiting_ready else "lobby"

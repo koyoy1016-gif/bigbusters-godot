@@ -1,7 +1,8 @@
 extends SceneTree
 ## 版81：ロビーの写真を撮る（見た目の確認用）。
 ## xvfb-run -a -s "-screen 0 1280x1280x24" godot --rendering-driver opengl3 --resolution 648x1152 --path . --script res://tools/shot_lobby.gd -- 出力.png [画面の名前] [回す回数]
-## 画面の名前：lobby（ふつう）・picker（ステージを選ぶ）・room（へや）・formation（編成）・start（はじめの画面）・guest（ゲストの確かめ）・profile（プロフィール）・iconpick（アイコンを選ぶ）
+## 画面の名前：lobby（ふつう）・picker（ステージを選ぶ）・room（へや）・formation（編成）・start（はじめの画面）・guest（ゲストの確かめ）・profile（プロフィール）・iconpick（アイコンを選ぶ）・
+##   版109：result_win／result_lose（結果）・ready（再戦の準備）
 ## 版82：顔の絵ができるまで待つ（4つめの数：待つコマ数）
 const SCENE := "res://scenes/game_flow.tscn"
 
@@ -70,6 +71,15 @@ func _initialize() -> void:
 					var n := 5 if mode == "gacha_dash" else 200
 					for k in n:
 						await process_frame
+		"result_win", "result_lose":
+			# 版109：結果の画面（コインは写真のためだけに付ける。保存はテスト用の場所）
+			flow.config["save_path"] = "user://shot_save.json"
+			flow._match_serial += 1
+			flow.last_won = mode == "result_win"
+			flow.highlight_info = {"points": []} if mode == "result_win" else {}
+			flow.goto("reward")
+		"ready":
+			flow.goto("rematch_ready")
 		"profile", "iconpick":
 			flow.event("account")
 			if mode == "iconpick":

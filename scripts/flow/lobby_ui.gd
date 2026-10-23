@@ -13,6 +13,7 @@ const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const CharacterData := preload("res://scripts/characters/character_data.gd")
 const Logic := preload("res://scripts/flow/flow_logic.gd")
 const SaveData := preload("res://scripts/flow/save_data.gd")
+const RoleLabel := preload("res://scripts/ui/role_label.gd")
 
 var f: Node  # game_flow.gd
 var root: Control
@@ -353,7 +354,9 @@ func _build_bottom() -> void:
 	role_pill.add_child(role_label)
 	pill_holder.add_child(role_pill)
 	ncol.add_child(pill_holder)
-	f.lobby_char = UiKit.outline(_label("", int(f.config["lobby_name_font_size"]) + 6, Color.WHITE, true), 8)
+	# 版109：名前は、役職のラベル（役職の色の札。scripts/ui/role_label.gd）
+	f.lobby_char = RoleLabel.new().setup("", Color.WHITE, bold, int(f.config["lobby_name_font_size"]) + 4)
+	f.lobby_char.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	ncol.add_child(f.lobby_char)
 	name_row.add_child(ncol)
 	var right := icon_button("right", "", asz, 1, Color(str(_k("arrow_color", "#0e1526a0"))), func(): rotate_team(-1), int(asz.x / 2))
@@ -751,6 +754,8 @@ func refresh() -> void:
 	var cdef := CharacterData.find(f.characters_cfg, str(f.selected_character))
 	# 役は色の札に、名前は大きな字に
 	f.lobby_char.text = str(cdef["name"]) if not cdef.is_empty() else ""
+	if not cdef.is_empty():
+		f.lobby_char.color = Color(str(cdef.get("role_color", "#ffffff")))
 	role_label.text = str(cdef["role"]) if not cdef.is_empty() else ""
 	role_pill.visible = not cdef.is_empty()
 	if not cdef.is_empty():

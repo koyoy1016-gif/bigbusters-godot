@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="bigbusters-godot"
+config/name="BIGBLAST"
 run/main_scene="res://scenes/render_test.tscn"
 run/main_scene.firebase_check="res://scenes/experiments/firebase_check.tscn"
 run/main_scene.room_screen="res://scenes/experiments/room_screen.tscn"

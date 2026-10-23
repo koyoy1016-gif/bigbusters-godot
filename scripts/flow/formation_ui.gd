@@ -17,6 +17,7 @@ const CharacterData := preload("res://scripts/characters/character_data.gd")
 const Actions := preload("res://scripts/combat/player_actions.gd")
 const Roster := preload("res://scripts/flow/roster.gd")
 const Logic := preload("res://scripts/flow/flow_logic.gd")
+const RoleLabel := preload("res://scripts/ui/role_label.gd")
 
 var f: Node
 var lobby_ui: RefCounted
@@ -239,8 +240,9 @@ func _build_detail() -> Control:
 	stars.add_theme_constant_override("separation", 2)
 	rrow.add_child(stars)
 	info.add_child(rrow)
-	var name_l := _label("", 36, Color.WHITE, true)
-	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	# 版109：名前は、役職のラベル（役職の色の札）
+	var name_l: Control = RoleLabel.new().setup("", Color.WHITE, UiKit.bold(f.font, 0.75), 32)
+	name_l.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	info.add_child(name_l)
 	var role_row := HBoxContainer.new()
 	var role_holder := PanelContainer.new()
@@ -478,7 +480,8 @@ func _refresh_detail(t: Array) -> void:
 		var si := LobbyIcon.new("star", _rarity_color(r).lightened(0.2))
 		si.custom_minimum_size = Vector2(24, 24)
 		stars.add_child(si)
-	(detail["name"] as Label).text = str(d.get("name", id))
+	detail["name"].text = str(d.get("name", id))
+	detail["name"].color = Color(str(d.get("role_color", "#ffffff")))
 	var role := str(d.get("role", ""))
 	(detail["role"] as Label).text = role
 	var rc: Color = lobby_ui.role_color(role)

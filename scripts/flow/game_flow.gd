@@ -1,5 +1,6 @@
 extends Node
-## 画面の流れ：タイトル → ロビー → 戦い → ハイライト → 報酬 → さいせん／ロビー（縦画面を先に作る。横でも動く）。
+## 画面の流れ（版109 BIGBLAST）：はじめの画面（アカウントを選ぶ）→ ロビー → 戦い → 結果（勝ち負け・コイン）→
+## ハイライト（見たい時）／再戦 → 再戦の準備（START）→ 戦い／ロビー（縦画面を先に作る。横でも動く）。
 ## 戦いは、試作（stick_prototype）をそのまま使う。メニューの画面は、このスクリプトがコードで作る。
 ## 決まりごとは flow_logic.gd、数値と文字は data/game_flow.json、保存は save_data.gd。
 
@@ -29,13 +30,14 @@ const SettingsUI := preload("res://scripts/flow/settings_ui.gd")
 const AudioSettings := preload("res://scripts/audio/audio_settings.gd")
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const FancyRect := preload("res://scripts/ui/fancy_rect.gd")
+const ResultUI := preload("res://scripts/flow/result_ui.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
 const CONFIG_PATH := "res://data/game_flow.json"
 const BATTLE_SCENE := "res://scenes/prototype/stick_prototype.tscn"
 const BENCH_SCENE := "res://scenes/prototype/crowd_bench.tscn"
 
 var config: Dictionary = {}
-var state := Logic.TITLE
+var state := Logic.START
 var save: Dictionary = {}
 var font: Font
 var layer: CanvasLayer
@@ -53,7 +55,6 @@ var audio_settings: Dictionary = {}  # 版85：音の大きさ（音楽・効果
 var settings_ui: RefCounted = null  # 版85：プロフィールの「せってい」
 var perf_overlay: CanvasLayer = null  # 重さの表示（URL に ?perf=1 のときだけ）
 
-var title_label: Label
 var lobby_info: Label
 var stage_label: Label
 var play_button: Button
@@ -68,7 +69,7 @@ var quality_name := "low"
 var quality_button: Button
 var characters_cfg: Dictionary = {}
 var selected_character := ""
-var lobby_char: Label
+var lobby_char: Control  ## 版109：役職のラベル（role_label.gd。text と color）
 var ai_picks: Array = []
 var room_code := ""
 var room_from_url := false
@@ -120,6 +121,9 @@ var formation_ui: RefCounted = null  ## 版82：編成の画面（formation_ui.g
 var start_ui: RefCounted = null  ## 版82：はじめの画面（start_ui.gd）
 var profile_ui: RefCounted = null  ## 版82：プロフィールの上の部分（profile_ui.gd）
 var gacha_ui: RefCounted = null  ## 版83：ガチャの画面（gacha_ui.gd）
+var result_ui: RefCounted = null  ## 版109：結果と再戦の準備の画面（result_ui.gd）
+var _match_serial := 0  ## 版109：終わった試合の番号（コインを1試合に1回だけ付けるため）
+var _rewarded_serial := 0  ## 版109：コインを付けた試合の番号
 
 
 static func load_config(path: String = CONFIG_PATH) -> Dictionary:
@@ -179,7 +183,7 @@ func _ready() -> void:
 		get_tree().root.size_changed.connect(_fit_lobby_camera)
 	if OS.has_feature("web") and str(js_eval.call("new URLSearchParams(window.location.search).get('perf') || ''")) != "":
 		show_perf()
-	goto(Logic.TITLE)
+	goto(Logic.START)  # 版109：最初から、アカウントを選ぶ画面（TOKYO の読み込み画面はやめた）
 
 
 ## 縦横に合わせて、文字・ボタンの基準の大きさを変える
@@ -347,12 +351,6 @@ func _build_panels() -> void:
 	var big: Array = config["button_min_size"]
 	var small: Array = config["small_button_min_size"]
 
-	# タイトル
-	var t := _make_panel(Logic.TITLE)
-	title_label = _make_label(str(config["title_text"]), int(config["title_font_size"]), Color(str(config["title_color"])))
-	t.add_child(title_label)
-	t.add_child(_make_label(str(config["title_loading"]), text_size, text_color))
-
 	# ロビー（版81：3Dのキャラを主役にした画面。くわしくは _build_lobby）
 	_build_lobby()
 	# はじめの画面（版82）
@@ -405,27 +403,16 @@ func _build_panels() -> void:
 	var replay_holder := CenterContainer.new()
 	replay_holder.add_child(highlight_replay)
 	h.add_child(replay_holder)
-	h.add_child(_make_button(str(config["next_label"]), big, func(): event("done")))
+	h.add_child(_make_button(str((config.get("v109", {}) as Dictionary).get("highlight_back", "結果へ もどる")), big, func(): event("done")))
 
-	# 報酬
-	var r := _make_panel(Logic.REWARD)
-	r.add_child(_make_label(str(config["reward_title"]), heading, Color(str(config["title_color"]))))
-	reward_label = _make_label("", heading, Color(1.0, 0.85, 0.4))
-	r.add_child(reward_label)
-	rematch_button_reward = _make_button(str(config["rematch_label"]), big, func(): event("rematch"))
-	r.add_child(rematch_button_reward)
-	rematch_wait_reward = _make_label("", 28, Color(1.0, 0.85, 0.4))
-	r.add_child(rematch_wait_reward)
-	r.add_child(_make_button(str(config["next_label"]), big, func(): event("next")))
-	r.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
-
-	# つぎへ（さいせん／ロビー）
-	var n := _make_panel(Logic.NEXT)
-	rematch_button_next = _make_button(str(config["rematch_label"]), big, func(): event("rematch"))
-	n.add_child(rematch_button_next)
-	rematch_wait_next = _make_label("", 28, Color(1.0, 0.85, 0.4))
-	n.add_child(rematch_wait_next)
-	n.add_child(_make_button(str(config["lobby_label"]), big, func(): event("lobby")))
+	# 版109：結果（VICTORY／DEFEAT・コイン・使ったキャラ・ハイライト・再戦・ロビー）と、再戦の準備（START）。result_ui.gd
+	result_ui = ResultUI.new(self)
+	result_ui.build()
+	reward_label = result_ui.coins_label
+	rematch_button_reward = result_ui.rematch_button
+	rematch_wait_reward = result_ui.wait_label
+	rematch_button_next = result_ui.start_button
+	rematch_wait_next = result_ui.ready_wait_label
 
 
 	# 版83：ガチャ（剣士を引っぱって斬る）
@@ -473,13 +460,15 @@ func _build_panels() -> void:
 
 ## 状態を切り替える：その画面だけ出す。戦いに入るときは戦いを作り、出るときは片づける
 func goto(new_state: String) -> void:
-	if new_state == Logic.HIGHLIGHT:
-		_capture_result()
-	if new_state == Logic.REWARD:
+	if new_state == Logic.REWARD and state == Logic.BATTLE:
+		_capture_result()  # 戦いから結果へ：ハイライトの元・ベストアタッカーを控える（ほかの人の数が届いたあと）
+	if new_state in [Logic.REWARD, Logic.READY]:
 		post_time = 0.0
 		if rematch_button_reward != null:
 			rematch_button_reward.visible = true
 			rematch_button_next.visible = true
+	if state == Logic.READY and new_state != Logic.READY and result_ui != null:
+		result_ui.leave_ready()
 	if new_state != Logic.LOBBY:
 		waiting_ready = false
 	var state_was := state
@@ -546,9 +535,15 @@ func goto(new_state: String) -> void:
 			if not highlight_info.is_empty():
 				highlight_replay.setup(highlight_info["points"], highlight_info["boss"], float(highlight_info["bounds"]), highlight_info["color"], highlight_info["config"], config, highlight_info.get("character", {}), highlight_info.get("boss_track", []))
 		Logic.REWARD:
-			reward_label.text = str(config["reward_coin_prefix"]) + str(last_reward)
-			if last_reward > 0 and menu_sfx != null:
+			# 版109：コインは1試合に1回だけ（結果をもう一度出しても・ハイライトから戻っても、ふえない）
+			var first := _rewarded_serial != _match_serial
+			if first:
+				_give_reward()
+			result_ui.show_result(last_won, last_reward, selected_character, not highlight_info.is_empty())
+			if first and last_reward > 0 and menu_sfx != null:
 				menu_sfx.play("coin")
+		Logic.READY:
+			result_ui.show_ready([selected_character] + ai_picks)
 	_scroll_friendly_panel(new_state)
 
 
@@ -567,18 +562,18 @@ func event(name_text: String) -> void:
 	var next_state := Logic.next_state(state, name_text)
 	if next_state == state:
 		return
-	if state == Logic.HIGHLIGHT and name_text == "done":
-		_give_reward()
 	if name_text == "lobby" and _room_battle():
 		# ロビーに戻る：全員をロビーに戻す（部屋は続く）
 		battle.send_rematch_vote("lobby")
-	if name_text == "rematch" and _room_battle():
-		# 通信中は、全員が「さいせん」を選んだときだけ始まる
-		my_rematch_vote = true
-		battle.send_rematch_vote("rematch")
-		return
-	if next_state == Logic.BATTLE and name_text == "rematch":
-		_rematch_pending = true
+	if name_text == "start" and state == Logic.READY:
+		if _room_battle():
+			# 版109：通信中は、全員が START を押したときだけ始まる（START＝再戦の投票）
+			if not my_rematch_vote:
+				my_rematch_vote = true
+				battle.send_rematch_vote("rematch")
+				rematch_button_next.disabled = true
+			return
+		_rematch_pending = true  # 1人の時：START で、新しい戦いを作って、すぐ始める
 	goto(next_state)
 
 
@@ -770,12 +765,12 @@ func _room_battle() -> bool:
 
 ## ハイライト・報酬・つぎへの間は、部屋に残す（戦いは休止）
 func _keeps_room(new_state: String) -> bool:
-	return _room_battle() and new_state in [Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT]
+	return _room_battle() and new_state in [Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT, Logic.READY]
 
 
 func _on_round_started() -> void:
 	# ほかの人が（または自分が）新しい戦いを始めた。休止中なら、戦いに戻る
-	if battle != null and battle.dormant and state in [Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT]:
+	if battle != null and battle.dormant and state in [Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT, Logic.READY]:
 		goto(Logic.BATTLE)
 	_on_music_cue("battle")
 
@@ -841,7 +836,7 @@ func _rematch_update(delta: float) -> void:
 		rematch_wait_reward.text = text
 		rematch_wait_next.text = text
 		return
-	if state != Logic.HIGHLIGHT:
+	if state in [Logic.REWARD, Logic.NEXT, Logic.READY]:
 		post_time += delta
 		if post_time >= float(config["rematch_timeout_sec"]):
 			battle.send_rematch_vote("lobby")
@@ -984,7 +979,7 @@ func _on_displaced() -> void:
 	waiting_ready = false
 	leave_room()
 	phase_sent = ""
-	if state in [Logic.BATTLE, Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT]:
+	if state in [Logic.BATTLE, Logic.HIGHLIGHT, Logic.REWARD, Logic.NEXT, Logic.READY]:
 		goto(Logic.LOBBY)
 	displaced_box.visible = true
 
@@ -1335,6 +1330,7 @@ func _end_battle_node() -> void:
 
 func _on_round_ended(won_flag: bool) -> void:
 	last_won = won_flag
+	_match_serial += 1  # 版109：新しい試合の結果（報酬はこの番号で1回だけ）
 	_on_music_cue("win" if won_flag else "lose")
 	_result_timer = float(config["result_show_sec"])
 	_capture_result()
@@ -1357,7 +1353,11 @@ func _write_save() -> void:
 		account.set_save(save)
 
 
+## 試合の報酬（勝ち50・負け25。data/game_flow.json）。1試合に1回だけ（_match_serial で数える）
 func _give_reward() -> void:
+	if _rewarded_serial == _match_serial:
+		return
+	_rewarded_serial = _match_serial
 	last_reward = Logic.reward_coins(last_won, int(config["reward_win_coins"]), int(config["reward_lose_coins"]))
 	save["coins"] = int(save.get("coins", 0)) + last_reward
 	if last_won:
@@ -1378,11 +1378,8 @@ func _process(delta: float) -> void:
 		if toast_time <= 0.0:
 			toast_label.text = ""
 	match state:
-		Logic.TITLE:
-			if state_time >= float(config["title_sec"]):
-				_leave_title()
 		Logic.START:
-			start_ui.poll()
+			start_ui.poll(delta)
 		Logic.BATTLE:
 			# 「さいせん」のときは、戦いの画面の用意ができしだい、すぐ始める（最初の1回は、画面の「はじめる」を押す）
 			if _rematch_pending and battle != null and not battle.config.is_empty():
@@ -1393,7 +1390,7 @@ func _process(delta: float) -> void:
 				if _result_timer <= 0.0:
 					_result_timer = -1.0
 					event("ended")
-		Logic.REWARD, Logic.NEXT:
+		Logic.REWARD, Logic.NEXT, Logic.READY:
 			if _room_battle():
 				_rematch_update(delta)
 		Logic.HIGHLIGHT:
@@ -1404,22 +1401,9 @@ func _process(delta: float) -> void:
 				event("done")
 
 
-## 版82：タイトルのあと：ログインずみ（またはログインの仕組みがない）ならロビー、そうでなければ、はじめの画面
-func _leave_title() -> void:
-	var st := account_state
-	var next: String = Logic.after_title(account != null, str(st.get("status", "")), bool(st.get("signedIn", false)),
-		state_time - float(config["title_sec"]), float(config.get("start_wait_sec", 4.0)), bool(config.get("start_offline", false)))
-	if next == "wait":
-		return
-	event("loaded" if next == "lobby" else "start")
-
-
-## タイトルは、タッチで飛ばせる
 func _unhandled_input(ev: InputEvent) -> void:
 	if state == Logic.LOBBY and lobby_ui != null and lobby_ui.on_key(ev):
 		return
-	if state == Logic.TITLE and (ev is InputEventScreenTouch or ev is InputEventMouseButton) and ev.is_pressed():
-		if bgm != null:
-			bgm.start()
-		state_time = maxf(state_time, float(config["title_sec"]))
-		_leave_title()
+	# 版109：はじめの画面でも、最初のタッチで音楽を流せるようにする（ブラウザは、タッチのあとに音を出せる）
+	if state == Logic.START and (ev is InputEventScreenTouch or ev is InputEventMouseButton) and ev.is_pressed() and bgm != null:
+		bgm.start()

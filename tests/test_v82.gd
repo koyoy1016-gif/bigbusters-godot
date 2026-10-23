@@ -36,6 +36,27 @@ func texts_in(n: Node, out: Array) -> void:
 		texts_in(c, out)
 
 
+## 版109：ブラウザのログインの仕組みのまね（読むだけ・入力欄を開いた記録）
+class FakeAccount extends RefCounted:
+	var st: Dictionary = {}
+	var forms: Array = []
+
+	func read_state() -> Dictionary:
+		return st
+
+	func claim_session() -> void:
+		pass
+
+	func announce(_code: String, _slot: String) -> void:
+		pass
+
+	func show_form(kind: String, _forms: Variant) -> void:
+		forms.append(kind)
+
+	func set_save(_save: Dictionary) -> void:
+		pass
+
+
 func make_flow(offline_start: bool) -> Node:
 	var flow: Node = (load(SCENE) as PackedScene).instantiate()
 	flow.config = Flow.load_config()
@@ -82,21 +103,36 @@ func _initialize() -> void:
 	check(flow.add_owned("sprinter") and flow.owned.has("sprinter") and SaveData.load_save(TEMP_SAVE)["owned"].has("sprinter"), "キャラを手に入れると、保存される（ガチャで使う）")
 	check(not flow.add_owned("sprinter"), "同じキャラは2回足さない")
 
-	# ---- 3. はじめの画面 ----
-	check(Logic.after_title(true, "pending", false, 0.5, 4.0, false) == "wait", "ログインの準備中は、少し待つ")
-	check(Logic.after_title(true, "ok", true, 0.0, 4.0, false) == "lobby", "ログインずみなら、ロビーへ")
-	check(Logic.after_title(true, "ok", false, 0.0, 4.0, false) == "start", "ログインしていなければ、はじめの画面")
-	check(Logic.after_title(true, "pending", false, 5.0, 4.0, false) == "start", "準備が長すぎたら、はじめの画面")
-	check(Logic.after_title(false, "", false, 0.0, 4.0, false) == "lobby", "ログインの仕組みがない所（テスト・アプリ2）は、ロビーへ")
-	flow._process(0.5)
-	flow._process(2.0)
-	check(flow.state == "start" and flow.panels["start"].visible and not flow.panels["lobby"].visible, "タイトルのあと、はじめの画面")
+	# ---- 3. はじめの画面（版109：アカウントを選ぶ画面。ゲームを開くと、最初にこれ。TOKYO の読み込み画面はない） ----
+	check(not Logic.start_ready(true, "pending", 0.5, 4.0) and not Logic.start_ready(true, "idle", 0.5, 4.0), "ログインの準備中は、ボタンを押せない")
+	check(Logic.start_ready(true, "ok", 0.0, 4.0), "ログインの準備ができたら、押せる")
+	check(Logic.start_ready(true, "pending", 5.0, 4.0), "準備が長すぎたら、押せる（ゲストで あそべる）")
+	check(Logic.start_ready(false, "", 0.0, 4.0), "ログインの仕組みがない所（テスト・アプリ2）は、すぐ")
+	check(flow.state == "start" and flow.panels["start"].visible and not flow.panels["lobby"].visible, "最初から、アカウントを選ぶ画面")
 	var st_texts: Array = []
 	texts_in(flow.panels["start"], st_texts)
-	check(st_texts.has(str(flow.config["start_create"])) and st_texts.has(str(flow.config["start_login"])) and st_texts.has(str(flow.config["start_guest"])),
-		"3つのボタン：あたらしく作る・ログイン・ログインせずに あそぶ")
+	check(st_texts.has("BIGBLAST") and st_texts.has(str(flow.config["start_create"])) and st_texts.has(str(flow.config["start_guest"])), "ゲームの名前 BIGBLAST と、ボタン")
 	check(flow.lobby_stage != null and flow.lobby_stage.visible and not flow.lobby_ui.nav.visible, "うしろに3Dのキャラ。下のボタンは出さない")
-	check(flow.start_ui.create_button.disabled and flow.start_ui.login_button.disabled and not flow.start_ui.guest_button.disabled, "ブラウザでない所では、作る・ログインは押せない（ゲストは押せる）")
+	flow._process(0.016)
+	check(flow.start_ui.ready and flow.start_ui.continue_holder.visible and not flow.start_ui.continue_button.disabled and flow.start_ui.continue_button.text == "あそぶ",
+		"ログインの仕組みがない所：「あそぶ」だけ")
+	# ブラウザ（ログインの仕組みがある）のまね
+	var acc := FakeAccount.new()
+	flow.account = acc
+	acc.st = {"status": "pending"}
+	flow.account_state = acc.st
+	flow.goto("start")
+	flow._process(0.1)
+	check(not flow.start_ui.ready and flow.start_ui.loading_label.visible and not flow.start_ui.buttons_col.visible, "準備中は、控えめな「じゅんびちゅう」だけで、ボタンは出さない")
+	check(flow.start_ui.continue_button.disabled and flow.start_ui.create_button.disabled and flow.start_ui.guest_button.disabled, "準備中は、どのボタンも押せない")
+	flow.start_ui.ask_guest()
+	check(not flow.start_ui.guest_confirm.visible, "準備中に押しても、何も起きない")
+	acc.st = {"status": "ok", "signedIn": false}
+	flow.account_state = acc.st
+	flow._process(0.1)
+	check(flow.start_ui.ready and flow.start_ui.buttons_col.visible and not flow.start_ui.loading_label.visible, "準備ができたら、ボタンを出す")
+	check(not flow.start_ui.create_button.disabled and not flow.start_ui.login_button.disabled and not flow.start_ui.guest_button.disabled and not flow.start_ui.continue_holder.visible,
+		"ログインしていない人：作る・ログイン・ゲスト（つづけるは出さない）")
 	flow.start_ui.ask_guest()
 	check(flow.start_ui.guest_confirm.visible and flow.state == "start", "ゲストは、きろくのことを説明してから")
 	var g_texts: Array = []
@@ -104,14 +140,28 @@ func _initialize() -> void:
 	check(g_texts.has(str(flow.config["start_guest_note"])), "説明：きろくは この端末だけ")
 	flow.start_ui.enter_as_guest()
 	check(flow.state == "lobby" and flow.panels["lobby"].visible, "ゲストで あそぶ → ロビー")
-	# ログインずみになったら、はじめの画面からロビーへ
+	# ログインずみの人：自分でえらぶ（勝手にロビーへ進まない）
+	acc.st = {"status": "ok", "signedIn": true, "nickname": "たろう"}
+	flow.account_state = acc.st
 	flow.goto("start")
-	flow.account_state = {"signedIn": true, "formOpen": true}
 	flow._process(0.1)
-	check(flow.state == "start", "入力欄を開いている間は、まだ進まない（IDと復旧コードを見せる）")
-	flow.account_state = {"signedIn": true, "formOpen": false}
+	flow._process(0.1)
+	check(flow.state == "start" and flow.start_ui.continue_holder.visible and flow.start_ui.continue_button.text.contains("たろう"), "ログインずみ：「つづける（たろう）」を出して、えらぶまで待つ")
+	check(flow.start_ui.login_button.text == "べつの アカウントで ログイン" and not (flow.start_ui.create_button.get_parent() as Control).visible, "ほかのアカウントでも ログインできる")
+	flow.start_ui.open_login()
+	acc.st = {"status": "ok", "signedIn": true, "formOpen": true}
+	flow.account_state = acc.st
+	flow._process(0.1)
+	check(flow.state == "start" and acc.forms == ["login"], "入力欄を開いている間は、まだ進まない（IDと復旧コードを見せる）")
+	acc.st = {"status": "ok", "signedIn": true, "formOpen": false}
+	flow.account_state = acc.st
 	flow._process(0.1)
 	check(flow.state == "lobby", "入力欄を閉じたら、ロビーへ")
+	flow.goto("start")
+	flow._process(0.1)
+	flow.start_ui.enter_continue()
+	check(flow.state == "lobby", "「つづける」で、ロビーへ")
+	flow.account = null
 	flow.account_state = {}
 
 	# ---- 4. 編成 ----

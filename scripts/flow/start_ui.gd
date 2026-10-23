@@ -1,10 +1,13 @@
 extends RefCounted
-## 版82：はじめの画面（URLを開いた時）。うしろに3Dのロビー（キャラ4人）を出し、ゲームの名前と3つのボタン：
+## 版82・109：はじめの画面＝アカウントを選ぶ画面（ゲームを開くと、最初にこの画面。版109で TOKYO の読み込み画面をやめた）。
+## うしろに3Dのロビー（キャラ4人）を出し、ゲームの名前 BIGBLAST と、ボタン：
+##   0. つづける（ログインずみの人。いまのアカウントで遊ぶ）
 ##   1. あたらしく アカウントを つくる（ID・パスワード2回・なまえ。ブラウザ側の本物の入力欄 web/head/30_account.js）
-##   2. ログイン（ID・パスワード）
+##   2. ログイン（ログインずみの人には「べつの アカウントで ログイン」）
 ##   3. ログインせずに あそぶ（ゲスト。きろくは この端末だけ、と説明してから）
-## ログインずみの人は、この画面を出さずにロビーへ（毎回えらばなくてよい）。
-## 入力欄を閉じて、ログインずみになったら、ロビーへ進む（game_flow.gd の _process）。
+## ログインの準備ができるまでは「じゅんびちゅう」を小さく出し、ボタンは押せない（flow_logic.start_ready）。準備ができたら、ボタンを出す。
+## ログインの仕組みがない所（テスト・アプリ2）は、すぐ「あそぶ」だけ押せる。
+## 入力欄を開いてログインずみになり、入力欄を閉じたら、ロビーへ進む（game_flow.gd の _process から poll）。
 
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
 const FancyRect := preload("res://scripts/ui/fancy_rect.gd")
@@ -16,9 +19,16 @@ var root: Control
 var create_button: Button
 var login_button: Button
 var guest_button: Button
+var continue_button: Button  ## 版109：ログインずみの人の「つづける」
+var continue_holder: Control
 var guest_confirm: Control
 var note_label: Label
+var loading_label: Label  ## 版109：準備中の小さな字（点が動く）
+var buttons_col: Control
 var bold: Font
+var ready := false  ## 版109：ボタンを押せるか（ログインの準備ができた）
+var waited := 0.0
+var form_opened := false  ## 版109：この画面で入力欄を開いたか（ログインずみの人を、勝手にロビーへ進めない）
 
 
 func _init(flow: Node) -> void:
@@ -90,6 +100,9 @@ func build() -> void:
 	top.add_child(title)
 	var sub := UiKit.outline(_label(str(f.config["start_subtitle"]), 26, Color.WHITE, true), 6)
 	top.add_child(sub)
+	loading_label = _label(_v("start_loading", "じゅんびちゅう"), 22, Color(str(_k("sub_text", "#b9c4dc"))))
+	loading_label.name = "Loading"
+	top.add_child(loading_label)
 	root.add_child(top)
 	top.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
 	top.position.y += 120
@@ -97,6 +110,11 @@ func build() -> void:
 	var col := VBoxContainer.new()
 	col.name = "Buttons"
 	col.add_theme_constant_override("separation", 16)
+	buttons_col = col
+	var c0 := big_button(_v("start_continue", "つづける"), true, enter_continue, "Continue")
+	continue_holder = c0[0]
+	continue_button = c0[1]
+	col.add_child(c0[0])
 	var c1 := big_button(str(f.config["start_create"]), true, open_create, "Create")
 	create_button = c1[1]
 	col.add_child(c1[0])
@@ -152,25 +170,68 @@ func _build_guest_confirm() -> void:
 	root.add_child(guest_confirm)
 
 
+func _v(key: String, def: String) -> String:
+	return str((f.config.get("v109", {}) as Dictionary).get(key, def))
+
+
+## 画面に入った時：準備中から始める（ログインの準備ができたら、ボタンを出す）
 func refresh() -> void:
-	var online: bool = f.account != null
-	create_button.disabled = not online
-	login_button.disabled = not online
-	note_label.text = str(f.config["start_note"]) if online else str(f.config["account_unavailable"])
+	ready = false
+	waited = 0.0
+	form_opened = false
 	guest_confirm.visible = false
+	_apply_ready()
+
+
+## 準備ができたか（ログインの仕組みがない所は、すぐ）
+func _check_ready() -> bool:
+	var st: Dictionary = f.account_state
+	return Logic.start_ready(f.account != null, str(st.get("status", "")), waited, float(f.config.get("start_wait_sec", 4.0)))
+
+
+## ボタンの出し方を、いまの状態に合わせる
+func _apply_ready() -> void:
+	var online: bool = f.account != null
+	var signed := online and bool((f.account_state as Dictionary).get("signedIn", false))
+	loading_label.visible = not ready
+	buttons_col.visible = ready
+	for b in [continue_button, create_button, login_button, guest_button]:
+		(b as Button).disabled = not ready
+	# ログインずみ：「つづける（なまえ）」を大きく。ログインは「べつの アカウントで」
+	continue_holder.visible = signed or not online
+	var nick := str((f.account_state as Dictionary).get("nickname", ""))
+	if not online:
+		continue_button.text = _v("start_offline_play", "あそぶ")
+	else:
+		continue_button.text = _v("start_continue", "つづける") + ("（" + nick + "）" if nick != "" else "")
+	(create_button.get_parent() as Control).visible = online and not signed
+	login_button.text = _v("start_other_login", "べつの アカウントで ログイン") if signed else str(f.config["start_login"])
+	(login_button.get_parent() as Control).visible = online
+	(guest_button.get_parent() as Control).visible = online and not signed
+	note_label.text = str(f.config["start_note"]) if online else str(f.config["account_unavailable"])
 
 
 func open_create() -> void:
-	if f.account != null:
+	if f.account != null and ready:
+		form_opened = true
 		f.account.show_form("register", f.config["account_forms"])
 
 
 func open_login() -> void:
-	if f.account != null:
+	if f.account != null and ready:
+		form_opened = true
 		f.account.show_form("login", f.config["account_forms"])
 
 
+## 版109：「つづける」（ログインずみ）・「あそぶ」（ログインの仕組みがない所）：そのままロビーへ
+func enter_continue() -> void:
+	if ready:
+		f.event("enter")
+
+
 func ask_guest() -> void:
+	if not ready:
+		return
 	guest_confirm.visible = true
 	if guest_confirm.is_inside_tree():
 		guest_confirm.modulate.a = 0.0
@@ -182,8 +243,28 @@ func enter_as_guest() -> void:
 	f.event("enter")
 
 
-## ログインずみになって、入力欄が閉じたら、ロビーへ（game_flow の _process から呼ぶ）
-func poll() -> void:
+## 毎コマ（game_flow の _process から）：準備ができたらボタンを出す。
+## この画面で入力欄を開いて、ログインずみになり、入力欄が閉じたら、ロビーへ
+func poll(delta: float = 0.0) -> void:
+	waited += delta
+	if not ready:
+		if _check_ready():
+			ready = true
+			_apply_ready()
+			if buttons_col.is_inside_tree():
+				buttons_col.modulate.a = 0.0
+				buttons_col.create_tween().tween_property(buttons_col, "modulate:a", 1.0, float((f.config.get("v109", {}) as Dictionary).get("start_ready_fade_sec", 0.25)))
+		else:
+			# 控えめな読み込みの合図（点が1つずつふえる。0.4秒ごと）
+			var n := int(waited / 0.4) % 4
+			loading_label.text = _v("start_loading", "じゅんびちゅう") + ".".repeat(n)
+		return
 	var st: Dictionary = f.account_state
-	if bool(st.get("signedIn", false)) and not bool(st.get("formOpen", false)):
+	if form_opened and bool(st.get("signedIn", false)) and not bool(st.get("formOpen", false)):
+		form_opened = false
 		f.event("enter")
+		return
+	# ログインの状態が変わった（ログアウト・別の端末など）：ボタンの出し方を合わせる
+	var signed := f.account != null and bool(st.get("signedIn", false))
+	if signed != continue_holder.visible and f.account != null:
+		_apply_ready()

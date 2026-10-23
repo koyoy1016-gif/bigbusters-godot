@@ -208,12 +208,12 @@ func _draw_centered(center: Vector2, text: String, color: Color, scale: float = 
 
 
 ## なかまの体力の一覧（この戦いに出ている、自分以外）
-## なかまの名前のあとに付ける、キャラの印（共有されていれば「サポート（いやし）」の形。まだなら空）
+## なかまの名前のあとに付ける、キャラの印（版109：共有されていれば役職名「介護士」。まだなら空）
 func _char_tag(slot: String) -> String:
 	var def := b.char_def_of(slot)
 	if def.is_empty():
 		return ""
-	return " " + str(def.get("role", "")) + "（" + str(def.get("name", "")) + "）"
+	return " " + str(def.get("name", ""))
 
 
 func build_team_text() -> String:

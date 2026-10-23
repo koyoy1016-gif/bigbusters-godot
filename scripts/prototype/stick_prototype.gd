@@ -834,15 +834,16 @@ func char_def_of(slot: String) -> Dictionary:
 	return {}
 
 
-## 役割の名前（枠から）。選んだキャラがあれば、そのキャラの役割（ほかの人は、共有されたキャラ。まだなら「なかま」）
+## 役職名（枠から。版109：剣士・瞬・拳士…＝キャラの name）。ほかの人は、共有されたキャラ。まだなら「なかま」。
+## キャラを選んでいない時（古い試作）は、役割の名前
 func role_name_of(slot: String) -> String:
 	if ai_allies.has(slot):
-		return str(char_def_of(slot).get("role", ""))
+		return str(char_def_of(slot).get("name", ""))
 	if selected_character != "":
 		if slot == str(net_state.get("slot", "p1")) or not net_active:
-			return str(role().get("name", ""))
+			return str(role().get("character_name", role().get("name", "")))
 		var def := char_def_of(slot)
-		return str(def.get("role", "")) if not def.is_empty() else str(config.get("others_label", "なかま"))
+		return str(def.get("name", "")) if not def.is_empty() else str(config.get("others_label", "なかま"))
 	var roles: Dictionary = config["roles"]
 	return str(roles.get(slot if roles.has(slot) else "p1", {}).get("name", ""))
 

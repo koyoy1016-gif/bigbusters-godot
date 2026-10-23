@@ -4,7 +4,7 @@
   "characters": [
     {
       "id": "hero_swordsman",
-      "name": "けんし",
+      "name": "剣士",
       "kind": "ally",
       "role": "ファイター",
       "model": "res://assets/models/hero_swordsman.glb",
@@ -221,11 +221,13 @@
           },
           "loop": true
         }
-      }
+      },
+      "old_name": "けんし",
+      "role_color": "#ffd24a"
     },
     {
       "id": "sprinter",
-      "name": "はやて",
+      "name": "瞬",
       "kind": "ally",
       "role": "ファイター",
       "archetype": "speed",
@@ -975,11 +977,13 @@
           },
           "loop": true
         }
-      }
+      },
+      "old_name": "はやて",
+      "role_color": "#36d6ff"
     },
     {
       "id": "brawler",
-      "name": "こぶし",
+      "name": "拳士",
       "kind": "ally",
       "role": "ファイター",
       "archetype": "fist",
@@ -2010,11 +2014,13 @@
           },
           "loop": true
         }
-      }
+      },
+      "old_name": "こぶし",
+      "role_color": "#ff4d3d"
     },
     {
       "id": "gunner",
-      "name": "じゅうし",
+      "name": "銃士",
       "kind": "ally",
       "role": "シューター",
       "archetype": "gun",
@@ -2735,11 +2741,13 @@
           },
           "loop": true
         }
-      }
+      },
+      "old_name": "じゅうし",
+      "role_color": "#ff9330"
     },
     {
       "id": "bomber",
-      "name": "ばくだん",
+      "name": "奇術師",
       "kind": "ally",
       "role": "シューター",
       "archetype": "bomb",
@@ -3461,11 +3469,13 @@
           },
           "loop": true
         }
-      }
+      },
+      "old_name": "ばくだん",
+      "role_color": "#ff5fc8"
     },
     {
       "id": "mage",
-      "name": "まほう",
+      "name": "魔法師",
       "kind": "ally",
       "role": "シューター",
       "archetype": "magic",
@@ -4096,11 +4106,13 @@
           },
           "loop": true
         }
-      }
+      },
+      "old_name": "まほう",
+      "role_color": "#a77bff"
     },
     {
       "id": "guardian",
-      "name": "たて",
+      "name": "守護士",
       "kind": "ally",
       "role": "ガーディアン",
       "archetype": "shield",
@@ -4715,11 +4727,13 @@
           },
           "loop": true
         }
-      }
+      },
+      "old_name": "たて",
+      "role_color": "#4d84ff"
     },
     {
       "id": "summoner",
-      "name": "よびだし",
+      "name": "兵隊",
       "kind": "ally",
       "role": "サポート",
       "archetype": "summon",
@@ -5557,11 +5571,13 @@
         "anim_speeds": {
           "run": 1.0
         }
-      }
+      },
+      "old_name": "よびだし",
+      "role_color": "#c6e33c"
     },
     {
       "id": "healer",
-      "name": "いやし",
+      "name": "介護士",
       "kind": "ally",
       "role": "サポート",
       "archetype": "heal",
@@ -6184,7 +6200,9 @@
           },
           "loop": true
         }
-      }
+      },
+      "old_name": "いやし",
+      "role_color": "#3ee08f"
     }
   ],
   "budgets": {
@@ -6206,5 +6224,6 @@
     "サポート": "回復・味方を出す、など味方を助ける"
   },
   "skill_note": "Xの技（仮案。ユーザー決定 2026-10-18）",
-  "stats_note": "仮の数値。ユーザーが調整する"
+  "stats_note": "仮の数値。ユーザーが調整する",
+  "role_name_note": "版109：name は役職名（けんし→剣士・はやて→瞬・こぶし→拳士・じゅうし→銃士・ばくだん→奇術師・まほう→魔法師・たて→守護士・よびだし→兵隊・いやし→介護士）。内部の id は変えない（セーブと互換）。role_color は役職ラベルの識別色（scripts/ui/role_label.gd）。old_name は前の名前（記録用）"
 }

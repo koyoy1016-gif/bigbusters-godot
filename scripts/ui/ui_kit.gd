@@ -140,3 +140,48 @@ static func scroll_friendly(node: Node) -> void:
 			c.mouse_filter = Control.MOUSE_FILTER_PASS
 	for ch in node.get_children():
 		scroll_friendly(ch)
+
+
+## 版109：BIGBLAST の角ばったボタン（ななめ・暗い板・色のふち。primary は色でぬる）。押せない時は暗く
+static func blast_button(b: Button, accent: Color, primary: bool = false, skew: float = 0.18) -> void:
+	var states := {"normal": 1.0, "hover": 1.15, "pressed": 0.8, "disabled": 0.45}
+	for st in states:
+		var sb := StyleBoxFlat.new()
+		var k: float = states[st]
+		var fill := accent if primary else Color(0.05, 0.06, 0.1, 0.92)
+		if st == "disabled":
+			fill = Color(0.12, 0.13, 0.17, 0.9)
+		sb.bg_color = fill.lightened(0.12) if k > 1.0 else (fill.darkened(0.2) if k < 1.0 and st != "disabled" else fill)
+		sb.set_border_width_all(3)
+		sb.border_color = (accent.lightened(0.35) if primary else accent) if st != "disabled" else Color(0.3, 0.32, 0.38)
+		sb.skew = Vector2(skew, 0)
+		sb.set_corner_radius_all(0)
+		sb.shadow_color = Color(accent.r, accent.g, accent.b, 0.45 if st != "disabled" else 0.0)
+		sb.shadow_size = 10 if (primary and st == "normal") else (4 if st != "disabled" else 0)
+		sb.set_content_margin_all(12)
+		sb.anti_aliasing = true
+		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	b.add_theme_color_override("font_color", Color.WHITE)
+	b.add_theme_color_override("font_pressed_color", Color.WHITE)
+	b.add_theme_color_override("font_hover_color", Color.WHITE)
+	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.35))
+	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	b.add_theme_constant_override("outline_size", 6)
+
+
+## 版109：BIGBLAST の角ばったパネル（暗い板・色の線）
+static func blast_panel(accent: Color, alpha: float = 0.9) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.04, 0.05, 0.09, alpha)
+	sb.set_corner_radius_all(0)
+	sb.border_width_left = 6
+	sb.border_width_top = 2
+	sb.border_width_right = 2
+	sb.border_width_bottom = 2
+	sb.border_color = accent
+	sb.shadow_color = Color(accent.r, accent.g, accent.b, 0.25)
+	sb.shadow_size = 8
+	sb.set_content_margin_all(18)
+	return sb
+

@@ -491,7 +491,7 @@ func _initialize() -> void:
 		check(s3.build_team_text().contains("p2"), "なかまの体力が画面に出る")
 		check(not s3.build_team_text().contains("（"), "キャラがまだ共有されていなければ、枠と体力だけ")
 		s3.net_state["chars"] = {"p2": "healer"}
-		check(s3.build_team_text().contains("p2 サポート（いやし）"), "キャラが共有されていれば、役職名とキャラ名が出る：" + s3.build_team_text())
+		check(s3.build_team_text().contains("p2 介護士"), "キャラが共有されていれば、役職名（版109：介護士）が出る：" + s3.build_team_text())
 		s3.apply_net_state({"slot": "p1", "members": ["p1", "p2", "p3"], "hits": {"p2": 20}, "hp": {"p2": {"hp": 0, "round": 5020000}, "p3": {"hp": 90, "round": 1}}, "round": 5020000})
 		check(s3.lost, "古い記録の幽霊（p3）がいても、全滅のまま")
 		var count_now: int = s3.round_count

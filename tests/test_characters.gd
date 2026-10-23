@@ -21,7 +21,7 @@ func _initialize() -> void:
 	var cfg := CharacterData.load_config()
 	check(CharacterData.validate(cfg).is_empty(), "キャラのデータに誤りがない：" + str(CharacterData.validate(cfg)))
 	var hero := CharacterData.find(cfg, str(cfg["player_character"]))
-	check(not hero.is_empty() and hero["name"] == "けんし", "主人公（けんし）がいる")
+	check(not hero.is_empty() and hero["name"] == "剣士", "主人公（剣士。版109で けんし→剣士）がいる")
 	check(CharacterData.find(cfg, "zzz").is_empty(), "知らないidは空")
 	# 2026-10-20：8人の味方は、みんな見た目（剣士と同じ体＋服・装備）を持つようになった。モデルのないキャラは、作って確かめる
 	var no_model := CharacterData.find(cfg, "guardian").duplicate(true)
@@ -91,13 +91,13 @@ func _initialize() -> void:
 	root.add_child(b)
 	if b.get_node_or_null("Boss") == null:
 		b._ready()
-	check(is_equal_approx(b.role_value("hp"), 240.0) and b.role().get("name") == "ガーディアン" and b.role().get("character_name") == "たて", "選んだキャラ（たて）の性能・役職名で動く")
-	check(b.role_name_of("p1") == "ガーディアン", "通信なしなら、自分の役職名が出る")
+	check(is_equal_approx(b.role_value("hp"), 240.0) and b.role().get("name") == "ガーディアン" and b.role().get("character_name") == "守護士", "選んだキャラ（守護士）の性能で動く")
+	check(b.role_name_of("p1") == "守護士", "通信なしなら、自分の役職名（版109：守護士）が出る")
 	# 通信：ほかの人のキャラが共有されたら、そのキャラの役職名が出る
 	b.net_active = true
 	b.net_state = {"slot": "p1", "members": ["p1", "p2", "p3"], "chars": {"p2": "healer"}}
-	check(b.role_name_of("p1") == "ガーディアン", "通信中も、自分は自分の役職名")
-	check(b.role_name_of("p2") == "サポート", "ほかの人のキャラが共有されていれば、その役職名（いやし＝サポート）")
+	check(b.role_name_of("p1") == "守護士", "通信中も、自分は自分の役職名")
+	check(b.role_name_of("p2") == "介護士", "ほかの人のキャラが共有されていれば、その役職名（介護士）")
 	check(b.role_name_of("p3") == "なかま", "まだ共有されていない人は「なかま」")
 	check(str(b.char_def_of("p2").get("id", "")) == "healer" and b.char_def_of("p3").is_empty(), "枠のキャラの定義を引ける（未共有は空）")
 	check(str(b.char_def_of("p1").get("id", "")) == "guardian", "自分の枠は、選んだキャラ")

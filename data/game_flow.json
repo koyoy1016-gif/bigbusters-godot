@@ -1,6 +1,6 @@
 {
   "ui_font_path": "res://assets/fonts/NotoSansJP-Regular-subset.ttf",
-  "title_text": "TOKYO",
+  "title_text": "BIGBLAST",
   "title_loading": "よみこみちゅう",
   "title_sec": 1.5,
   "portrait_base_size": [
@@ -99,8 +99,8 @@
   "reward_title": "ほうしゅう",
   "reward_coin_prefix": "コイン ＋",
   "reward_win_coins": 50,
-  "reward_lose_coins": 10,
-  "rematch_label": "さいせん",
+  "reward_lose_coins": 25,
+  "rematch_label": "再戦",
   "account_title": "プロフィール",
   "account_guest": "ゲスト（きろくは この たんまつだけ）",
   "account_signed_in": "ログイン中",
@@ -322,7 +322,7 @@
     "version": "82a"
   },
   "_v82_memo": "版82：はじめの画面（start_ui.gd）と編成の画面（formation_ui.gd）",
-  "start_title": "BIG BUSTERS",
+  "start_title": "BIGBLAST",
   "start_title_size": 88,
   "start_subtitle": "4人で いどめ！ 巨大ボス バトル",
   "start_create": "あたらしく アカウントを つくる",
@@ -369,7 +369,12 @@
   "profile_pick_title": "アイコンに する キャラ",
   "profile_guest_note": "ゲスト（きろくは この端末だけ）",
   "audio_settings_path": "user://audio_settings.json",
-  "settings": {"_memo": "版85：プロフィールの「せってい」のカード（scripts/flow/settings_ui.gd）", "title": "せってい", "music": "おんがく", "sfx": "こうかおん"},
+  "settings": {
+    "_memo": "版85：プロフィールの「せってい」のカード（scripts/flow/settings_ui.gd）",
+    "title": "せってい",
+    "music": "おんがく",
+    "sfx": "こうかおん"
+  },
   "music_battle_fade_out_sec": 0.8,
   "music_battle_fade_in_sec": 0.6,
   "panel_top": "#1b2140",
@@ -400,5 +405,28 @@
   "gacha_odds_char": "キャラ",
   "gacha_odds_rarity": "レア度",
   "gacha_rules_note": "このガチャは、あそんで ためた コインだけで 引けます（お金では 引けません）。いくつか そろえると 別の けいひんが 出る しくみは ありません。もう もっている キャラが 出たら、コインが 少し もどります。",
-  "gacha_grab_px": 190.0
+  "gacha_grab_px": 190.0,
+  "v109": {
+    "_memo": "版109：BIGBLAST。はじめの画面（アカウントを選ぶ）から始める（TOKYO の読み込み画面はやめた）。結果の画面（勝ち・負け・コイン・使ったキャラ・ハイライト・再戦・ロビー）。再戦は「再戦の準備」で START を押すまで始めない",
+    "start_loading": "じゅんびちゅう",
+    "start_continue": "つづける",
+    "start_continue_guest": "このまま あそぶ",
+    "start_other_login": "べつの アカウントで ログイン",
+    "start_offline_play": "あそぶ",
+    "start_ready_fade_sec": 0.25,
+    "result_win": "VICTORY",
+    "result_lose": "DEFEAT",
+    "result_win_color": "#ffd24a",
+    "result_lose_color": "#7f9cff",
+    "result_coins": "COINS",
+    "result_used": "つかったキャラ",
+    "result_highlight": "ハイライトを 見る",
+    "result_lobby": "ロビーへ もどる",
+    "result_title_size": 110,
+    "ready_title": "再戦の じゅんび",
+    "ready_note": "START を おすと、あたらしい しあいが はじまります",
+    "ready_start": "START",
+    "ready_wait": "なかまの START を まっています",
+    "highlight_back": "結果へ もどる"
+  }
 }

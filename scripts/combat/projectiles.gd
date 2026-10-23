@@ -94,6 +94,8 @@ static func blast_hits(at: Vector3, blast: float, tgt: Dictionary) -> bool:
 
 ## 敵の表面の、点 p にいちばん近い所（火花を出す所）
 static func surface_point(p: Vector3, tgt: Dictionary) -> Vector3:
+	if tgt.is_empty():
+		return p  # 版109：敵がいない（見えない）時は、その場所のまま（前はここで止まっていた）
 	var c := Vector2(float(tgt["x"]), float(tgt["z"]))
 	var d := Vector2(p.x, p.z) - c
 	if d.length() < 0.001:
