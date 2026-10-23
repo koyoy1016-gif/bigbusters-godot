@@ -66,7 +66,7 @@ func _sz(key: String) -> Vector2:
 func _style(color: Color, radius: int = 18, margin: int = 8) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = color
-	sb.set_corner_radius_all(radius)
+	sb.set_corner_radius_all(UiKit.corner(f.config, radius))  # 版113：角ばった見た目
 	sb.set_content_margin_all(margin)
 	sb.anti_aliasing = true
 	return sb
@@ -817,8 +817,8 @@ func build_nav_bar() -> void:
 	nav.name = "NavBar"
 	var nsb := UiKit.glass(f.config, 0, 1.25)
 	nsb.set_corner_radius_all(0)
-	nsb.corner_radius_top_left = 28
-	nsb.corner_radius_top_right = 28
+	nsb.corner_radius_top_left = UiKit.corner(f.config, 28)
+	nsb.corner_radius_top_right = UiKit.corner(f.config, 28)
 	nsb.set_border_width_all(0)
 	nsb.border_width_top = 2
 	nsb.set_content_margin_all(8)

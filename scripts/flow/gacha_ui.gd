@@ -76,7 +76,7 @@ func _pill(text: String, col: Color, size: int = 18) -> PanelContainer:
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = col
-	sb.set_corner_radius_all(12)
+	sb.set_corner_radius_all(UiKit.corner(f.config, 12))
 	sb.set_content_margin_all(3)
 	sb.set_content_margin(SIDE_LEFT, 12)
 	sb.set_content_margin(SIDE_RIGHT, 12)
@@ -219,11 +219,11 @@ func _build_bottom() -> void:
 	power_bar.max_value = 1.0
 	var bgs := StyleBoxFlat.new()
 	bgs.bg_color = Color(1, 1, 1, 0.15)
-	bgs.set_corner_radius_all(9)
+	bgs.set_corner_radius_all(UiKit.corner(f.config, 9))
 	power_bar.add_theme_stylebox_override("background", bgs)
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = Color("#ff8a3a")
-	fill.set_corner_radius_all(9)
+	fill.set_corner_radius_all(UiKit.corner(f.config, 9))
 	power_bar.add_theme_stylebox_override("fill", fill)
 	power_box.add_child(power_bar)
 	power_label = UiKit.outline(_label("", 22, Color(str(_k("gold", "#ffd45a"))), true), 4)
@@ -363,7 +363,7 @@ func _build_odds_table() -> void:
 		var csb := StyleBoxFlat.new()
 		var rc := _rarity_color(str(cells[i])) if i >= 1 and i < 5 else Color(1, 1, 1, 0.06 if head else 0.03)
 		csb.bg_color = rc.darkened(0.3) if i >= 1 and i < 5 else rc
-		csb.set_corner_radius_all(8)
+		csb.set_corner_radius_all(UiKit.corner(f.config, 8))
 		csb.set_content_margin_all(4)
 		cell.add_theme_stylebox_override("panel", csb)
 		cell.add_child(_label(str(cells[i]), 18, Color.WHITE, head))

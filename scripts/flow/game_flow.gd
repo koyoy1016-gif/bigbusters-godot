@@ -29,6 +29,7 @@ const GachaUI := preload("res://scripts/flow/gacha_ui.gd")
 const SettingsUI := preload("res://scripts/flow/settings_ui.gd")
 const AudioSettings := preload("res://scripts/audio/audio_settings.gd")
 const UiKit := preload("res://scripts/ui/ui_kit.gd")
+const RoleLabel := preload("res://scripts/ui/role_label.gd")
 const FancyRect := preload("res://scripts/ui/fancy_rect.gd")
 const ResultUI := preload("res://scripts/flow/result_ui.gd")
 const FIREBASE_CONFIG_PATH := "res://data/firebase_config.json"
@@ -60,6 +61,8 @@ var stage_label: Label
 var play_button: Button
 var toast_label: Label
 var highlight_best: Label
+var highlight_role: Control  ## 版113：ベストアタッカーの役職のラベル
+var best_role := {}  ## 版113：ベストアタッカーの役職名と色（戦いを片づける前に控える）{name, color}
 var highlight_replay: Control
 var highlight_info: Dictionary = {}
 var reward_label: Label
@@ -135,6 +138,8 @@ func _ready() -> void:
 	if config.is_empty():
 		config = load_config()
 	font = load(str(config["ui_font_path"])) as Font
+	# 版113：BIGBLAST の見た目（角ばった板・ボタン）。FancyRect は全部の画面で同じ（static）
+	FancyRect.angular = bool((config.get("ui_kit", {}) as Dictionary).get("angular", false))
 	save = SaveData.load_save(str(config["save_path"]))
 	characters_cfg = CharacterData.load_config()
 	selected_character = str(save.get("character", ""))
@@ -284,7 +289,7 @@ func _make_card(color: Color) -> PanelContainer:
 	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var box := StyleBoxFlat.new()
 	box.bg_color = color
-	box.set_corner_radius_all(18)
+	box.set_corner_radius_all(UiKit.corner(config, 18))
 	box.set_content_margin_all(14)
 	card.add_theme_stylebox_override("panel", box)
 	return card
@@ -295,7 +300,7 @@ func _paint_button(button: Button, color: Color) -> void:
 	for pair in [["normal", color], ["hover", color.lightened(0.1)], ["pressed", color.darkened(0.2)], ["disabled", color.darkened(0.45)]]:
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = pair[1]
-		sb.set_corner_radius_all(18)
+		sb.set_corner_radius_all(UiKit.corner(config, 18))
 		sb.set_content_margin_all(8)
 		button.add_theme_stylebox_override(pair[0], sb)
 
@@ -392,18 +397,52 @@ func _build_panels() -> void:
 	fr_panel.add_child(_make_button(str(config["back_label"]), big, func(): event("back")))
 
 	# ハイライト
-	var h := _make_panel(Logic.HIGHLIGHT)
-	h.add_child(_make_label(str(config["highlight_title"]), heading, Color(str(config["title_color"]))))
-	h.add_child(_make_label(str(config["highlight_note"]), text_size, text_color))
-	highlight_best = _make_label("", text_size, text_color)
-	h.add_child(highlight_best)
+	# 版113：ハイライト（BIGBLAST の見た目）。上に小さく HIGHLIGHT・太い見出し・ベストアタッカー（役職のラベル）・角ばった枠の中に再生・角ばったボタン
+	var v113: Dictionary = config.get("v113", {})
+	var hl_accent := Color(str(v113.get("highlight_accent", "#7fdcff")))
+	var h := _make_panel(Logic.HIGHLIGHT, 18)
+	var hl_bold := UiKit.bold(font, float((config.get("ui_kit", {}) as Dictionary).get("bold", 0.7)))
+	var cap := _make_label(str(v113.get("highlight_caption", "HIGHLIGHT")), 22, hl_accent)
+	cap.add_theme_font_override("font", hl_bold)
+	h.add_child(cap)
+	var ht := _make_label(str(config["highlight_title"]), heading, Color(str(config["title_color"])))
+	ht.add_theme_font_override("font", hl_bold)
+	UiKit.outline(ht, 8)
+	h.add_child(ht)
+	h.add_child(_make_label(str(config["highlight_note"]), text_size, Color(str((config.get("ui_kit", {}) as Dictionary).get("sub_text", "#b9c4dc")))))
+	# ベストアタッカー：役職のラベル（上）と、字（下）。横に並べると、たて画面からはみ出すため
+	var best_col := VBoxContainer.new()
+	best_col.alignment = BoxContainer.ALIGNMENT_CENTER
+	best_col.add_theme_constant_override("separation", 6)
+	highlight_role = RoleLabel.new().setup("", Color.WHITE, hl_bold, 28)
+	highlight_role.name = "BestRole"
+	highlight_role.visible = false
+	highlight_role.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	best_col.add_child(highlight_role)
+	highlight_best = _make_label("", int(v113.get("best_px", 28)), text_color)
+	highlight_best.add_theme_font_override("font", hl_bold)
+	UiKit.outline(highlight_best, 6)
+	best_col.add_child(highlight_best)
+	h.add_child(best_col)
 	highlight_replay = Replay.new()
 	var rs: Array = config["highlight_replay_size"]
 	highlight_replay.custom_minimum_size = Vector2(rs[0], rs[1])
+	var replay_frame := PanelContainer.new()
+	replay_frame.name = "ReplayFrame"
+	var fsb := UiKit.blast_panel(hl_accent, 0.6)
+	fsb.set_content_margin_all(6)
+	replay_frame.add_theme_stylebox_override("panel", fsb)
+	replay_frame.add_child(highlight_replay)
 	var replay_holder := CenterContainer.new()
-	replay_holder.add_child(highlight_replay)
+	replay_holder.add_child(replay_frame)
 	h.add_child(replay_holder)
-	h.add_child(_make_button(str((config.get("v109", {}) as Dictionary).get("highlight_back", "結果へ もどる")), big, func(): event("done")))
+	var hb := _make_button(str((config.get("v109", {}) as Dictionary).get("highlight_back", "結果へ もどる")), big, func(): event("done"))
+	hb.add_theme_font_override("font", hl_bold)
+	hb.add_theme_font_size_override("font_size", 32)
+	hb.custom_minimum_size = Vector2(520, 96)
+	hb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	UiKit.blast_button(hb, Color(str(v113.get("button_accent", "#9fb0d0"))), false)
+	h.add_child(hb)
 
 	# 版109：結果（VICTORY／DEFEAT・コイン・使ったキャラ・ハイライト・再戦・ロビー）と、再戦の準備（START）。result_ui.gd
 	result_ui = ResultUI.new(self)
@@ -531,6 +570,11 @@ func goto(new_state: String) -> void:
 			lobby_ui.refresh_room()
 		Logic.HIGHLIGHT:
 			highlight_best.text = best_text if best_text != "" else str(config["highlight_none"])
+			# 版113：ベストアタッカーのキャラを、役職のラベル（役職の色）でも出す
+			highlight_role.visible = best_text != "" and str(best_role.get("name", "")) != ""
+			if highlight_role.visible:
+				highlight_role.text = str(best_role["name"])
+				highlight_role.color = Color(str(best_role["color"]))
 			highlight_replay.visible = not highlight_info.is_empty()
 			if not highlight_info.is_empty():
 				highlight_replay.setup(highlight_info["points"], highlight_info["boss"], float(highlight_info["bounds"]), highlight_info["color"], highlight_info["config"], config, highlight_info.get("character", {}), highlight_info.get("boss_track", []))
@@ -1345,6 +1389,8 @@ func _capture_result() -> void:
 	var entries: Array = battle.ranking_entries()
 	if not entries.is_empty():
 		best_text = str(config["highlight_best"]) + "：" + battle.role_name_of(str(entries[0]["slot"])) + " " + str(int(entries[0]["hits"]))
+		var bdef: Dictionary = battle.char_def_of(str(entries[0]["slot"])) if battle.has_method("char_def_of") else {}
+		best_role = {"name": str(bdef.get("name", "")), "color": str(bdef.get("role_color", "#ffffff"))} if not bdef.is_empty() else {}
 
 
 func _write_save() -> void:

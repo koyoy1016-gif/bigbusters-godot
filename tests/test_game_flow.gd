@@ -5,6 +5,7 @@ extends SceneTree
 const Logic := preload("res://scripts/flow/flow_logic.gd")
 const SaveData := preload("res://scripts/flow/save_data.gd")
 const Flow := preload("res://scripts/flow/game_flow.gd")
+const CharacterData := preload("res://scripts/characters/character_data.gd")
 const SCENE := "res://scenes/game_flow.tscn"
 const TEMP_SAVE := "user://test_flow_save.json"
 
@@ -163,6 +164,8 @@ func _initialize() -> void:
 		flow.event("highlight")
 		check(flow.state == "highlight" and str(flow.highlight_best.text).contains("ベストアタッカー") and str(flow.highlight_best.text).contains("100"), "ハイライト：" + str(flow.highlight_best.text))
 		check(flow.highlight_replay.visible and flow.highlight_replay.span > 0.0 and float(flow.highlight_info["damage"]) == 100.0, "ハイライトの再生が用意される")
+		check(flow.highlight_role.visible and flow.highlight_role.text == "銃士" and flow.highlight_role.color == Color(str(CharacterData.find(CharacterData.load_config(), "gunner")["role_color"])),
+			"版113：ベストアタッカーを、役職のラベル（役職の色）でも出す")
 		flow._process(0.1)
 		check(flow.state == "highlight", "ハイライトは、決めた秒数のあいだ続く")
 		flow._process(float(flow.config["highlight_sec"]))

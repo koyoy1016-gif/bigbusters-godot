@@ -61,7 +61,7 @@ func _label(text: String, size: int, color: Color, use_bold: bool = false) -> La
 func _style(color: Color, radius: int, margin: int = 0) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = color
-	sb.set_corner_radius_all(radius)
+	sb.set_corner_radius_all(UiKit.corner(f.config, radius))  # 版113：角ばった見た目
 	sb.set_content_margin_all(margin)
 	sb.anti_aliasing = true
 	return sb

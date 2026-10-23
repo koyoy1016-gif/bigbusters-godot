@@ -20,6 +20,11 @@ var glow_size := 0.0:
 		queue_redraw()
 var shine := 0.22  # 上半分の、白いつや（0 でなし）
 var corner_segments := 6
+## 版113：BIGBLAST の見た目。true なら、角の丸い四角の代わりに、ななめの角ばった形（平行四辺形）で描く。
+## 画面の流れ（game_flow.gd）が data/game_flow.json の ui_kit.angular から決める。radius が 0 の物（背景）は四角のまま
+static var angular := false
+static var angular_skew := 0.22  ## ななめのずれ（高さに対する割合。最大 angular_skew_max px）
+static var angular_skew_max := 18.0
 
 
 func _init() -> void:
@@ -49,6 +54,20 @@ static func rounded_points(rect: Rect2, r: float, seg: int) -> PackedVector2Arra
 	return pts
 
 
+## 版113：ななめの角ばった形（左上・右上・右下・左下）。上の辺を右へ、下の辺を左へずらす
+static func slanted_points(rect: Rect2, skew: float) -> PackedVector2Array:
+	var sk := minf(skew, rect.size.x * 0.25)
+	return PackedVector2Array([rect.position + Vector2(sk, 0), Vector2(rect.end.x, rect.position.y),
+		rect.end - Vector2(sk, 0), Vector2(rect.position.x, rect.end.y)])
+
+
+## 形の点（angular なら、ななめの角ばった形）
+func shape_points(rect: Rect2, r: float) -> PackedVector2Array:
+	if angular and radius > 0.0:
+		return slanted_points(rect, minf(size.y * angular_skew, angular_skew_max))
+	return rounded_points(rect, r, corner_segments)
+
+
 func _draw() -> void:
 	var rect := Rect2(Vector2.ZERO, size)
 	if rect.size.x < 2.0 or rect.size.y < 2.0:
@@ -59,15 +78,15 @@ func _draw() -> void:
 			var g := glow_size * float(4 - i) / 4.0
 			var gc := glow_color
 			gc.a *= 0.12 + 0.18 * float(i)
-			draw_colored_polygon(rounded_points(rect.grow(g), radius + g, corner_segments), gc)
-	var pts := rounded_points(rect, radius, corner_segments)
+			draw_colored_polygon(shape_points(rect.grow(g), radius + g), gc)
+	var pts := shape_points(rect, radius)
 	var cols := PackedColorArray()
 	for p in pts:
 		cols.append(top_color.lerp(bottom_color, clampf(p.y / rect.size.y, 0.0, 1.0)))
 	draw_polygon(pts, cols)
 	if shine > 0.0:
 		var top_half := Rect2(rect.position + Vector2(3, 3), Vector2(rect.size.x - 6, rect.size.y * 0.46))
-		var sp := rounded_points(top_half, maxf(radius - 3.0, 2.0), corner_segments)
+		var sp := shape_points(top_half, maxf(radius - 3.0, 2.0))
 		var sc := PackedColorArray()
 		for p in sp:
 			sc.append(Color(1, 1, 1, shine * (1.0 - clampf((p.y - top_half.position.y) / top_half.size.y, 0.0, 1.0))))

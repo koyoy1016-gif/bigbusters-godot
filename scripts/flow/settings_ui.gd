@@ -122,7 +122,7 @@ func _slider_row(key: String, icon_kind: String, text: String) -> Control:
 func _style_slider(s: HSlider) -> void:
 	var track := StyleBoxFlat.new()
 	track.bg_color = Color("#060a14c0")
-	track.set_corner_radius_all(9)
+	track.set_corner_radius_all(UiKit.corner(f.config, 9))
 	track.content_margin_top = 9
 	track.content_margin_bottom = 9
 	track.border_color = Color("#ffffff22")
@@ -130,7 +130,7 @@ func _style_slider(s: HSlider) -> void:
 	track.anti_aliasing = true
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = Color(str(_k("gold", "#ffd45a")))
-	fill.set_corner_radius_all(9)
+	fill.set_corner_radius_all(UiKit.corner(f.config, 9))
 	fill.content_margin_top = 9
 	fill.content_margin_bottom = 9
 	fill.shadow_color = Color(1.0, 0.75, 0.25, 0.45)

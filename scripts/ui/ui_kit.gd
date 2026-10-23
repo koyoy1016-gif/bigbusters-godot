@@ -25,12 +25,14 @@ static func bold(font: Font, strength: float = 0.75) -> Font:
 static func glass(cfg: Dictionary, radius: int = -1, alpha_scale: float = 1.0) -> StyleBoxFlat:
 	var k: Dictionary = cfg.get("ui_kit", {})
 	var sb := StyleBoxFlat.new()
-	var bg := Color(str(k.get("glass", "#0e1526b8")))
+	var ang := bool(k.get("angular", false))  # 版113：BIGBLAST の見た目（暗い・角ばった板）
+	var bg := Color(str(k.get("angular_glass" if ang else "glass", "#0e1526b8")))
 	bg.a *= alpha_scale
 	sb.bg_color = bg
-	sb.set_corner_radius_all(radius if radius >= 0 else int(k.get("radius", 22)))
+	var r := radius if radius >= 0 else int(k.get("radius", 22))
+	sb.set_corner_radius_all(mini(r, int(k.get("angular_radius", 3))) if ang else r)
 	sb.set_border_width_all(int(k.get("border_width", 2)))
-	sb.border_color = Color(str(k.get("glass_border", "#ffffff2e")))
+	sb.border_color = Color(str(k.get("angular_border" if ang else "glass_border", "#ffffff2e")))
 	sb.shadow_color = Color(0, 0, 0, 0.35)
 	sb.shadow_size = int(k.get("shadow", 8))
 	sb.shadow_offset = Vector2(0, 3)
@@ -39,15 +41,33 @@ static func glass(cfg: Dictionary, radius: int = -1, alpha_scale: float = 1.0) -
 	return sb
 
 
+## 版113：角の丸み。BIGBLAST の見た目（ui_kit.angular）では、小さな丸み（angular_radius）にする。
+## 丸い物（顔の丸・大きな丸み circle_min 以上）は、そのまま
+static func corner(cfg: Dictionary, radius: int) -> int:
+	var k: Dictionary = cfg.get("ui_kit", {})
+	if not bool(k.get("angular", false)) or radius >= int(k.get("circle_min", 30)):
+		return radius
+	return mini(radius, int(k.get("angular_radius", 3)))
+
+
 ## ボタンの4つの状態（ふだん・上にのせた・押している・押せない）をガラスで
 static func glass_button(b: Button, cfg: Dictionary, radius: int = -1, tint: Color = Color(0, 0, 0, 0)) -> void:
 	var states := {"normal": 1.0, "hover": 1.25, "pressed": 0.8, "disabled": 0.55}
+	var kit: Dictionary = cfg.get("ui_kit", {})
+	var ang := bool(kit.get("angular", false))
 	for st in states:
 		var sb := glass(cfg, radius)
 		if tint.a > 0.0:
 			sb.bg_color = Color(tint.r, tint.g, tint.b, tint.a)
 		var k: float = states[st]
 		sb.bg_color = sb.bg_color.lightened(0.12) if k > 1.0 else (sb.bg_color.darkened(0.25) if k < 1.0 else sb.bg_color)
+		if ang:
+			# 版113：ななめの角ばったボタン。ふちは色（色がなければ、うすい青）。押せない時は暗く
+			sb.skew = Vector2(float(kit.get("angular_button_skew", 0.12)), 0)
+			var edge := tint.lightened(0.45) if tint.a > 0.0 else Color(str(kit.get("angular_edge", "#9fb8ff")))
+			sb.border_color = Color(edge.r, edge.g, edge.b, 0.75 if st != "disabled" else 0.25)
+			sb.set_border_width_all(2)
+			sb.border_width_left = 4
 		if st == "pressed":
 			sb.shadow_size = 2
 		b.add_theme_stylebox_override(st, sb)

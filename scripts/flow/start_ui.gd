@@ -63,8 +63,11 @@ func big_button(text: String, primary: bool, cb: Callable, name_text: String) ->
 		skin.set_anchors_preset(Control.PRESET_FULL_RECT)
 		holder.add_child(skin)
 		UiKit.clear_button(b)
-		b.add_theme_color_override("font_outline_color", Color(0.5, 0.15, 0.03, 0.7))
-		b.add_theme_constant_override("outline_size", 6)
+		b.add_theme_color_override("font_color", Color.WHITE)  # 版113：オレンジの上で、くっきり白く
+		b.add_theme_color_override("font_hover_color", Color.WHITE)
+		b.add_theme_color_override("font_pressed_color", Color.WHITE)
+		b.add_theme_color_override("font_outline_color", Color(0.4, 0.1, 0.02, 0.85))
+		b.add_theme_constant_override("outline_size", 8)
 	else:
 		UiKit.glass_button(b, f.config, 26)
 	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.4))

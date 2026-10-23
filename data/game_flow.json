@@ -281,7 +281,13 @@
   "room_start_label": "この へやで はじめる",
   "room_name_note": "へやの名前・公開／非公開・へやの一覧は、まだありません（サーバーの決まりの変更が必要）",
   "ui_kit": {
-    "_memo": "版81b：ロビーの見た目（scripts/ui/ui_kit.gd・scripts/flow/lobby_ui.gd）",
+    "_memo": "版81b：ロビーの見た目（scripts/ui/ui_kit.gd・scripts/flow/lobby_ui.gd）。版113：angular＝BIGBLAST の見た目（暗い・角ばった板とボタン。FancyRect も平行四辺形）",
+    "angular": true,
+    "angular_glass": "#070b16e0",
+    "angular_border": "#8fb4ff40",
+    "angular_radius": 3,
+    "angular_button_skew": 0.12,
+    "angular_edge": "#9fb8ff",
     "glass": "#0e1526b8",
     "glass_border": "#ffffff30",
     "border_width": 2,
@@ -406,6 +412,12 @@
   "gacha_odds_rarity": "レア度",
   "gacha_rules_note": "このガチャは、あそんで ためた コインだけで 引けます（お金では 引けません）。いくつか そろえると 別の けいひんが 出る しくみは ありません。もう もっている キャラが 出たら、コインが 少し もどります。",
   "gacha_grab_px": 190.0,
+  "v113": {
+    "_memo": "版113：ハイライトの画面（上の小さな見出し・枠とボタンの色）",
+    "highlight_caption": "HIGHLIGHT",
+    "highlight_accent": "#7fdcff",
+    "button_accent": "#9fb0d0"
+  },
   "v109": {
     "_memo": "版109：BIGBLAST。はじめの画面（アカウントを選ぶ）から始める（TOKYO の読み込み画面はやめた）。結果の画面（勝ち・負け・コイン・使ったキャラ・ハイライト・再戦・ロビー）。再戦は「再戦の準備」で START を押すまで始めない",
     "start_loading": "じゅんびちゅう",
