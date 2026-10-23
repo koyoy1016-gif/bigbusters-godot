@@ -227,7 +227,8 @@ func _ai_show_action(slot: String, a: Dictionary) -> void:
 	if not bool(a.get("held", false)):
 		b.other_lift[slot] = float(a["height"])
 	if str(a["banner"]) != "":
-		b._show_banner(str(a["banner"]), b.role_name_of(slot), float(act.def("ultimate").get("banner_sec", 1.6)))
+		b._show_banner(str(a["banner"]), b.role_name_of(slot), float(act.def("ultimate").get("banner_sec", 1.6)),
+			Color(str(b.char_def_of(slot).get("role_color", b.config.get("banner_color", "#ffe27a")))))  # 版112：そのなかまの役職の色
 		b._play_sfx("ultimate")
 
 

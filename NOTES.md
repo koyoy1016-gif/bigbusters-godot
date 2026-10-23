@@ -1,9 +1,10 @@
 # 引き継ぎメモ
 
-更新：2026-10-23（版111）
+更新：2026-10-23（版112）
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-23 版112 BIGBLAST④演出】必殺技の名前（battle_hud._draw_banner・banner_layout：角ばった帯・役職の色の光・幅の86%に入るまで小さく・banner.color＝役職の色。AI のなかまはそのなかまの色）。敵の登場（show_enemy_intro：_begin_round で1回・ENEMY APPROACH・名前は仮「酔いどれ大鬼」・2.6秒）。覚醒（show_awakening：1試合1回・AWAKENING／覚醒・ふちの光は draw_polygon。前の「覚醒！」は出さない）。敵の攻撃の名前（show_enemy_attack：攻撃の番号が変わった時＝予告の音と同じ時・右上・いつも1つ・2.2秒・必殺は金で ENEMY ULTIMATE・倒れたら消す。名前は boss_attacks.json の display_names）。数値は prototype_stick.json の ult_banner・enemy_intro・awakening_fx・enemy_attack_label。写真は tools/shot_cues.gd。くわしくは docs/version112.md。全テスト Godot 88本・Node 67件 合格。未確認：実機での見え方・重さ
 - 【2026-10-23 版111 BIGBLAST③キャラの技】兵隊：A ぬいぐるみ投げ（1体）・続けて押した2回目は2体投げ（player_actions の combo：normal → normal2・window 0.8秒。ボタンの名前も変わる）・X 小隊召集（兵隊4人・全員が届いてからそろって2回撃つ・撃ち終わったら消える・待ち8秒）・必殺 兵隊包囲攻撃（8人を敵のまわりに輪・2回撃つ・合計331.2）・攻撃の時に少し下がる（path の fwd がマイナス）。呼び出しは battle_skills._summon と summon_places（line／surround・場所の中）、attacks（1体の回数）・squad（そろって撃つ）・summon_linger_sec。直した：呼び出した物が敵のまわりを回り続けていた。拳士 10連パンチ（tools/make_char_actions.py の RUSH_N。1発の強さはそのまま・合計75.3・長さ1.55秒）。瞬の透明 2.5秒。キャラの説明を書きかえ（character_profiles.json）。解釈：「合計2回」＝全員そろって2回（1体2発）。くわしくは docs/version111.md・docs/char-actions-v111.md。全テスト Godot 87本・Node 67件 合格。未確認：実機での兵隊の見え方・重さ（8人）
 - 【2026-10-23 版110 BIGBLAST②ボタンと回避】ボタン：右下に2×2・同じ大きさ（battle_hud._draw_buttons・_button_rect。data/prototype_stick.json の battle_buttons）。下の段 Y・A、上の段 X・必殺。大きな字＋小さな技の名前・押すと光ってふくらむ・使えない時は暗く＋待ち時間の帯・必殺はゲージを下からためる。Y＝全キャラ共通の回避（data/actions.json の sub：dodge・i_window [0.02,0.34]・待ち1.2秒・約3.4m 転がる。char_actions.json に sub はない）。player_actions.dodging()／invulnerable()（i_window の間だけ）。stick_prototype._apply_hazards：よけられる時間の中の当たりは「回避成功」（_on_dodge_success：輪・火花・「回避！」・音 free。転がる音は jump＝ボスの予告の whoosh と別）。AI も同じ回避（ai_ally：dodge_covers は i_window で判定）。今の Y の技は X と比べて良い方を X に（tools/make_char_actions.py の X_FROM_Y＝瞬・魔法師は Y→X。外した技の効果 speed_mode・time_stop・heal_shot のコードは残る→版114）。体力の表示のなかまのバーの上に役職名。くわしくは docs/version110.md・docs/char-actions-v110.md。全テスト Godot 86本・Node 67件 合格。未確認：実機での押しやすさ・回避のタイミングの感じ
 - 【2026-10-23 版109 BIGBLAST①名前と流れ】ユーザーの指示書「BIGBLAST — 既存ゲーム改修・UI刷新・軽量化」（docs のどこにもない。会話の添付）を6回に分けた（了承）：109名前と流れ→110ボタンと回避→111キャラの技→112演出→113画面の見た目→114軽量化。決めたこと（AskUserQuestion）：今のYの技は「Xと比べて良い方をXに残す」／兵隊の2体投げは「Aを続けて押した2回目」／覚醒演出は「ボスの覚醒の時」。版109：BIGBLAST（start_title・project.godot）、起動はアカウント選択（start_ui の準備中→ボタン・ログインずみは「つづける」）、役職名（けんし→剣士 など。characters.json の name・role_color・old_name）、role_label.gd（役職のラベル）、結果の画面と再戦の準備（result_ui.gd。READY＝"rematch_ready"・START で始める）、コイン負け25・1試合1回（_match_serial）。role_name_of は役職名を返す。くわしくは docs/version109.md。全テスト Godot 85本・Node 67件 合格
@@ -205,6 +206,7 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること（流れと優先事項。2026-10-18 14:10 更新）
+【2026-10-23 版112のあと】版113 画面の見た目の統一：ui_kit.angular（FancyRect の角ばった形・glass／glass_button を暗い角ばった板に）で、はじめの画面・ロビー・編成・プロフィール・設定・ガチャもまとめて変える。ハイライト（HIGHLIGHT の見出し・ベストアタッカーの役職ラベル・角ばった枠・ボタン）。写真で確かめる → 114
 【2026-10-23 版111のあと】版112 演出：必殺技の名前をまん中に大きく（役職の色の光・自動で小さく）・敵の登場（ENEMY APPROACH・名前・役。試合に1回）・ボスの覚醒（AWAKENING／覚醒。1回）・敵の攻撃の名前を右上に流す（前の名前は消す・攻撃の始まりと同じ時）→ 113 → 114
 【2026-10-23 版110のあと】版111 キャラの技：兵隊（A ぬいぐるみ1体・続けて押した2回目は2体／X 小隊召集4体・それぞれ2回撃って消える／必殺 兵隊包囲攻撃8体・敵を囲んで2回撃って消える・攻撃の時に少し下がる・呼び出しの攻撃回数の管理をまとめる）、拳士 20連→10連、瞬の透明 3.0→2.5秒。「合計2回」は「そろって2回（1体2回ずつ）」と解釈した（1体ずつ数えると8体中6体が撃たないため）。報告に書く
 【2026-10-23 版109のあと】BIGBLAST の続き：版110（A・X・Y・必殺のボタンを下に・Y＝全員共通の回避・今のYの技はXと比べて良い方を残す）→111→112→113→114。2回ごとに報告

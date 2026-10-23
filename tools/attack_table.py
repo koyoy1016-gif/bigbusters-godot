@@ -7,11 +7,8 @@ import json, os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 d = json.load(open(os.path.join(ROOT, "data", "boss_attacks.json"), encoding="utf-8"))
 sp = float(d.get("attack_speed", 1.0))
-NAMES = {"bat_h": "横振り", "bat_v": "縦振り＋衝撃波", "bat_spin": "回転斬り", "tail_spin": "しっぽ回し", "walk_swing": "歩きながら振る",
-         "grab": "つかみ投げ", "thrust": "前方突き", "bat_throw": "バット投げ", "spin_charge": "回転突進", "jump_slam": "ジャンプ落下",
-         "typhoon": "台風", "sake_drop": "酒瓶落とし", "fire_fest": "火祭り（必殺）", "bottle_ride": "巨大酒瓶ライド（必殺）",
-         "flyer_storm": "酒の大雨（必殺）", "hand_sweep": "大きな手（必殺）",
-         "jump_move": "移動ジャンプ落下"}
+# 版112：攻撃の名前は data/boss_attacks.json の display_names（戦いの画面の右上に出す名前と同じ）。必殺は表で「（必殺）」を足す
+NAMES = {k: v + ("（必殺）" if d["kinds"].get(k, {}).get("ai", {}).get("ultimate") else "") for k, v in d.get("display_names", {}).items()}
 
 
 def ride_total(k):

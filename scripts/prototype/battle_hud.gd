@@ -115,6 +115,9 @@ func _draw_overlay() -> void:
 	_draw_reticle()
 	_draw_dodge_text()
 	_draw_damage_numbers(screen)
+	_draw_enemy_attack(screen)  # 版112
+	_draw_enemy_intro(screen)
+	_draw_awakening(screen)
 	_draw_banner(screen)
 
 
@@ -255,35 +258,72 @@ func _draw_reticle() -> void:
 			b.overlay.draw_arc(q, 14.0, 0, TAU, 20, Color("#5fe08a"), 4.0)
 
 
-## 必殺技の名前（使った瞬間にはね上がり、少しあとに消える）
+## 版112：必殺技の名前（画面のまん中に大きく）。役職の色の光・角ばった帯（左右からのびる）。
+## 名前が画面に入らない時は、字を小さくする（拡大率だけ変える。文字の絵の大きさは決まった数段のまま）
 func _draw_banner(screen: Vector2) -> void:
 	var left := float(b.banner["left"])
 	if left <= 0.0:
 		return
-	var total := maxf(0.01, float(b.banner["total"]))
-	var age := total - left
-	var pop := 1.0 + 0.6 * maxf(0.0, 1.0 - age / 0.25)
+	var L := banner_layout(screen)
+	var lv: Dictionary = L["lv"]
+	var fs: float = L["fs"]
+	var w: float = L["w"]
+	var center: Vector2 = L["center"]
+	var age := float(b.banner["total"]) - left
 	var alpha := clampf(left / 0.4, 0.0, 1.0)
-	var center := Vector2(screen.x * 0.5, screen.y * (float(b.config["banner_y_portrait"]) if is_portrait(screen) else float(b.config["banner_y"])))
-	# 版99：文字の大きさを毎コマ変えると、大きさごとに文字の絵が作られてメモリが増える。
-	# 決まった数段の大きさ（text_pop_levels）で描いて、あとは拡大・縮小（draw_set_transform）ではね上がりを出す
-	var settled := int(float(b.config["ui_font_size"]) * 2.4)
-	var lv := pop_text(settled, pop, text_pop_levels())
-	var fs := float(settled) * pop  # 画面での文字の大きさ（前と同じ）
-	var text := str(b.banner["text"])
-	var w := b.font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"])).x * float(lv["k"])
+	var rc: Color = b.banner.get("color", _cc("banner_color"))
+	var uc: Dictionary = b.config.get("ult_banner", {})
+	# 帯：斜めの暗い帯が、まんなかから左右へのびる。上下のふちに役職の色の線
+	var grow := clampf(age / float(uc.get("open_sec", 0.16)), 0.0, 1.0)
+	grow = 1.0 - pow(1.0 - grow, 3.0)
+	var hh := fs * 0.78
+	var sk := hh * 0.7
+	var half := (screen.x * 0.5 + sk) * grow
+	var poly := PackedVector2Array([Vector2(center.x - half + sk, center.y - hh), Vector2(center.x + half + sk, center.y - hh),
+		Vector2(center.x + half - sk, center.y + hh), Vector2(center.x - half - sk, center.y + hh)])
 	var back := _cc("banner_back_color")
 	back.a *= alpha
-	b.overlay.draw_rect(Rect2(Vector2(0.0, center.y - fs * 0.9), Vector2(screen.x, fs * 1.8)), back)
-	var col := _cc("banner_color")
-	col.a = alpha
-	_scaled_string(b.font, center + Vector2(-w * 0.5 + 3.0, fs * 0.35 + 3.0), text, lv, Color(0, 0, 0, alpha))
-	_scaled_string(b.font, center + Vector2(-w * 0.5, fs * 0.35), text, lv, col)
+	b.overlay.draw_colored_polygon(poly, back)
+	var edge := Color(rc.r, rc.g, rc.b, 0.9 * alpha)
+	b.overlay.draw_line(poly[0], poly[1], edge, 3.0)
+	b.overlay.draw_line(poly[3], poly[2], edge, 3.0)
+	b.overlay.draw_line(poly[0] + Vector2(0, 6), poly[1] + Vector2(0, 6), Color(rc.r, rc.g, rc.b, 0.3 * alpha), 1.0)
+	if grow < 0.98:
+		return
+	# 字：役職の色の光（太い縁取りをうすく2回）→ 黒い縁取り → 白っぽい字
+	var at := center + Vector2(-w * 0.5, fs * 0.35)
+	var glow := Color(rc.r, rc.g, rc.b, 0.22 * alpha)
+	_scaled_string(b.font, at, str(b.banner["text"]), lv, Color(0, 0, 0, 0), int(uc.get("glow_px", 26)), glow)
+	_scaled_string(b.font, at, str(b.banner["text"]), lv, Color(0, 0, 0, 0), int(uc.get("glow_px", 26)) / 2, Color(rc.r, rc.g, rc.b, 0.35 * alpha))
+	var fill := Color.WHITE.lerp(rc, float(uc.get("fill_tint", 0.25)))
+	fill.a = alpha
+	_scaled_string(b.font, at, str(b.banner["text"]), lv, fill, int(uc.get("outline_px", 8)), Color(0, 0, 0, 0.85 * alpha))
 	var who := str(b.banner["who"])
 	if who != "":
 		var fs2 := int(float(b.config["ui_font_size"]) * 0.9)
 		var w2 := b.font.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2).x
-		b.overlay.draw_string(b.font, center + Vector2(-w2 * 0.5, fs * 0.95 + fs2 * 0.4), who, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(1, 1, 1, alpha))
+		var wp := center + Vector2(-w2 * 0.5, hh + fs2 * 1.05)
+		b.overlay.draw_string_outline(b.font, wp, who, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, 6, Color(0, 0, 0, 0.8 * alpha))
+		b.overlay.draw_string(b.font, wp, who, HORIZONTAL_ALIGNMENT_LEFT, -1, fs2, Color(rc.r, rc.g, rc.b, alpha).lightened(0.25))
+
+
+## 版112：必殺技の名前の大きさと場所。{lv（文字の絵の大きさ px と拡大率 k）, fs（画面での字の高さ）, w（字の幅）, center}
+func banner_layout(screen: Vector2) -> Dictionary:
+	var uc: Dictionary = b.config.get("ult_banner", {})
+	var total := maxf(0.01, float(b.banner["total"]))
+	var age := total - float(b.banner["left"])
+	var pop := 1.0 + 0.6 * maxf(0.0, 1.0 - age / 0.25)
+	var center := Vector2(screen.x * 0.5, screen.y * (float(b.config["banner_y_portrait"]) if is_portrait(screen) else float(b.config["banner_y"])))
+	# 版99：文字の大きさを毎コマ変えると、大きさごとに文字の絵が作られてメモリが増える。
+	# 決まった数段の大きさ（text_pop_levels）で描いて、あとは拡大・縮小（draw_set_transform）ではね上がりを出す
+	var settled := int(float(b.config["ui_font_size"]) * float(uc.get("size_k", 2.4)))
+	var lv := pop_text(settled, pop, text_pop_levels())
+	var w := b.font.get_string_size(str(b.banner["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"])).x * float(lv["k"])
+	var maxw := screen.x * float(uc.get("max_w_frac", 0.86))
+	if w > maxw and w > 0.0:
+		lv["k"] = float(lv["k"]) * maxw / w
+		w = maxw
+	return {"lv": lv, "fs": float(lv["px"]) * float(lv["k"]), "w": w, "center": center}
 
 
 func _draw_centered(center: Vector2, text: String, color: Color, scale: float = 1.0) -> void:
@@ -479,5 +519,159 @@ func _stick_input(pos: Vector2, screen: Vector2) -> Vector2:
 
 
 ## 必殺技の名前を、画面の真ん中に出す。who：使った人の表示（空なら出さない）
-func _show_banner(text: String, who: String, seconds: float) -> void:
-	b.banner = {"text": text, "who": who, "left": seconds, "total": seconds}
+func _show_banner(text: String, who: String, seconds: float, color: Color = Color(1.0, 0.89, 0.48)) -> void:
+	b.banner = {"text": text, "who": who, "left": seconds, "total": seconds, "color": color}
+
+
+## 版112：敵の登場（試合の始めに1回）。「ENEMY APPROACH」・敵の名前を大きく・役（BOSS）。線が左右からのび、暗い帯の上に出る
+func _draw_enemy_intro(screen: Vector2) -> void:
+	var ei: Dictionary = b.enemy_intro
+	var left := float(ei.get("left", 0.0))
+	if left <= 0.0:
+		return
+	var ec: Dictionary = b.config.get("enemy_intro", {})
+	var age := float(ei["total"]) - left
+	var a_in := clampf(age / 0.25, 0.0, 1.0)
+	var alpha := minf(a_in, clampf(left / 0.45, 0.0, 1.0))
+	var col := Color(str(ec.get("color", "#ff3b30")))
+	var cy := screen.y * float(ec.get("y_frac_portrait" if is_portrait(screen) else "y_frac", 0.36))
+	var cx := screen.x * 0.5
+	var name_px := int(ec.get("name_px", 54))
+	var title_px := int(ec.get("title_px", 24))
+	var hh := float(name_px) * 1.45
+	b.overlay.draw_rect(Rect2(0.0, cy - hh, screen.x, hh * 2.0), Color(0, 0, 0, 0.55 * alpha))
+	var lw := screen.x * 0.5 * (1.0 - pow(1.0 - a_in, 3.0))
+	var lc := Color(col.r, col.g, col.b, 0.95 * alpha)
+	b.overlay.draw_line(Vector2(cx - lw, cy - hh), Vector2(cx + lw, cy - hh), lc, 3.0)
+	b.overlay.draw_line(Vector2(cx - lw, cy + hh), Vector2(cx + lw, cy + hh), lc, 3.0)
+	# ENEMY APPROACH（字の間をあける。はじめの少しの間、点めつ）
+	var title := str(ec.get("title", "ENEMY APPROACH"))
+	var blink := 1.0 if age > 0.6 or int(age * 12.0) % 2 == 0 else 0.35
+	var tc := Color(col.r, col.g, col.b, alpha * blink).lightened(0.2)
+	_spaced_string(Vector2(cx, cy - hh + float(title_px) * 1.05), title, title_px, float(ec.get("title_spacing", 6.0)), tc)
+	# 敵の名前（大きく。少し右から入る）
+	var nm := str(ei.get("name", ""))
+	var nw := b.font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
+	var slide := (1.0 - pow(1.0 - clampf((age - 0.1) / 0.3, 0.0, 1.0), 3.0))
+	var np := Vector2(cx - nw * 0.5 + (1.0 - slide) * 60.0, cy + float(name_px) * 0.36)
+	var na := alpha * slide
+	b.overlay.draw_string_outline(b.font, np, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, 20, Color(col.r, col.g, col.b, 0.25 * na))
+	b.overlay.draw_string_outline(b.font, np, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, 8, Color(0, 0, 0, 0.9 * na))
+	b.overlay.draw_string(b.font, np, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, Color(1, 1, 1, na))
+	var role := str(ei.get("role", ""))
+	if role != "":
+		_spaced_string(Vector2(cx, cy + hh - float(title_px) * 0.95), role, title_px, 4.0, Color(1, 1, 1, 0.8 * na))
+
+
+## 版112：ボスの覚醒（1回だけ）。画面のふちが赤く光り、「AWAKENING」が大きく出て落ち着き、その下に「覚醒」
+func _draw_awakening(screen: Vector2) -> void:
+	var aw: Dictionary = b.awaken_fx
+	var left := float(aw.get("left", 0.0))
+	if left <= 0.0:
+		return
+	var ac: Dictionary = b.config.get("awakening_fx", {})
+	var age := float(aw["total"]) - left
+	var alpha := minf(clampf(age / 0.12, 0.0, 1.0), clampf(left / 0.5, 0.0, 1.0))
+	var col := Color(str(ac.get("color", "#ff2a6a")))
+	# 画面のふち（4辺の帯。内側へうすく。脈うつ）
+	var pulse := 0.6 + 0.4 * sin(age * 14.0)
+	var ep := float(ac.get("edge_px", 80.0))
+	if ep > 0.0:
+		# 外は色・内は透明の、4辺の帯（頂点の色でぼかす）
+		var co := Color(col.r, col.g, col.b, float(ac.get("edge_alpha", 0.42)) * alpha * pulse)
+		var ci := Color(col.r, col.g, col.b, 0.0)
+		var o := [Vector2.ZERO, Vector2(screen.x, 0), screen, Vector2(0, screen.y)]
+		var n := [Vector2(ep, ep), Vector2(screen.x - ep, ep), screen - Vector2(ep, ep), Vector2(ep, screen.y - ep)]
+		for i in 4:
+			var j := (i + 1) % 4
+			b.overlay.draw_polygon(PackedVector2Array([o[i], o[j], n[j], n[i]]), PackedColorArray([co, co, ci, ci]))
+	var cy := screen.y * float(ac.get("y_frac_portrait" if is_portrait(screen) else "y_frac", 0.32))
+	var px := int(ac.get("title_px", 64))
+	var title := str(ac.get("title", "AWAKENING"))
+	var pop := 1.0 + 0.5 * maxf(0.0, 1.0 - age / 0.22)
+	var lv := pop_text(px, pop, text_pop_levels())
+	var w := b.font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, int(lv["px"])).x * float(lv["k"])
+	var maxw := screen.x * 0.9
+	if w > maxw:
+		lv["k"] = float(lv["k"]) * maxw / w
+		w = maxw
+	var shake := Vector2(sin(age * 61.0), cos(age * 47.0)) * 4.0 * maxf(0.0, 1.0 - age / 0.6)
+	var at := Vector2(screen.x * 0.5 - w * 0.5, cy) + shake
+	_scaled_string(b.font, at, title, lv, Color(0, 0, 0, 0), 24, Color(col.r, col.g, col.b, 0.3 * alpha))
+	_scaled_string(b.font, at, title, lv, Color(1.0, 0.92, 0.95, alpha), 8, Color(0.1, 0, 0.03, 0.9 * alpha))
+	var sub := str(ac.get("sub", "覚醒"))
+	var spx := int(ac.get("sub_px", 40))
+	var sw := b.font.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, spx).x
+	var sp := Vector2(screen.x * 0.5 - sw * 0.5, cy + float(spx) * 1.35)
+	var sa := alpha * clampf((age - 0.2) / 0.25, 0.0, 1.0)
+	b.overlay.draw_string_outline(b.font, sp, sub, HORIZONTAL_ALIGNMENT_LEFT, -1, spx, 8, Color(0, 0, 0, 0.9 * sa))
+	b.overlay.draw_string(b.font, sp, sub, HORIZONTAL_ALIGNMENT_LEFT, -1, spx, Color(col.r, col.g, col.b, sa).lightened(0.3))
+
+
+## 版112：敵の攻撃の名前（右上。右から流れて入り、少しして消える。新しい攻撃が来たら、前の名前は消して入れかえる）
+func _draw_enemy_attack(screen: Vector2) -> void:
+	var ea: Dictionary = b.enemy_attack
+	var left := float(ea.get("left", 0.0))
+	if left <= 0.0:
+		return
+	var r := enemy_attack_rect(screen)
+	var lc: Dictionary = b.config.get("enemy_attack_label", {})
+	var age := float(ea["total"]) - left
+	var slide := 1.0 - pow(1.0 - clampf(age / float(lc.get("slide_sec", 0.18)), 0.0, 1.0), 3.0)
+	var alpha := clampf(left / 0.3, 0.0, 1.0)
+	var off := (1.0 - slide) * (r.size.x + 20.0)
+	var ult := bool(ea.get("ult", false))
+	var col := Color(str(lc.get("ult_color" if ult else "color", "#ff5a3a")))
+	var sk := r.size.y * 0.35
+	var poly := PackedVector2Array([r.position + Vector2(sk + off, 0), Vector2(r.end.x + off, r.position.y), r.end + Vector2(off, 0), Vector2(r.position.x + off, r.end.y)])
+	b.overlay.draw_colored_polygon(poly, Color(0.02, 0.03, 0.06, 0.82 * alpha))
+	b.overlay.draw_colored_polygon(PackedVector2Array([poly[0], poly[0] + Vector2(6, 0), poly[3] + Vector2(6, 0), poly[3]]), Color(col.r, col.g, col.b, alpha))
+	b.overlay.draw_line(poly[3], poly[2], Color(col.r, col.g, col.b, 0.8 * alpha), 2.0)
+	var px := int(lc.get("px", 22))
+	var cap_px := int(lc.get("caption_px", 12))
+	var cap := str(lc.get("ult_caption" if ult else "caption", "ENEMY SKILL"))
+	b.overlay.draw_string(b.font, Vector2(r.position.x + sk + 10.0 + off, r.position.y + float(cap_px) + 3.0), cap, HORIZONTAL_ALIGNMENT_LEFT, -1, cap_px, Color(col.r, col.g, col.b, 0.9 * alpha))
+	var tp := Vector2(r.position.x + sk + 10.0 + off, r.end.y - 8.0)
+	b.overlay.draw_string_outline(b.font, tp, str(ea["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, px, 5, Color(0, 0, 0, 0.85 * alpha))
+	b.overlay.draw_string(b.font, tp, str(ea["text"]), HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(1, 1, 1, alpha))
+
+
+## 版112：敵の攻撃の名前の四角（右上。ボスの体力のバー・なかまの体力の列と重ならない所）
+func enemy_attack_rect(screen: Vector2) -> Rect2:
+	var lc: Dictionary = b.config.get("enemy_attack_label", {})
+	var px := int(lc.get("px", 22))
+	var cap_px := int(lc.get("caption_px", 12))
+	var tw := b.font.get_string_size(str(b.enemy_attack.get("text", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var h := float(px + cap_px) + 16.0
+	var w := tw + h * 0.35 + 26.0
+	var L: Dictionary = b.hp_hud.layout(screen)
+	var br: Rect2 = L["boss_rect"]
+	var margin := float(lc.get("margin_px", 10.0))
+	var right := screen.x - margin
+	var top := br.position.y
+	if right - w < br.end.x + margin:
+		top = br.end.y + margin  # ボスのバーの右に入らない（たて画面）：バーの下
+	var r := Rect2(Vector2(right - w, top), Vector2(w, h))
+	var pr: Rect2 = L["party_rect"]
+	if r.intersects(pr):
+		r.position.y = pr.end.y + margin
+	return r
+
+
+## 字の間をあけて、まん中に描く（英字の見出し用。大きさは決まった数）
+func _spaced_string(center: Vector2, text: String, px: int, spacing: float, color: Color) -> void:
+	var total := 0.0
+	var ws: Array = []
+	for ch in text:
+		var cw := b.font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+		ws.append(cw)
+		total += cw + spacing
+	total -= spacing
+	var x := center.x - total * 0.5
+	var y := center.y + float(px) * 0.35
+	var i := 0
+	for ch in text:
+		b.overlay.draw_string_outline(b.font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 4, Color(0, 0, 0, 0.8 * color.a))
+		b.overlay.draw_string(b.font, Vector2(x, y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, px, color)
+		x += float(ws[i]) + spacing
+		i += 1

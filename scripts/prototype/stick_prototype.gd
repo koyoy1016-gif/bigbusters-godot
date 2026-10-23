@@ -82,7 +82,12 @@ var selected_character := ""
 var characters_cfg: Dictionary = {}
 var crowd_state := CrowdState.new()
 var gauge := Gauge.new(Actions.load_config())  ## 必殺技のゲージ
-var banner := {"text": "", "who": "", "left": 0.0, "total": 1.0}  ## 画面に出す必殺技名
+var banner := {"text": "", "who": "", "left": 0.0, "total": 1.0, "color": Color.WHITE}  ## 画面に出す必殺技名（版112：color＝役職の色）
+var enemy_intro := {"left": 0.0, "total": 1.0, "name": "", "role": ""}  ## 版112：敵の登場（試合の始めに1回）
+var awaken_fx := {"left": 0.0, "total": 1.0}  ## 版112：ボスの覚醒の演出（1試合に1回）
+var awaken_fx_shown := false
+var enemy_attack := {"left": 0.0, "total": 1.0, "text": "", "ult": false, "n": -1}  ## 版112：敵の攻撃の名前（右上。いつも1つだけ）
+var cue_log: Array = []  ## 版112：出した演出の記録（テスト用。最大32）
 var actions := Actions.new()  ## 通常・サブ・メインの攻撃の進み（data/actions.json）
 var button_flash := {}  ## 押したボタンの色を、少しのあいだ変える（ボタンid → 残り秒）
 var touch_timer := 0.0
@@ -672,6 +677,7 @@ func _process(delta: float) -> void:
 	hit_flash = maxf(0.0, hit_flash - delta)
 	damage_numbers().update(delta)
 	banner["left"] = maxf(0.0, float(banner["left"]) - delta)
+	update_cues(delta)
 	for id in button_flash.keys():
 		button_flash[id] = maxf(0.0, float(button_flash[id]) - delta)
 	dodge_text_left = maxf(0.0, dodge_text_left - delta)  # 版110：「回避！」の字
@@ -923,6 +929,11 @@ func _begin_round(start_ms: float) -> void:
 	boss_freeze_total = 0.0
 	gauge.reset()
 	banner["left"] = 0.0
+	# 版112：演出を消してから、敵の登場を出す（前の試合の物は残さない）
+	awaken_fx = {"left": 0.0, "total": 1.0}
+	awaken_fx_shown = false
+	enemy_attack = {"left": 0.0, "total": 1.0, "text": "", "ult": false, "n": -1}
+	show_enemy_intro()
 	button_flash = {}
 	_reset_sub_enemies()
 	touch_timer = 0.0
@@ -1378,8 +1389,53 @@ func _ult_slash_fx(pos: Vector3, aim: Vector2, landed: bool, mine: bool) -> void
 
 
 ## → battle_hud.gd
-func _show_banner(text: String, who: String, seconds: float) -> void:
-	hud._show_banner(text, who, seconds)
+func _show_banner(text: String, who: String, seconds: float, color: Color = Color(0, 0, 0, 0)) -> void:
+	hud._show_banner(text, who, seconds, color if color.a > 0.0 else Color(str(selected_def().get("role_color", config.get("banner_color", "#ffe27a")))))
+
+
+# ---------------------------------------------------------------- 版112：演出（敵の登場・覚醒・敵の攻撃の名前）
+
+## 演出の残り時間を進める（毎コマ）
+func update_cues(delta: float) -> void:
+	for d in [enemy_intro, awaken_fx, enemy_attack]:
+		d["left"] = maxf(0.0, float(d["left"]) - delta)
+
+
+func _cue(name: String) -> void:
+	cue_log.append(name)
+	if cue_log.size() > 32:
+		cue_log = cue_log.slice(16)
+
+
+## 敵の登場（ENEMY APPROACH・名前・役）。試合の始めに1回（_begin_round から）
+func show_enemy_intro() -> void:
+	var ec: Dictionary = config.get("enemy_intro", {})
+	var sec := float(ec.get("sec", 2.6))
+	enemy_intro = {"left": sec, "total": sec, "name": str(ec.get("name", "")), "role": str(ec.get("role", "BOSS"))}
+	_cue("intro")
+
+
+## ボスの覚醒（AWAKENING／覚醒）。1試合に1回だけ（2回目は出さない）
+func show_awakening() -> void:
+	if awaken_fx_shown:
+		return
+	awaken_fx_shown = true
+	var sec := float((config.get("awakening_fx", {}) as Dictionary).get("sec", 2.2))
+	awaken_fx = {"left": sec, "total": sec}
+	_cue("awaken")
+
+
+## 敵の攻撃の名前（右上）。n：攻撃の番号（同じ攻撃では出し直さない）。前の名前は、すぐ入れかえる（ためない）
+func show_enemy_attack(kind: String, n: int) -> void:
+	if int(enemy_attack.get("n", -1)) == n and float(enemy_attack["left"]) > 0.0:
+		return
+	var nm := str((attacks_cfg.get("display_names", {}) as Dictionary).get(kind, ""))
+	if nm == "":
+		return
+	var sec := float((config.get("enemy_attack_label", {}) as Dictionary).get("sec", 2.2))
+	var ult := bool((((attacks_cfg.get("kinds", {}) as Dictionary).get(kind, {}) as Dictionary).get("ai", {}) as Dictionary).get("ultimate", false))
+	enemy_attack = {"left": sec, "total": sec, "text": nm, "ult": ult, "n": n}
+	_cue("attack:" + kind)
 
 
 ## → battle_hud.gd
@@ -1532,13 +1588,14 @@ func _on_boss_fall() -> void:
 	ai.interrupt(_round_t(), 999.0)
 	field.clear()  # 倒れたら、燃えている火や酒だまりも消す
 	phase_text = {"text": str(config.get("boss_down_text", "")), "left": 2.0}
+	enemy_attack["left"] = 0.0  # 版112：攻撃をやめたので、攻撃の名前も消す
 	_play_sfx("thud")
 	music_cue.emit("fall")
 
 
 ## 覚醒の演出が終わった：第2形態の攻撃を始める
 func _on_boss_awake() -> void:
-	phase_text = {"text": str(config.get("boss_awake_text", "")), "left": 1.6}
+	show_awakening()  # 版112：「AWAKENING／覚醒」（前の「覚醒！」の字の代わり）
 	_play_sfx("roar")  # 版85：覚醒の雄たけび（音楽は覚醒の曲へ）
 	music_cue.emit("awake")
 	_on_awake_started()
@@ -1797,6 +1854,7 @@ func combat_update(delta: float) -> void:
 		if int(a["n"]) != last_attack_n:
 			last_attack_n = int(a["n"])
 			_play_sfx(str((sfx.cfg if sfx != null and not sfx.cfg.is_empty() else {}).get("attack_sounds", {}).get(str(a["kind"]), "")))
+			show_enemy_attack(str(a["kind"]), int(a["n"]))  # 版112：予告の音と同じ時に、攻撃の名前を右上へ
 		current_hazards = Attacks.hazards(a, u, attacks_cfg, _attack_ctx(a, u))
 	else:
 		current_attack = {}

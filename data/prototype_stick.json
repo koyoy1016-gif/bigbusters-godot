@@ -187,7 +187,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "111",
+  "build_id": "112",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -500,6 +500,50 @@
       "w": 0.22,
       "cell_h": 0.075
     }
+  },
+  "_cues": "版112：演出。ult_banner＝必殺技の名前（まん中に大きく。役職の色の光。max_w_frac をこえる長さは字を小さく）。enemy_intro＝敵の登場（試合の始めに1回）。awakening_fx＝ボスの覚醒（1回）。enemy_attack_label＝敵の攻撃の名前（右上。新しい攻撃で入れかえ。名前は data/boss_attacks.json の display_names）",
+  "ult_banner": {
+    "size_k": 2.4,
+    "max_w_frac": 0.86,
+    "open_sec": 0.16,
+    "glow_px": 26,
+    "outline_px": 8,
+    "fill_tint": 0.25
+  },
+  "enemy_intro": {
+    "title": "ENEMY APPROACH",
+    "name": "酔いどれ大鬼",
+    "role": "BOSS",
+    "sec": 2.6,
+    "color": "#ff3b30",
+    "y_frac": 0.36,
+    "y_frac_portrait": 0.34,
+    "title_px": 24,
+    "name_px": 54,
+    "title_spacing": 6.0
+  },
+  "awakening_fx": {
+    "title": "AWAKENING",
+    "sub": "覚醒",
+    "sec": 2.2,
+    "color": "#ff2a6a",
+    "edge_px": 80,
+    "edge_alpha": 0.42,
+    "y_frac": 0.3,
+    "y_frac_portrait": 0.3,
+    "title_px": 64,
+    "sub_px": 40
+  },
+  "enemy_attack_label": {
+    "sec": 2.2,
+    "slide_sec": 0.18,
+    "px": 22,
+    "caption_px": 12,
+    "caption": "ENEMY SKILL",
+    "ult_caption": "ENEMY ULTIMATE",
+    "color": "#ff5a3a",
+    "ult_color": "#ffd24a",
+    "margin_px": 10
   },
   "_summon": "版111：呼び出した物（兵隊・ぬいぐるみ）。決まった回数を撃ち終わってから消えるまでの秒・戦いの場所のふちから離す距離（m）",
   "summon_linger_sec": 0.5,
