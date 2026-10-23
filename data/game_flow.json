@@ -439,7 +439,9 @@
     "ready_note": "STARTを押すと、新しい試合が始まります",
     "ready_start": "START",
     "ready_wait": "仲間のSTARTを待っています",
-    "highlight_back": "結果へ戻る"
+    "highlight_back": "結果へ戻る",
+    "result_time": "TIME",
+    "result_damage": "DAMAGE"
   },
   "_room_name_note": "版115：作る人向けのメモ（遊ぶ人には出さない）：部屋の名前・公開／非公開・部屋の一覧は、まだない（サーバーのルールの変更が必要）",
   "v115": {

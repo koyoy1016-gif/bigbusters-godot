@@ -1,9 +1,10 @@
 # 引き継ぎメモ
 
-更新：2026-10-23（版116）
+更新：2026-10-23（版117）
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-23 版117 全体の見直し】スティックの見た目（stick_style・役職の色）・結果にタイムとダメージ（game_flow.last_stats・result_ui.stats_label・_comma）・横画面のはじめの画面（start_ui.layout）・横画面で中身が入らない画面は小さくして入れる（UiKit.fit_center：_make_panel と result_ui）。docs/version117.md。全テスト Godot 93本・Node 67件 合格
 - 【2026-10-23 版116 演出】大きな見出し headlines（BOSS DOWN・RAGE＝boss_rage の ai.angry が始まった時だけ・12秒あける・BOSS DEFEATED・DEFEAT。priority）・自分の見出し personal_cues（DOWN・REVIVE）・倒れている時の板（revive_ui。battle_revive.my_status_info：wait／progress／gone）・仲間のお知らせ toast・ボスの体力の表示に名前（enemy_intro.name）と赤い「激昂」。前の45秒から点めつの「ボスが おこった」はやめた（is_enraged は描かない）。倒れている間はボタンも暗い。tools/shot_cues.gd に boss_down・rage・win・lose・down・reviving・revive。docs/version116.md。全テスト Godot 92本・Node 67件 合格
 - 【2026-10-23 版115 画面の仕上げ】ひらがなだけの書き方（ことばの間をあける）をやめ、漢字・カタカナに（game_flow.json・prototype_stick.json・character_profiles.json・quality.json 低／高・maps.json 渋谷・web/head/30_account.js）。作る人向けのメモ（部屋・編成）は出さない（_room_name_note・_formation_note）。見出し（game_flow._add_heading：上に小さな英字）・戻るボタン（_make_back_button）・ボタンは太い字・オレンジの板の字は白（UiKit.clear_button）・結果の光の筋（RayBurst は見えない時は描かない）・ハイライトの背景色。プロフィールの見出しのずれを直した。tests/test_v115.gd（遊ぶ人に見せる文字の書き方を調べる）。docs/version115.md。全テスト Godot 91本・Node 67件 合格
 - 【2026-10-23 版114 Y＝前の Y の技＋出始めの回避】全キャラの Y を前の技にもどし、出始めの0.3秒（i_window [0,0.3]・dodge）は回避（回避成功の演出）。X も前の技（瞬 超高速モード・魔法師 時間停止）。剣士 Y かわし斬りは data/actions.json、ほかは tools/make_char_actions.py の build（DODGE_WINDOW）。兵隊 Y ぬいぐるみの突撃（attacks 5）。stick_prototype.is_pure_dodge（回避だけの技はスティックの向きへ）・Y はロック中も近づかない。AI：dodge_window（どの攻撃も）＋airborne_span（ジャンプでよけられる攻撃）・_sub_is_skill。ボタンの Y の上に小さく「回避」。編成は A・Y（回避＋技）・X・必殺。docs/version114.md・docs/char-actions-v114.md。全テスト Godot 90本・Node 67件 合格
@@ -211,6 +212,7 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること（流れと優先事項。2026-10-18 14:10 更新）
+【2026-10-23 版117のあと】版118 軽量化：再戦4回・画面の行き来40回・戦いのくり返しでノードとすてられた物の数を測る（下書き /tmp/claude-0/sp/test_v118.gd）・使わない設定（title_*・next_label・reward_title・reward_coin_prefix・boss_awake_text・boss_down_text・button_pressed_color など・enrage_* と is_enraged）を片づける → 119 通信
 【2026-10-23 版116のあと】版117 全体の見直し（スティックの見た目・結果にタイムとダメージ・横画面のメニュー・戦いの細部を写真で）→ 118 軽量化 → 119 通信（2人で動きが違う：位置しか送っていない・ボスは各自の画面で別に動く。相手の技・向き・ボスの同期。Firebase ルールを変えたら全文を報告）
 【2026-10-23 版115のあと】版116 演出：大きな見出し（headlines：ボス ダウン・激昂（boss_rage の ai.angry が始まった時・12秒あける）・撃破・全滅）・自分の DOWN／REVIVE・倒れている時の板（revive_ui）・仲間のお知らせ（toast）・ボスの体力の表示に名前と激昂。前の45秒からの点めつはやめる（/tmp の scratchpad に下書き patch116.py・patch116_hud.py・test_v116.gd。消えていたら作り直す）→ 117 → 118 → 119
 【2026-10-23 版114のあと】版115 画面の仕上げ（はじめの画面・ロビー・編成・へや・プロフィール・設定・ガチャ・結果・ハイライトを写真で見て直す。/tmp の写真は消える）→ 116 演出（怒り＝ボスの激昂は boss_rage の ai.angry の時。前の45秒で出る「ボスが おこった」の点めつはやめる・ボス ダウン・撃破・全滅・自分が倒れた時の板・復活）と文字（ひらがな→漢字）→ 117 → 118 → 119 通信

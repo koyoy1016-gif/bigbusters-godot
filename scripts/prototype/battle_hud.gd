@@ -79,8 +79,26 @@ func _draw_overlay() -> void:
 	var button_text := _cc("button_text_color")
 	var r := float(b.config["stick_radius_px"])
 	var c := _stick_center(screen)
-	b.overlay.draw_circle(c, r, _cc("stick_base_color"))
-	b.overlay.draw_circle(c + b.stick_vec * r, r * 0.4, _cc("stick_knob_color"))
+	# 版117：スティック（暗い円・うすい輪・4方向の小さな矢じり・動かしている時は、その向きの輪が自分の役職の色で光る）
+	var stc: Dictionary = b.config.get("stick_style", {})
+	var accent := _my_accent()
+	var active := b.stick_vec.length() > 0.1
+	b.overlay.draw_circle(c, r, Color(str(stc.get("base", "#0a0f1c66"))))
+	b.overlay.draw_arc(c, r, 0.0, TAU, 48, Color(str(stc.get("ring", "#c8d4f080"))), 2.0, true)
+	b.overlay.draw_arc(c, r * 0.62, 0.0, TAU, 40, Color(str(stc.get("inner_ring", "#c8d4f026"))), 1.5, true)
+	for i in 4:
+		var ang := PI * 0.5 * float(i)
+		var dir := Vector2(cos(ang), sin(ang))
+		var tip := c + dir * (r - 10.0)
+		var side := Vector2(-dir.y, dir.x) * 7.0
+		b.overlay.draw_colored_polygon(PackedVector2Array([tip, tip - dir * 9.0 + side, tip - dir * 9.0 - side]), Color(str(stc.get("chevron", "#c8d4f066"))))
+	if active:
+		var a0 := b.stick_vec.angle()
+		b.overlay.draw_arc(c, r, a0 - 0.55, a0 + 0.55, 16, Color(accent.r, accent.g, accent.b, 0.9), 5.0, true)
+	var kp := c + b.stick_vec * r
+	var kr := r * 0.4
+	b.overlay.draw_circle(kp, kr, Color(str(stc.get("knob", "#e8eefc"))) if active else Color(str(stc.get("knob_idle", "#c8d4f0b0"))))
+	b.overlay.draw_arc(kp, kr, 0.0, TAU, 32, Color(accent.r, accent.g, accent.b, 0.95 if active else 0.5), 3.0, true)
 
 	_draw_buttons(screen)
 

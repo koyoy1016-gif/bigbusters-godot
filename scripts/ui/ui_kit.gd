@@ -211,3 +211,23 @@ static func blast_panel(accent: Color, alpha: float = 0.9) -> StyleBoxFlat:
 	sb.set_content_margin_all(18)
 	return sb
 
+
+## 版117：まん中に並べた入れ物（box）が、画面（root）に入らない時は、まん中を中心に小さくする（横画面で、結果やハイライトの下が切れていた）。
+## 画面の大きさ・中身の大きさが変わった時に、決め直す
+static func fit_center(box: Control, root: Control, margin: float = 16.0) -> void:
+	box.grow_vertical = Control.GROW_DIRECTION_BOTH
+	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	var f := func() -> void:
+		if not is_instance_valid(box) or not is_instance_valid(root) or not box.is_inside_tree():
+			return  # 画面を片づけたあと（遅れて呼ばれた時）
+		var ms := box.get_combined_minimum_size()
+		var avail := root.size - Vector2(margin, margin) * 2.0
+		if ms.x <= 0.0 or ms.y <= 0.0 or avail.x <= 0.0 or avail.y <= 0.0:
+			return
+		var k := minf(1.0, minf(avail.x / ms.x, avail.y / ms.y))
+		box.pivot_offset = box.size * 0.5
+		box.scale = Vector2(k, k)
+	root.resized.connect(f)
+	box.minimum_size_changed.connect(f)
+	box.resized.connect(f)
+	f.call_deferred()

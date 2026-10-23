@@ -187,7 +187,7 @@
   ],
   "charge_color": "#ff9a20",
   "build_label": "版",
-  "build_id": "116",
+  "build_id": "117",
   "camera_follow": 0.5,
   "camera_follow_per_sec": 6.0,
   "camera_boss_frame": {
@@ -697,5 +697,14 @@
   "toast_revived": "%s 復活！",
   "toast_sec": 1.8,
   "toast_px": 24,
-  "toast_color": "#9fe8ff"
+  "toast_color": "#9fe8ff",
+  "stick_style": {
+    "_note": "版117：スティックの見た目（暗い円・うすい輪・4方向の矢じり・動かしている向きは自分の役職の色で光る）",
+    "base": "#0a0f1c66",
+    "ring": "#c8d4f080",
+    "inner_ring": "#c8d4f026",
+    "chevron": "#c8d4f066",
+    "knob": "#e8eefc",
+    "knob_idle": "#c8d4f0b0"
+  }
 }

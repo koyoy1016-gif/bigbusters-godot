@@ -63,6 +63,7 @@ var toast_label: Label
 var highlight_best: Label
 var highlight_role: Control  ## 版113：ベストアタッカーの役職のラベル
 var best_role := {}  ## 版113：ベストアタッカーの役職名と色（戦いを片づける前に控える）{name, color}
+var last_stats := {}  ## 版117：結果に出す、この試合のタイム（秒）と自分の与えたダメージ {sec, damage}
 var highlight_replay: Control
 var highlight_info: Dictionary = {}
 var reward_label: Label
@@ -292,6 +293,7 @@ func _make_panel(panel_name: String, separation: int = 28) -> VBoxContainer:
 	root.add_child(box)
 	layer.add_child(root)
 	panels[panel_name] = root
+	UiKit.fit_center(box, root)  # 版117：横画面でも、はみ出さない
 	return box
 
 
@@ -617,7 +619,7 @@ func goto(new_state: String) -> void:
 			var first := _rewarded_serial != _match_serial
 			if first:
 				_give_reward()
-			result_ui.show_result(last_won, last_reward, selected_character, not highlight_info.is_empty())
+			result_ui.show_result(last_won, last_reward, selected_character, not highlight_info.is_empty(), last_stats)
 			if first and last_reward > 0 and menu_sfx != null:
 				menu_sfx.play("coin")
 		Logic.READY:
@@ -1420,6 +1422,9 @@ func _capture_result() -> void:
 	if battle == null or not is_instance_valid(battle):
 		return
 	highlight_info = battle.highlight_data()
+	if float(battle.round_start_ms) > 0.0:
+		var end_ms := float(battle.round_end_ms) if float(battle.round_end_ms) > 0.0 else float(battle.server_now_ms())
+		last_stats = {"sec": maxf(0.0, end_ms - float(battle.round_start_ms)) / 1000.0, "damage": float(battle.my_hits)}
 	var entries: Array = battle.ranking_entries()
 	if not entries.is_empty():
 		best_text = str(config["highlight_best"]) + "：" + battle.role_name_of(str(entries[0]["slot"])) + " " + str(int(entries[0]["hits"]))

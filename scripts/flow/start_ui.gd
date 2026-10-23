@@ -80,6 +80,30 @@ func big_button(text: String, primary: bool, cb: Callable, name_text: String) ->
 	return [holder, b]
 
 
+## 版117：名前（上）とボタン（下）を置く。たて：名前は上から10%・ボタンは下から60。横：名前は小さく上に・ボタンは下に。重なる時は名前を小さく
+func layout() -> void:
+	if root == null or buttons_col == null:
+		return
+	var sz := root.size
+	if sz.x <= 1.0 or sz.y <= 1.0:
+		return
+	var land := sz.x > sz.y
+	var logo := root.get_node_or_null("Logo") as Control
+	var cs := buttons_col.get_combined_minimum_size()
+	buttons_col.size = cs
+	buttons_col.position = Vector2((sz.x - cs.x) * 0.5, sz.y - cs.y - (32.0 if land else 60.0))
+	if logo == null:
+		return
+	var ls := logo.get_combined_minimum_size()
+	logo.size = ls
+	var top_y := sz.y * (0.04 if land else 0.1)
+	var room := buttons_col.position.y - 16.0 - top_y
+	var k := clampf(room / maxf(ls.y, 1.0), 0.45, 0.72 if land else 1.0)
+	logo.pivot_offset = Vector2(ls.x * 0.5, 0.0)
+	logo.scale = Vector2(k, k)
+	logo.position = Vector2((sz.x - ls.x) * 0.5, top_y)
+
+
 func build() -> void:
 	bold = UiKit.bold(f.font, float(_k("bold", 0.7)))
 	root = Control.new()
@@ -135,6 +159,11 @@ func build() -> void:
 	col.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_MINSIZE)
 	col.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	col.position.y -= 60
+	# 版117：画面の大きさ・向きが変わった時と、ボタンの数が変わった時に、置き直す（横画面で、名前とボタンが重なっていた）
+	root.resized.connect(layout)
+	col.minimum_size_changed.connect(layout)
+	top.minimum_size_changed.connect(layout)
+	layout.call_deferred()
 	_build_guest_confirm()
 
 

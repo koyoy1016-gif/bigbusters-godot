@@ -78,6 +78,7 @@ func _initialize() -> void:
 			flow._match_serial += 1
 			flow.last_won = mode == "result_win"
 			flow.highlight_info = {"points": []} if mode == "result_win" else {}
+			flow.last_stats = {"sec": 95.0, "damage": 1234.0}  # 版117：写真のための、タイムとダメージ
 			flow.goto("reward")
 		"ready":
 			flow.goto("rematch_ready")

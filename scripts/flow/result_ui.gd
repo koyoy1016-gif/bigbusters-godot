@@ -15,6 +15,7 @@ var f: Node
 var bold: Font
 var result_title: Label
 var coins_label: Label
+var stats_label: Label  ## 版117：タイムと与えたダメージ
 var used_label: Control
 var highlight_button: Button
 var rematch_button: Button
@@ -71,6 +72,7 @@ func _panel(key: String) -> VBoxContainer:
 	root.add_child(box)
 	f.layer.add_child(root)
 	f.panels[key] = root
+	UiKit.fit_center(box, root)  # 版117：横画面でも、はみ出さない
 	return box
 
 
@@ -98,6 +100,10 @@ func build() -> void:
 	coins_label.name = "Coins"
 	UiKit.outline(coins_label, 8)
 	r.add_child(coins_label)
+	stats_label = _label("", 26, Color("#dfe6f5"))
+	stats_label.name = "Stats"
+	UiKit.outline(stats_label, 6)
+	r.add_child(stats_label)
 	var used_box := VBoxContainer.new()
 	used_box.add_theme_constant_override("separation", 6)
 	used_box.add_child(_label(str(_v("result_used", "使ったキャラ")), 22, Color("#b9c4dc")))
@@ -138,12 +144,17 @@ func build() -> void:
 
 
 ## 結果を出す。won：勝ったか。coins：もらったコイン。cid：使ったキャラ。has_highlight：ハイライトの記録があるか
-func show_result(won: bool, coins: int, cid: String, has_highlight: bool) -> void:
+func show_result(won: bool, coins: int, cid: String, has_highlight: bool, stats: Dictionary = {}) -> void:
 	var col := Color(str(_v("result_win_color" if won else "result_lose_color", "#ffd24a")))
 	result_title.text = str(_v("result_win" if won else "result_lose", "VICTORY" if won else "DEFEAT"))
 	result_title.add_theme_color_override("font_color", col)
 	result_title.add_theme_color_override("font_shadow_color", Color(col.r, col.g, col.b, 0.5))
 	coins_label.text = "+%d %s" % [coins, str(_v("result_coins", "COINS"))]
+	# 版117：タイム 1:23　ダメージ 1,234（記録がなければ出さない）
+	stats_label.visible = not stats.is_empty()
+	if not stats.is_empty():
+		var sec := int(float(stats.get("sec", 0.0)))
+		stats_label.text = "%s %d:%02d　　%s %s" % [str(_v("result_time", "TIME")), sec / 60, sec % 60, str(_v("result_damage", "DAMAGE")), _comma(int(float(stats.get("damage", 0.0))))]
 	var def := CharacterData.find(f.characters_cfg, cid)
 	used_label.text = str(def.get("name", ""))
 	used_label.color = Color(str(def.get("role_color", "#ffffff")))
@@ -188,3 +199,13 @@ func leave_ready() -> void:
 		_start_tween.kill()
 	_start_tween = null
 	start_button.modulate = Color.WHITE
+
+
+## 版117：3けたごとに「,」（1234 → 1,234）
+static func _comma(n: int) -> String:
+	var s := str(absi(n))
+	var out := ""
+	while s.length() > 3:
+		out = "," + s.right(3) + out
+		s = s.left(s.length() - 3)
+	return ("-" if n < 0 else "") + s + out
