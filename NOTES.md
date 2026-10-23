@@ -1,9 +1,10 @@
 # 引き継ぎメモ
 
-更新：2026-10-23（版113）
+更新：2026-10-23（版114）
 このファイルは、作業の前に読み、作業の後に更新する。
 
 ## いまの状況
+- 【2026-10-23 版114 Y＝前の Y の技＋出始めの回避】全キャラの Y を前の技にもどし、出始めの0.3秒（i_window [0,0.3]・dodge）は回避（回避成功の演出）。X も前の技（瞬 超高速モード・魔法師 時間停止）。剣士 Y かわし斬りは data/actions.json、ほかは tools/make_char_actions.py の build（DODGE_WINDOW）。兵隊 Y ぬいぐるみの突撃（attacks 5）。stick_prototype.is_pure_dodge（回避だけの技はスティックの向きへ）・Y はロック中も近づかない。AI：dodge_window（どの攻撃も）＋airborne_span（ジャンプでよけられる攻撃）・_sub_is_skill。ボタンの Y の上に小さく「回避」。編成は A・Y（回避＋技）・X・必殺。docs/version114.md・docs/char-actions-v114.md。全テスト Godot 90本・Node 67件 合格
 - 【2026-10-23 版113 BIGBLAST⑤画面の見た目】ui_kit.angular（game_flow.json）：UiKit.glass／glass_button を暗い角ばった板・ななめのボタンに、UiKit.corner（30px 未満の丸みを3pxに）、FancyRect.angular（static。平行四辺形）。はじめの画面・ロビー・編成・プロフィール・設定・へや・ガチャがまとめて変わる。ハイライト：HIGHLIGHT の見出し・ベストアタッカーの役職ラベル（best_role を戦いを片づける前に控える）・角ばった枠・ボタン。tools/shot_lobby.gd に highlight。くわしくは docs/version113.md。全テスト Godot 89本・Node 67件 合格
 - 【2026-10-23 21:18 ユーザーの追加の依頼】①Y は「前の Y の技＋出始めに回避」の意味だった（AskUserQuestion で確認）→ 版114 で戻す ②113の続き・全部見直して完成度を上げる ③怒り・復活などの演出をかっこよく・ひらがなだけの表示は雑→ゲーム全体の細かい所まで ④2人通信で動きが違う・連動しない（通信はできる）→最後に。順番（了承）：114 Y→115 画面の仕上げ→116 演出と文字→117 全体の見直し→118 軽量化→119 通信の同期
 - 【2026-10-23 版112 BIGBLAST④演出】必殺技の名前（battle_hud._draw_banner・banner_layout：角ばった帯・役職の色の光・幅の86%に入るまで小さく・banner.color＝役職の色。AI のなかまはそのなかまの色）。敵の登場（show_enemy_intro：_begin_round で1回・ENEMY APPROACH・名前は仮「酔いどれ大鬼」・2.6秒）。覚醒（show_awakening：1試合1回・AWAKENING／覚醒・ふちの光は draw_polygon。前の「覚醒！」は出さない）。敵の攻撃の名前（show_enemy_attack：攻撃の番号が変わった時＝予告の音と同じ時・右上・いつも1つ・2.2秒・必殺は金で ENEMY ULTIMATE・倒れたら消す。名前は boss_attacks.json の display_names）。数値は prototype_stick.json の ult_banner・enemy_intro・awakening_fx・enemy_attack_label。写真は tools/shot_cues.gd。くわしくは docs/version112.md。全テスト Godot 88本・Node 67件 合格。未確認：実機での見え方・重さ
@@ -208,6 +209,7 @@
 - 看板、ロゴ、商標、鉄道会社のデザインの扱い
 
 ## 次にやること（流れと優先事項。2026-10-18 14:10 更新）
+【2026-10-23 版114のあと】版115 画面の仕上げ（はじめの画面・ロビー・編成・へや・プロフィール・設定・ガチャ・結果・ハイライトを写真で見て直す。/tmp の写真は消える）→ 116 演出（怒り＝ボスの激昂は boss_rage の ai.angry の時。前の45秒で出る「ボスが おこった」の点めつはやめる・ボス ダウン・撃破・全滅・自分が倒れた時の板・復活）と文字（ひらがな→漢字）→ 117 → 118 → 119 通信
 【2026-10-23 版113のあと】版114：Y＝前の Y の技＋出始め0.3秒の回避（tools/make_char_actions.py の DODGE_WINDOW・build で全員の sub に dodge と i_window。X_FROM_Y はやめた＝瞬 X 超高速モード・魔法師 X 時間停止にもどす。剣士の Y かわし斬りは data/actions.json に戻す。兵隊の Y ぬいぐるみの突撃は attacks 5）。AI は dodge_window と airborne_span（ジャンプでよけられる攻撃）。そのあと 115〜119
 【2026-10-23 版112のあと】版113 画面の見た目の統一：ui_kit.angular（FancyRect の角ばった形・glass／glass_button を暗い角ばった板に）で、はじめの画面・ロビー・編成・プロフィール・設定・ガチャもまとめて変える。ハイライト（HIGHLIGHT の見出し・ベストアタッカーの役職ラベル・角ばった枠・ボタン）。写真で確かめる → 114
 【2026-10-23 版111のあと】版112 演出：必殺技の名前をまん中に大きく（役職の色の光・自動で小さく）・敵の登場（ENEMY APPROACH・名前・役。試合に1回）・ボスの覚醒（AWAKENING／覚醒。1回）・敵の攻撃の名前を右上に流す（前の名前は消す・攻撃の始まりと同じ時）→ 113 → 114

@@ -181,6 +181,13 @@ func _draw_buttons(screen: Vector2) -> void:
 		var tc := Color.WHITE if ready or flash else Color(1, 1, 1, 0.45)
 		var lw := b.font.get_string_size(letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx).x
 		var ly := rect.position.y + rect.size.y * 0.52
+		# 版114：Y は、出始めに回避のある技。上に小さく「回避」
+		if key == "sub" and not held and bool(b.actions.def(key).get("dodge", false)):
+			var tag := str(bc.get("sub_tag", "回避"))
+			var tpx := int(bc.get("sub_tag_px", 13))
+			var tw := b.font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tpx).x
+			var tp := Vector2(rect.get_center().x - tw * 0.5, rect.position.y + float(tpx) + 4.0)
+			b.overlay.draw_string(b.font, tp, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tpx, Color(edge.r, edge.g, edge.b, tc.a))
 		b.overlay.draw_string_outline(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, 6, Color(0, 0, 0, 0.8))
 		b.overlay.draw_string(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, tc)
 		var nx: String = b.actions.combo_next(key)  # 版111：続けて押せる間は、次の技の名前（兵隊の「ぬいぐるみ2体投げ」）

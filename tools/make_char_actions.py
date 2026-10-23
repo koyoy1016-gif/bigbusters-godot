@@ -735,6 +735,12 @@ def summoner():
                                        hit(0.3, 1.3, proj=plush_l("plush_bear2"), side=0.5, fx=plush_fx)],
                        step(0.0, "Toy_A2"), stop=False, path_=back_a2, name="ぬいぐるみ2体投げ",
                        note="A を続けて押した2回目：右手・左手でぬいぐるみを1体ずつ投げる（1体ずつ A と同じ強さ。2回当たる）"),
+        # 版114：Y＝ぬいぐるみの突撃（前の Y にもどした）。2体を呼ぶ。1体5回たたいたら消える（8秒たっても消える）。出始めは回避（build で付ける）
+        "sub": act("Y", 0.8, 10.0, [], step(0.0, "Toy_Y"), stop=False, path_=path((0.0, 0.0, 0.0), (0.2, -0.5, 0.0), (0.5, -0.7, 0.0), (0.8, -0.7, 0.0)),
+                   effects=[{"t": 0.3, "type": "summon", "unit": "plush", "count": 2, "attacks": 5, "sec": 8.0, "first": 0.6, "interval": 0.8,
+                             "multiplier": 0.6, "speed": 5.5, "reach": 1.0, "max_active": 12, "spread": 1.8, "unit_height": PLUSH_UNIT_HEIGHT}],
+                   fx=[{"t": 0.3, "kind": "ring", "color": "#f2b6c6", "radius": 2.0, "life": 0.4, "at": "self"}],
+                   name="ぬいぐるみの突撃", note="ぬいぐるみを2体呼ぶ。敵へ跳ねて行き、1体5回たたいて消える（8秒たっても消える）"),
         "main": act("X", 1.0, 8.0, [], step(0.0, "Toy_X"), stop=False, path_=back_x,
                     effects=[{"t": 0.45, "type": "summon", "unit": "soldier", "count": 4, "attacks": 2, "formation": "line",
                               "sec": 8.0, "first": 0.9, "interval": 0.7, "multiplier": 1.0, "speed": 4.5, "reach": 1.0, "max_active": 12, "spread": 2.2}],
@@ -813,18 +819,20 @@ NAMES = {"brawler": "拳士", "sprinter": "瞬", "gunner": "銃士", "bomber": "
          "guardian": "守護士", "summoner": "兵隊", "healer": "介護士"}  # 版110：表の名前は役職名（版109）
 
 
-# 版110：Y は全キャラ共通の回避（data/actions.json の sub）。キャラの今の Y の技は、X と比べて良い方を X に残す（ユーザー決定）。
-# Y を X に移すキャラ：瞬（バニッシュ。指示書14番で時間を変える＝残す技）・魔法師（チャージ魔法。時間停止は通信中に使えないため）
-X_FROM_Y = {"sprinter", "mage"}
+# 版114：Y＝キャラの前の Y の技＋出始めの回避（ユーザー決定：「前までの攻撃に加えて、攻撃をする際に回避をする」）。
+# どの Y も、出始めの DODGE_WINDOW 秒の間に当たった攻撃は受けない（回避成功・「回避！」）。X は前の技にもどす（版110 の入れかえはやめた）。
+# 剣士の Y（かわし斬り）は data/actions.json に同じ値を書く（tests/test_v114.gd が同じか確かめる）
+DODGE_WINDOW = [0.0, 0.3]
 
 
 def build(cid):
     _CUR["id"] = cid
     acts, anims = CHARS[cid]()
-    sub = acts.pop("sub", None)
-    if cid in X_FROM_Y and sub is not None:
-        sub["label"] = "X"
-        acts["main"] = sub
+    sub = acts.get("sub")
+    if sub is not None:
+        sub["dodge"] = True
+        sub["i_window"] = list(DODGE_WINDOW)
+        sub["note"] = sub.get("note", "") + "（版114：出始めの%.1f秒は回避）" % DODGE_WINDOW[1]
     # 使わなくなった技の動きは作らない（作る時間とメモリを減らす）
     used = {st["anim"] for a in acts.values() for st in a.get("steps", [])}
     anims = {k: v for k, v in anims.items() if k in used or k.startswith("Mini_")}  # Mini_：呼び出す小さい兵隊の動き
@@ -968,7 +976,7 @@ def main():
         acts, anims = build(cid)
         data["characters"][cid] = dict({"_meta": META[cid]}, **acts)
         ap = float(stats[cid]["attack_power"])
-        for key, lab in (("normal", "A"), ("normal2", "A（続けて2回目）"), ("main", "X"), ("ultimate", "必殺")):
+        for key, lab in (("normal", "A"), ("normal2", "A（続けて2回目）"), ("sub", "Y（回避＋技）"), ("main", "X"), ("ultimate", "必殺")):
             if key not in acts:
                 continue
             a = acts[key]
@@ -982,16 +990,16 @@ def main():
                 shape = "呼び出し（%d人 × %d回）" % (sm[0]["count"], sm[0]["attacks"])
             rows.append((NAMES[cid], META[cid]["role"], lab, a["name"], count_hits(a), one, total(a, ap), cd, a["duration_sec"], shape, effs))
     (ROOT / "data/char_actions.json").write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    md = ["# キャラごとの攻撃（版111）", "",
-          "版110：Y は全キャラ共通の回避（data/actions.json の sub。待ち1.2秒・よけられる時間0.02〜0.34秒）。キャラの技は A・X・必殺。",
+    md = ["# キャラごとの攻撃（版114）", "",
+          "版114：Y＝キャラの前の Y の技＋出始めの回避（出始めの%.1f秒に当たった攻撃は受けない＝回避成功）。X は前の技（版110 の入れかえはやめた）。" % DODGE_WINDOW[1],
           "版111：兵隊（A を続けて押した2回目は2体投げ・X 小隊召集・必殺 兵隊包囲攻撃。呼び出しは人数×回数が決まっていて、撃ち終わったら消える）・拳士 10連パンチ・瞬の透明 2.5秒。", "",
           "tools/make_char_actions.py が作る表。ダメージ = 攻撃力 × 倍率（四捨五入しない値）。ゲージ制の必殺技は待ち時間 0。",
           "飛ぶ物（銃弾・魔法・プレゼント・矢・いん石）は、当たった時にダメージが入る。呼び出し（ぬいぐるみ・兵隊）は、1回ごとに 攻撃力×倍率。",
-          "剣士（基準・変えない）：A 単純斬り 22.5（0.35秒）／X 五段斬り 18×5＝90（6秒）／必殺 切り捨て御免 346.5（Y のかわし斬りは版110で共通の回避に）", "",
+          "剣士（基準・変えない）：A 単純斬り 22.5（0.35秒）／Y かわし斬り 58.5（4秒・出始め回避）／X 五段斬り 18×5＝90（6秒）／必殺 切り捨て御免 346.5", "",
           "| キャラ | 役 | ボタン | 技 | 当たる回数 | 1回 | 合計 | 待ち時間（秒） | 長さ（秒） | 当たりの形 | 効果 |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in rows:
         md.append("| %s | %s | %s | %s | %d | %.2f | %.2f | %.2f | %.2f | %s | %s |" % r)
-    (ROOT / "docs/char-actions-v111.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+    (ROOT / "docs/char-actions-v114.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print("chars", list(data["characters"]))
 
 

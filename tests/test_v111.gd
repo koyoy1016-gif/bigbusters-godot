@@ -250,13 +250,13 @@ func _initialize() -> void:
 	check(float(bx["duration_sec"]) < 2.0, "立ち止まる時間が短くなった（%.2f 秒。前は2.55秒）" % float(bx["duration_sec"]))
 
 	# ---- 8. 瞬の透明 2.5秒（それ以外は変えない）----
-	var sx: Dictionary = Actions.config_for("sprinter")["actions"]["main"]
+	var sx: Dictionary = Actions.config_for("sprinter")["actions"]["sub"]  # 版114：バニッシュは、また Y
 	var ve: Dictionary = sx["effects"][0]
 	check(str(ve["type"]) == "vanish" and is_equal_approx(float(ve["sec"]), 2.5) and is_equal_approx(float(ve["speed"]), 1.3) and is_equal_approx(float(ve["bonus"]), 1.5),
 		"瞬：透明は2.5秒（前は3.0秒）。速さ1.3倍・現れた一撃1.5倍はそのまま")
 	var sp := make("sprinter")
 	stand(sp, 3.0)
-	sp.perform("main")
+	sp.perform("sub")
 	tick(sp, float(ve["t"]) + 2.3)
 	check(sp.skills.is_vanished(sp._my_slot()), "2.3秒たっても、まだ消えている")
 	tick(sp, 0.4)

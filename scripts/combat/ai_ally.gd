@@ -188,13 +188,9 @@ static func first_dt(threats: Array) -> float:
 	return best
 
 
-## 版71・110：Y でよけられる時間 [始め, 終わり]（秒）。版110：Y は全員共通の回避（i_window の間は、どの攻撃もよけられる）。
-## i_window がなければ、前のとおり、跳ぶ高さが DODGE_HEIGHT をこえている時間（ジャンプでよけられる攻撃だけ）。なければ []
+## 版71：Y の跳ぶ高さが DODGE_HEIGHT をこえている時間 [始め, 終わり]（秒）。跳ばなければ []（ジャンプでよけられる攻撃だけ、よけられる）
 static func airborne_span(actions: Actions) -> Array:
 	var d := actions.def("sub")
-	var w: Variant = d.get("i_window", null)
-	if w is Array and (w as Array).size() == 2:
-		return [float(w[0]), float(w[1])]
 	var path: Array = d.get("path", [])
 	var dur := float(d.get("duration_sec", 1.0))
 	var t0 := -1.0
@@ -211,21 +207,36 @@ static func airborne_span(actions: Actions) -> Array:
 
 ## 版71：いま Y を始めると、threats の中で Y の間（duration）に当たる物を、全部跳んでよけられるか。
 ## 1つもなければ false（よける物がない）
+## 版114：Y が技（当たりか効果がある）か。回避だけの Y なら false
+static func _sub_is_skill(actions: Actions) -> bool:
+	var d := actions.def("sub")
+	return not (d.get("hits", []) as Array).is_empty() or not (d.get("effects", []) as Array).is_empty()
+
+
+## 版114：Y の出始めの回避の時間 [始め, 終わり]（秒。i_window）。この間に当たる攻撃は、どれもよけられる。なければ []
+static func dodge_window(actions: Actions) -> Array:
+	var w: Variant = actions.def("sub").get("i_window", null)
+	if w is Array and (w as Array).size() == 2:
+		return [float(w[0]), float(w[1])]
+	return []
+
+
 static func dodge_covers(actions: Actions, threats: Array) -> bool:
 	var span := airborne_span(actions)
-	if span.is_empty():
+	var win := dodge_window(actions)
+	if span.is_empty() and win.is_empty():
 		return false
 	var dur := float(actions.def("sub").get("duration_sec", 1.0))
-	var any_attack := actions.def("sub").has("i_window")  # 版110：回避は、ジャンプでよけられない攻撃もよけられる
 	var any := false
 	for th in threats:
 		var dt := float(th["dt"])
 		if dt > dur:
 			continue  # 着地のあとの当たりは、次に考える
 		any = true
-		if not any_attack and not bool((th["h"] as Dictionary).get("jumpable", false)):
-			return false
-		if dt < float(span[0]) or dt > float(span[1]):
+		# 版114：出始めの回避の時間なら、どの攻撃もよけられる。跳んでいる間なら、ジャンプでよけられる攻撃だけ
+		var in_win := not win.is_empty() and dt >= float(win[0]) and dt <= float(win[1])
+		var in_air := not span.is_empty() and bool((th["h"] as Dictionary).get("jumpable", false)) and dt >= float(span[0]) and dt <= float(span[1])
+		if not (in_win or in_air):
 			return false
 	return any
 
@@ -283,12 +294,15 @@ static func _think(a: Dictionary, ctx: Dictionary) -> bool:
 			a["evades"] = int(a.get("evades", 0)) + 1
 			a["mode"] = "evade"
 			return false
-		# 走っても間に合わない：Y でよけられる時刻になるまで待つ（ジャンプでよけられる物だけなら）
+		# 走っても間に合わない：Y でよけられる時刻になるまで待つ（ジャンプでよけられる物だけなら跳ぶ間、ほかは出始めの回避の時間）
 		var all_jump := true
 		for th in threats:
-			if not bool((th["h"] as Dictionary).get("jumpable", false)) and not actions.def("sub").has("i_window"):
+			if not bool((th["h"] as Dictionary).get("jumpable", false)):
 				all_jump = false
-		var span := airborne_span(actions)
+		var span := airborne_span(actions) if all_jump else []
+		if span.is_empty():
+			span = dodge_window(actions)
+			all_jump = not span.is_empty()
 		if all_jump and not span.is_empty() and eta > float(span[1]):
 			a["evade"] = Vector2.ZERO
 			a["mode"] = "wait_dodge"
@@ -339,8 +353,8 @@ static func _choose_attack(a: Dictionary, ctx: Dictionary, delta: float) -> void
 		a["think_attack"] = float(cfg["attack_think_sec"])
 		if actions.can_start("main") and window >= lock_sec(a, "main") + margin and rng.randf() < float(cfg["use_main_chance"]) and _start(a, "main", ctx):
 			return
-		# Y は、よけるために残しておきたいので、攻めに使うのは体力に余裕があって、すきが長いときだけ（版110：当たりのない Y＝回避は、攻めに使わない）
-		if not careful and not (actions.def("sub").get("hits", []) as Array).is_empty() and actions.can_start("sub") and window >= lock_sec(a, "sub") + margin and rng.randf() < float(cfg["use_sub_chance"]) and _start(a, "sub", ctx):
+		# Y は、よけるために残しておきたいので、攻めに使うのは体力に余裕があって、すきが長いときだけ（当たりも効果もない Y は、攻めに使わない）
+		if not careful and _sub_is_skill(actions) and actions.can_start("sub") and window >= lock_sec(a, "sub") + margin and rng.randf() < float(cfg["use_sub_chance"]) and _start(a, "sub", ctx):
 			return
 	if window >= lock_sec(a, "normal") + margin:
 		_start(a, "normal", ctx)
@@ -363,8 +377,8 @@ static func _start(a: Dictionary, id: String, ctx: Dictionary) -> bool:
 	var boss: Vector2 = ctx["boss"]
 	var to := boss - (a["pos"] as Vector2)
 	var aim := to if to.length() > 0.01 else (a["face"] as Vector2)
-	if bool(actions.def(id).get("dodge", false)):
-		# 版110：Y の回避は、ボスから離れる向きへ転がる（よける向きが分かっていれば、その向き）
+	if id == "sub" and not _sub_is_skill(actions):
+		# 版110：当たりも効果もない回避だけの Y は、ボスから離れる向きへ転がる（よける向きが分かっていれば、その向き）。版114：技のある Y は、ボスへ
 		var away: Vector2 = a.get("dodge_dir", Vector2.ZERO)
 		aim = away if away.length() > 0.01 else (-to if to.length() > 0.01 else -(a["face"] as Vector2))
 	else:

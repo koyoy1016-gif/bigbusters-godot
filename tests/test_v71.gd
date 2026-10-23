@@ -42,13 +42,15 @@ func _initialize() -> void:
 	# ---- 1. Y の跳んでいる時間と、よけられるかの判断 ----
 	var a := make_ally(cfg, Vector2(0, 4))
 	var span := AiAlly.airborne_span(AiAlly.act(a))
-	# 版110：Y は全員共通の回避。よけられる時間は data/actions.json の sub の i_window（0.02〜0.34秒）
-	check(span.size() == 2 and float(span[0]) > 0.0 and float(span[1]) < 0.5 and float(span[1]) > float(span[0]) + 0.25, "Y でよけられる時間（%.2f〜%.2f 秒）" % [float(span[0]), float(span[1])])
+	check(span.size() == 2 and float(span[0]) > 0.05 and float(span[1]) < 1.0 and float(span[1]) > float(span[0]) + 0.3, "Y で跳んでいる時間（%.2f〜%.2f 秒）" % [float(span[0]), float(span[1])])
+	var win := AiAlly.dodge_window(AiAlly.act(a))
+	check(win.size() == 2 and is_equal_approx(float(win[0]), 0.0) and is_equal_approx(float(win[1]), 0.3), "版114：Y の出始めの回避の時間（0〜0.3秒）")
 	var mid := (float(span[0]) + float(span[1])) * 0.5
 	check(AiAlly.dodge_covers(AiAlly.act(a), [{"dt": mid, "h": circle(0, 4, 5, true)}]), "跳んでいる間に当たる、ジャンプでよけられる攻撃は、Y でよけられる")
-	check(not AiAlly.dodge_covers(AiAlly.act(a), [{"dt": 0.0, "h": circle(0, 4, 5, true)}]), "すぐ当たる（跳ぶ前）なら、Y ではよけられない")
-	check(AiAlly.dodge_covers(AiAlly.act(a), [{"dt": mid, "h": circle(0, 4, 5, false)}]), "版110：回避は、ジャンプでよけられない攻撃も、よけられる時間の中ならよけられる")
-	check(not AiAlly.dodge_covers(AiAlly.act(a), [{"dt": 0.45, "h": circle(0, 4, 5, false)}]), "よけられる時間のあと（転がり終わり）に当たる攻撃は、Y ではよけられない")
+	check(AiAlly.dodge_covers(AiAlly.act(a), [{"dt": 0.0, "h": circle(0, 4, 5, true)}]), "版114：すぐ当たる（跳ぶ前）攻撃も、出始めの回避でよけられる")
+	check(AiAlly.dodge_covers(AiAlly.act(a), [{"dt": 0.15, "h": circle(0, 4, 5, false)}]), "版114：出始めの回避の時間なら、ジャンプでよけられない攻撃もよけられる")
+	check(mid > 0.3 and not AiAlly.dodge_covers(AiAlly.act(a), [{"dt": mid, "h": circle(0, 4, 5, false)}]), "跳んでいる間でも、出始めのあとなら、ジャンプでよけられない攻撃はよけられない")
+	check(not AiAlly.dodge_covers(AiAlly.act(a), [{"dt": 0.95, "h": circle(0, 4, 5, true)}]), "着地のころに当たる攻撃は、Y ではよけられない")
 	var th := AiAlly.threats_at(Vector2(0, 4), [{"dt": 0.5, "h": circle(0, 4, 2, true)}, {"dt": 0.3, "h": circle(9, 9, 1, true)}], 0.1, 0.5, "p2")
 	check(th.size() == 1 and absf(float(th[0]["dt"]) - 0.4) < 0.001, "いまの場所に当たる物だけを、作ってからの秒を引いて数える")
 

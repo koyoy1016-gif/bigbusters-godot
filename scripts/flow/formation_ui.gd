@@ -529,7 +529,7 @@ func _refresh_detail(t: Array) -> void:
 	f._clear_box(moves)
 	var acts: Dictionary = Actions.config_for(id).get("actions", {})
 	# 版110：A・X・必殺がキャラの技。Y は全員共通の回避（最後に出す）
-	var move_rows := [["normal", "formation_move_normal"], ["main", "formation_move_main"], ["ultimate", "formation_move_ult"], ["sub", "formation_move_sub"]]
+	var move_rows := [["normal", "formation_move_normal"], ["sub", "formation_move_sub"], ["main", "formation_move_main"], ["ultimate", "formation_move_ult"]]  # 版114：A・Y・X・必殺
 	for mr in move_rows:
 		var a: Dictionary = acts.get(mr[0], {})
 		moves.add_child(_move_row(str(f.config[mr[1]]), str(a.get("name", "-")), rc))

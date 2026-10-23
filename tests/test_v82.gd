@@ -196,7 +196,7 @@ func _initialize() -> void:
 	check(fu.focus_id == "hero_swordsman" and fu.armed_slot == -1, "キャラをタップだけなら、くわしい情報を見る")
 	var d_texts: Array = []
 	texts_in(flow.panels["formation"].find_child("Detail", true, false), d_texts)
-	var moves_ok := d_texts.has("単純斬り") and d_texts.has("回避") and d_texts.has("五段斬り") and d_texts.has("切り捨て御免")  # 版110：Y は共通の回避
+	var moves_ok := d_texts.has("単純斬り") and d_texts.has("かわし斬り") and d_texts.has("五段斬り") and d_texts.has("切り捨て御免")  # 版114：Y は、また かわし斬り
 	check(moves_ok, "技の名前（通常・スキル・必殺）")
 	check(d_texts.has(str(flow.config["formation_move_awaken"])) and d_texts.any(func(x): return str(x).contains("剣気かいほう")), "覚醒能力")
 	check((fu.detail["stats"] as GridContainer).get_child_count() == 5 and d_texts.has("190"), "能力5つ（体力 190 など）")

@@ -1114,8 +1114,8 @@ func _screen_radius(c: Vector3, r: float) -> float:
 ## ロック中に、近くの攻撃で敵が届かない：近づく必要があるか（遠すぎる時は近づかない＝届かないことを、照準の色で示す）
 func _needs_approach(id: String) -> bool:
 	var d := actions.def(id)
-	if d.is_empty() or id == "ultimate" or (d.get("hits", []) as Array).is_empty():
-		return false  # 版110：当たりのない技（Y の回避・効果の技）は、近づかない
+	if d.is_empty() or id == "ultimate" or (d.get("hits", []) as Array).is_empty() or bool(d.get("dodge", false)):
+		return false  # 版110：当たりのない技（効果の技）は、近づかない。版114：出始めに回避のある Y は、近づかずにすぐ出す（よけるのが間に合うように）
 	for h in d.get("hits", []):
 		if (h as Dictionary).has("proj") or SkillHits.shape_of(h) != "melee":
 			return false
@@ -1173,11 +1173,12 @@ func perform(id: String) -> bool:
 		approach_id = id
 		approach_left = float(config.get("approach_max_sec", 0.6))
 		return true
-	var dodge := bool(actions.def(id).get("dodge", false))
-	if not actions.start(id, _dodge_direction() if dodge else _aim_direction(id), cooldown):
+	# 版114：回避だけの技（当たりも効果もない）は、スティックの向き（なければ敵の反対）へ。Y の技（出始めに回避）は、ふつうに敵へ
+	var pure_dodge := is_pure_dodge(id)
+	if not actions.start(id, _dodge_direction() if pure_dodge else _aim_direction(id), cooldown):
 		return false
-	if not dodge:
-		vanish_bonus = skills.on_attack_start(_my_slot())  # 版79：消えていたら現れる（最初の一撃が強い）。回避では現れない
+	if not pure_dodge:
+		vanish_bonus = skills.on_attack_start(_my_slot())  # 版79：消えていたら現れる（最初の一撃が強い）。回避だけの技では現れない
 	if bool(actions.def(id).get("sweep_hit", false)):
 		ult_start_pos = Vector2(player.position.x, player.position.z)  # 版72b・78：駆けぬけた道で当たりを調べる（必殺技・ダッシュ技）
 	if id == "ultimate":
@@ -1186,8 +1187,8 @@ func perform(id: String) -> bool:
 		_show_banner(str(actions.def(id).get("name", "")), role_name_of(_my_slot()), float(actions.def(id).get("banner_sec", 1.6)))
 		_play_sfx("ultimate")
 	facing = actions.aim
-	if dodge:
-		# 版110：回避の転がりの音（ボスの攻撃の予告の音「whoosh」とは別の音にする。同じ音は続けて鳴らないので、予告が消えないように）
+	if bool(actions.def(id).get("dodge", false)):
+		# 版110：回避の音（ボスの攻撃の予告の音「whoosh」とは別の音にする。同じ音は続けて鳴らないので、予告が消えないように）
 		_play_sfx(str((config.get("dodge", {}) as Dictionary).get("sfx_start", "jump")))
 	if char_view != null:
 		char_view.face_now(actions.aim)
@@ -1196,6 +1197,12 @@ func perform(id: String) -> bool:
 
 
 ## 版110：Y の回避の向き：スティックを倒していれば、その向き。倒していなければ、ねらう敵の反対（敵がいなければ、うしろ）
+## 版114：回避だけの技か（dodge で、当たりも効果もない）。Y の技（出始めに回避）は false
+func is_pure_dodge(id: String) -> bool:
+	var d := actions.def(id)
+	return bool(d.get("dodge", false)) and (d.get("hits", []) as Array).is_empty() and (d.get("effects", []) as Array).is_empty()
+
+
 func _dodge_direction() -> Vector2:
 	if stick_vec.length() > 0.2:
 		return stick_vec.normalized()

@@ -67,10 +67,11 @@ func _initialize() -> void:
 	a.update(5.0)
 	check(a.can_start("sub"), "待ち時間が過ぎたら、また始められる")
 
-	# 版110：サブ（Y）＝全員共通の回避。当たりはない。地面を転がる。よけられる時間（i_window）の間だけ受けない
+	# サブ（Y かわし斬り）：跳んで、てっぺんで1回当たり、元の高さにもどる。少し後ろに下がって終わる。
+	# 版114：出始めの i_window（0〜0.3秒）の間だけ、どの攻撃も受けない（回避）
 	a = Actions.new()
-	check(a.start("sub", Vector2(0, -1)), "回避を始められる")
-	var dodge_hits := hits_of(a.update(0.0))
+	check(a.start("sub", Vector2(0, -1)), "サブを始められる")
+	var sub_hits := hits_of(a.update(0.0))
 	var w: Array = a.def("sub")["i_window"]
 	var inv_in := false
 	var inv_out := false
@@ -78,7 +79,7 @@ func _initialize() -> void:
 	var max_h := 0.0
 	var t := 0.0
 	while a.busy() and t < 3.0:
-		dodge_hits += hits_of(a.update(0.01))
+		sub_hits += hits_of(a.update(0.01))
 		t += 0.01
 		fwd += a.frame_move.x
 		max_h = maxf(max_h, a.height)
@@ -86,9 +87,11 @@ func _initialize() -> void:
 			inv_in = inv_in or (a.invulnerable() and a.dodging())
 		elif a.t > float(w[1]) + 0.02 and a.busy():
 			inv_out = inv_out or a.invulnerable() or a.dodging()
-	check(dodge_hits == 0, "回避は、攻撃ではない（当たりなし）")
-	check(inv_in and not inv_out, "よけられる時間の中だけ、ダメージを受けない（終わりぎわは受ける）")
-	check(fwd > 2.5 and is_equal_approx(max_h, 0.0), "回避は、地面を転がって約3m 動く（%.2f）" % fwd)
+	check(sub_hits == 1, "サブは、1回の強い一撃")
+	check(max_h > 1.5, "サブは、高く跳ぶ（%.2f）" % max_h)
+	check(is_equal_approx(a.height, 0.0), "サブが終わると、地面にもどる")
+	check(fwd < 0.0, "サブは、跳んだあと、始めの場所より後ろに下がって終わる（%.2f）" % fwd)
+	check(inv_in and not inv_out, "版114：出始めの回避の時間の中だけ、どの攻撃も受けない（そのあとは受ける）")
 
 	# メイン：5回斬る。少しずつ前へ出る。立ち止まって行う
 	a = Actions.new()
@@ -128,14 +131,19 @@ func _initialize() -> void:
 	s.actions.reset()
 	s.player.position = Vector3(0.0, s.ground_y, bz + 3.0)
 	var hp1: float = s.boss_hp
-	check(s.perform("sub"), "回避（Y）を始める")
-	var away := Vector2(s.player.position.x - s.boss.position.x, s.player.position.z - s.boss.position.z).normalized()
-	check(s.actions.aim.dot(away) > 0.95, "スティックを倒していなければ、ねらう敵（ボス）から離れる向きへ転がる")
+	check(s.perform("sub"), "サブを始める")
+	var peak := 0.0
 	var steps := 0
 	while s.actions.busy() and steps < 200:
 		run_for(s, 0.016)
+		peak = maxf(peak, s.player.position.y - s.ground_y)
 		steps += 1
-	check(is_equal_approx(s.boss_hp, hp1), "回避では、ボスにダメージを与えない")
+	check(peak > 1.5, "サブで、画面のキャラが跳ぶ（%.2f）" % peak)
+	check(is_equal_approx(s.player.position.y, s.ground_y), "サブのあと、地面にもどる")
+	check(s.boss_hp < hp1, "サブで、ボスに当たる")
+	var dmg_sub: float = hp1 - s.boss_hp
+	check(dmg_sub > power * 2.0, "サブは、通常より強い一撃（%.1f）" % dmg_sub)
+	check(s.player.position.z > bz + 0.0, "サブで、ボスの中には入りこまない（z=%.2f）" % s.player.position.z)
 	s.actions.reset()
 	s.player.position = Vector3(0.0, s.ground_y, bz + 3.0)
 	var hp2: float = s.boss_hp

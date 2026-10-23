@@ -69,7 +69,7 @@ func total_mult(hits: Array) -> float:
 func _initialize() -> void:
 	# ---- 1. ガンナー：全部「弾」 ----
 	var g := cfg("gunner")
-	for id in ["normal", "main", "ultimate"]:  # 版110：Y は共通の回避
+	for id in ["normal", "sub", "main", "ultimate"]:
 		var hits: Array = g[id]["hits"]
 		var all_proj := not hits.is_empty()
 		for h in hits:
@@ -183,8 +183,7 @@ func _initialize() -> void:
 	var t := await make("summoner")
 	stand(t, 3.0)
 	t.target_lock.set_target("boss")
-	# 版110：ぬいぐるみを呼ぶ Y はなくなった（版111で A の2回目に）。呼び出しのしくみで大きさを確かめる
-	t.skills.apply_effect(t._my_slot(), {"type": "summon", "unit": "plush", "count": 2, "sec": 8.0, "interval": 0.8, "multiplier": 0.6, "speed": 5.5, "reach": 1.0, "max_active": 9, "spread": 1.8, "unit_height": 1.6}, Vector2(0, -1), 9.0)
+	t.perform("sub")  # 版114：兵隊の Y（ぬいぐるみの突撃）
 	tick(t, 0.6)
 	var plush_ok := 0
 	for un in t.skill_summons:

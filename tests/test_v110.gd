@@ -1,6 +1,6 @@
 extends SceneTree
 ## 実行: godot --headless --path . --script res://tests/test_v110.gd
-## 版110：A・X・Y・必殺のボタン（右下に2×2・同じ大きさ・大きな字と技の名前）。Y＝全キャラ共通の回避。
+## 版110：A・X・Y・必殺のボタン（右下に2×2・同じ大きさ・大きな字と技の名前）。Y の出始めは回避（版114：Y は前の技＋出始めの回避）。
 ## （回避の動きの細かい確かめは test_player_actions、AI の回避は test_v71）
 
 const SCENE := "res://scenes/prototype/stick_prototype.tscn"
@@ -39,42 +39,25 @@ func hazard(id: String, s: Node) -> Dictionary:
 
 
 func _initialize() -> void:
-	# ---- 1. Y は、9人とも同じ回避（名前「回避」・当たりなし・よけられる時間がある・待ち時間がある）----
+	# ---- 1. 版114：Y は、9人とも「前の Y の技＋出始めの回避」（同じ時間）。くわしくは test_v114 ----
 	var first: Dictionary = {}
 	for cid in IDS:
 		var sub: Dictionary = (Actions.config_for(cid)["actions"] as Dictionary).get("sub", {})
-		var ok := str(sub.get("name", "")) == "回避" and bool(sub.get("dodge", false)) and (sub.get("hits", [1]) as Array).is_empty() \
-			and sub.get("i_window", null) is Array and float(sub.get("cooldown_sec", 0.0)) > 0.0
-		check(ok, "%s：Y は共通の回避" % cid)
+		var ok := bool(sub.get("dodge", false)) and sub.get("i_window", null) is Array and float(sub.get("cooldown_sec", 0.0)) > 0.0 and str(sub.get("name", "")) != ""
+		check(ok, "%s：Y の出始めは回避（%s）" % [cid, sub.get("name", "")])
 		if first.is_empty():
 			first = sub
 		else:
-			check(JSON.stringify(sub["i_window"]) == JSON.stringify(first["i_window"]) and is_equal_approx(float(sub["cooldown_sec"]), float(first["cooldown_sec"])),
-				"%s：よけられる時間と待ち時間は、みんな同じ" % cid)
+			check(JSON.stringify(sub["i_window"]) == JSON.stringify(first["i_window"]), "%s：よけられる時間は、みんな同じ" % cid)
 		var acts: Dictionary = Actions.config_for(cid)["actions"]
-		for id in ["normal", "main", "ultimate"]:
+		for id in ["normal", "sub", "main", "ultimate"]:
 			check(str((acts.get(id, {}) as Dictionary).get("name", "")) != "", "%s：%s に技の名前がある（ボタンに出す）" % [cid, id])
 	var w: Array = first["i_window"]
 	check(float(w[1]) - float(w[0]) < float(first["duration_sec"]) and float(w[1]) - float(w[0]) < float(first["cooldown_sec"]),
-		"よけられる時間（%.2f秒）は、回避の長さ・待ち時間より短い（ずっと無敵にならない）" % (float(w[1]) - float(w[0])))
-
-	# ---- 2. 続けて押しても、ずっと無敵にはならない（4秒押し続けた時の、無敵の割合）----
-	var a := Actions.new(Actions.config_for("brawler"))
-	var inv := 0.0
-	var t := 0.0
-	var starts := 0
-	while t < 4.0:
-		if a.start("sub", Vector2(0, 1)):
-			starts += 1
-		a.update(0.01)
-		if a.invulnerable():
-			inv += 0.01
-		t += 0.01
-	check(starts >= 2 and starts <= 4, "4秒押し続けても、回避は待ち時間ごと（%d回）" % starts)
-	check(inv < 4.0 * 0.4, "押し続けても、無敵は全体の4割より短い（%.2f秒／4秒）" % inv)
+		"よけられる時間（%.2f秒）は、技の長さ・待ち時間より短い（ずっと無敵にならない）" % (float(w[1]) - float(w[0])))
 
 	# ---- 3. 戦いの画面：よけられる時間の中に当たれば「回避成功」（受けない）。外なら受ける ----
-	var s := make("gunner")
+	var s := make("mage")  # 版114：Y の技が、出始めのあとは無敵ではないキャラ（魔法師のチャージ魔法）
 	var hp0: float = s.my_hp
 	s.player.position = Vector3(0.0, s.ground_y, 6.0)
 	check(s.perform("sub"), "Y で回避を始められる")

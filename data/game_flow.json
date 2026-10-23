@@ -359,7 +359,7 @@
   "formation_set_already": "この枠に いるよ",
   "formation_set_locked": "まだ もっていません（ガチャで 出ます）",
   "formation_move_normal": "A（通常）",
-  "formation_move_sub": "Y（共通）",
+  "formation_move_sub": "Y（回避＋技）",
   "formation_move_main": "X（スキル）",
   "formation_move_ult": "必殺技",
   "formation_move_awaken": "覚醒能力",
