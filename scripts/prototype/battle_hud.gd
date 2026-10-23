@@ -100,7 +100,7 @@ func _draw_overlay() -> void:
 	b.overlay.draw_circle(kp, kr, Color(str(stc.get("knob", "#e8eefc"))) if active else Color(str(stc.get("knob_idle", "#c8d4f0b0"))))
 	b.overlay.draw_arc(kp, kr, 0.0, TAU, 32, Color(accent.r, accent.g, accent.b, 0.95 if active else 0.5), 3.0, true)
 
-	_draw_buttons(screen)
+	# 版118：ボタンは自分の板（buttons_layer）に、見た目が変わった時だけ描く（毎コマ描くと、この環境で1コマ約0.37ms かかっていた）
 
 	# 版92：上の文字の行（説明・BOSS HP・やく/体力・なかま・通信）はやめた。体力は、画面に固定した新しい表示（battle_hp_hud.gd）
 	# 版102：体力の表示は、自分の板（b.hp_hud.layer）に、見た目が変わった時だけ描く（ここでは描かない）
@@ -170,17 +170,17 @@ func _draw_buttons(screen: Vector2) -> void:
 			for i in 3:
 				var e := 3.0 + 3.0 * i
 				var g := PackedVector2Array([poly[0] + Vector2(0, -e), poly[1] + Vector2(e, -e), poly[2] + Vector2(0, e), poly[3] + Vector2(-e, e)])
-				b.overlay.draw_colored_polygon(g, Color(edge.r, edge.g, edge.b, 0.16 * pulse / float(i + 1)))
-		b.overlay.draw_colored_polygon(poly, _cc(str(bc.get("fill" if ready or flash else "fill_disabled", "#0b0f1ce6"))))
+				_bci.draw_colored_polygon(g, Color(edge.r, edge.g, edge.b, 0.16 * pulse / float(i + 1)))
+		_bci.draw_colored_polygon(poly, _cc(str(bc.get("fill" if ready or flash else "fill_disabled", "#0b0f1ce6"))))
 		if flash:
-			b.overlay.draw_colored_polygon(poly, Color(edge.r, edge.g, edge.b, 0.35))
+			_bci.draw_colored_polygon(poly, Color(edge.r, edge.g, edge.b, 0.35))
 		# 必殺技のゲージ（下からたまる）
 		if is_ult and not b.gauge.is_ready():
 			var fr := clampf(b.gauge.ratio(), 0.0, 1.0)
 			var top := rect.end.y - rect.size.y * fr
 			var clip := Geometry2D.intersect_polygons(poly, PackedVector2Array([Vector2(rect.position.x - sk, top), Vector2(rect.end.x + sk, top), Vector2(rect.end.x + sk, rect.end.y + 1), Vector2(rect.position.x - sk, rect.end.y + 1)]))
 			for cp in clip:
-				b.overlay.draw_colored_polygon(cp, Color(edge.r, edge.g, edge.b, 0.32))
+				_bci.draw_colored_polygon(cp, Color(edge.r, edge.g, edge.b, 0.32))
 		# 待ち時間の残り（上から暗い帯）
 		var cd_total := float(b.actions.def(key).get("cooldown_sec", 0.0)) if key != "normal" else b.role_value("attack_cooldown_sec")
 		if cd_left > 0.0 and cd_total > 0.0:
@@ -188,11 +188,11 @@ func _draw_buttons(screen: Vector2) -> void:
 			var bottom := rect.position.y + rect.size.y * frac
 			var shade := Geometry2D.intersect_polygons(poly, PackedVector2Array([Vector2(rect.position.x - sk, rect.position.y - 1), Vector2(rect.end.x + sk, rect.position.y - 1), Vector2(rect.end.x + sk, bottom), Vector2(rect.position.x - sk, bottom)]))
 			for sp in shade:
-				b.overlay.draw_colored_polygon(sp, _cc(str(bc.get("cooldown_shade", "#000000a0"))))
+				_bci.draw_colored_polygon(sp, _cc(str(bc.get("cooldown_shade", "#000000a0"))))
 		var ec := edge if ready or flash else edge.darkened(0.55)
 		var loop := poly.duplicate()
 		loop.append(poly[0])
-		b.overlay.draw_polyline(loop, ec, 3.0 if ready else 2.0, true)
+		_bci.draw_polyline(loop, ec, 3.0 if ready else 2.0, true)
 		# 字：大きく A／X／Y／必殺、その下に小さく技の名前
 		var letters: Dictionary = bc.get("letters", {})
 		var letter := "×" if held else str(letters.get(key, key))
@@ -207,9 +207,9 @@ func _draw_buttons(screen: Vector2) -> void:
 			var tpx := int(bc.get("sub_tag_px", 13))
 			var tw := b.font.get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tpx).x
 			var tp := Vector2(rect.get_center().x - tw * 0.5, rect.position.y + float(tpx) + 4.0)
-			b.overlay.draw_string(b.font, tp, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tpx, Color(edge.r, edge.g, edge.b, tc.a))
-		b.overlay.draw_string_outline(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, 6, Color(0, 0, 0, 0.8))
-		b.overlay.draw_string(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, tc)
+			_bci.draw_string(b.font, tp, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tpx, Color(edge.r, edge.g, edge.b, tc.a))
+		_bci.draw_string_outline(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, 6, Color(0, 0, 0, 0.8))
+		_bci.draw_string(b.font, Vector2(rect.get_center().x - lw * 0.5, ly), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, lpx, tc)
 		var nx: String = b.actions.combo_next(key)  # 版111：続けて押せる間は、次の技の名前（兵隊の「ぬいぐるみ2体投げ」）
 		var nm := str(b.actions.def(nx if nx != "" else key).get("name", ""))
 		if nm != "" and not held:
@@ -221,8 +221,8 @@ func _draw_buttons(screen: Vector2) -> void:
 				px = px - px % 2
 				nw = b.font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
 			var ny := rect.end.y - rect.size.y * 0.16
-			b.overlay.draw_string_outline(b.font, Vector2(rect.get_center().x - nw * 0.5, ny), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 4, Color(0, 0, 0, 0.8))
-			b.overlay.draw_string(b.font, Vector2(rect.get_center().x - nw * 0.5, ny), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(tc.r, tc.g, tc.b, tc.a * 0.92))
+			_bci.draw_string_outline(b.font, Vector2(rect.get_center().x - nw * 0.5, ny), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px, 4, Color(0, 0, 0, 0.8))
+			_bci.draw_string(b.font, Vector2(rect.get_center().x - nw * 0.5, ny), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(tc.r, tc.g, tc.b, tc.a * 0.92))
 
 
 ## 自分のキャラの役職の色（ボタンのふち）。キャラがなければ白
@@ -835,3 +835,49 @@ func _draw_toast(screen: Vector2) -> void:
 	var col := Color(str(b.config.get("toast_color", "#9fe8ff")))
 	b.overlay.draw_line(poly[3], poly[2], Color(col.r, col.g, col.b, 0.8 * alpha), 2.0)
 	b.overlay.draw_string(b.font, Vector2(r.position.x + 22.0, r.end.y - 10.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(1, 1, 1, alpha))
+
+# ---------------------------------------------------------------- 版118：ボタンの板（見た目が変わった時だけ描き直す）
+var buttons_layer: Control = null
+var _bci: CanvasItem = null  ## ボタンを描く先（buttons_layer）
+var _btn_sig: Array = []
+var button_redraws := 0  ## 描き直した回数（テスト・測る用）
+
+
+## ボタンの板を作る（overlay の子・overlay の字より下に描く）
+func attach_buttons(parent: Control) -> void:
+	buttons_layer = Control.new()
+	buttons_layer.name = "Buttons"
+	buttons_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	buttons_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	buttons_layer.show_behind_parent = true
+	buttons_layer.draw.connect(func() -> void:
+		_bci = buttons_layer
+		button_redraws += 1
+		_draw_buttons(buttons_layer.size))
+	parent.add_child(buttons_layer)
+	_bci = buttons_layer
+
+
+## 毎コマ：ボタンの見た目を決める数が変わった時だけ、描き直す
+func update_buttons() -> void:
+	if buttons_layer == null:
+		return
+	var sig := button_signature(buttons_layer.size)
+	if sig != _btn_sig:
+		_btn_sig = sig
+		buttons_layer.queue_redraw()
+
+
+## ボタンの見た目を決める数（待ち時間の帯・ゲージは細かく分けた段で。必殺技が使える時の光は8段）
+func button_signature(screen: Vector2) -> Array:
+	var held: bool = b._me_held()
+	var sig: Array = [screen, held, bool(b.downed), b.actions.busy(), b.gauge.is_ready(), int(clampf(b.gauge.ratio(), 0.0, 1.0) * 60.0), b.selected_character]
+	for id in b.actions.ids():
+		var key := str(id)
+		var cd_total := float(b.actions.def(key).get("cooldown_sec", 0.0)) if key != "normal" else float(b.role_value("attack_cooldown_sec"))
+		var cd_left: float = b.actions.cooldown_left(key)
+		sig.append_array([key, float(b.button_flash.get(key, 0.0)) > 0.0, int(ceilf(cd_left / maxf(cd_total, 0.01) * 40.0)) if cd_left > 0.0 else 0,
+			b.actions.combo_next(key)])
+	if b.gauge.is_ready() and not held and not b.actions.busy():
+		sig.append(int((0.55 + 0.45 * sin(float(Time.get_ticks_msec()) * 0.012)) * 8.0))  # 光の明るさ（8段）
+	return sig

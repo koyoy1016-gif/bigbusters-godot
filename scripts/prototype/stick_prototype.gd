@@ -609,6 +609,7 @@ func _build_ui() -> void:
 	overlay.draw.connect(_draw_overlay)
 	layer.add_child(overlay)
 	hp_hud.attach(overlay)  # 版102：体力の表示は自分の板に描き、見た目が変わった時だけ描き直す
+	hud.attach_buttons(overlay)  # 版118：ボタンも自分の板に描き、見た目が変わった時だけ描き直す
 
 
 ## 休止：ハイライト・報酬の間、部屋に残したまま、画面と操作だけ止める（全員さいせんのため）
@@ -714,6 +715,7 @@ func _process(delta: float) -> void:
 	apply_orientation(Vector2(get_window().size) if get_window() != null else Vector2(16, 9))
 	camera_update(delta)
 	hp_hud.update(delta)
+	hud.update_buttons()  # 版118
 	overlay.queue_redraw()
 
 
@@ -1674,9 +1676,6 @@ func _on_awake_started() -> void:
 	ai.on_awake(_round_t())
 
 
-## ボスが、いかりの状態か（戦いの最中で、いかりの時刻を過ぎている）
-func is_enraged() -> bool:
-	return round_active() and (server_now_ms() - round_start_ms) / 1000.0 >= float(config["enrage_after_sec"])
 
 
 ## 結果の画面に出す行（かかった時間、自分と、ほかの人が与えたダメージ）

@@ -105,7 +105,7 @@ func _initialize() -> void:
 			check(float(d[str(id0) + "_center_frac"][0]) > float(d["stick_zone_max_x_frac"]), "攻撃ボタンは、スティックの領域の外にある: " + str(id0))
 		var font := load(str(d["ui_font_path"])) as Font
 		check(font != null, "日本語のフォントが読める")
-		var text := str(d["hint"]) + act_labels + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["hint_portrait"]) + str(d["enrage_text"]) + str(d["result_time_label"]) + str(d["result_mine_label"]) + str(d["result_team_label"]) + str(d["result_rank_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
+		var text := str(d["hint"]) + act_labels + str(d["boss_hp_label"]) + str(d["win_text"]) + str(d["room_label"]) + str(d["room_members_prefix"]) + str(d["room_members_suffix"]) + str(d["room_connecting"]) + str(d["room_full"]) + str(d["room_reconnecting"]) + str(d["room_offline"]) + str(d["start_label"]) + str(d["restart_label"]) + str(d["lose_text"]) + str(d["down_text"]) + str(d["player_hp_label"]) + str(d["team_label"]) + str(d["room_you"]) + str(d["role_label"]) + str(d["hint_portrait"]) + str(d["result_time_label"]) + str(d["result_mine_label"]) + str(d["result_team_label"]) + str(d["result_rank_label"]) + str(d["build_label"]) + str(d["build_id"]) + _role_names(d) + "0123456789/：（）"
 		var missing := ""
 		for ch in text:
 			if ch != " " and font != null and not font.has_char(ch.unicode_at(0)):
@@ -299,7 +299,7 @@ func _initialize() -> void:
 		root.remove_child(s5)
 		s5.free()
 
-	# いかりと、結果の画面
+	# 結果の画面
 	var packed6 := load(SCENE) as PackedScene
 	if packed6 != null:
 		var s6: Node = packed6.instantiate()
@@ -309,9 +309,8 @@ func _initialize() -> void:
 		var now6 := [2000000.0]
 		s6.clock_ms = func() -> float: return now6[0]
 		s6.start_round()
-		check(not s6.is_enraged(), "始まった直後は、いかりではない")
-		now6[0] += float(s6.config["enrage_after_sec"]) * 1000.0 + 100.0
-		check(s6.is_enraged(), "いかりの時刻を過ぎると、いかり")
+		# 版118：時間で出る「いかり」（is_enraged・enrage_after_sec）は使っていないので消した。ボスの怒りは boss_rage（test_v69・test_v116）
+		now6[0] += 45000.0 + 100.0
 		s6.combat_update(0.016)
 		s6.player.position = Vector3(0.0, s6.ground_y, float(s6.config["boss_position"][1]) + 2.0)
 		s6.my_hits = 123.0

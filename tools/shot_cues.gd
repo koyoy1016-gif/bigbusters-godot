@@ -68,6 +68,7 @@ func _initialize() -> void:
 		if kind == "ult":
 			s._actions_update(dt)
 		s.camera_update(dt)
+		s.hud.update_buttons()  # 版118：ボタンは自分の板（見た目が変わった時だけ描く）
 		s.overlay.queue_redraw()
 		Engine.time_scale = 1.0
 		t += dt

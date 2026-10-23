@@ -35,7 +35,6 @@ for name, d in skills.items():
 lines += ["", "## ボス・全体", "",
           "- ボスの体力：%g" % boss_hp,
           "- ダメージの倍率（全体）：%g" % mult,
-          "- ボスがおこる時間：%g 秒" % float(cfg.get("enrage_after_sec", 0)),
           "- 戦いの制限時間などは `data/prototype_stick.json` を見る", ""]
 (root / "docs" / "balance-sheet.md").write_text("\n".join(lines))
 print("docs/balance-sheet.md を作りました")
